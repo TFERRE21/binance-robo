@@ -2,12 +2,13 @@
   "name": "robo-binance",
   "version": "1.0.0",
   "description": "Robo Binance EMA 9/21 + RSI + OCO",
-  "main": "robo.js",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "binance-api-node": "^0.13.6",
-    "dotenv": "^16.3.1"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2"
   }
 }

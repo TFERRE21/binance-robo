@@ -4,7 +4,7 @@
   "description": "Robo Binance EMA 9/21 + RSI + OCO",
   "main": "robo.js",
   "scripts": {
-    "start": "node robo.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "binance-api-node": "^0.13.6",

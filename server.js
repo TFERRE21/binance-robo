@@ -1,65 +1,54 @@
 require("dotenv").config();
+const Binance = require("binance-api-node").default;
 const express = require("express");
-const Binance = require("node-binance-api");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-const client = new Binance().options({
-  APIKEY: process.env.API_KEY,
-  APISECRET: process.env.API_SECRET,
-  useServerTime: true,
-  recvWindow: 60000,
+const client = Binance({
+  apiKey: process.env.API_KEY,
+  apiSecret: process.env.API_SECRET,
 });
 
-const TAKE_PROFIT = 0.05;
-const STOP_LOSS = 0.02;
-const INTERVALO_ANALISE = 120000; // 2 minutos
-const USAR_PERCENTUAL = 0.9;
-const LIMITE_MOEDAS = 35;
+const PORT = process.env.PORT || 3000;
+
+/* ================= CONFIG ================= */
+
+const INTERVALO = "5m";
+const TAKE_PROFIT = 0.05;     // 5%
+const STOP_LOSS = 0.02;       // 2%
+const USAR_PERCENTUAL = 0.9;  // 90% saldo
+const MAX_MOEDAS = 35;
+const INTERVALO_ANALISE = 120000;
 
 let operando = false;
 
-const EXCLUIR_TOP10 = [
-  "BTCUSDT",
-  "ETHUSDT",
-  "BNBUSDT",
-  "SOLUSDT",
-  "XRPUSDT",
-  "ADAUSDT",
-  "DOGEUSDT",
-  "TRXUSDT",
-  "LTCUSDT",
-  "BCHUSDT",
+/* ========= EXCLUIR TOP 10 ========= */
+
+const TOP_EXCLUIDAS = [
+  "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT",
+  "XRPUSDT","ADAUSDT","DOGEUSDT","TRXUSDT",
+  "TONUSDT","AVAXUSDT"
 ];
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+/* ================= INDICADORES ================= */
 
-function calcularEMA(periodo, valores) {
-  if (!valores || valores.length < periodo) return null;
-
+function calcularEMA(periodo, closes) {
   const k = 2 / (periodo + 1);
-  let ema = valores[0];
-
-  for (let i = 1; i < valores.length; i++) {
-    ema = valores[i] * k + ema * (1 - k);
+  let ema = closes[0];
+  for (let i = 1; i < closes.length; i++) {
+    ema = closes[i] * k + ema * (1 - k);
   }
-
   return ema;
 }
 
-function calcularRSI(periodo, closes) {
-  if (!closes || closes.length < periodo + 1) return null;
-
+function calcularRSI(closes, periodo = 14) {
   let ganhos = 0;
   let perdas = 0;
 
   for (let i = 1; i <= periodo; i++) {
-    const diferenca = closes[i] - closes[i - 1];
-    if (diferenca >= 0) ganhos += diferenca;
-    else perdas -= diferenca;
+    const diff = closes[i] - closes[i - 1];
+    if (diff >= 0) ganhos += diff;
+    else perdas += Math.abs(diff);
   }
 
   if (perdas === 0) return 100;
@@ -68,134 +57,146 @@ function calcularRSI(periodo, closes) {
   return 100 - 100 / (1 + rs);
 }
 
+/* ================= SALDO ================= */
+
 async function obterSaldoUSDT() {
-  const balance = await client.balance();
-  return parseFloat(balance.USDT?.available || 0);
+  const conta = await client.accountInfo();
+  const usdt = conta.balances.find(b => b.asset === "USDT");
+  return usdt ? parseFloat(usdt.free) : 0;
 }
 
-async function obterMoedas() {
-  const info = await client.exchangeInfo();
-  return info.symbols
-    .filter(
-      (s) =>
-        s.status === "TRADING" &&
-        s.quoteAsset === "USDT" &&
-        !EXCLUIR_TOP10.includes(s.symbol)
-    )
-    .slice(0, LIMITE_MOEDAS);
-}
+/* ================= COMPRA + OCO ================= */
 
 async function executarCompra(symbol) {
   try {
-    const saldo = await obterSaldoUSDT();
-    const valorEntrada = saldo * USAR_PERCENTUAL;
+    symbol = String(symbol).trim().replace(/[^A-Z0-9]/g, "");
+
+    const saldoUSDT = await obterSaldoUSDT();
+    const valorEntrada = saldoUSDT * USAR_PERCENTUAL;
+
+    if (valorEntrada <= 10) {
+      console.log("❌ Saldo insuficiente");
+      return;
+    }
 
     const ticker = await client.prices(symbol);
-    const preco = parseFloat(ticker[symbol]);
+    const precoEntrada = parseFloat(ticker[symbol]);
 
     const exchangeInfo = await client.exchangeInfo();
-    const symbolInfo = exchangeInfo.symbols.find(
-      (s) => s.symbol === symbol
-    );
+    const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
 
-    const lotFilter = symbolInfo.filters.find(
-      (f) => f.filterType === "LOT_SIZE"
-    );
+    const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
+    const minNotionalFilter = symbolInfo.filters.find(f => f.filterType === "MIN_NOTIONAL");
 
     const stepSize = parseFloat(lotFilter.stepSize);
     const minQty = parseFloat(lotFilter.minQty);
+    const minNotional = parseFloat(minNotionalFilter.minNotional);
 
-    let quantidade = valorEntrada / preco;
-
-    quantidade =
-      Math.floor(quantidade / stepSize) * stepSize;
+    let quantidade = valorEntrada / precoEntrada;
+    quantidade = Math.floor(quantidade / stepSize) * stepSize;
 
     if (quantidade < minQty) {
-      console.log("❌ Quantidade menor que mínimo permitido");
+      console.log("❌ Quantidade menor que minQty");
+      return;
+    }
+
+    if (quantidade * precoEntrada < minNotional) {
+      console.log("❌ Valor menor que minNotional");
       return;
     }
 
     console.log(`🚀 Comprando ${symbol}...`);
 
-    await client.marketBuy(symbol, quantidade);
+    await client.order({
+      symbol,
+      side: "BUY",
+      type: "MARKET",
+      quantity: quantidade
+    });
 
-    const precoTP = (preco * (1 + TAKE_PROFIT)).toFixed(6);
-    const precoSL = (preco * (1 - STOP_LOSS)).toFixed(6);
+    const precoTP = (precoEntrada * (1 + TAKE_PROFIT)).toFixed(5);
+    const precoSL = (precoEntrada * (1 - STOP_LOSS)).toFixed(5);
+    const precoSLTrigger = (precoEntrada * (1 - STOP_LOSS * 0.9)).toFixed(5);
 
     await client.orderOco({
       symbol,
       side: "SELL",
       quantity: quantidade,
       price: precoTP,
-      stopPrice: precoSL,
+      stopPrice: precoSLTrigger,
       stopLimitPrice: precoSL,
-      stopLimitTimeInForce: "GTC",
+      stopLimitTimeInForce: "GTC"
     });
 
-    console.log("✅ OCO enviado (TP + SL)");
+    console.log("📦 OCO enviado (TP + SL)");
 
   } catch (err) {
     console.log("❌ Erro na compra:", err.message);
+  } finally {
+    operando = false;
   }
 }
+
+/* ================= ROBÔ ================= */
 
 async function iniciarRobo() {
   while (true) {
     try {
-      if (!operando) {
-        const moedas = await obterMoedas();
-        const saldo = await obterSaldoUSDT();
-        console.log(`💰 Saldo USDT: ${saldo.toFixed(2)}`);
+      if (operando) {
+        await new Promise(r => setTimeout(r, INTERVALO_ANALISE));
+        continue;
+      }
 
-        for (let par of moedas) {
-          const candles = await client.candles({
-            symbol: par.symbol,
-            interval: "5m",
-            limit: 30,
-          });
+      const saldo = await obterSaldoUSDT();
+      console.log("💰 Saldo USDT:", saldo);
 
-          if (!candles || candles.length < 21) continue;
+      const exchangeInfo = await client.exchangeInfo();
+      let pares = exchangeInfo.symbols
+        .filter(s => s.quoteAsset === "USDT" && s.status === "TRADING")
+        .map(s => s.symbol)
+        .filter(s => !TOP_EXCLUIDAS.includes(s))
+        .slice(0, MAX_MOEDAS);
 
-          const closes = candles.map((c) => parseFloat(c.close));
+      for (let symbol of pares) {
+        const candles = await client.candles({
+          symbol,
+          interval: INTERVALO,
+          limit: 50
+        });
 
-          const ema9 = calcularEMA(9, closes);
-          const ema21 = calcularEMA(21, closes);
-          const rsi = calcularRSI(14, closes);
+        const closes = candles.map(c => parseFloat(c.close));
 
-          if (!ema9 || !ema21 || !rsi) continue;
+        if (closes.length < 21) continue;
 
-          console.log(
-            `${par.symbol} | EMA9:${ema9.toFixed(
-              4
-            )} EMA21:${ema21.toFixed(4)} RSI:${rsi.toFixed(2)}`
-          );
+        const ema9 = calcularEMA(9, closes.slice(-9));
+        const ema21 = calcularEMA(21, closes.slice(-21));
+        const rsi = calcularRSI(closes.slice(-15));
 
-          if (
-            ema9 > ema21 &&
-            rsi > 45 &&
-            rsi < 65
-          ) {
-            operando = true;
-            await executarCompra(par.symbol);
-            operando = false;
-            break;
-          }
+        console.log(`${symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${rsi.toFixed(2)}`);
+
+        if (ema9 > ema21 && rsi > 40 && rsi < 60) {
+          operando = true;
+          await executarCompra(symbol);
+          break;
         }
       }
+
     } catch (err) {
       console.log("Erro geral:", err.message);
     }
 
-    await sleep(INTERVALO_ANALISE);
+    await new Promise(r => setTimeout(r, INTERVALO_ANALISE));
   }
 }
 
+/* ================= SERVIDOR ================= */
+
 app.get("/", (req, res) => {
-  res.send("🚀 ROBO BINANCE ONLINE");
+  res.send("🚀 ROBÔ BINANCE ONLINE");
 });
 
 app.listen(PORT, () => {
-  console.log("🤖 ROBÔ EMA 9/21 + RSI + OCO INICIADO");
+  console.log("🔥 ROBÔ EMA 9/21 + RSI + OCO INICIADO");
   console.log("🌐 Rodando na porta:", PORT);
   iniciarRobo();
 });

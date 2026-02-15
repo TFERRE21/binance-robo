@@ -1,198 +1,230 @@
-require("dotenv").config()
-const Binance = require("node-binance-api")
+require("dotenv").config();
+const Binance = require("binance-api-node").default;
+const express = require("express");
 
-const client = new Binance().options({
-    APIKEY: process.env.API_KEY,
-    APISECRET: process.env.API_SECRET,
-    useServerTime: true,
-    recvWindow: 60000
-})
+const app = express();
 
-const INTERVAL = "5m"
-const EXCLUIR_TOP = [
-    "BTCUSDT",
-    "ETHUSDT",
-    "BNBUSDT",
-    "SOLUSDT",
-    "XRPUSDT",
-    "ADAUSDT",
-    "DOGEUSDT",
-    "TRXUSDT",
-    "TONUSDT",
-    "LINKUSDT"
-]
+/* ========= BINANCE COM ENV CORRETO ========= */
 
-let operando = false
-let symbols = []
+const client = Binance({
+  apiKey: process.env.API_KEY,
+  apiSecret: process.env.API_SECRET,
+  recvWindow: 60000
+});
 
-// =======================
-// PEGAR MOEDAS
-// =======================
+const PORT = process.env.PORT || 3000;
 
-async function carregarMoedas() {
+/* ================= CONFIG ================= */
 
-    const info = await client.exchangeInfo()
+const INTERVALO = "5m";
+const SCAN_INTERVAL = 90000;
+const MAX_MOEDAS = 40;
 
-    symbols = info.symbols
+const USAR_PERCENTUAL_SALDO = true;
+const PERCENTUAL_ENTRADA = 0.90;
+
+const TAKE_PROFIT = 0.05; // 5%
+const STOP_LOSS = 0.03;   // 3%
+
+let operando = false;
+
+/* ========= EXCLUIR TOP 10 ========= */
+
+const TOP_10_EXCLUIR = [
+  "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
+  "ADAUSDT","DOGEUSDT","AVAXUSDT","LINKUSDT","TONUSDT"
+];
+
+/* ================= AUX ================= */
+
+function sleep(ms){
+  return new Promise(r => setTimeout(r, ms));
+}
+
+function calcularEMA(values, period){
+  if(values.length < period) return null;
+
+  const k = 2 / (period + 1);
+  let ema = values[0];
+
+  for(let i = 1; i < values.length; i++){
+    ema = values[i] * k + ema * (1 - k);
+  }
+
+  return ema;
+}
+
+function calcularRSI(values, period = 14){
+  if(values.length < period + 1) return null;
+
+  let ganhos = 0;
+  let perdas = 0;
+
+  for(let i = values.length - period; i < values.length - 1; i++){
+    const diff = values[i + 1] - values[i];
+    if(diff >= 0) ganhos += diff;
+    else perdas -= diff;
+  }
+
+  if(perdas === 0) return 100;
+
+  const rs = ganhos / perdas;
+  return 100 - (100 / (1 + rs));
+}
+
+/* ================= COMPRA COM OCO ================= */
+
+async function executarCompra(symbol){
+  try{
+    if(operando) return;
+    operando = true;
+
+    const account = await client.accountInfo();
+    const saldoUSDT = parseFloat(
+      account.balances.find(b => b.asset === "USDT")?.free || 0
+    );
+
+    const valorCompra = saldoUSDT * PERCENTUAL_ENTRADA;
+
+    if(valorCompra < 10){
+      console.log("Saldo insuficiente.");
+      operando = false;
+      return;
+    }
+
+    const precoAtual = parseFloat(
+      (await client.prices({ symbol }))[symbol]
+    );
+
+    const exchangeInfo = await client.exchangeInfo();
+    const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
+
+    const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
+    const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
+
+    const stepSize = parseFloat(lotFilter.stepSize);
+    const tickSize = parseFloat(priceFilter.tickSize);
+
+    const ajustarQuantidade = (qty) => {
+      const precision = Math.round(-Math.log10(stepSize));
+      return (Math.floor(qty / stepSize) * stepSize).toFixed(precision);
+    };
+
+    const ajustarPreco = (price) => {
+      const precision = Math.round(-Math.log10(tickSize));
+      return (Math.floor(price / tickSize) * tickSize).toFixed(precision);
+    };
+
+    const quantidade = ajustarQuantidade(valorCompra / precoAtual);
+
+    console.log(`🟢 COMPRANDO ${symbol}`);
+
+    const ordem = await client.order({
+      symbol,
+      side: "BUY",
+      type: "MARKET",
+      quantity: quantidade
+    });
+
+    const precoEntrada = parseFloat(ordem.fills[0].price);
+
+    const precoTP = ajustarPreco(precoEntrada * (1 + TAKE_PROFIT));
+    const precoSL = ajustarPreco(precoEntrada * (1 - STOP_LOSS));
+    const precoSLTrigger = ajustarPreco(precoEntrada * (1 - STOP_LOSS * 0.95));
+
+    await sleep(2000);
+
+    await client.orderOco({
+      symbol,
+      side: "SELL",
+      quantity: quantidade,
+      price: precoTP,
+      stopPrice: precoSLTrigger,
+      stopLimitPrice: precoSL,
+      stopLimitTimeInForce: "GTC"
+    });
+
+    console.log("✅ OCO enviado com sucesso");
+
+  }catch(err){
+    console.log("Erro na compra:", err.message);
+  }finally{
+    operando = false;
+  }
+}
+
+/* ================= ROBÔ ================= */
+
+async function iniciarRobo(){
+  while(true){
+    try{
+      console.log("🔎 Escaneando mercado...");
+
+      const exchangeInfo = await client.exchangeInfo();
+
+      const pares = exchangeInfo.symbols
         .filter(s =>
-            s.status === "TRADING" &&
-            s.quoteAsset === "USDT" &&
-            !EXCLUIR_TOP.includes(s.symbol)
+          s.status === "TRADING" &&
+          s.quoteAsset === "USDT" &&
+          !TOP_10_EXCLUIR.includes(s.symbol)
         )
-        .map(s => s.symbol)
+        .slice(0, MAX_MOEDAS);
 
-    console.log("📊 Total de moedas válidas:", symbols.length)
-}
+      console.log(`📊 Analisando ${pares.length} moedas`);
 
-// =======================
-// EMA CORRETA
-// =======================
+      for(const par of pares){
 
-function calcularEMA(periodo, valores) {
+        const candles = await client.candles({
+          symbol: par.symbol,
+          interval: INTERVALO,
+          limit: 100
+        });
 
-    if (!valores || valores.length < periodo) return NaN
+        if(!candles || candles.length < 50) continue;
 
-    const k = 2 / (periodo + 1)
-    let ema = valores[0]
+        const closes = candles.map(c => parseFloat(c.close));
+        if(closes.some(isNaN)) continue;
 
-    for (let i = 1; i < valores.length; i++) {
-        ema = valores[i] * k + ema * (1 - k)
-    }
+        const ema9 = calcularEMA(closes, 9);
+        const ema21 = calcularEMA(closes, 21);
+        const rsi = calcularRSI(closes, 14);
+        const precoAtual = closes[closes.length - 1];
 
-    return ema
-}
+        if(!ema9 || !ema21 || !rsi) continue;
 
-// =======================
-// RSI CORRETO
-// =======================
+        console.log(
+          `${par.symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${rsi.toFixed(2)}`
+        );
 
-function calcularRSI(periodo, valores) {
+        const entrada =
+          ema9 > ema21 &&
+          rsi > 40 &&
+          rsi < 60 &&
+          precoAtual > ema9;
 
-    if (!valores || valores.length <= periodo) return NaN
-
-    let ganhos = 0
-    let perdas = 0
-
-    for (let i = 1; i <= periodo; i++) {
-        const diff = valores[i] - valores[i - 1]
-        if (diff >= 0) ganhos += diff
-        else perdas -= diff
-    }
-
-    if (perdas === 0) return 100
-
-    const rs = ganhos / perdas
-    return 100 - (100 / (1 + rs))
-}
-
-// =======================
-// SALDO
-// =======================
-
-async function getSaldo() {
-    const saldo = await client.balance()
-    return parseFloat(saldo.USDT.available)
-}
-
-// =======================
-// ANALISAR MOEDA
-// =======================
-
-async function analisar(symbol) {
-
-    if (operando) return
-
-    try {
-
-        const candles = await client.candlesticks(symbol, INTERVAL)
-
-        if (!candles || candles.length < 50) return
-
-        const closes = candles.map(c => parseFloat(c[4]))
-
-        if (closes.some(isNaN)) return
-
-        const ema9 = calcularEMA(9, closes.slice(-30))
-        const ema21 = calcularEMA(21, closes.slice(-30))
-        const rsi = calcularRSI(14, closes.slice(-15))
-
-        if (isNaN(ema9) || isNaN(ema21) || isNaN(rsi)) return
-
-        console.log(`${symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${rsi.toFixed(2)}`)
-
-        // ENTRADA MAIS SEGURA
-        if (ema9 > ema21 && rsi > 40 && rsi < 60) {
-
-            console.log(`🚀 Sinal detectado em ${symbol}`)
-            await comprar(symbol)
+        if(entrada){
+          console.log(`🚀 SINAL EM ${par.symbol}`);
+          await executarCompra(par.symbol);
+          break;
         }
+      }
 
-    } catch (err) {
-        console.log("Erro ao analisar", symbol)
+    }catch(err){
+      console.log("Erro geral:", err.message);
     }
+
+    await sleep(SCAN_INTERVAL);
+  }
 }
 
-// =======================
-// COMPRA (SEM ERRO DE PARAMETROS)
-// =======================
+/* ================= SERVIDOR ================= */
 
-async function comprar(symbol) {
+app.get("/", (req, res)=>{
+  res.send("🚀 ROBÔ BINANCE ONLINE");
+});
 
-    try {
-
-        operando = true
-
-        const saldo = await getSaldo()
-
-        const usar = saldo * 0.9
-
-        const ticker = await client.prices(symbol)
-        const preco = parseFloat(ticker[symbol])
-
-        const quantidade = (usar / preco).toFixed(3)
-
-        if (quantidade <= 0) {
-            operando = false
-            return
-        }
-
-        await client.marketBuy(symbol, quantidade)
-
-        console.log("✅ Compra executada:", symbol)
-
-        operando = false
-
-    } catch (err) {
-
-        console.log("❌ Erro na compra:", err.body || err.message)
-        operando = false
-    }
-}
-
-// =======================
-// LOOP PRINCIPAL
-// =======================
-
-async function iniciar() {
-
-    await carregarMoedas()
-
-    setInterval(async () => {
-
-        const saldo = await getSaldo()
-        console.log("💰 Saldo atual:", saldo)
-
-        const lista = symbols.slice(0, 30)
-
-        console.log("🔎 Analisando", lista.length, "moedas")
-
-        for (let symbol of lista) {
-            await analisar(symbol)
-        }
-
-    }, 120000)
-}
-
-iniciar()
-
-console.log("🤖 ROBÔ EMA 9/21 + RSI INICIADO")
+app.listen(PORT, ()=>{
+  console.log("🔥 ROBÔ 5% + OCO ATIVO");
+  console.log("🌐 Porta:", PORT);
+  iniciarRobo();
+});

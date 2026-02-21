@@ -16,11 +16,11 @@ const PORT = process.env.PORT || 3000;
 
 const INTERVALO = "5m";
 const SCAN_INTERVAL = 90000;
-const MAX_MOEDAS = 40;
+const MAX_MOEDAS = 30;
 
 const PERCENTUAL_ENTRADA = 0.90;
-const TAKE_PROFIT = 0.05;  // 5%
-const STOP_LOSS = 0.025;   // 2.5%
+const TAKE_PROFIT = 0.035;  // 3.5%
+const STOP_LOSS = 0.025;    // 2.5%
 
 let operando = false;
 
@@ -51,12 +51,15 @@ function calcularEMA(values, period){
 function calcularRSI(values, period = 14){
   let ganhos = 0;
   let perdas = 0;
+
   for(let i = values.length - period; i < values.length - 1; i++){
     const diff = values[i + 1] - values[i];
     if(diff >= 0) ganhos += diff;
     else perdas -= diff;
   }
+
   if(perdas === 0) return 100;
+
   const rs = ganhos / perdas;
   return 100 - (100 / (1 + rs));
 }
@@ -167,18 +170,19 @@ async function iniciarRobo(){
 
     try{
 
-      console.log("🔎 Escaneando mercado...");
+      console.log("🔎 Buscando TOP 30 por volume...");
 
-      const exchangeInfo = await client.exchangeInfo();
+      const tickers = await client.dailyStats();
 
-      const pares = exchangeInfo.symbols
-        .filter(s =>
-          s.status === "TRADING" &&
-          s.quoteAsset === "USDT" &&
-          !TOP10_EXCLUIR.includes(s.symbol) &&
-          !STABLES.some(st => s.baseAsset.includes(st))
+      const pares = tickers
+        .filter(t =>
+          t.symbol.endsWith("USDT") &&
+          !TOP10_EXCLUIR.includes(t.symbol) &&
+          !STABLES.some(st => t.symbol.includes(st))
         )
-        .slice(0, MAX_MOEDAS);
+        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .slice(0, MAX_MOEDAS)
+        .map(t => ({ symbol: t.symbol }));
 
       console.log(`📊 Analisando ${pares.length} moedas`);
 
@@ -237,10 +241,10 @@ async function iniciarRobo(){
 /* ================= SERVIDOR ================= */
 
 app.get("/", (req,res)=>{
-  res.send("ROBÔ ONLINE");
+  res.send("ROBÔ TOP 30 + EMA + RSI 3.5% ONLINE");
 });
 
 app.listen(PORT, ()=>{
-  console.log("🔥 ROBÔ 5% + OCO DEFINITIVO ATIVO");
+  console.log("🔥 ROBÔ TOP 30 ATIVO");
   iniciarRobo();
 });

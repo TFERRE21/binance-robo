@@ -1,4 +1,4 @@
-require("dotenv").config();
+    require("dotenv").config();
 const Binance = require("binance-api-node").default;
 const express = require("express");
 
@@ -16,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 
 const INTERVALO = "5m";
 const SCAN_INTERVAL = 90000;
-const MAX_MOEDAS = 30;
+const MAX_MOEDAS = 40;
 
 const PERCENTUAL_ENTRADA = 0.90;
 const TAKE_PROFIT = 0.035;  // 3.5%
@@ -25,11 +25,6 @@ const STOP_LOSS = 0.025;    // 2.5%
 let operando = false;
 
 /* ================= EXCLUSÕES ================= */
-
-const TOP10_EXCLUIR = [
-  "BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT",
-  "ADAUSDT","DOGEUSDT","AVAXUSDT","DOTUSDT","TRXUSDT"
-];
 
 const STABLES = ["USDC","BUSD","FDUSD","TUSD","DAI"];
 
@@ -64,101 +59,26 @@ function calcularRSI(values, period = 14){
   return 100 - (100 / (1 + rs));
 }
 
-/* ================= COMPRA + OCO ================= */
+/* ================= FILTRO 90 DIAS ================= */
 
-async function executarCompra(symbol){
+async function positivo90Dias(symbol){
+
   try{
-    if(operando) return;
-    operando = true;
-
-    const account = await client.accountInfo();
-    const saldoUSDT = parseFloat(
-      account.balances.find(b => b.asset === "USDT")?.free || 0
-    );
-
-    const valorCompra = saldoUSDT * PERCENTUAL_ENTRADA;
-
-    if(valorCompra < 10){
-      console.log("Saldo insuficiente.");
-      operando = false;
-      return;
-    }
-
-    const precoAtual = parseFloat(
-      (await client.prices({ symbol }))[symbol]
-    );
-
-    const exchangeInfo = await client.exchangeInfo();
-    const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
-
-    const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
-    const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
-
-    const stepSize = parseFloat(lotFilter.stepSize);
-    const tickSize = parseFloat(priceFilter.tickSize);
-
-    const precisionQty = Math.round(-Math.log10(stepSize));
-    const precisionPrice = Math.round(-Math.log10(tickSize));
-
-    const ajustarQuantidade = (qty) =>
-      (Math.floor(qty / stepSize) * stepSize).toFixed(precisionQty);
-
-    const ajustarPreco = (price) =>
-      (Math.floor(price / tickSize) * tickSize).toFixed(precisionPrice);
-
-    const quantidade = ajustarQuantidade(valorCompra / precoAtual);
-
-    console.log(`🟢 COMPRANDO ${symbol}`);
-
-    const ordem = await client.order({
+    const candles = await client.candles({
       symbol,
-      side: "BUY",
-      type: "MARKET",
-      quantity: quantidade
+      interval: "1d",
+      limit: 90
     });
 
-    await sleep(2000);
+    if(!candles || candles.length < 90) return false;
 
-    const accountAtualizado = await client.accountInfo();
-    const assetBase = symbol.replace("USDT", "");
+    const precoAntigo = parseFloat(candles[0].close);
+    const precoAtual = parseFloat(candles[candles.length - 1].close);
 
-    const saldoMoeda = parseFloat(
-      accountAtualizado.balances.find(b => b.asset === assetBase)?.free || 0
-    );
+    return precoAtual > precoAntigo;
 
-    const quantidadeReal = ajustarQuantidade(saldoMoeda);
-
-    if(quantidadeReal <= 0){
-      console.log("Erro: quantidade real inválida.");
-      operando = false;
-      return;
-    }
-
-    const precoEntrada = parseFloat(ordem.fills[0].price);
-
-    const precoTP = ajustarPreco(precoEntrada * (1 + TAKE_PROFIT));
-    const precoSL = ajustarPreco(precoEntrada * (1 - STOP_LOSS));
-    const precoSLTrigger = ajustarPreco(precoEntrada * (1 - STOP_LOSS * 0.98));
-
-    console.log(`🎯 TP: ${precoTP}`);
-    console.log(`🛑 SL: ${precoSL}`);
-
-    await client.orderOco({
-      symbol,
-      side: "SELL",
-      quantity: quantidadeReal,
-      price: precoTP,
-      stopPrice: precoSLTrigger,
-      stopLimitPrice: precoSL,
-      stopLimitTimeInForce: "GTC"
-    });
-
-    console.log("✅ OCO enviado corretamente!");
-
-  }catch(err){
-    console.log("❌ Erro na compra/OCO:", err.message);
-  }finally{
-    operando = false;
+  }catch{
+    return false;
   }
 }
 
@@ -170,23 +90,35 @@ async function iniciarRobo(){
 
     try{
 
-      console.log("🔎 Buscando TOP 30 por volume...");
+      console.log("🔎 Buscando TOP 40 por volume...");
 
       const tickers = await client.dailyStats();
 
-      const pares = tickers
+      let pares = tickers
         .filter(t =>
           t.symbol.endsWith("USDT") &&
-          !TOP10_EXCLUIR.includes(t.symbol) &&
-          !STABLES.some(st => t.symbol.includes(st))
+          !STABLES.some(st => t.symbol.includes(st)) &&
+          parseFloat(t.priceChangePercent) > 0
         )
         .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
-        .slice(0, MAX_MOEDAS)
-        .map(t => ({ symbol: t.symbol }));
+        .slice(0, 80); // pega mais pra aplicar filtro 90 dias
 
-      console.log(`📊 Analisando ${pares.length} moedas`);
+      const filtrados = [];
 
-      for(const par of pares){
+      for(const t of pares){
+
+        const positivo90 = await positivo90Dias(t.symbol);
+
+        if(positivo90){
+          filtrados.push({ symbol: t.symbol });
+        }
+
+        if(filtrados.length >= MAX_MOEDAS) break;
+      }
+
+      console.log(`📊 Analisando ${filtrados.length} moedas`);
+
+      for(const par of filtrados){
 
         if(operando) break;
 
@@ -238,13 +170,92 @@ async function iniciarRobo(){
   }
 }
 
+/* ================= COMPRA ================= */
+
+async function executarCompra(symbol){
+
+  try{
+    if(operando) return;
+    operando = true;
+
+    const account = await client.accountInfo();
+    const saldoUSDT = parseFloat(
+      account.balances.find(b => b.asset === "USDT")?.free || 0
+    );
+
+    const valorCompra = saldoUSDT * PERCENTUAL_ENTRADA;
+
+    if(valorCompra < 10){
+      console.log("Saldo insuficiente.");
+      operando = false;
+      return;
+    }
+
+    const precoAtual = parseFloat(
+      (await client.prices({ symbol }))[symbol]
+    );
+
+    const exchangeInfo = await client.exchangeInfo();
+    const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
+
+    const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
+    const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
+
+    const stepSize = parseFloat(lotFilter.stepSize);
+    const tickSize = parseFloat(priceFilter.tickSize);
+
+    const precisionQty = Math.round(-Math.log10(stepSize));
+    const precisionPrice = Math.round(-Math.log10(tickSize));
+
+    const ajustarQuantidade = (qty) =>
+      (Math.floor(qty / stepSize) * stepSize).toFixed(precisionQty);
+
+    const ajustarPreco = (price) =>
+      (Math.floor(price / tickSize) * tickSize).toFixed(precisionPrice);
+
+    const quantidade = ajustarQuantidade(valorCompra / precoAtual);
+
+    const ordem = await client.order({
+      symbol,
+      side: "BUY",
+      type: "MARKET",
+      quantity: quantidade
+    });
+
+    await sleep(2000);
+
+    const precoEntrada = parseFloat(ordem.fills[0].price);
+
+    const precoTP = ajustarPreco(precoEntrada * (1 + TAKE_PROFIT));
+    const precoSL = ajustarPreco(precoEntrada * (1 - STOP_LOSS));
+    const precoSLTrigger = ajustarPreco(precoEntrada * (1 - STOP_LOSS * 0.98));
+
+    await client.orderOco({
+      symbol,
+      side: "SELL",
+      quantity: quantidade,
+      price: precoTP,
+      stopPrice: precoSLTrigger,
+      stopLimitPrice: precoSL,
+      stopLimitTimeInForce: "GTC"
+    });
+
+    console.log("✅ OCO enviado!");
+
+  }catch(err){
+    console.log("Erro compra:", err.message);
+  }finally{
+    operando = false;
+  }
+}
+
 /* ================= SERVIDOR ================= */
 
 app.get("/", (req,res)=>{
-  res.send("ROBÔ TOP 30 + EMA + RSI 3.5% ONLINE");
+  res.send("ROBÔ TOP 40 AVANÇADO ONLINE");
 });
 
 app.listen(PORT, ()=>{
-  console.log("🔥 ROBÔ TOP 30 ATIVO");
+  console.log("🔥 ROBÔ TOP 40 ATIVO");
   iniciarRobo();
 });

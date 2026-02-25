@@ -19,8 +19,8 @@ const SCAN_INTERVAL = 90000;
 const MAX_MOEDAS = 40;
 
 const PERCENTUAL_ENTRADA = 0.90;
-const TAKE_PROFIT = 0.035;  // 3.5%
-const STOP_LOSS = 0.025;    // 2.5%
+const TAKE_PROFIT = 0.035;
+const STOP_LOSS = 0.025;
 
 let operando = false;
 
@@ -92,13 +92,23 @@ async function executarCompra(symbol){
     const exchangeInfo = await client.exchangeInfo();
     const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
 
+    if(!symbolInfo){
+      console.log("Par não encontrado.");
+      operando = false;
+      return;
+    }
+
     const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
     const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
     const minNotionalFilter = symbolInfo.filters.find(f => f.filterType === "MIN_NOTIONAL");
 
     const stepSize = parseFloat(lotFilter.stepSize);
     const tickSize = parseFloat(priceFilter.tickSize);
-    const minNotional = parseFloat(minNotionalFilter.minNotional);
+
+    let minNotional = 10;
+    if (minNotionalFilter && minNotionalFilter.minNotional) {
+      minNotional = parseFloat(minNotionalFilter.minNotional);
+    }
 
     let quantidade = ajustarStep(valorCompra / precoAtual, stepSize);
 
@@ -142,7 +152,6 @@ async function executarCompra(symbol){
     console.log(`🎯 TP: ${precoTP}`);
     console.log(`🛑 STOP: ${precoStop}`);
 
-    // TAKE PROFIT
     await client.order({
       symbol,
       side: "SELL",
@@ -152,7 +161,6 @@ async function executarCompra(symbol){
       timeInForce: "GTC"
     });
 
-    // STOP LOSS
     await client.order({
       symbol,
       side: "SELL",
@@ -196,7 +204,6 @@ async function iniciarRobo(){
           const base = info.baseAsset;
 
           if(STABLES.includes(base)) return false;
-
           if(LEVERAGED.some(l => base.includes(l))) return false;
 
           return true;
@@ -256,7 +263,7 @@ async function iniciarRobo(){
 /* ================= SERVIDOR ================= */
 
 app.get("/", (req,res)=>{
-  res.send("ROBÔ TOP 40 FILTRADO ONLINE");
+  res.send("ROBÔ TOP 40 FINAL ONLINE");
 });
 
 app.listen(PORT, ()=>{

@@ -24,9 +24,10 @@ const STOP_LOSS = 0.025;    // 2.5%
 
 let operando = false;
 
-/* ================= EXCLUSÕES ================= */
+/* ================= FILTROS ================= */
 
 const STABLES = ["USDC","BUSD","FDUSD","TUSD","DAI"];
+const LEVERAGED = ["UP","DOWN","BULL","BEAR"];
 
 /* ================= AUX ================= */
 
@@ -59,7 +60,11 @@ function calcularRSI(values, period = 14){
   return 100 - (100 / (1 + rs));
 }
 
-/* ================= COMPRA + OCO ================= */
+function ajustarStep(valor, step){
+  return Math.floor(valor / step) * step;
+}
+
+/* ================= COMPRA ================= */
 
 async function executarCompra(symbol){
 
@@ -89,55 +94,79 @@ async function executarCompra(symbol){
 
     const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
     const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
+    const minNotionalFilter = symbolInfo.filters.find(f => f.filterType === "MIN_NOTIONAL");
 
     const stepSize = parseFloat(lotFilter.stepSize);
     const tickSize = parseFloat(priceFilter.tickSize);
+    const minNotional = parseFloat(minNotionalFilter.minNotional);
 
-    const precisionQty = Math.round(-Math.log10(stepSize));
-    const precisionPrice = Math.round(-Math.log10(tickSize));
+    let quantidade = ajustarStep(valorCompra / precoAtual, stepSize);
 
-    const ajustarQuantidade = (qty) =>
-      (Math.floor(qty / stepSize) * stepSize).toFixed(precisionQty);
-
-    const ajustarPreco = (price) =>
-      (Math.floor(price / tickSize) * tickSize).toFixed(precisionPrice);
-
-    const quantidade = ajustarQuantidade(valorCompra / precoAtual);
+    if(quantidade * precoAtual < minNotional){
+      console.log("Valor abaixo do MIN_NOTIONAL");
+      operando = false;
+      return;
+    }
 
     console.log(`🟢 COMPRANDO ${symbol}`);
 
-    const ordem = await client.order({
+    const ordemCompra = await client.order({
       symbol,
       side: "BUY",
       type: "MARKET",
       quantity: quantidade
     });
 
-    await sleep(2000);
+    await sleep(3000);
 
-    const precoEntrada = parseFloat(ordem.fills[0].price);
+    const assetBase = symbol.replace("USDT","");
+    const accountAtualizado = await client.accountInfo();
+    const saldoMoeda = parseFloat(
+      accountAtualizado.balances.find(b => b.asset === assetBase)?.free || 0
+    );
 
-    const precoTP = ajustarPreco(precoEntrada * (1 + TAKE_PROFIT));
-    const precoSL = ajustarPreco(precoEntrada * (1 - STOP_LOSS));
-    const precoSLTrigger = ajustarPreco(precoEntrada * (1 - STOP_LOSS * 0.98));
+    quantidade = ajustarStep(saldoMoeda, stepSize);
+
+    if(quantidade <= 0){
+      console.log("Quantidade inválida após compra.");
+      operando = false;
+      return;
+    }
+
+    const precoEntrada = parseFloat(ordemCompra.fills[0].price);
+
+    const precoTP = ajustarStep(precoEntrada * (1 + TAKE_PROFIT), tickSize);
+    const precoStop = ajustarStep(precoEntrada * (1 - STOP_LOSS), tickSize);
+    const precoStopLimit = ajustarStep(precoStop * 0.999, tickSize);
 
     console.log(`🎯 TP: ${precoTP}`);
-    console.log(`🛑 SL: ${precoSL}`);
+    console.log(`🛑 STOP: ${precoStop}`);
 
-    await client.orderOco({
+    // TAKE PROFIT
+    await client.order({
       symbol,
       side: "SELL",
+      type: "LIMIT",
       quantity: quantidade,
-      price: precoTP,
-      stopPrice: precoSLTrigger,
-      stopLimitPrice: precoSL,
-      stopLimitTimeInForce: "GTC"
+      price: precoTP.toFixed(8),
+      timeInForce: "GTC"
     });
 
-    console.log("✅ OCO enviado!");
+    // STOP LOSS
+    await client.order({
+      symbol,
+      side: "SELL",
+      type: "STOP_LOSS_LIMIT",
+      quantity: quantidade,
+      price: precoStopLimit.toFixed(8),
+      stopPrice: precoStop.toFixed(8),
+      timeInForce: "GTC"
+    });
+
+    console.log("✅ TP e STOP enviados!");
 
   }catch(err){
-    console.log("❌ Erro na compra:", err.message);
+    console.log("❌ Erro:", err.body || err.message);
   }finally{
     operando = false;
   }
@@ -153,14 +182,26 @@ async function iniciarRobo(){
 
       console.log("🔎 Buscando TOP 40 por volume...");
 
+      const exchangeInfo = await client.exchangeInfo();
       const tickers = await client.dailyStats();
 
       const pares = tickers
-        .filter(t =>
-          t.symbol.endsWith("USDT") &&
-          !STABLES.some(st => t.symbol.includes(st))
-        )
-        .sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
+        .filter(t => {
+
+          if(!t.symbol.endsWith("USDT")) return false;
+
+          const info = exchangeInfo.symbols.find(s => s.symbol === t.symbol);
+          if(!info) return false;
+
+          const base = info.baseAsset;
+
+          if(STABLES.includes(base)) return false;
+
+          if(LEVERAGED.some(l => base.includes(l))) return false;
+
+          return true;
+        })
+        .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
         .slice(0, MAX_MOEDAS)
         .map(t => ({ symbol: t.symbol }));
 
@@ -181,8 +222,6 @@ async function iniciarRobo(){
         const closes = candles.map(c => parseFloat(c.close));
         const volumes = candles.map(c => parseFloat(c.volume));
 
-        if(closes.some(isNaN)) continue;
-
         const ema9 = calcularEMA(closes.slice(-9), 9);
         const ema21 = calcularEMA(closes.slice(-21), 21);
         const rsi = calcularRSI(closes, 14);
@@ -192,10 +231,6 @@ async function iniciarRobo(){
         const volumeMedio =
           volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
 
-        console.log(
-          `${par.symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${rsi.toFixed(2)}`
-        );
-
         const entrada =
           ema9 > ema21 &&
           rsi > 45 &&
@@ -204,7 +239,7 @@ async function iniciarRobo(){
           volumeAtual > volumeMedio;
 
         if(entrada){
-          console.log(`🚀 SINAL DETECTADO EM ${par.symbol}`);
+          console.log(`🚀 SINAL EM ${par.symbol}`);
           await executarCompra(par.symbol);
           break;
         }
@@ -221,10 +256,10 @@ async function iniciarRobo(){
 /* ================= SERVIDOR ================= */
 
 app.get("/", (req,res)=>{
-  res.send("ROBÔ TOP 40 ONLINE");
+  res.send("ROBÔ TOP 40 FILTRADO ONLINE");
 });
 
 app.listen(PORT, ()=>{
-  console.log("🔥 ROBÔ TOP 40 ATIVO");
+  console.log("🔥 ROBÔ DEFINITIVO ATIVO");
   iniciarRobo();
 });

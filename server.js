@@ -17,6 +17,16 @@ const MAX_MOEDAS = 40;
 
 let operando = false;
 
+/* ========= BLOQUEIOS ========= */
+
+const BLOQUEADAS = [
+  "USDC","BUSD","FDUSD","TUSD","DAI",
+  "EUR","TRY","BRL","GBP","AUD",
+  "UP","DOWN","BULL","BEAR"
+];
+
+/* ========= FUNÇÕES ========= */
+
 function sleep(ms){
   return new Promise(r => setTimeout(r, ms));
 }
@@ -43,10 +53,12 @@ function calcularRSI(values, period = 14){
   return 100 - (100 / (1 + rs));
 }
 
-function ajustarQuantidade(qty, stepSize){
-  const precision = Math.round(-Math.log10(stepSize));
-  return parseFloat(qty.toFixed(precision));
+function ajustarStep(valor, step){
+  const precision = Math.round(-Math.log10(step));
+  return parseFloat((Math.floor(valor / step) * step).toFixed(precision));
 }
+
+/* ========= VERIFICAÇÕES ========= */
 
 async function jaTemPosicao(symbol){
   const asset = symbol.replace("USDT","");
@@ -57,10 +69,18 @@ async function jaTemPosicao(symbol){
   return saldo > 0;
 }
 
+async function jaTemOrdemAberta(symbol){
+  const ordens = await client.openOrders({ symbol });
+  return ordens.length > 0;
+}
+
+/* ========= COMPRA ========= */
+
 async function executarCompra(symbol){
 
   if(operando) return;
   if(await jaTemPosicao(symbol)) return;
+  if(await jaTemOrdemAberta(symbol)) return;
 
   try{
     operando = true;
@@ -84,10 +104,13 @@ async function executarCompra(symbol){
     const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
 
     const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
+    const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
+
     const stepSize = parseFloat(lotFilter.stepSize);
+    const tickSize = parseFloat(priceFilter.tickSize);
 
     let quantidade = saldoUSDT * 0.9 / precoAtual;
-    quantidade = ajustarQuantidade(quantidade, stepSize);
+    quantidade = ajustarStep(quantidade, stepSize);
 
     console.log(`🟢 COMPRANDO ${symbol}`);
 
@@ -101,7 +124,9 @@ async function executarCompra(symbol){
     await sleep(2000);
 
     const precoEntrada = parseFloat(ordem.fills[0].price);
-    const precoVenda = (precoEntrada * (1 + TAKE_PROFIT)).toFixed(6);
+
+    let precoVenda = precoEntrada * (1 + TAKE_PROFIT);
+    precoVenda = ajustarStep(precoVenda, tickSize);
 
     console.log(`🎯 VENDA EM: ${precoVenda}`);
 
@@ -123,16 +148,31 @@ async function executarCompra(symbol){
   }
 }
 
+/* ========= ROBÔ ========= */
+
 async function iniciarRobo(){
 
   while(true){
 
     try{
 
+      const exchangeInfo = await client.exchangeInfo();
       const tickers = await client.dailyStats();
 
       const pares = tickers
-        .filter(t => t.symbol.endsWith("USDT"))
+        .filter(t => {
+
+          if(!t.symbol.endsWith("USDT")) return false;
+
+          const info = exchangeInfo.symbols.find(s => s.symbol === t.symbol);
+          if(!info) return false;
+
+          const base = info.baseAsset;
+
+          if(BLOQUEADAS.some(b => base.includes(b))) return false;
+
+          return true;
+        })
         .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
         .slice(0, MAX_MOEDAS);
 
@@ -147,16 +187,12 @@ async function iniciarRobo(){
         });
 
         const closes = candles.map(c => parseFloat(c.close));
+
         const ema9 = calcularEMA(closes.slice(-9),9);
         const ema21 = calcularEMA(closes.slice(-21),21);
         const rsi = calcularRSI(closes,14);
 
-        const entrada =
-          ema9 > ema21 &&
-          rsi > 45 &&
-          rsi < 60;
-
-        if(entrada){
+        if(ema9 > ema21 && rsi > 45 && rsi < 60){
           console.log(`🚀 SINAL EM ${par.symbol}`);
           await executarCompra(par.symbol);
           break;
@@ -172,6 +208,6 @@ async function iniciarRobo(){
 }
 
 app.listen(PORT, ()=>{
-  console.log("🔥 ROBÔ ATIVO (SOMENTE VENDA)");
+  console.log("🔥 ROBÔ ESTÁVEL ATIVO");
   iniciarRobo();
 });

@@ -1,23 +1,21 @@
 require("dotenv").config();
 const Binance = require("binance-api-node").default;
-const express = require("express");
-
-const app = express();
 
 const client = Binance({
   apiKey: process.env.API_KEY,
   apiSecret: process.env.API_SECRET
 });
 
-const PORT = process.env.PORT || 3000;
+/* ================= CONFIG ================= */
 
 const INTERVALO = "5m";
-const TAKE_PROFIT = 0.035;
-const MAX_MOEDAS = 40;
+const MAX_MOEDAS = 30;
+const TAKE_PROFIT = 0.035; // 3.5%
+const PERCENTUAL_ENTRADA = 0.90;
 
 let operando = false;
 
-/* ========= BLOQUEIOS ========= */
+/* ================= BLOQUEIOS ================= */
 
 const BLOQUEADAS = [
   "USDC","BUSD","FDUSD","TUSD","DAI",
@@ -25,22 +23,22 @@ const BLOQUEADAS = [
   "UP","DOWN","BULL","BEAR"
 ];
 
-/* ========= FUNÇÕES ========= */
+/* ================= FUNÇÕES ================= */
 
 function sleep(ms){
   return new Promise(r => setTimeout(r, ms));
 }
 
-function calcularEMA(values, period){
+function ema(values, period){
   const k = 2 / (period + 1);
-  let ema = values[0];
+  let e = values[0];
   for(let i = 1; i < values.length; i++){
-    ema = values[i] * k + ema * (1 - k);
+    e = values[i] * k + e * (1 - k);
   }
-  return ema;
+  return e;
 }
 
-function calcularRSI(values, period = 14){
+function rsi(values, period = 14){
   let ganhos = 0;
   let perdas = 0;
   for(let i = values.length - period; i < values.length - 1; i++){
@@ -53,44 +51,44 @@ function calcularRSI(values, period = 14){
   return 100 - (100 / (1 + rs));
 }
 
-function ajustarStep(valor, step){
+function ajustar(valor, step){
   const precision = Math.round(-Math.log10(step));
   return parseFloat((Math.floor(valor / step) * step).toFixed(precision));
 }
 
-/* ========= VERIFICAÇÕES ========= */
+/* ================= VERIFICAÇÕES ================= */
 
-async function jaTemPosicao(symbol){
+async function temPosicao(symbol){
   const asset = symbol.replace("USDT","");
-  const account = await client.accountInfo();
+  const acc = await client.accountInfo();
   const saldo = parseFloat(
-    account.balances.find(b => b.asset === asset)?.free || 0
+    acc.balances.find(b => b.asset === asset)?.free || 0
   );
   return saldo > 0;
 }
 
-async function jaTemOrdemAberta(symbol){
+async function temOrdemAberta(symbol){
   const ordens = await client.openOrders({ symbol });
   return ordens.length > 0;
 }
 
-/* ========= COMPRA ========= */
+/* ================= COMPRA ================= */
 
-async function executarCompra(symbol){
+async function comprar(symbol){
 
   if(operando) return;
-  if(await jaTemPosicao(symbol)) return;
-  if(await jaTemOrdemAberta(symbol)) return;
+  if(await temPosicao(symbol)) return;
+  if(await temOrdemAberta(symbol)) return;
 
   try{
     operando = true;
 
-    const account = await client.accountInfo();
+    const acc = await client.accountInfo();
     const saldoUSDT = parseFloat(
-      account.balances.find(b => b.asset === "USDT")?.free || 0
+      acc.balances.find(b => b.asset === "USDT")?.free || 0
     );
 
-    if(saldoUSDT < 10){
+    if(saldoUSDT < 15){
       console.log("Saldo insuficiente.");
       operando = false;
       return;
@@ -100,19 +98,18 @@ async function executarCompra(symbol){
       (await client.prices({ symbol }))[symbol]
     );
 
-    const exchangeInfo = await client.exchangeInfo();
-    const symbolInfo = exchangeInfo.symbols.find(s => s.symbol === symbol);
+    const info = (await client.exchangeInfo()).symbols.find(s => s.symbol === symbol);
 
-    const lotFilter = symbolInfo.filters.find(f => f.filterType === "LOT_SIZE");
-    const priceFilter = symbolInfo.filters.find(f => f.filterType === "PRICE_FILTER");
+    const lot = info.filters.find(f => f.filterType === "LOT_SIZE");
+    const priceFilter = info.filters.find(f => f.filterType === "PRICE_FILTER");
 
-    const stepSize = parseFloat(lotFilter.stepSize);
+    const stepSize = parseFloat(lot.stepSize);
     const tickSize = parseFloat(priceFilter.tickSize);
 
-    let quantidade = saldoUSDT * 0.9 / precoAtual;
-    quantidade = ajustarStep(quantidade, stepSize);
+    let quantidade = saldoUSDT * PERCENTUAL_ENTRADA / precoAtual;
+    quantidade = ajustar(quantidade, stepSize);
 
-    console.log(`🟢 COMPRANDO ${symbol}`);
+    console.log("🟢 COMPRANDO", symbol);
 
     const ordem = await client.order({
       symbol,
@@ -126,9 +123,9 @@ async function executarCompra(symbol){
     const precoEntrada = parseFloat(ordem.fills[0].price);
 
     let precoVenda = precoEntrada * (1 + TAKE_PROFIT);
-    precoVenda = ajustarStep(precoVenda, tickSize);
+    precoVenda = ajustar(precoVenda, tickSize);
 
-    console.log(`🎯 VENDA EM: ${precoVenda}`);
+    console.log("🎯 VENDA EM:", precoVenda);
 
     await client.order({
       symbol,
@@ -139,7 +136,7 @@ async function executarCompra(symbol){
       timeInForce: "GTC"
     });
 
-    console.log("✅ ORDEM DE VENDA CRIADA");
+    console.log("✅ ORDEM DE VENDA CRIADA (3.5%)");
 
   }catch(err){
     console.log("Erro:", err.body || err.message);
@@ -148,9 +145,9 @@ async function executarCompra(symbol){
   }
 }
 
-/* ========= ROBÔ ========= */
+/* ================= ROBÔ ================= */
 
-async function iniciarRobo(){
+async function iniciar(){
 
   while(true){
 
@@ -188,13 +185,13 @@ async function iniciarRobo(){
 
         const closes = candles.map(c => parseFloat(c.close));
 
-        const ema9 = calcularEMA(closes.slice(-9),9);
-        const ema21 = calcularEMA(closes.slice(-21),21);
-        const rsi = calcularRSI(closes,14);
+        const ema9 = ema(closes.slice(-9),9);
+        const ema21 = ema(closes.slice(-21),21);
+        const r = rsi(closes,14);
 
-        if(ema9 > ema21 && rsi > 45 && rsi < 60){
-          console.log(`🚀 SINAL EM ${par.symbol}`);
-          await executarCompra(par.symbol);
+        if(ema9 > ema21 && r > 45 && r < 60){
+          console.log("🚀 SINAL EM", par.symbol);
+          await comprar(par.symbol);
           break;
         }
       }
@@ -207,7 +204,5 @@ async function iniciarRobo(){
   }
 }
 
-app.listen(PORT, ()=>{
-  console.log("🔥 ROBÔ ESTÁVEL ATIVO");
-  iniciarRobo();
-});
+console.log("🔥 ROBÔ 3.5% SEM STOP ATIVO");
+iniciar();

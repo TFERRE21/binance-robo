@@ -15,10 +15,10 @@ const PERCENTUAL_ENTRADA = 0.90;
 
 let operando = false;
 
-/* ================= BLOQUEIO TOTAL ================= */
+/* ================= BLOQUEIOS ================= */
 
 const BLOQUEADAS = [
-  "USD",   // bloqueia USD1, USDJ, USDC etc
+  "USD",
   "EUR",
   "TRY",
   "BRL",
@@ -79,7 +79,7 @@ async function temOrdemAberta(symbol){
   return ordens.length > 0;
 }
 
-/* ================= COMPRA ================= */
+/* ================= COMPRA CORRIGIDA ================= */
 
 async function comprar(symbol){
 
@@ -105,7 +105,8 @@ async function comprar(symbol){
       (await client.prices({ symbol }))[symbol]
     );
 
-    const info = (await client.exchangeInfo()).symbols.find(s => s.symbol === symbol);
+    const exchangeInfo = await client.exchangeInfo();
+    const info = exchangeInfo.symbols.find(s => s.symbol === symbol);
 
     if(!info){
       operando = false;
@@ -118,21 +119,39 @@ async function comprar(symbol){
     const stepSize = parseFloat(lot.stepSize);
     const tickSize = parseFloat(priceFilter.tickSize);
 
-    let quantidade = saldoUSDT * PERCENTUAL_ENTRADA / precoAtual;
-    quantidade = ajustar(quantidade, stepSize);
+    let quantidadeCompra = saldoUSDT * PERCENTUAL_ENTRADA / precoAtual;
+    quantidadeCompra = ajustar(quantidadeCompra, stepSize);
 
     console.log("🟢 COMPRANDO", symbol);
 
-    const ordem = await client.order({
+    await client.order({
       symbol,
       side: "BUY",
       type: "MARKET",
-      quantity: quantidade
+      quantity: quantidadeCompra
     });
 
-    await sleep(2000);
+    // AGUARDA SALDO ATUALIZAR
+    await sleep(3000);
 
-    const precoEntrada = parseFloat(ordem.fills[0].price);
+    const asset = symbol.replace("USDT","");
+    const accAtualizado = await client.accountInfo();
+
+    let quantidadeReal = parseFloat(
+      accAtualizado.balances.find(b => b.asset === asset)?.free || 0
+    );
+
+    quantidadeReal = ajustar(quantidadeReal, stepSize);
+
+    if(quantidadeReal <= 0){
+      console.log("Erro: quantidade real inválida.");
+      operando = false;
+      return;
+    }
+
+    const precoEntrada = parseFloat(
+      (await client.prices({ symbol }))[symbol]
+    );
 
     let precoVenda = precoEntrada * (1 + TAKE_PROFIT);
     precoVenda = ajustar(precoVenda, tickSize);
@@ -143,7 +162,7 @@ async function comprar(symbol){
       symbol,
       side: "SELL",
       type: "LIMIT",
-      quantity: quantidade,
+      quantity: quantidadeReal,
       price: precoVenda,
       timeInForce: "GTC"
     });
@@ -178,7 +197,6 @@ async function iniciar(){
 
           const base = info.baseAsset;
 
-          // BLOQUEIO DEFINITIVO
           if(BLOQUEADAS.some(b => base.startsWith(b))) return false;
 
           return true;

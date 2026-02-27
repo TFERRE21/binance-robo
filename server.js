@@ -15,12 +15,19 @@ const PERCENTUAL_ENTRADA = 0.90;
 
 let operando = false;
 
-/* ================= BLOQUEIOS ================= */
+/* ================= BLOQUEIO TOTAL ================= */
 
 const BLOQUEADAS = [
-  "USDC","BUSD","FDUSD","TUSD","DAI",
-  "EUR","TRY","BRL","GBP","AUD",
-  "UP","DOWN","BULL","BEAR"
+  "USD",   // bloqueia USD1, USDJ, USDC etc
+  "EUR",
+  "TRY",
+  "BRL",
+  "GBP",
+  "AUD",
+  "BULL",
+  "BEAR",
+  "UP",
+  "DOWN"
 ];
 
 /* ================= FUNÇÕES ================= */
@@ -100,6 +107,11 @@ async function comprar(symbol){
 
     const info = (await client.exchangeInfo()).symbols.find(s => s.symbol === symbol);
 
+    if(!info){
+      operando = false;
+      return;
+    }
+
     const lot = info.filters.find(f => f.filterType === "LOT_SIZE");
     const priceFilter = info.filters.find(f => f.filterType === "PRICE_FILTER");
 
@@ -166,7 +178,8 @@ async function iniciar(){
 
           const base = info.baseAsset;
 
-          if(BLOQUEADAS.some(b => base.includes(b))) return false;
+          // BLOQUEIO DEFINITIVO
+          if(BLOQUEADAS.some(b => base.startsWith(b))) return false;
 
           return true;
         })
@@ -204,5 +217,5 @@ async function iniciar(){
   }
 }
 
-console.log("🔥 ROBÔ 3.5% SEM STOP ATIVO");
+console.log("🔥 ROBÔ 3.5% ESTÁVEL ATIVO");
 iniciar();

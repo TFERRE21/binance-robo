@@ -8,9 +8,9 @@ const client = Binance({
 
 /* ================= CONFIG ================= */
 
-const INTERVALO = "5m";
+const INTERVALO = "15m"; // ALTERADO PARA 15M
 const MAX_MOEDAS = 30;
-const TAKE_PROFIT = 0.035; // 3.5%
+const TAKE_PROFIT = 0.035; 
 const PERCENTUAL_ENTRADA = 0.90;
 
 let operando = false;
@@ -79,7 +79,7 @@ async function temOrdemAberta(symbol){
   return ordens.length > 0;
 }
 
-/* ================= COMPRA CORRIGIDA ================= */
+/* ================= COMPRA (INALTERADA) ================= */
 
 async function comprar(symbol){
 
@@ -131,7 +131,6 @@ async function comprar(symbol){
       quantity: quantidadeCompra
     });
 
-    // AGUARDA SALDO ATUALIZAR
     await sleep(3000);
 
     const asset = symbol.replace("USDT","");
@@ -215,12 +214,25 @@ async function iniciar(){
         });
 
         const closes = candles.map(c => parseFloat(c.close));
+        const volumes = candles.map(c => parseFloat(c.volume));
 
         const ema9 = ema(closes.slice(-9),9);
         const ema21 = ema(closes.slice(-21),21);
         const r = rsi(closes,14);
 
-        if(ema9 > ema21 && r > 45 && r < 60){
+        const precoAtual = closes[closes.length - 1];
+        const volumeAtual = volumes[volumes.length - 1];
+        const volumeMedio =
+          volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
+
+        // NOVA ESTRATÉGIA
+        if(
+          ema9 > ema21 &&
+          r > 45 &&
+          r < 60 &&
+          precoAtual > ema9 &&
+          volumeAtual > volumeMedio
+        ){
           console.log("🚀 SINAL EM", par.symbol);
           await comprar(par.symbol);
           break;
@@ -231,9 +243,9 @@ async function iniciar(){
       console.log("Erro geral:", err.message);
     }
 
-    await sleep(60000);
+    await sleep(900000); // 15 MINUTOS
   }
 }
 
-console.log("🔥 ROBÔ 3.5% ESTÁVEL ATIVO");
+console.log("🔥 ROBÔ 3.5% 15M ATIVO");
 iniciar();

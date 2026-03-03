@@ -8,9 +8,9 @@ const client = Binance({
 
 /* ================= CONFIG ================= */
 
-const INTERVALO = "15m"; // ALTERADO PARA 15M
+const INTERVALO = "15m";
 const MAX_MOEDAS = 30;
-const TAKE_PROFIT = 0.035; 
+const TAKE_PROFIT = 0.035;
 const PERCENTUAL_ENTRADA = 0.90;
 
 let operando = false;
@@ -29,6 +29,8 @@ const BLOQUEADAS = [
   "UP",
   "DOWN"
 ];
+
+const UM_ANO_MS = 365 * 24 * 60 * 60 * 1000;
 
 /* ================= FUNÇÕES ================= */
 
@@ -186,6 +188,8 @@ async function iniciar(){
       const exchangeInfo = await client.exchangeInfo();
       const tickers = await client.dailyStats();
 
+      const agora = Date.now();
+
       const pares = tickers
         .filter(t => {
 
@@ -197,6 +201,10 @@ async function iniciar(){
           const base = info.baseAsset;
 
           if(BLOQUEADAS.some(b => base.startsWith(b))) return false;
+
+          // FILTRO: mínimo 1 ano na Binance
+          if(!info.onboardDate) return false;
+          if(agora - info.onboardDate < UM_ANO_MS) return false;
 
           return true;
         })
@@ -225,7 +233,6 @@ async function iniciar(){
         const volumeMedio =
           volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
 
-        // NOVA ESTRATÉGIA
         if(
           ema9 > ema21 &&
           r > 45 &&
@@ -243,9 +250,9 @@ async function iniciar(){
       console.log("Erro geral:", err.message);
     }
 
-    await sleep(900000); // 15 MINUTOS
+    await sleep(900000);
   }
 }
 
-console.log("🔥 ROBÔ 3.5% 15M ATIVO");
+console.log("🔥 ROBÔ 3.5% 15M + FILTRO 1 ANO ATIVO");
 iniciar();

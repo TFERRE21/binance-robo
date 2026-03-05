@@ -9,7 +9,7 @@ const client = Binance({
 /* ================= CONFIG ================= */
 
 const INTERVALO = "15m";
-const MAX_MOEDAS = 30;
+const MAX_MOEDAS = 50; // aumentado
 const TAKE_PROFIT = 0.035;
 const PERCENTUAL_ENTRADA = 0.90;
 
@@ -202,7 +202,6 @@ async function iniciar(){
 
           if(BLOQUEADAS.some(b => base.startsWith(b))) return false;
 
-          // FILTRO: mínimo 1 ano na Binance
           if(!info.onboardDate) return false;
           if(agora - info.onboardDate < UM_ANO_MS) return false;
 
@@ -235,10 +234,10 @@ async function iniciar(){
 
         if(
           ema9 > ema21 &&
-          r > 45 &&
-          r < 60 &&
+          r > 40 &&  // ajustado
+          r < 70 &&  // ajustado
           precoAtual > ema9 &&
-          volumeAtual > volumeMedio
+          volumeAtual > volumeMedio * 0.8 // ajustado
         ){
           console.log("🚀 SINAL EM", par.symbol);
           await comprar(par.symbol);
@@ -254,5 +253,5 @@ async function iniciar(){
   }
 }
 
-console.log("🔥 ROBÔ 3.5% 15M + FILTRO 1 ANO ATIVO");
+console.log("🔥 ROBÔ 3.5% 15M OTIMIZADO ATIVO");
 iniciar();

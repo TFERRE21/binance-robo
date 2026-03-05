@@ -11,7 +11,7 @@ const client = Binance({
 const INTERVALO = "15m";
 const MAX_MOEDAS = 50;
 const TAKE_PROFIT = 0.035;
-const PERCENTUAL_ENTRADA = 0.95;
+const PERCENTUAL_ENTRADA = 0.95; // ALTERADO PARA 95%
 
 let operando = false;
 
@@ -217,8 +217,6 @@ async function iniciar(){
             return false;
           }
 
-          /* CORREÇÃO DO FILTRO DE 1 ANO */
-
           if(info.onboardDate){
             if(agora - info.onboardDate < UM_ANO_MS){
               console.log(`${t.symbol} ⛔ menos de 1 ano na Binance`);
@@ -265,6 +263,8 @@ async function iniciar(){
 
         const distanciaEMA = (ema9 - ema21) / ema21;
 
+        const distanciaPrecoEMA21 = (precoAtual - ema21) / ema21;
+
         console.log(
           `${par.symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${r.toFixed(2)}`
         );
@@ -288,6 +288,9 @@ async function iniciar(){
 
         else if(volumeAtual <= volumeMedio * 0.8)
           motivo = "Volume baixo";
+
+        else if(distanciaPrecoEMA21 > 0.015)
+          motivo = "Preço esticado acima EMA21";
 
         if(motivo){
 
@@ -315,6 +318,6 @@ async function iniciar(){
   }
 }
 
-console.log("🔥 ROBÔ 3.5% 15M + FILTRO 1 ANO ATIVO");
+console.log("🔥 ROBÔ 3.5% 15M + PULLBACK ATIVO");
 
 iniciar();

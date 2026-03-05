@@ -84,7 +84,7 @@ async function temOrdemAberta(symbol){
   return ordens.length > 0;
 }
 
-/* ================= COMPRA (INALTERADA) ================= */
+/* ================= COMPRA ================= */
 
 async function comprar(symbol){
 
@@ -105,9 +105,7 @@ async function comprar(symbol){
     if(saldoUSDT < 15){
 
       console.log("Saldo insuficiente.");
-
       operando = false;
-
       return;
     }
 
@@ -116,26 +114,20 @@ async function comprar(symbol){
     );
 
     const exchangeInfo = await client.exchangeInfo();
-
     const info = exchangeInfo.symbols.find(s => s.symbol === symbol);
 
     if(!info){
-
       operando = false;
-
       return;
     }
 
     const lot = info.filters.find(f => f.filterType === "LOT_SIZE");
-
     const priceFilter = info.filters.find(f => f.filterType === "PRICE_FILTER");
 
     const stepSize = parseFloat(lot.stepSize);
-
     const tickSize = parseFloat(priceFilter.tickSize);
 
     let quantidadeCompra = saldoUSDT * PERCENTUAL_ENTRADA / precoAtual;
-
     quantidadeCompra = ajustar(quantidadeCompra, stepSize);
 
     console.log("🟢 COMPRANDO", symbol);
@@ -150,7 +142,6 @@ async function comprar(symbol){
     await sleep(3000);
 
     const asset = symbol.replace("USDT","");
-
     const accAtualizado = await client.accountInfo();
 
     let quantidadeReal = parseFloat(
@@ -160,11 +151,8 @@ async function comprar(symbol){
     quantidadeReal = ajustar(quantidadeReal, stepSize);
 
     if(quantidadeReal <= 0){
-
       console.log("Erro: quantidade real inválida.");
-
       operando = false;
-
       return;
     }
 
@@ -173,7 +161,6 @@ async function comprar(symbol){
     );
 
     let precoVenda = precoEntrada * (1 + TAKE_PROFIT);
-
     precoVenda = ajustar(precoVenda, tickSize);
 
     console.log("🎯 VENDA EM:", precoVenda);
@@ -211,7 +198,6 @@ async function iniciar(){
       console.log("\n🔎 Iniciando varredura do mercado...\n");
 
       const exchangeInfo = await client.exchangeInfo();
-
       const tickers = await client.dailyStats();
 
       const agora = Date.now();
@@ -222,16 +208,23 @@ async function iniciar(){
           if(!t.symbol.endsWith("USDT")) return false;
 
           const info = exchangeInfo.symbols.find(s => s.symbol === t.symbol);
-
           if(!info) return false;
 
           const base = info.baseAsset;
 
-          if(BLOQUEADAS.some(b => base.startsWith(b))) return false;
+          if(BLOQUEADAS.some(b => base.startsWith(b))){
+            console.log(`${t.symbol} ⛔ BLOQUEADA`);
+            return false;
+          }
 
-          if(!info.onboardDate) return false;
+          /* CORREÇÃO DO FILTRO DE 1 ANO */
 
-          if(agora - info.onboardDate < UM_ANO_MS) return false;
+          if(info.onboardDate){
+            if(agora - info.onboardDate < UM_ANO_MS){
+              console.log(`${t.symbol} ⛔ menos de 1 ano na Binance`);
+              return false;
+            }
+          }
 
           return true;
 
@@ -261,7 +254,6 @@ async function iniciar(){
         const r = rsi(closes,14);
 
         const precoAtual = closes[closes.length - 1];
-
         const volumeAtual = volumes[volumes.length - 1];
 
         const volumeMedio =
@@ -283,7 +275,7 @@ async function iniciar(){
           motivo = "EMA9 abaixo EMA21";
 
         else if(distanciaEMA < 0.001)
-          motivo = "EMAs muito próximas (lateral)";
+          motivo = "EMAs muito próximas";
 
         else if(r <= 40 || r >= 70)
           motivo = "RSI fora da faixa";
@@ -323,6 +315,6 @@ async function iniciar(){
   }
 }
 
-console.log("🔥 ROBÔ 3.5% 15M OTIMIZADO ATIVO");
+console.log("🔥 ROBÔ 3.5% 15M + FILTRO 1 ANO ATIVO");
 
 iniciar();

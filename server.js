@@ -11,7 +11,7 @@ const client = Binance({
 const INTERVALO = "15m";
 const MAX_MOEDAS = 50;
 const TAKE_PROFIT = 0.035;
-const PERCENTUAL_ENTRADA = 0.90;
+const PERCENTUAL_ENTRADA = 0.95;
 
 let operando = false;
 

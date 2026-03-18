@@ -9,9 +9,10 @@ const client = Binance({
 /* ================= CONFIG ================= */
 
 const INTERVALO = "15m";
-const MAX_MOEDAS = 50;
+const INTERVALO_TENDENCIA = "1d"; // NOVO
+const MAX_MOEDAS = 30; // TOP 30
 const TAKE_PROFIT = 0.035;
-const PERCENTUAL_ENTRADA = 0.95; // ALTERADO PARA 95%
+const PERCENTUAL_ENTRADA = 0.95;
 
 let operando = false;
 
@@ -19,7 +20,8 @@ let operando = false;
 
 const BLOQUEADAS = [
   "USD","EUR","TRY","BRL","GBP","AUD",
-  "BULL","BEAR","UP","DOWN"
+  "BULL","BEAR","UP","DOWN",
+  "USDC","FDUSD","TUSD","DAI"
 ];
 
 const UM_ANO_MS = 365 * 24 * 60 * 60 * 1000;
@@ -45,7 +47,6 @@ function rsi(values, period = 14){
 
   for(let i = values.length - period; i < values.length - 1; i++){
     const diff = values[i + 1] - values[i];
-
     if(diff >= 0) ganhos += diff;
     else perdas -= diff;
   }
@@ -53,7 +54,6 @@ function rsi(values, period = 14){
   if(perdas === 0) return 100;
 
   const rs = ganhos / perdas;
-
   return 100 - (100 / (1 + rs));
 }
 
@@ -65,22 +65,16 @@ function ajustar(valor, step){
 /* ================= VERIFICAÇÕES ================= */
 
 async function temPosicao(symbol){
-
   const asset = symbol.replace("USDT","");
-
   const acc = await client.accountInfo();
-
   const saldo = parseFloat(
     acc.balances.find(b => b.asset === asset)?.free || 0
   );
-
   return saldo > 0;
 }
 
 async function temOrdemAberta(symbol){
-
   const ordens = await client.openOrders({ symbol });
-
   return ordens.length > 0;
 }
 
@@ -97,13 +91,11 @@ async function comprar(symbol){
     operando = true;
 
     const acc = await client.accountInfo();
-
     const saldoUSDT = parseFloat(
       acc.balances.find(b => b.asset === "USDT")?.free || 0
     );
 
     if(saldoUSDT < 15){
-
       console.log("Saldo insuficiente.");
       operando = false;
       return;
@@ -115,11 +107,6 @@ async function comprar(symbol){
 
     const exchangeInfo = await client.exchangeInfo();
     const info = exchangeInfo.symbols.find(s => s.symbol === symbol);
-
-    if(!info){
-      operando = false;
-      return;
-    }
 
     const lot = info.filters.find(f => f.filterType === "LOT_SIZE");
     const priceFilter = info.filters.find(f => f.filterType === "PRICE_FILTER");
@@ -150,12 +137,6 @@ async function comprar(symbol){
 
     quantidadeReal = ajustar(quantidadeReal, stepSize);
 
-    if(quantidadeReal <= 0){
-      console.log("Erro: quantidade real inválida.");
-      operando = false;
-      return;
-    }
-
     const precoEntrada = parseFloat(
       (await client.prices({ symbol }))[symbol]
     );
@@ -174,16 +155,12 @@ async function comprar(symbol){
       timeInForce: "GTC"
     });
 
-    console.log("✅ ORDEM DE VENDA CRIADA (3.5%)");
+    console.log("✅ ORDEM DE VENDA CRIADA");
 
   }catch(err){
-
     console.log("Erro:", err.body || err.message);
-
   }finally{
-
     operando = false;
-
   }
 }
 
@@ -195,11 +172,10 @@ async function iniciar(){
 
     try{
 
-      console.log("\n🔎 Iniciando varredura do mercado...\n");
+      console.log("\n🔎 Varredura...\n");
 
       const exchangeInfo = await client.exchangeInfo();
       const tickers = await client.dailyStats();
-
       const agora = Date.now();
 
       const pares = tickers
@@ -219,7 +195,6 @@ async function iniciar(){
 
           if(info.onboardDate){
             if(agora - info.onboardDate < UM_ANO_MS){
-              console.log(`${t.symbol} ⛔ menos de 1 ano na Binance`);
               return false;
             }
           }
@@ -230,11 +205,31 @@ async function iniciar(){
         .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
         .slice(0, MAX_MOEDAS);
 
-      console.log("📊 Moedas analisadas:", pares.length,"\n");
+      console.log("📊 Top 30 moedas\n");
 
       for(const par of pares){
 
         if(operando) break;
+
+        /* ================= TENDÊNCIA 1D ================= */
+
+        const candles1d = await client.candles({
+          symbol: par.symbol,
+          interval: INTERVALO_TENDENCIA,
+          limit: 50
+        });
+
+        const closes1d = candles1d.map(c => parseFloat(c.close));
+
+        const ema21_1d = ema(closes1d.slice(-21),21);
+        const preco1d = closes1d[closes1d.length - 1];
+
+        if(preco1d < ema21_1d){
+          console.log(`${par.symbol} ❌ Tendência de baixa no 1D`);
+          continue;
+        }
+
+        /* ================= ENTRADA 15M ================= */
 
         const candles = await client.candles({
           symbol: par.symbol,
@@ -248,76 +243,52 @@ async function iniciar(){
 
         const ema9 = ema(closes.slice(-9),9);
         const ema21 = ema(closes.slice(-21),21);
-
         const r = rsi(closes,14);
 
         const precoAtual = closes[closes.length - 1];
-        const volumeAtual = volumes[volumes.length - 1];
-
-        const volumeMedio =
-          volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
-
         const openAtual = opens[opens.length - 1];
 
+        const volumeAtual = volumes[volumes.length - 1];
+        const volumeMedio = volumes.slice(-20).reduce((a,b)=>a+b,0)/20;
+
         const candlePositivo = precoAtual > openAtual;
-
-        const distanciaEMA = (ema9 - ema21) / ema21;
-
-        const distanciaPrecoEMA21 = (precoAtual - ema21) / ema21;
-
-        console.log(
-          `${par.symbol} | EMA9:${ema9.toFixed(4)} EMA21:${ema21.toFixed(4)} RSI:${r.toFixed(2)}`
-        );
+        const distanciaEMA21 = Math.abs((precoAtual - ema21) / ema21);
 
         let motivo = "";
 
-        if(ema9 <= ema21)
-          motivo = "EMA9 abaixo EMA21";
+        if(ema9 < ema21)
+          motivo = "Sem tendência no 15m";
 
-        else if(distanciaEMA < 0.001)
-          motivo = "EMAs muito próximas";
+        else if(r > 55)
+          motivo = "RSI alto (não é pullback)";
 
-        else if(r <= 40 || r >= 70)
-          motivo = "RSI fora da faixa";
-
-        else if(precoAtual <= ema9)
-          motivo = "Preço abaixo EMA9";
+        else if(distanciaEMA21 > 0.01)
+          motivo = "Muito longe da EMA21";
 
         else if(!candlePositivo)
-          motivo = "Candle não positivo";
+          motivo = "Sem confirmação";
 
-        else if(volumeAtual <= volumeMedio * 0.8)
-          motivo = "Volume baixo";
-
-        else if(distanciaPrecoEMA21 > 0.015)
-          motivo = "Preço esticado acima EMA21";
+        else if(volumeAtual < volumeMedio)
+          motivo = "Volume fraco";
 
         if(motivo){
-
           console.log(`${par.symbol} ❌ ${motivo}`);
-
         }else{
-
-          console.log(`${par.symbol} 🚀 ENTRADA CONFIRMADA`);
-
+          console.log(`${par.symbol} 🚀 ENTRADA NO PULLBACK`);
           await comprar(par.symbol);
-
           break;
         }
 
       }
 
     }catch(err){
-
-      console.log("Erro geral:", err.message);
-
+      console.log("Erro:", err.message);
     }
 
     await sleep(900000);
-
   }
 }
 
-console.log("🔥 ROBÔ 3.5% 15M + PULLBACK ATIVO");
+console.log("🔥 ROBÔ PROFISSIONAL PULLBACK + 1D ATIVO");
 
 iniciar();

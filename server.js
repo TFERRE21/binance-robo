@@ -21,7 +21,7 @@ let operando = false;
 const BLOQUEADAS = [
   "USD","EUR","TRY","BRL","GBP","AUD",
   "BULL","BEAR","UP","DOWN",
-  "USDC","FDUSD","TUSD","DAI","RLUSD"
+  "USDC","FDUSD","TUSD","DAI","RLUSD","UUSDT"
 ];
 
 const UM_ANO_MS = 365 * 24 * 60 * 60 * 1000;

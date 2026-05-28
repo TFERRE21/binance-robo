@@ -10,7 +10,7 @@ const client = Binance({
 
 const INTERVALO = "15m";
 const INTERVALO_TENDENCIA = "1d"; // NOVO
-const MAX_MOEDAS = 30; // TOP 30
+const MAX_MOEDAS = 15; // TOP 15
 const TAKE_PROFIT = 0.035;
 const PERCENTUAL_ENTRADA = 0.95;
 
@@ -205,7 +205,7 @@ async function iniciar(){
         .sort((a,b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume))
         .slice(0, MAX_MOEDAS);
 
-      console.log("📊 Top 30 moedas\n");
+      console.log("📊 Top 15 moedas\n");
 
       for(const par of pares){
 

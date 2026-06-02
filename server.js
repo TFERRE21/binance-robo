@@ -1,6 +1,7 @@
-```js id="7r1p9k"
 require("dotenv").config();
-const Binance = require("binance-api-node").default;
+
+const Binance =
+  require("binance-api-node").default;
 
 const client = Binance({
   apiKey: process.env.API_KEY,
@@ -19,8 +20,9 @@ const QUEDA_PARA_COMPRAR = 0.03; // 3%
 
 const PERCENTUAL_ENTRADA = 0.95;
 
-const TEMPO_MONITORAMENTO = 30000; // 30 segundos
-const TEMPO_MAXIMO_ESPERA = 2 * 60 * 60 * 1000; // 2 horas
+const TEMPO_MONITORAMENTO = 30000; // 30s
+const TEMPO_MAXIMO_ESPERA =
+  2 * 60 * 60 * 1000; // 2 horas
 
 let operando = false;
 
@@ -29,7 +31,8 @@ let operando = false;
 const BLOQUEADAS = [
   "USD","EUR","TRY","BRL","GBP","AUD",
   "BULL","BEAR","UP","DOWN",
-  "USDC","FDUSD","TUSD","DAI","RLUSD","UUSDT","U/USDT"
+  "USDC","FDUSD","TUSD","DAI",
+  "RLUSD","UUSDT","U/USDT"
 ];
 
 const UM_ANO_MS =
@@ -38,7 +41,10 @@ const UM_ANO_MS =
 /* ================= FUNÇÕES ================= */
 
 function sleep(ms){
-  return new Promise(r => setTimeout(r, ms));
+
+  return new Promise(
+    resolve => setTimeout(resolve, ms)
+  );
 }
 
 function ema(values, period){
@@ -48,7 +54,10 @@ function ema(values, period){
   let e = values[0];
 
   for(let i = 1; i < values.length; i++){
-    e = values[i] * k + e * (1 - k);
+
+    e =
+      values[i] * k +
+      e * (1 - k);
   }
 
   return e;
@@ -93,8 +102,9 @@ function ajustar(valor, step){
     Math.round(-Math.log10(step));
 
   return parseFloat(
-    (Math.floor(valor / step) * step)
-      .toFixed(precision)
+    (
+      Math.floor(valor / step) * step
+    ).toFixed(precision)
   );
 }
 
@@ -120,7 +130,9 @@ async function temPosicao(symbol){
 async function temOrdemAberta(symbol){
 
   const ordens =
-    await client.openOrders({ symbol });
+    await client.openOrders({
+      symbol
+    });
 
   return ordens.length > 0;
 }
@@ -130,6 +142,8 @@ async function temOrdemAberta(symbol){
 async function validarSetup(symbol){
 
   try{
+
+    /* ===== TENDÊNCIA 1D ===== */
 
     const candles1d =
       await client.candles({
@@ -160,6 +174,8 @@ async function validarSetup(symbol){
         motivo: "Tendência baixa 1D"
       };
     }
+
+    /* ===== ENTRADA 15M ===== */
 
     const candles =
       await client.candles({
@@ -193,7 +209,8 @@ async function validarSetup(symbol){
       21
     );
 
-    const r = rsi(closes,14);
+    const r =
+      rsi(closes,14);
 
     const precoAtual =
       closes[closes.length - 1];
@@ -207,42 +224,51 @@ async function validarSetup(symbol){
     const volumeMedio =
       volumes
         .slice(-20)
-        .reduce((a,b)=>a+b,0) / 20;
+        .reduce(
+          (a,b)=>a+b,
+          0
+        ) / 20;
 
     const candlePositivo =
       precoAtual > openAtual;
 
     const distanciaEMA21 =
       Math.abs(
-        (precoAtual - ema21)
-        / ema21
+        (
+          precoAtual - ema21
+        ) / ema21
       );
 
     let motivo = "";
 
     if(ema9 < ema21){
 
-      motivo = "Sem tendência 15m";
+      motivo =
+        "Sem tendência 15m";
 
     }else if(r > 55){
 
-      motivo = "RSI alto";
+      motivo =
+        "RSI alto";
 
     }else if(
       distanciaEMA21 > 0.01
     ){
 
-      motivo = "Muito longe EMA21";
+      motivo =
+        "Muito longe EMA21";
 
     }else if(!candlePositivo){
 
-      motivo = "Candle negativo";
+      motivo =
+        "Candle negativo";
 
     }else if(
       volumeAtual < volumeMedio
     ){
 
-      motivo = "Volume fraco";
+      motivo =
+        "Volume fraco";
     }
 
     if(motivo){
@@ -302,9 +328,11 @@ async function comprar(symbol){
     }
 
     const precoAtual = parseFloat(
-      (await client.prices({
-        symbol
-      }))[symbol]
+      (
+        await client.prices({
+          symbol
+        })
+      )[symbol]
     );
 
     const exchangeInfo =
@@ -332,9 +360,10 @@ async function comprar(symbol){
       parseFloat(priceFilter.tickSize);
 
     let quantidadeCompra =
-      saldoUSDT *
-      PERCENTUAL_ENTRADA /
-      precoAtual;
+      (
+        saldoUSDT *
+        PERCENTUAL_ENTRADA
+      ) / precoAtual;
 
     quantidadeCompra = ajustar(
       quantidadeCompra,
@@ -342,7 +371,8 @@ async function comprar(symbol){
     );
 
     console.log(
-      `🟢 COMPRANDO ${symbol}`
+      "🟢 COMPRANDO",
+      symbol
     );
 
     await client.order({
@@ -374,9 +404,11 @@ async function comprar(symbol){
 
     const precoEntrada =
       parseFloat(
-        (await client.prices({
-          symbol
-        }))[symbol]
+        (
+          await client.prices({
+            symbol
+          })
+        )[symbol]
       );
 
     let precoVenda =
@@ -389,7 +421,8 @@ async function comprar(symbol){
     );
 
     console.log(
-      `🎯 VENDA EM ${precoVenda}`
+      "🎯 VENDA EM:",
+      precoVenda
     );
 
     await client.order({
@@ -430,11 +463,13 @@ async function monitorarQueda(
     (1 - QUEDA_PARA_COMPRAR);
 
   console.log(
-    `\n👀 MONITORANDO ${symbol}`
+    "\n👀 MONITORANDO",
+    symbol
   );
 
   console.log(
-    `🎯 ALVO: ${precoAlvo}`
+    "🎯 PREÇO ALVO:",
+    precoAlvo
   );
 
   const inicio = Date.now();
@@ -447,24 +482,31 @@ async function monitorarQueda(
 
     try{
 
-      const precoAtual = parseFloat(
-        (await client.prices({
-          symbol
-        }))[symbol]
-      );
+      const precoAtual =
+        parseFloat(
+          (
+            await client.prices({
+              symbol
+            })
+          )[symbol]
+        );
 
       console.log(
-        `${symbol} 💰 Atual: ${precoAtual}`
+        symbol,
+        "💰 Atual:",
+        precoAtual
       );
 
       if(precoAtual <= precoAlvo){
 
         console.log(
-          `${symbol} 📉 QUEDA DE 3% ATINGIDA`
+          symbol,
+          "📉 QUEDA DE 3% ATINGIDA"
         );
 
         console.log(
-          `${symbol} 🔎 REVALIDANDO SETUP...`
+          symbol,
+          "🔎 REVALIDANDO SETUP..."
         );
 
         const revalidacao =
@@ -473,7 +515,8 @@ async function monitorarQueda(
         if(revalidacao.valido){
 
           console.log(
-            `${symbol} ✅ SETUP CONTINUA VÁLIDO`
+            symbol,
+            "✅ SETUP CONTINUA VÁLIDO"
           );
 
           await comprar(symbol);
@@ -481,7 +524,9 @@ async function monitorarQueda(
         }else{
 
           console.log(
-            `${symbol} ❌ SETUP INVALIDADO: ${revalidacao.motivo}`
+            symbol,
+            "❌ SETUP INVALIDADO:",
+            revalidacao.motivo
           );
         }
 
@@ -497,7 +542,8 @@ async function monitorarQueda(
       ){
 
         console.log(
-          `${symbol} ⌛ TEMPO MÁXIMO ATINGIDO`
+          symbol,
+          "⌛ TEMPO MÁXIMO ATINGIDO"
         );
 
         return;
@@ -537,7 +583,8 @@ async function iniciar(){
       const tickers =
         await client.dailyStats();
 
-      const agora = Date.now();
+      const agora =
+        Date.now();
 
       const pares = tickers
 
@@ -568,7 +615,8 @@ async function iniciar(){
           ){
 
             console.log(
-              `${t.symbol} ⛔ BLOQUEADA`
+              t.symbol,
+              "⛔ BLOQUEADA"
             );
 
             return false;
@@ -589,8 +637,12 @@ async function iniciar(){
 
         .sort(
           (a,b) =>
-            parseFloat(b.quoteVolume) -
-            parseFloat(a.quoteVolume)
+            parseFloat(
+              b.quoteVolume
+            ) -
+            parseFloat(
+              a.quoteVolume
+            )
         )
 
         .slice(0, MAX_MOEDAS);
@@ -606,7 +658,8 @@ async function iniciar(){
         }
 
         console.log(
-          `➡️ ${par.symbol}`
+          "➡️",
+          par.symbol
         );
 
         const setup =
@@ -617,18 +670,22 @@ async function iniciar(){
         if(!setup.valido){
 
           console.log(
-            `${par.symbol} ❌ ${setup.motivo}`
+            par.symbol,
+            "❌",
+            setup.motivo
           );
 
           continue;
         }
 
         console.log(
-          `${par.symbol} ✅ SETUP CONFIRMADO`
+          par.symbol,
+          "✅ SETUP CONFIRMADO"
         );
 
         console.log(
-          `${par.symbol} 👀 INICIANDO MONITORAMENTO`
+          par.symbol,
+          "👀 INICIANDO MONITORAMENTO"
         );
 
         await monitorarQueda(
@@ -662,4 +719,3 @@ console.log(
 );
 
 iniciar();
-```

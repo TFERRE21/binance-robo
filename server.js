@@ -1,3 +1,4 @@
+```js id="7r1p9k"
 require("dotenv").config();
 const Binance = require("binance-api-node").default;
 
@@ -17,6 +18,9 @@ const TAKE_PROFIT = 0.05; // 5%
 const QUEDA_PARA_COMPRAR = 0.03; // 3%
 
 const PERCENTUAL_ENTRADA = 0.95;
+
+const TEMPO_MONITORAMENTO = 30000; // 30 segundos
+const TEMPO_MAXIMO_ESPERA = 2 * 60 * 60 * 1000; // 2 horas
 
 let operando = false;
 
@@ -44,7 +48,6 @@ function ema(values, period){
   let e = values[0];
 
   for(let i = 1; i < values.length; i++){
-
     e = values[i] * k + e * (1 - k);
   }
 
@@ -122,6 +125,148 @@ async function temOrdemAberta(symbol){
   return ordens.length > 0;
 }
 
+/* ================= VALIDAR SETUP ================= */
+
+async function validarSetup(symbol){
+
+  try{
+
+    const candles1d =
+      await client.candles({
+        symbol,
+        interval: INTERVALO_TENDENCIA,
+        limit: 50
+      });
+
+    const closes1d =
+      candles1d.map(
+        c => parseFloat(c.close)
+      );
+
+    const ema21_1d = ema(
+      closes1d.slice(-21),
+      21
+    );
+
+    const preco1d =
+      closes1d[
+        closes1d.length - 1
+      ];
+
+    if(preco1d < ema21_1d){
+
+      return {
+        valido: false,
+        motivo: "Tendência baixa 1D"
+      };
+    }
+
+    const candles =
+      await client.candles({
+        symbol,
+        interval: INTERVALO,
+        limit: 50
+      });
+
+    const closes =
+      candles.map(
+        c => parseFloat(c.close)
+      );
+
+    const opens =
+      candles.map(
+        c => parseFloat(c.open)
+      );
+
+    const volumes =
+      candles.map(
+        c => parseFloat(c.volume)
+      );
+
+    const ema9 = ema(
+      closes.slice(-9),
+      9
+    );
+
+    const ema21 = ema(
+      closes.slice(-21),
+      21
+    );
+
+    const r = rsi(closes,14);
+
+    const precoAtual =
+      closes[closes.length - 1];
+
+    const openAtual =
+      opens[opens.length - 1];
+
+    const volumeAtual =
+      volumes[volumes.length - 1];
+
+    const volumeMedio =
+      volumes
+        .slice(-20)
+        .reduce((a,b)=>a+b,0) / 20;
+
+    const candlePositivo =
+      precoAtual > openAtual;
+
+    const distanciaEMA21 =
+      Math.abs(
+        (precoAtual - ema21)
+        / ema21
+      );
+
+    let motivo = "";
+
+    if(ema9 < ema21){
+
+      motivo = "Sem tendência 15m";
+
+    }else if(r > 55){
+
+      motivo = "RSI alto";
+
+    }else if(
+      distanciaEMA21 > 0.01
+    ){
+
+      motivo = "Muito longe EMA21";
+
+    }else if(!candlePositivo){
+
+      motivo = "Candle negativo";
+
+    }else if(
+      volumeAtual < volumeMedio
+    ){
+
+      motivo = "Volume fraco";
+    }
+
+    if(motivo){
+
+      return {
+        valido: false,
+        motivo
+      };
+    }
+
+    return {
+      valido: true,
+      precoAtual
+    };
+
+  }catch(err){
+
+    return {
+      valido: false,
+      motivo: err.message
+    };
+  }
+}
+
 /* ================= COMPRA ================= */
 
 async function comprar(symbol){
@@ -196,7 +341,9 @@ async function comprar(symbol){
       stepSize
     );
 
-    console.log(`🟢 COMPRANDO ${symbol}`);
+    console.log(
+      `🟢 COMPRANDO ${symbol}`
+    );
 
     await client.order({
       symbol,
@@ -268,6 +415,107 @@ async function comprar(symbol){
   }finally{
 
     operando = false;
+  }
+}
+
+/* ================= MONITORAMENTO ================= */
+
+async function monitorarQueda(
+  symbol,
+  precoReferencia
+){
+
+  const precoAlvo =
+    precoReferencia *
+    (1 - QUEDA_PARA_COMPRAR);
+
+  console.log(
+    `\n👀 MONITORANDO ${symbol}`
+  );
+
+  console.log(
+    `🎯 ALVO: ${precoAlvo}`
+  );
+
+  const inicio = Date.now();
+
+  while(true){
+
+    if(operando){
+      return;
+    }
+
+    try{
+
+      const precoAtual = parseFloat(
+        (await client.prices({
+          symbol
+        }))[symbol]
+      );
+
+      console.log(
+        `${symbol} 💰 Atual: ${precoAtual}`
+      );
+
+      if(precoAtual <= precoAlvo){
+
+        console.log(
+          `${symbol} 📉 QUEDA DE 3% ATINGIDA`
+        );
+
+        console.log(
+          `${symbol} 🔎 REVALIDANDO SETUP...`
+        );
+
+        const revalidacao =
+          await validarSetup(symbol);
+
+        if(revalidacao.valido){
+
+          console.log(
+            `${symbol} ✅ SETUP CONTINUA VÁLIDO`
+          );
+
+          await comprar(symbol);
+
+        }else{
+
+          console.log(
+            `${symbol} ❌ SETUP INVALIDADO: ${revalidacao.motivo}`
+          );
+        }
+
+        return;
+      }
+
+      const tempoDecorrido =
+        Date.now() - inicio;
+
+      if(
+        tempoDecorrido >=
+        TEMPO_MAXIMO_ESPERA
+      ){
+
+        console.log(
+          `${symbol} ⌛ TEMPO MÁXIMO ATINGIDO`
+        );
+
+        return;
+      }
+
+      await sleep(
+        TEMPO_MONITORAMENTO
+      );
+
+    }catch(err){
+
+      console.log(
+        "❌ Erro monitoramento:",
+        err.message
+      );
+
+      return;
+    }
   }
 }
 
@@ -361,187 +609,35 @@ async function iniciar(){
           `➡️ ${par.symbol}`
         );
 
-        /* ================= TENDÊNCIA 1D ================= */
-
-        const candles1d =
-          await client.candles({
-            symbol: par.symbol,
-            interval: INTERVALO_TENDENCIA,
-            limit: 50
-          });
-
-        const closes1d =
-          candles1d.map(
-            c => parseFloat(c.close)
+        const setup =
+          await validarSetup(
+            par.symbol
           );
 
-        const ema21_1d = ema(
-          closes1d.slice(-21),
-          21
-        );
-
-        const preco1d =
-          closes1d[
-            closes1d.length - 1
-          ];
-
-        if(preco1d < ema21_1d){
+        if(!setup.valido){
 
           console.log(
-            `${par.symbol} ❌ Tendência de baixa no 1D`
+            `${par.symbol} ❌ ${setup.motivo}`
           );
 
           continue;
         }
 
-        /* ================= ENTRADA 15M ================= */
-
-        const candles =
-          await client.candles({
-            symbol: par.symbol,
-            interval: INTERVALO,
-            limit: 50
-          });
-
-        const closes =
-          candles.map(
-            c => parseFloat(c.close)
-          );
-
-        const opens =
-          candles.map(
-            c => parseFloat(c.open)
-          );
-
-        const volumes =
-          candles.map(
-            c => parseFloat(c.volume)
-          );
-
-        const ema9 = ema(
-          closes.slice(-9),
-          9
+        console.log(
+          `${par.symbol} ✅ SETUP CONFIRMADO`
         );
 
-        const ema21 = ema(
-          closes.slice(-21),
-          21
+        console.log(
+          `${par.symbol} 👀 INICIANDO MONITORAMENTO`
         );
 
-        const r =
-          rsi(closes,14);
+        await monitorarQueda(
+          par.symbol,
+          setup.precoAtual
+        );
 
-        const precoAtual =
-          closes[closes.length - 1];
-
-        const openAtual =
-          opens[opens.length - 1];
-
-        const volumeAtual =
-          volumes[volumes.length - 1];
-
-        const volumeMedio =
-          volumes
-            .slice(-20)
-            .reduce(
-              (a,b)=>a+b,
-              0
-            ) / 20;
-
-        const candlePositivo =
-          precoAtual > openAtual;
-
-        const distanciaEMA21 =
-          Math.abs(
-            (precoAtual - ema21)
-            / ema21
-          );
-
-        let motivo = "";
-
-        if(ema9 < ema21){
-
-          motivo =
-            "Sem tendência no 15m";
-
-        }else if(r > 55){
-
-          motivo =
-            "RSI alto";
-
-        }else if(
-          distanciaEMA21 > 0.01
-        ){
-
-          motivo =
-            "Muito longe da EMA21";
-
-        }else if(!candlePositivo){
-
-          motivo =
-            "Sem confirmação";
-
-        }else if(
-          volumeAtual < volumeMedio
-        ){
-
-          motivo =
-            "Volume fraco";
-        }
-
-        if(motivo){
-
-          console.log(
-            `${par.symbol} ❌ ${motivo}`
-          );
-
-        }else{
-
-          console.log(
-            `${par.symbol} ✅ SETUP CONFIRMADO`
-          );
-
-          const precoAlvo =
-            precoAtual *
-            (1 - QUEDA_PARA_COMPRAR);
-
-          const precoAgora =
-            parseFloat(
-              (await client.prices({
-                symbol: par.symbol
-              }))[par.symbol]
-            );
-
-          console.log(
-            `${par.symbol} 🎯 AGUARDANDO QUEDA DE 3%`
-          );
-
-          console.log(
-            `${par.symbol} 💰 Atual: ${precoAgora}`
-          );
-
-          console.log(
-            `${par.symbol} 📉 Alvo: ${precoAlvo}`
-          );
-
-          if(precoAgora <= precoAlvo){
-
-            console.log(
-              `${par.symbol} 🚀 QUEDA ATINGIDA`
-            );
-
-            await comprar(
-              par.symbol
-            );
-
-            break;
-
-          }else{
-
-            console.log(
-              `${par.symbol} ⌛ Ainda não caiu 3%`
-            );
-          }
+        if(operando){
+          break;
         }
       }
 
@@ -553,6 +649,10 @@ async function iniciar(){
       );
     }
 
+    console.log(
+      "\n⏳ NOVA VARREDURA EM 15 MINUTOS...\n"
+    );
+
     await sleep(900000);
   }
 }
@@ -562,3 +662,4 @@ console.log(
 );
 
 iniciar();
+```

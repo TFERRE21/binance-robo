@@ -1,4 +1,3 @@
-```js
 require("dotenv").config();
 const Binance = require("binance-api-node").default;
 
@@ -197,9 +196,7 @@ async function comprar(symbol){
       stepSize
     );
 
-    console.log(
-      `🟢 COMPRANDO ${symbol}`
-    );
+    console.log(`🟢 COMPRANDO ${symbol}`);
 
     await client.order({
       symbol,
@@ -316,8 +313,6 @@ async function iniciar(){
           const base =
             info.baseAsset;
 
-          /* ================= BLOQUEADAS ================= */
-
           if(
             BLOQUEADAS.some(
               b => base.startsWith(b)
@@ -331,8 +326,6 @@ async function iniciar(){
             return false;
           }
 
-          /* ================= 1 ANO ================= */
-
           if(info.onboardDate){
 
             if(
@@ -345,8 +338,6 @@ async function iniciar(){
 
           return true;
         })
-
-        /* ================= TOP 20 ================= */
 
         .sort(
           (a,b) =>
@@ -571,4 +562,3 @@ console.log(
 );
 
 iniciar();
-```

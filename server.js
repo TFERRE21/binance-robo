@@ -1,3 +1,4 @@
+```javascript
 require("dotenv").config();
 
 const Binance =
@@ -25,6 +26,10 @@ const TEMPO_MAXIMO_ESPERA =
   2 * 60 * 60 * 1000; // 2 horas
 
 let operando = false;
+
+/* ================= NOVO ================= */
+
+const monitorando = new Set();
 
 /* ================= BLOQUEIOS ================= */
 
@@ -458,6 +463,12 @@ async function monitorarQueda(
   precoReferencia
 ){
 
+  if(monitorando.has(symbol)){
+    return;
+  }
+
+  monitorando.add(symbol);
+
   const precoAlvo =
     precoReferencia *
     (1 - QUEDA_PARA_COMPRAR);
@@ -477,7 +488,8 @@ async function monitorarQueda(
   while(true){
 
     if(operando){
-      return;
+      await sleep(5000);
+      continue;
     }
 
     try{
@@ -530,6 +542,8 @@ async function monitorarQueda(
           );
         }
 
+        monitorando.delete(symbol);
+
         return;
       }
 
@@ -546,6 +560,8 @@ async function monitorarQueda(
           "⌛ TEMPO MÁXIMO ATINGIDO"
         );
 
+        monitorando.delete(symbol);
+
         return;
       }
 
@@ -559,6 +575,8 @@ async function monitorarQueda(
         "❌ Erro monitoramento:",
         err.message
       );
+
+      monitorando.delete(symbol);
 
       return;
     }
@@ -574,7 +592,7 @@ async function iniciar(){
     try{
 
       console.log(
-        "\n🔎 VARREDURA TOP 20 MARKET CAP...\n"
+        "\n🔎 VARREDURA TOP 25 MARKET CAP...\n"
       );
 
       const exchangeInfo =
@@ -648,19 +666,25 @@ async function iniciar(){
         .slice(0, MAX_MOEDAS);
 
       console.log(
-        "\n📊 TOP 20 MOEDAS:\n"
+        "\n📊 TOP 25 MOEDAS:\n"
       );
 
       for(const par of pares){
-
-        if(operando){
-          break;
-        }
 
         console.log(
           "➡️",
           par.symbol
         );
+
+        if(monitorando.has(par.symbol)){
+
+          console.log(
+            par.symbol,
+            "👀 JÁ MONITORANDO"
+          );
+
+          continue;
+        }
 
         const setup =
           await validarSetup(
@@ -688,14 +712,10 @@ async function iniciar(){
           "👀 INICIANDO MONITORAMENTO"
         );
 
-        await monitorarQueda(
+        monitorarQueda(
           par.symbol,
           setup.precoAtual
         );
-
-        if(operando){
-          break;
-        }
       }
 
     }catch(err){
@@ -719,3 +739,4 @@ console.log(
 );
 
 iniciar();
+```

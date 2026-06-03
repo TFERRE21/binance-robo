@@ -22,12 +22,13 @@ const QUEDA_PARA_COMPRAR = 0.03; // 3%
 const PERCENTUAL_ENTRADA = 0.95;
 
 const TEMPO_MONITORAMENTO = 15000; // 15s
+
 const TEMPO_MAXIMO_ESPERA =
-  2 * 60 * 60 * 1000; // 2 horas
+  2 * 60 * 60 * 1000; // 2h
 
 let operando = false;
 
-/* ================= NOVO ================= */
+/* ================= MONITORAMENTOS ================= */
 
 const monitorando = new Set();
 
@@ -162,15 +163,11 @@ async function validarSetup(symbol){
         c => parseFloat(c.close)
       );
 
-    const ema21_1d = ema(
-      closes1d.slice(-21),
-      21
-    );
+    const ema21_1d =
+      ema(closes1d.slice(-21),21);
 
     const preco1d =
-      closes1d[
-        closes1d.length - 1
-      ];
+      closes1d[closes1d.length - 1];
 
     if(preco1d < ema21_1d){
 
@@ -204,15 +201,11 @@ async function validarSetup(symbol){
         c => parseFloat(c.volume)
       );
 
-    const ema9 = ema(
-      closes.slice(-9),
-      9
-    );
+    const ema9 =
+      ema(closes.slice(-9),9);
 
-    const ema21 = ema(
-      closes.slice(-21),
-      21
-    );
+    const ema21 =
+      ema(closes.slice(-21),21);
 
     const r =
       rsi(closes,14);
@@ -229,10 +222,7 @@ async function validarSetup(symbol){
     const volumeMedio =
       volumes
         .slice(-20)
-        .reduce(
-          (a,b)=>a+b,
-          0
-        ) / 20;
+        .reduce((a,b)=>a+b,0) / 20;
 
     const candlePositivo =
       precoAtual > openAtual;
@@ -248,32 +238,27 @@ async function validarSetup(symbol){
 
     if(ema9 < ema21){
 
-      motivo =
-        "Sem tendência 15m";
+      motivo = "Sem tendência 15m";
 
     }else if(r > 55){
 
-      motivo =
-        "RSI alto";
+      motivo = "RSI alto";
 
     }else if(
       distanciaEMA21 > 0.01
     ){
 
-      motivo =
-        "Muito longe EMA21";
+      motivo = "Muito longe EMA21";
 
     }else if(!candlePositivo){
 
-      motivo =
-        "Candle negativo";
+      motivo = "Candle negativo";
 
     }else if(
       volumeAtual < volumeMedio
     ){
 
-      motivo =
-        "Volume fraco";
+      motivo = "Volume fraco";
     }
 
     if(motivo){
@@ -370,10 +355,11 @@ async function comprar(symbol){
         PERCENTUAL_ENTRADA
       ) / precoAtual;
 
-    quantidadeCompra = ajustar(
-      quantidadeCompra,
-      stepSize
-    );
+    quantidadeCompra =
+      ajustar(
+        quantidadeCompra,
+        stepSize
+      );
 
     console.log(
       "🟢 COMPRANDO",
@@ -402,10 +388,11 @@ async function comprar(symbol){
         )?.free || 0
       );
 
-    quantidadeReal = ajustar(
-      quantidadeReal,
-      stepSize
-    );
+    quantidadeReal =
+      ajustar(
+        quantidadeReal,
+        stepSize
+      );
 
     const precoEntrada =
       parseFloat(
@@ -420,10 +407,11 @@ async function comprar(symbol){
       precoEntrada *
       (1 + TAKE_PROFIT);
 
-    precoVenda = ajustar(
-      precoVenda,
-      tickSize
-    );
+    precoVenda =
+      ajustar(
+        precoVenda,
+        tickSize
+      );
 
     console.log(
       "🎯 VENDA EM:",
@@ -487,12 +475,13 @@ async function monitorarQueda(
 
   while(true){
 
-    if(operando){
-      await sleep(5000);
-      continue;
-    }
-
     try{
+
+      if(operando){
+
+        await sleep(5000);
+        continue;
+      }
 
       const precoAtual =
         parseFloat(

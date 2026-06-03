@@ -41,6 +41,7 @@ const BLOQUEADAS = [
   "BUSD",
   "USD",
   "USD1",
+  "U",
   "UUSDT",
   "RLUSD",
   "EUR",

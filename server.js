@@ -40,14 +40,14 @@ const BLOQUEADAS = [
   "DAI",
   "BUSD",
   "USD",
+  "USD1",
+  "UUSDT",
+  "RLUSD",
   "EUR",
   "TRY",
   "BRL",
   "GBP",
-  "AUD",
-  "RLUSD",
-  "UUSDT"
-
+  "AUD"
 ];
 
 const PALAVRAS_BLOQUEADAS = [
@@ -638,10 +638,12 @@ async function iniciar(){
           const base =
             info.baseAsset.toUpperCase();
 
-          /* ===== BLOQUEAR DÓLAR / STABLE ===== */
+          /* ===== BLOQUEAR STABLE ===== */
 
           if(
-            BLOQUEADAS.includes(base)
+            BLOQUEADAS.some(
+              b => base.includes(b)
+            )
           ){
 
             console.log(
@@ -668,19 +670,6 @@ async function iniciar(){
             return false;
           }
 
-          /* ===== BLOQUEAR MOEDAS NOVAS ===== */
-
-          if(info.onboardDate){
-
-            if(
-              agora - info.onboardDate <
-              UM_ANO_MS
-            ){
-
-              return false;
-            }
-          }
-
           /* ===== BLOQUEAR NOMES ESTRANHOS ===== */
 
           if(
@@ -693,6 +682,19 @@ async function iniciar(){
             );
 
             return false;
+          }
+
+          /* ===== BLOQUEAR MOEDAS NOVAS ===== */
+
+          if(info.onboardDate){
+
+            if(
+              agora - info.onboardDate <
+              UM_ANO_MS
+            ){
+
+              return false;
+            }
           }
 
           return true;

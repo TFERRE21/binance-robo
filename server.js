@@ -715,7 +715,7 @@ async function iniciar(){
 }
 
 console.log(
-  "🔥 ROBÔ TOP 20 MARKET CAP ATIVO"
+  "🔥 ROBÔ TOP 25 MARKET CAP ATIVO"
 );
 
 iniciar();

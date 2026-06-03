@@ -33,10 +33,27 @@ const monitorando = new Set();
 /* ================= BLOQUEIOS ================= */
 
 const BLOQUEADAS = [
-  "USD","EUR","TRY","BRL","GBP","AUD",
-  "BULL","BEAR","UP","DOWN",
-  "USDC","FDUSD","TUSD","DAI",
-  "RLUSD","UUSDT","U/USDT"
+  "USDT",
+  "USDC",
+  "FDUSD",
+  "TUSD",
+  "DAI",
+  "BUSD",
+  "USD",
+  "EUR",
+  "TRY",
+  "BRL",
+  "GBP",
+  "AUD",
+  "RLUSD",
+  "UUSDT"
+];
+
+const PALAVRAS_BLOQUEADAS = [
+  "BULL",
+  "BEAR",
+  "UP",
+  "DOWN"
 ];
 
 const UM_ANO_MS =
@@ -618,16 +635,39 @@ async function iniciar(){
           }
 
           const base =
-            info.baseAsset;
+            info.baseAsset.toUpperCase();
+
+          /* ===== BLOQUEAR DÓLAR / STABLE ===== */
 
           if(
-            BLOQUEADAS.some(
-              b => base.startsWith(b)
-            )
+            BLOQUEADAS.includes(base)
           ){
+
+            console.log(
+              t.symbol,
+              "⛔ STABLE BLOQUEADA"
+            );
 
             return false;
           }
+
+          /* ===== BLOQUEAR LEVERAGED ===== */
+
+          if(
+            PALAVRAS_BLOQUEADAS.some(
+              p => base.includes(p)
+            )
+          ){
+
+            console.log(
+              t.symbol,
+              "⛔ LEVERAGED"
+            );
+
+            return false;
+          }
+
+          /* ===== BLOQUEAR MOEDAS NOVAS ===== */
 
           if(info.onboardDate){
 
@@ -635,8 +675,23 @@ async function iniciar(){
               agora - info.onboardDate <
               UM_ANO_MS
             ){
+
               return false;
             }
+          }
+
+          /* ===== BLOQUEAR NOMES ESTRANHOS ===== */
+
+          if(
+            /[^a-zA-Z0-9]/.test(base)
+          ){
+
+            console.log(
+              t.symbol,
+              "⛔ NOME ESTRANHO"
+            );
+
+            return false;
           }
 
           return true;

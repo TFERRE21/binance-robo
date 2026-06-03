@@ -47,7 +47,7 @@ const BLOQUEADAS = [
   "AUD",
   "RLUSD",
   "UUSDT"
-  "USD1USDT"
+  "USD1"
   "UUSDT"
 ];
 

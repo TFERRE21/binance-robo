@@ -47,6 +47,8 @@ const BLOQUEADAS = [
   "AUD",
   "RLUSD",
   "UUSDT"
+  "USD1USDT"
+  "UUSDT"
 ];
 
 const PALAVRAS_BLOQUEADAS = [

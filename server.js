@@ -13,14 +13,14 @@ const client = Binance({
 const INTERVALO = "15m";
 const INTERVALO_TENDENCIA = "1d";
 
-const MAX_MOEDAS = 20;
+const MAX_MOEDAS = 25;
 
 const TAKE_PROFIT = 0.05; // 5%
 const QUEDA_PARA_COMPRAR = 0.03; // 3%
 
 const PERCENTUAL_ENTRADA = 0.95;
 
-const TEMPO_MONITORAMENTO = 30000; // 30s
+const TEMPO_MONITORAMENTO = 15000; // 15s
 const TEMPO_MAXIMO_ESPERA =
   2 * 60 * 60 * 1000; // 2 horas
 

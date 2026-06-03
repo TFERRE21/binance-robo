@@ -1,8 +1,6 @@
-```javascript
 require("dotenv").config();
 
-const Binance =
-  require("binance-api-node").default;
+const Binance = require("binance-api-node").default;
 
 const client = Binance({
   apiKey: process.env.API_KEY,
@@ -16,17 +14,19 @@ const INTERVALO_TENDENCIA = "1d";
 
 const MAX_MOEDAS = 25;
 
-const TAKE_PROFIT = 0.05;
-const QUEDA_PARA_COMPRAR = 0.03;
+const TAKE_PROFIT = 0.05; // 5%
+const QUEDA_PARA_COMPRAR = 0.03; // 3%
 
 const PERCENTUAL_ENTRADA = 0.95;
 
-const TEMPO_MONITORAMENTO = 15000;
+const TEMPO_MONITORAMENTO = 15000; // 15 segundos
 
 const TEMPO_MAXIMO_ESPERA =
-  2 * 60 * 60 * 1000;
+  2 * 60 * 60 * 1000; // 2 horas
 
 let operando = false;
+
+/* ================= MONITORAMENTOS ================= */
 
 const monitorando = new Set();
 
@@ -147,6 +147,8 @@ async function validarSetup(symbol){
 
   try{
 
+    /* ===== TENDÊNCIA 1D ===== */
+
     const candles1d =
       await client.candles({
         symbol,
@@ -174,6 +176,8 @@ async function validarSetup(symbol){
         motivo: "Tendência baixa 1D"
       };
     }
+
+    /* ===== ENTRADA 15M ===== */
 
     const candles =
       await client.candles({
@@ -326,6 +330,42 @@ async function comprar(symbol){
         )[symbol]
       );
 
+    const exchangeInfo =
+      await client.exchangeInfo();
+
+    const info =
+      exchangeInfo.symbols.find(
+        s => s.symbol === symbol
+      );
+
+    const lot =
+      info.filters.find(
+        f => f.filterType === "LOT_SIZE"
+      );
+
+    const priceFilter =
+      info.filters.find(
+        f => f.filterType === "PRICE_FILTER"
+      );
+
+    const stepSize =
+      parseFloat(lot.stepSize);
+
+    const tickSize =
+      parseFloat(priceFilter.tickSize);
+
+    let quantidadeCompra =
+      (
+        saldoUSDT *
+        PERCENTUAL_ENTRADA
+      ) / precoAtual;
+
+    quantidadeCompra =
+      ajustar(
+        quantidadeCompra,
+        stepSize
+      );
+
     console.log(
       "🟢 COMPRANDO",
       symbol
@@ -335,13 +375,65 @@ async function comprar(symbol){
       symbol,
       side: "BUY",
       type: "MARKET",
-      quoteOrderQty:
-        saldoUSDT *
-        PERCENTUAL_ENTRADA
+      quantity: quantidadeCompra
+    });
+
+    await sleep(3000);
+
+    const asset =
+      symbol.replace("USDT","");
+
+    const accAtualizado =
+      await client.accountInfo();
+
+    let quantidadeReal =
+      parseFloat(
+        accAtualizado.balances.find(
+          b => b.asset === asset
+        )?.free || 0
+      );
+
+    quantidadeReal =
+      ajustar(
+        quantidadeReal,
+        stepSize
+      );
+
+    const precoEntrada =
+      parseFloat(
+        (
+          await client.prices({
+            symbol
+          })
+        )[symbol]
+      );
+
+    let precoVenda =
+      precoEntrada *
+      (1 + TAKE_PROFIT);
+
+    precoVenda =
+      ajustar(
+        precoVenda,
+        tickSize
+      );
+
+    console.log(
+      "🎯 VENDA EM:",
+      precoVenda
+    );
+
+    await client.order({
+      symbol,
+      side: "SELL",
+      type: "LIMIT",
+      quantity: quantidadeReal,
+      price: precoVenda,
+      timeInForce: "GTC"
     });
 
     console.log(
-      "✅ COMPRA REALIZADA"
+      "✅ ORDEM DE VENDA CRIADA"
     );
 
   }catch(err){
@@ -379,6 +471,11 @@ async function monitorarQueda(
     symbol
   );
 
+  console.log(
+    "🎯 PREÇO ALVO:",
+    precoAlvo
+  );
+
   const inicio = Date.now();
 
   while(true){
@@ -402,17 +499,41 @@ async function monitorarQueda(
 
       console.log(
         symbol,
+        "💰 Atual:",
         precoAtual
       );
 
       if(precoAtual <= precoAlvo){
+
+        console.log(
+          symbol,
+          "📉 QUEDA DE 3% ATINGIDA"
+        );
+
+        console.log(
+          symbol,
+          "🔎 REVALIDANDO SETUP..."
+        );
 
         const revalidacao =
           await validarSetup(symbol);
 
         if(revalidacao.valido){
 
+          console.log(
+            symbol,
+            "✅ SETUP CONTINUA VÁLIDO"
+          );
+
           await comprar(symbol);
+
+        }else{
+
+          console.log(
+            symbol,
+            "❌ SETUP INVALIDADO:",
+            revalidacao.motivo
+          );
         }
 
         monitorando.delete(symbol);
@@ -428,6 +549,11 @@ async function monitorarQueda(
         TEMPO_MAXIMO_ESPERA
       ){
 
+        console.log(
+          symbol,
+          "⌛ TEMPO MÁXIMO ATINGIDO"
+        );
+
         monitorando.delete(symbol);
 
         return;
@@ -440,7 +566,7 @@ async function monitorarQueda(
     }catch(err){
 
       console.log(
-        "❌ Monitoramento:",
+        "❌ Erro monitoramento:",
         err.message
       );
 
@@ -460,7 +586,7 @@ async function iniciar(){
     try{
 
       console.log(
-        "\n🔎 VARREDURA TOP 25\n"
+        "\n🔎 VARREDURA TOP 25 MARKET CAP...\n"
       );
 
       const exchangeInfo =
@@ -469,7 +595,8 @@ async function iniciar(){
       const tickers =
         await client.dailyStats();
 
-      const agora = Date.now();
+      const agora =
+        Date.now();
 
       const pares = tickers
 
@@ -498,6 +625,7 @@ async function iniciar(){
               b => base.startsWith(b)
             )
           ){
+
             return false;
           }
 
@@ -526,16 +654,26 @@ async function iniciar(){
 
         .slice(0, MAX_MOEDAS);
 
-      for(const par of pares){
+      console.log(
+        "\n📊 TOP 25 MOEDAS:\n"
+      );
 
-        if(monitorando.has(par.symbol)){
-          continue;
-        }
+      for(const par of pares){
 
         console.log(
           "➡️",
           par.symbol
         );
+
+        if(monitorando.has(par.symbol)){
+
+          console.log(
+            par.symbol,
+            "👀 JÁ MONITORANDO"
+          );
+
+          continue;
+        }
 
         const setup =
           await validarSetup(
@@ -545,6 +683,7 @@ async function iniciar(){
         if(!setup.valido){
 
           console.log(
+            par.symbol,
             "❌",
             setup.motivo
           );
@@ -553,8 +692,13 @@ async function iniciar(){
         }
 
         console.log(
-          "✅ SETUP",
-          par.symbol
+          par.symbol,
+          "✅ SETUP CONFIRMADO"
+        );
+
+        console.log(
+          par.symbol,
+          "👀 INICIANDO MONITORAMENTO"
         );
 
         monitorarQueda(
@@ -572,7 +716,7 @@ async function iniciar(){
     }
 
     console.log(
-      "\n⏳ NOVA VARREDURA EM 15m\n"
+      "\n⏳ NOVA VARREDURA EM 15 MINUTOS...\n"
     );
 
     await sleep(900000);
@@ -580,8 +724,7 @@ async function iniciar(){
 }
 
 console.log(
-  "🔥 ROBÔ ATIVO"
+  "🔥 ROBÔ TOP 25 MARKET CAP ATIVO"
 );
 
 iniciar();
-```

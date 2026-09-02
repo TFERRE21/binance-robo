@@ -8,57 +8,98 @@ const client = Binance({
 });
 
 /* =========================================================
+   ROBÔ BINANCE — TOP 20 MARKET CAP
+
+   Estratégia flexível para aumentar entradas sem comprar
+   indiscriminadamente.
+
+   REGRAS PRINCIPAIS:
+
+   - TOP 20 por capitalização de mercado
+   - Somente pares USDT
+   - Stablecoins bloqueadas
+   - Tokens alavancados bloqueados
+   - Ativos com menos de 1 ano bloqueados
+   - Tendência 1D e 4H favorável
+   - Entrada por SCORE no 15M
+   - SCORE mínimo: 7/12
+   - RSI: 40 a 65
+   - Volume mínimo: 80% da média
+   - Pullback OU breakout
+   - Compra MARKET usando 95% do USDT
+   - Venda LIMIT em +5%
+   - STOP LOSS desativado
+   - Uma posição por vez
+
+   IMPORTANTE:
+   +5% é um alvo, não uma garantia de lucro.
+========================================================= */
+
+
+/* =========================================================
    CONFIGURAÇÕES
 ========================================================= */
 
-// Timeframe principal de entrada
 const INTERVALO = "15m";
 
-// Tendência principal
 const INTERVALO_DIARIO = "1d";
 
-// Confirmação intermediária
 const INTERVALO_4H = "4h";
+
 
 // TOP 20 por capitalização de mercado
 const MAX_MOEDAS = 20;
 
-// TAKE PROFIT = 5%
+
+// TAKE PROFIT
 const TAKE_PROFIT = 0.05;
 
-// ENTRADA = 95% DO SALDO
+
+// ENTRADA DE 95% DO SALDO
 const PERCENTUAL_ENTRADA = 0.95;
 
-// RSI
-const RSI_MIN = 45;
-const RSI_MAX = 58;
 
-// Distância máxima da EMA21 no momento da entrada
-const DISTANCIA_MAX_EMA21 = 0.01;
+// Estratégia flexibilizada
+const RSI_MIN = 40;
 
-// Pontuação mínima
-const SCORE_MINIMO = 9;
+const RSI_MAX = 65;
 
-// Tempo entre verificações
-const TEMPO_MONITORAMENTO = 15000;
+const DISTANCIA_MAX_EMA21 = 0.03;
 
-// Tempo máximo monitorando uma oportunidade
-const TEMPO_MAXIMO_ESPERA = 2 * 60 * 60 * 1000;
+const VOLUME_MINIMO_MULTIPLO = 0.80;
 
-// Nova varredura a cada 15 minutos
-const INTERVALO_VARREDURA = 15 * 60 * 1000;
+const SCORE_MINIMO = 7;
 
-// Uma operação por vez
+const PULLBACK_MAX = 0.03;
+
+
+// Varredura a cada 15 minutos
+const INTERVALO_VARREDURA =
+  15 * 60 * 1000;
+
+
+// Pausa entre moedas
+const PAUSA_ENTRE_PARES = 700;
+
+
+// Cache do ranking CoinGecko
+const CACHE_TOP_MS =
+  15 * 60 * 1000;
+
+let cacheTop = [];
+
+let cacheTopTimestamp = 0;
+
+
+// Controle operacional
 let operando = false;
 
-// Moedas sendo monitoradas
-const monitorando = new Set();
 
 /* =========================================================
    BLOQUEIOS
 ========================================================= */
 
-const BLOQUEADAS = [
+const BLOQUEADAS = new Set([
   "USDT",
   "USDC",
   "FDUSD",
@@ -75,26 +116,92 @@ const BLOQUEADAS = [
   "BRL",
   "GBP",
   "AUD"
-];
+]);
+
 
 const PALAVRAS_BLOQUEADAS = [
-  "BULL",
-  "BEAR",
   "UP",
-  "DOWN"
+  "DOWN",
+  "BULL",
+  "BEAR"
 ];
 
-// Não aceitar moedas listadas há menos de 1 ano
+
 const UM_ANO_MS =
   365 * 24 * 60 * 60 * 1000;
+
 
 /* =========================================================
    FUNÇÕES AUXILIARES
 ========================================================= */
 
 function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
+
+  return new Promise(
+    resolve => setTimeout(resolve, ms)
+  );
+
 }
+
+
+function numero(valor, casas = 8) {
+
+  const n = Number(valor);
+
+  return Number.isFinite(n)
+    ? n.toFixed(casas)
+    : "0";
+
+}
+
+
+function erroTexto(err) {
+
+  if (!err) {
+    return "Erro desconhecido";
+  }
+
+  if (err.body) {
+
+    try {
+
+      return typeof err.body === "string"
+        ? err.body
+        : JSON.stringify(err.body);
+
+    } catch (_) {
+
+      return String(err.body);
+
+    }
+
+  }
+
+  return err.message || String(err);
+
+}
+
+
+function ehStable(asset) {
+
+  return BLOQUEADAS.has(
+    String(asset || "").toUpperCase()
+  );
+
+}
+
+
+function ehAlavancado(asset) {
+
+  const base =
+    String(asset || "").toUpperCase();
+
+  return PALAVRAS_BLOQUEADAS.some(
+    palavra => base.endsWith(palavra)
+  );
+
+}
+
 
 /* =========================================================
    EMA
@@ -102,23 +209,46 @@ function sleep(ms) {
 
 function ema(values, period) {
 
-  if (!values || values.length < period) {
+  if (
+    !Array.isArray(values) ||
+    values.length < period
+  ) {
+
     return null;
+
   }
 
-  const k = 2 / (period + 1);
 
-  let e = values[0];
+  const k =
+    2 / (period + 1);
 
-  for (let i = 1; i < values.length; i++) {
 
-    e =
+  let resultado =
+    values
+      .slice(0, period)
+      .reduce(
+        (a, b) => a + b,
+        0
+      ) / period;
+
+
+  for (
+    let i = period;
+    i < values.length;
+    i++
+  ) {
+
+    resultado =
       values[i] * k +
-      e * (1 - k);
+      resultado * (1 - k);
+
   }
 
-  return e;
+
+  return resultado;
+
 }
+
 
 /* =========================================================
    RSI
@@ -126,21 +256,35 @@ function ema(values, period) {
 
 function rsi(values, period = 14) {
 
-  if (!values || values.length < period + 1) {
+  if (
+    !Array.isArray(values) ||
+    values.length < period + 1
+  ) {
+
     return null;
+
   }
 
+
   let ganhos = 0;
+
   let perdas = 0;
 
+
+  const inicio =
+    values.length - period;
+
+
   for (
-    let i = values.length - period;
+    let i = inicio;
     i < values.length;
     i++
   ) {
 
     const diff =
-      values[i] - values[i - 1];
+      values[i] -
+      values[i - 1];
+
 
     if (diff >= 0) {
 
@@ -149,266 +293,586 @@ function rsi(values, period = 14) {
     } else {
 
       perdas -= diff;
+
     }
+
   }
+
 
   if (perdas === 0) {
+
     return 100;
+
   }
 
-  const rs = ganhos / perdas;
 
-  return 100 - (100 / (1 + rs));
+  const rs =
+    ganhos / perdas;
+
+
+  return 100 -
+    100 / (1 + rs);
+
 }
 
+
 /* =========================================================
-   AJUSTAR QUANTIDADE / PREÇO
+   AJUSTES BINANCE
 ========================================================= */
+
+function casasDoStep(step) {
+
+  const texto =
+    String(step);
+
+
+  if (texto.includes("e-")) {
+
+    return Number(
+      texto.split("e-")[1]
+    );
+
+  }
+
+
+  const decimal =
+    texto.split(".")[1];
+
+
+  return decimal
+    ? decimal.replace(/0+$/, "").length
+    : 0;
+
+}
+
 
 function ajustar(valor, step) {
 
-  const precision =
-    Math.round(-Math.log10(step));
+  if (
+    !Number.isFinite(valor) ||
+    !Number.isFinite(step) ||
+    step <= 0
+  ) {
 
-  return parseFloat(
-    (
-      Math.floor(valor / step) * step
-    ).toFixed(precision)
+    return 0;
+
+  }
+
+
+  const casas =
+    casasDoStep(step);
+
+
+  const resultado =
+    Math.floor(
+      (valor + Number.EPSILON) /
+      step
+    ) * step;
+
+
+  return Number(
+    resultado.toFixed(casas)
   );
+
 }
 
+
+function obterFiltro(info, tipo) {
+
+  return info?.filters?.find(
+    f => f.filterType === tipo
+  );
+
+}
+
+
+function obterMinNotional(info) {
+
+  const filtro =
+    obterFiltro(
+      info,
+      "NOTIONAL"
+    );
+
+
+  if (filtro?.minNotional) {
+
+    return Number(
+      filtro.minNotional
+    );
+
+  }
+
+
+  const antigo =
+    obterFiltro(
+      info,
+      "MIN_NOTIONAL"
+    );
+
+
+  if (antigo?.minNotional) {
+
+    return Number(
+      antigo.minNotional
+    );
+
+  }
+
+
+  return 0;
+
+}
+
+
 /* =========================================================
-   OBTER TOP 20 MARKET CAP
+   TOP 20 MARKET CAP
+
+   A Binance não fornece market cap diretamente.
+
+   CoinGecko fornece o ranking.
+
+   Binance confirma se existe o par USDT.
 ========================================================= */
 
-/*
-   A Binance não fornece capitalização de mercado diretamente
-   em dailyStats().
+async function obterTop20MarketCap(
+  exchangeInfo
+) {
 
-   Por isso usamos CoinGecko para identificar as maiores moedas
-   por market cap e depois procuramos o respectivo par USDT
-   disponível na Binance.
-*/
+  const agora =
+    Date.now();
 
-async function obterTop20MarketCap(exchangeInfo) {
+
+  // Utiliza cache
+  if (
+    cacheTop.length > 0 &&
+    agora - cacheTopTimestamp <
+      CACHE_TOP_MS
+  ) {
+
+    return cacheTop;
+
+  }
+
 
   try {
 
-    const resposta = await fetch(
-      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false"
-    );
+    const resposta =
+      await fetch(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false"
+      );
+
 
     if (!resposta.ok) {
 
       throw new Error(
         `CoinGecko HTTP ${resposta.status}`
       );
+
     }
 
-    const moedas = await resposta.json();
+
+    const moedas =
+      await resposta.json();
+
 
     const resultado = [];
 
-    for (const moeda of moedas) {
 
-      if (resultado.length >= MAX_MOEDAS) {
-        break;
-      }
-
-      const simboloBase =
-        String(moeda.symbol || "")
-          .toUpperCase();
-
-      const nomeBase =
-        String(moeda.name || "");
-
-      if (!simboloBase) {
-        continue;
-      }
-
-      /* =========================
-         BLOQUEAR STABLECOINS
-      ========================= */
+    for (
+      const moeda of moedas
+    ) {
 
       if (
-        BLOQUEADAS.some(
-          bloqueada =>
-            simboloBase.includes(bloqueada)
-        )
+        resultado.length >=
+        MAX_MOEDAS
       ) {
 
-        console.log(
-          simboloBase,
-          "⛔ STABLE BLOQUEADA"
+        break;
+
+      }
+
+
+      const base =
+        String(
+          moeda.symbol || ""
+        ).toUpperCase();
+
+
+      const nome =
+        String(
+          moeda.name || ""
         );
 
-        continue;
-      }
 
-      /* =========================
-         BLOQUEAR ALAVANCADAS
-      ========================= */
-
-      if (
-        PALAVRAS_BLOQUEADAS.some(
-          palavra =>
-            simboloBase.includes(palavra)
-        )
-      ) {
+      if (!base) {
 
         continue;
+
       }
 
-      /*
-         Procurar o par USDT correspondente
-         na Binance.
-      */
 
-      const simboloBinance =
+      // Stablecoin
+      if (ehStable(base)) {
+
+        continue;
+
+      }
+
+
+      // Token alavancado
+      if (ehAlavancado(base)) {
+
+        continue;
+
+      }
+
+
+      // Encontrar par USDT na Binance
+      const par =
         exchangeInfo.symbols.find(
           s =>
             s.status === "TRADING" &&
             s.quoteAsset === "USDT" &&
-            s.baseAsset.toUpperCase() === simboloBase
+            String(
+              s.baseAsset || ""
+            ).toUpperCase() === base
         );
 
-      if (!simboloBinance) {
-        continue;
-      }
 
-      const base =
-        simboloBinance.baseAsset.toUpperCase();
-
-      /* =========================
-         BLOQUEIO STABLE
-      ========================= */
-
-      if (
-        BLOQUEADAS.some(
-          b => base.includes(b)
-        )
-      ) {
-
-        console.log(
-          simboloBinance.symbol,
-          "⛔ STABLE BLOQUEADA"
-        );
+      if (!par) {
 
         continue;
+
       }
 
-      /* =========================
-         BLOQUEIO LEVERAGED
-      ========================= */
+
+      const baseBinance =
+        String(
+          par.baseAsset || ""
+        ).toUpperCase();
+
 
       if (
-        PALAVRAS_BLOQUEADAS.some(
-          p => base.includes(p)
-        )
-      ) {
-
-        console.log(
-          simboloBinance.symbol,
-          "⛔ LEVERAGED"
-        );
-
-        continue;
-      }
-
-      /* =========================
-         BLOQUEIO NOME ESTRANHO
-      ========================= */
-
-      if (
-        /[^a-zA-Z0-9]/.test(base)
+        ehStable(baseBinance)
       ) {
 
         continue;
+
       }
 
-      /* =========================
-         BLOQUEIO MOEDA NOVA
-      ========================= */
 
-      if (simboloBinance.onboardDate) {
+      if (
+        ehAlavancado(baseBinance)
+      ) {
 
-        if (
-          Date.now() -
-          simboloBinance.onboardDate <
+        continue;
+
+      }
+
+
+      // Bloqueia moeda com menos de 1 ano
+      if (
+        par.onboardDate &&
+        Date.now() -
+          Number(par.onboardDate) <
           UM_ANO_MS
-        ) {
+      ) {
 
-          console.log(
-            simboloBinance.symbol,
-            "⛔ MOEDA COM MENOS DE 1 ANO"
-          );
+        continue;
 
-          continue;
-        }
       }
+
 
       resultado.push({
-        symbol: simboloBinance.symbol,
-        marketCap: moeda.market_cap,
-        rank: moeda.market_cap_rank,
-        nome: nomeBase
+
+        symbol:
+          par.symbol,
+
+        baseAsset:
+          baseBinance,
+
+        nome,
+
+        rank:
+          Number(
+            moeda.market_cap_rank ||
+            9999
+          ),
+
+        marketCap:
+          Number(
+            moeda.market_cap ||
+            0
+          )
+
       });
+
     }
 
+
+    cacheTop =
+      resultado;
+
+
+    cacheTopTimestamp =
+      agora;
+
+
     return resultado;
+
 
   } catch (err) {
 
     console.log(
-      "❌ Erro ao obter TOP 20 Market Cap:",
-      err.message
+      "❌ ERRO COINGECKO:",
+      erroTexto(err)
     );
 
+
+    // Se já existe cache, continua funcionando
+    if (
+      cacheTop.length > 0
+    ) {
+
+      console.log(
+        "♻️ Usando último TOP 20 armazenado."
+      );
+
+
+      return cacheTop;
+
+    }
+
+
     return [];
+
   }
+
 }
 
+
 /* =========================================================
-   VERIFICAR POSIÇÃO
+   POSIÇÕES E ORDENS
 ========================================================= */
 
-async function temPosicao(symbol) {
+async function temPosicao(
+  symbol
+) {
 
   const asset =
-    symbol.replace("USDT", "");
+    symbol.replace(
+      /USDT$/,
+      ""
+    );
+
 
   const acc =
     await client.accountInfo();
 
+
   const saldo =
-    parseFloat(
+    Number(
       acc.balances.find(
-        b => b.asset === asset
+        b =>
+          b.asset === asset
       )?.free || 0
     );
 
+
   return saldo > 0;
+
 }
 
-/* =========================================================
-   VERIFICAR ORDENS ABERTAS
-========================================================= */
 
-async function temOrdemAberta(symbol) {
+async function temOrdemAberta(
+  symbol
+) {
 
   const ordens =
     await client.openOrders({
       symbol
     });
 
+
   return ordens.length > 0;
+
 }
+
+
+/* =========================================================
+   VERIFICAR SE EXISTE OPERAÇÃO ATIVA
+
+   O robô trabalha com uma posição por vez.
+========================================================= */
+
+async function existeOperacaoAtiva(
+  exchangeInfo
+) {
+
+  try {
+
+    const ordens =
+      await client.openOrders();
+
+
+    const ordemUSDT =
+      ordens.find(
+        o =>
+          String(
+            o.symbol || ""
+          ).endsWith("USDT")
+      );
+
+
+    if (ordemUSDT) {
+
+      return {
+
+        ativa: true,
+
+        motivo:
+          `Ordem aberta em ${ordemUSDT.symbol}`
+
+      };
+
+    }
+
+
+    const acc =
+      await client.accountInfo();
+
+
+    for (
+      const saldo of acc.balances
+    ) {
+
+      const asset =
+        String(
+          saldo.asset || ""
+        ).toUpperCase();
+
+
+      const quantidade =
+        Number(
+          saldo.free || 0
+        ) +
+        Number(
+          saldo.locked || 0
+        );
+
+
+      if (
+        !asset ||
+        asset === "USDT" ||
+        quantidade <= 0
+      ) {
+
+        continue;
+
+      }
+
+
+      if (
+        ehStable(asset) ||
+        ehAlavancado(asset)
+      ) {
+
+        continue;
+
+      }
+
+
+      const possuiParUSDT =
+        exchangeInfo.symbols.some(
+          s =>
+            s.status === "TRADING" &&
+            s.quoteAsset === "USDT" &&
+            String(
+              s.baseAsset || ""
+            ).toUpperCase() === asset
+        );
+
+
+      if (
+        possuiParUSDT
+      ) {
+
+        return {
+
+          ativa: true,
+
+          motivo:
+            `Saldo encontrado em ${asset}`
+
+        };
+
+      }
+
+    }
+
+
+    return {
+
+      ativa: false,
+
+      motivo:
+        "Sem operação ativa"
+
+    };
+
+
+  } catch (err) {
+
+    console.log(
+      "⚠️ FALHA AO VERIFICAR POSIÇÃO:",
+      erroTexto(err)
+    );
+
+
+    // Segurança:
+    // se não conseguimos confirmar,
+    // não compramos.
+    return {
+
+      ativa: true,
+
+      motivo:
+        "Não foi possível confirmar a conta — compra bloqueada"
+
+    };
+
+  }
+
+}
+
 
 /* =========================================================
    VALIDAR SETUP
+
+   SCORE MÁXIMO = 12
+
+   1D
+   +2 preço > EMA50
+   +1 EMA50 > EMA200
+
+   4H
+   +2 preço > EMA50
+
+   15M
+   +2 EMA9 > EMA21
+   +1 RSI 40–65
+   +1 preço até 3% da EMA21
+   +1 volume >= 80% média
+   +1 candle positivo
+   +1 pullback OU breakout
+
+   MÍNIMO = 7
 ========================================================= */
 
-async function validarSetup(symbol) {
+async function validarSetup(
+  symbol
+) {
 
   try {
 
@@ -416,223 +880,376 @@ async function validarSetup(symbol) {
 
     const motivos = [];
 
+
     /* =====================================================
-       TENDÊNCIA DIÁRIA
+       1D — TENDÊNCIA PRINCIPAL
     ===================================================== */
 
     const candles1d =
       await client.candles({
+
         symbol,
-        interval: INTERVALO_DIARIO,
+
+        interval:
+          INTERVALO_DIARIO,
+
         limit: 250
+
       });
 
+
+    // Remove candle ainda aberto
+    const fechados1d =
+      candles1d.slice(0, -1);
+
+
     const closes1d =
-      candles1d.map(
-        c => parseFloat(c.close)
+      fechados1d.map(
+        c => Number(c.close)
       );
 
-    if (closes1d.length < 200) {
+
+    if (
+      closes1d.length < 200
+    ) {
 
       return {
+
         valido: false,
-        motivo: "Poucos candles 1D"
+
+        motivo:
+          "Poucos candles 1D"
+
       };
+
     }
+
 
     const ema50_1d =
       ema(
-        closes1d.slice(-50),
+        closes1d,
         50
       );
 
+
     const ema200_1d =
       ema(
-        closes1d.slice(-200),
+        closes1d,
         200
       );
+
 
     const preco1d =
       closes1d[
         closes1d.length - 1
       ];
 
-    /* =========================
-       PREÇO > EMA50
-    ========================= */
 
-    if (preco1d > ema50_1d) {
+    /* PREÇO > EMA50 */
+
+    if (
+      preco1d >
+      ema50_1d
+    ) {
 
       score += 2;
 
       motivos.push(
-        "Preço acima EMA50 1D"
+        "1D preço > EMA50 (+2)"
       );
 
     } else {
 
       return {
+
         valido: false,
-        motivo: "Preço abaixo EMA50 1D"
+
+        motivo:
+          "1D preço abaixo da EMA50"
+
       };
+
     }
 
-    /* =========================
-       EMA50 > EMA200
-    ========================= */
 
-    if (ema50_1d > ema200_1d) {
+    /* EMA50 > EMA200 */
 
-      score += 2;
+    if (
+      ema50_1d >
+      ema200_1d
+    ) {
+
+      score += 1;
 
       motivos.push(
-        "EMA50 > EMA200"
+        "1D EMA50 > EMA200 (+1)"
       );
 
     } else {
 
-      return {
-        valido: false,
-        motivo: "Tendência 1D não confirmada"
-      };
+      motivos.push(
+        "1D EMA50 <= EMA200"
+      );
+
     }
+
 
     /* =====================================================
-       TENDÊNCIA 4H
+       4H — CONFIRMAÇÃO
     ===================================================== */
 
     const candles4h =
       await client.candles({
+
         symbol,
-        interval: INTERVALO_4H,
-        limit: 100
+
+        interval:
+          INTERVALO_4H,
+
+        limit: 150
+
       });
 
+
+    const fechados4h =
+      candles4h.slice(0, -1);
+
+
     const closes4h =
-      candles4h.map(
-        c => parseFloat(c.close)
+      fechados4h.map(
+        c => Number(c.close)
       );
+
+
+    if (
+      closes4h.length < 50
+    ) {
+
+      return {
+
+        valido: false,
+
+        motivo:
+          "Poucos candles 4H"
+
+      };
+
+    }
+
+
+    const ema50_4h =
+      ema(
+        closes4h,
+        50
+      );
+
 
     const ema21_4h =
       ema(
-        closes4h.slice(-21),
+        closes4h,
         21
       );
+
 
     const preco4h =
       closes4h[
         closes4h.length - 1
       ];
 
-    if (preco4h > ema21_4h) {
+
+    /* PREÇO > EMA50 */
+
+    if (
+      preco4h >
+      ema50_4h
+    ) {
 
       score += 2;
 
       motivos.push(
-        "Preço acima EMA21 4H"
+        "4H preço > EMA50 (+2)"
       );
 
     } else {
 
       return {
+
         valido: false,
-        motivo: "Tendência 4H fraca"
+
+        motivo:
+          "4H preço abaixo da EMA50"
+
       };
+
     }
 
+
+    if (
+      preco4h >
+      ema21_4h
+    ) {
+
+      motivos.push(
+        "4H preço > EMA21"
+      );
+
+    }
+
+
     /* =====================================================
-       ENTRADA 15M
+       15M — ENTRADA
     ===================================================== */
 
     const candles =
       await client.candles({
+
         symbol,
-        interval: INTERVALO,
-        limit: 100
+
+        interval:
+          INTERVALO,
+
+        limit: 120
+
       });
 
+
+    if (
+      candles.length < 50
+    ) {
+
+      return {
+
+        valido: false,
+
+        motivo:
+          "Poucos candles 15M"
+
+      };
+
+    }
+
+
+    // Apenas candles fechados
+    const fechados =
+      candles.slice(0, -1);
+
+
     const closes =
-      candles.map(
-        c => parseFloat(c.close)
+      fechados.map(
+        c => Number(c.close)
       );
+
 
     const opens =
-      candles.map(
-        c => parseFloat(c.open)
+      fechados.map(
+        c => Number(c.open)
       );
+
 
     const highs =
-      candles.map(
-        c => parseFloat(c.high)
+      fechados.map(
+        c => Number(c.high)
       );
+
 
     const lows =
-      candles.map(
-        c => parseFloat(c.low)
+      fechados.map(
+        c => Number(c.low)
       );
 
+
     const volumes =
-      candles.map(
-        c => parseFloat(c.volume)
+      fechados.map(
+        c => Number(c.volume)
       );
+
 
     const ema9 =
       ema(
-        closes.slice(-9),
+        closes,
         9
       );
 
+
     const ema21 =
       ema(
-        closes.slice(-21),
+        closes,
         21
       );
 
+
     const r =
-      rsi(closes, 14);
+      rsi(
+        closes,
+        14
+      );
 
-    const precoAtual =
-      closes[closes.length - 1];
 
-    const openAtual =
-      opens[opens.length - 1];
+    const ultimo =
+      closes.length - 1;
 
-    const highAtual =
-      highs[highs.length - 1];
 
-    const lowAtual =
-      lows[lows.length - 1];
+    const precoFechado =
+      closes[ultimo];
 
-    const volumeAtual =
-      volumes[volumes.length - 1];
+
+    const openFechado =
+      opens[ultimo];
+
+
+    const highFechado =
+      highs[ultimo];
+
+
+    const lowFechado =
+      lows[ultimo];
+
+
+    const volumeFechado =
+      volumes[ultimo];
+
+
+    const volumeBase =
+      volumes.slice(
+        -21,
+        -1
+      );
+
 
     const volumeMedio =
-      volumes
-        .slice(-20)
-        .reduce(
-          (a, b) => a + b,
-          0
-        ) / 20;
+      volumeBase.reduce(
+        (a, b) => a + b,
+        0
+      ) /
+      Math.max(
+        volumeBase.length,
+        1
+      );
+
 
     /* =====================================================
        EMA9 > EMA21
     ===================================================== */
 
-    if (ema9 > ema21) {
+    if (
+      ema9 >
+      ema21
+    ) {
 
       score += 2;
 
       motivos.push(
-        "EMA9 > EMA21"
+        "15M EMA9 > EMA21 (+2)"
       );
 
     } else {
 
-      return {
-        valido: false,
-        motivo: "EMA9 abaixo EMA21"
-      };
+      motivos.push(
+        "15M EMA9 <= EMA21"
+      );
+
     }
+
 
     /* =====================================================
        RSI
@@ -646,29 +1263,40 @@ async function validarSetup(symbol) {
       score += 1;
 
       motivos.push(
-        `RSI saudável: ${r.toFixed(2)}`
+        `RSI ${r.toFixed(2)} (+1)`
+      );
+
+    } else if (
+      r > RSI_MAX &&
+      r <= 70
+    ) {
+
+      motivos.push(
+        `RSI alto, mas aceitável ${r.toFixed(2)}`
       );
 
     } else {
 
-      return {
-        valido: false,
-        motivo:
-          `RSI fora da faixa: ${r.toFixed(2)}`
-      };
+      motivos.push(
+        `RSI fora ${r.toFixed(2)}`
+      );
+
     }
 
+
     /* =====================================================
-       PREÇO NÃO MUITO LONGE DA EMA21
+       DISTÂNCIA DA EMA21
     ===================================================== */
 
     const distanciaEMA21 =
       Math.abs(
         (
-          precoAtual -
+          precoFechado -
           ema21
-        ) / ema21
+        ) /
+        ema21
       );
+
 
     if (
       distanciaEMA21 <=
@@ -678,201 +1306,211 @@ async function validarSetup(symbol) {
       score += 1;
 
       motivos.push(
-        "Preço próximo da EMA21"
+        `Preço a ${(distanciaEMA21 * 100).toFixed(2)}% da EMA21 (+1)`
       );
 
     } else {
-
-      return {
-        valido: false,
-        motivo: "Preço muito distante EMA21"
-      };
-    }
-
-    /* =====================================================
-       CANDLE POSITIVO
-    ===================================================== */
-
-    const candlePositivo =
-      precoAtual > openAtual;
-
-    if (candlePositivo) {
-
-      score += 1;
 
       motivos.push(
-        "Candle positivo"
+        `Preço a ${(distanciaEMA21 * 100).toFixed(2)}% da EMA21`
       );
 
-    } else {
-
-      return {
-        valido: false,
-        motivo: "Candle negativo"
-      };
     }
+
 
     /* =====================================================
        VOLUME
     ===================================================== */
 
     if (
-      volumeAtual >
-      volumeMedio
+      volumeMedio > 0 &&
+      volumeFechado >=
+        volumeMedio *
+        VOLUME_MINIMO_MULTIPLO
     ) {
 
       score += 1;
 
       motivos.push(
-        "Volume acima da média"
+        `Volume ${(volumeFechado / volumeMedio * 100).toFixed(0)}% da média (+1)`
       );
 
     } else {
 
-      return {
-        valido: false,
-        motivo: "Volume fraco"
-      };
-    }
-
-    /* =====================================================
-       PULLBACK
-    ===================================================== */
-
-    /*
-       Verifica se a mínima recente chegou próxima
-       da EMA21, indicando correção/pullback.
-    */
-
-    const menorLowRecentes =
-      Math.min(
-        ...lows.slice(-5)
+      motivos.push(
+        "Volume abaixo de 80% da média"
       );
 
-    const distanciaPullback =
+    }
+
+
+    /* =====================================================
+       CANDLE POSITIVO
+    ===================================================== */
+
+    if (
+      precoFechado >
+      openFechado
+    ) {
+
+      score += 1;
+
+      motivos.push(
+        "Candle positivo (+1)"
+      );
+
+    }
+
+
+    /* =====================================================
+       PULLBACK OU BREAKOUT
+    ===================================================== */
+
+    const lowsRecentes =
+      lows.slice(-5);
+
+
+    const menorLow =
+      Math.min(
+        ...lowsRecentes
+      );
+
+
+    const distanciaLowEMA21 =
       Math.abs(
         (
-          menorLowRecentes -
+          menorLow -
           ema21
-        ) / ema21
+        ) /
+        ema21
       );
 
+
+    const pullback =
+      distanciaLowEMA21 <=
+        PULLBACK_MAX &&
+      precoFechado >=
+        ema21 * 0.995;
+
+
+    const highsAnteriores =
+      highs.slice(
+        -11,
+        -1
+      );
+
+
+    const maiorHighAnterior =
+      Math.max(
+        ...highsAnteriores
+      );
+
+
+    const breakout =
+      precoFechado >
+        maiorHighAnterior &&
+      volumeMedio > 0 &&
+      volumeFechado >=
+        volumeMedio;
+
+
     if (
-      distanciaPullback <= 0.01
+      pullback
     ) {
 
       score += 1;
 
       motivos.push(
-        "Pullback confirmado"
+        "Pullback confirmado (+1)"
+      );
+
+    } else if (
+      breakout
+    ) {
+
+      score += 1;
+
+      motivos.push(
+        "Breakout confirmado (+1)"
       );
 
     } else {
 
-      return {
-        valido: false,
-        motivo: "Sem pullback próximo da EMA21"
-      };
+      motivos.push(
+        "Sem pullback/breakout"
+      );
+
     }
 
+
     /* =====================================================
-       RESULTADO
+       PROTEÇÃO CONTRA CANDLE EXAGERADO
     ===================================================== */
 
-    console.log(
-      symbol,
-      `📊 SCORE: ${score}/${12}`
-    );
+    const corpo =
+      Math.abs(
+        precoFechado -
+        openFechado
+      );
+
+
+    const amplitude =
+      Math.max(
+        highFechado -
+        lowFechado,
+        0
+      );
+
 
     if (
-      score < SCORE_MINIMO
+      amplitude > 0 &&
+      corpo / amplitude > 0.90 &&
+      precoFechado >
+        ema21 * 1.025
     ) {
 
       return {
+
         valido: false,
+
         motivo:
-          `Score insuficiente: ${score}/${SCORE_MINIMO}`
+          "Candle fechado muito esticado"
+
       };
+
     }
 
-    return {
-      valido: true,
-      precoAtual,
-      score,
-      rsi: r,
-      ema9,
-      ema21,
-      motivos
-    };
 
-  } catch (err) {
+    /* =====================================================
+       SCORE FINAL
+    ===================================================== */
 
-    return {
-      valido: false,
-      motivo: err.message
-    };
-  }
-}
-
-/* =========================================================
-   COMPRA
-========================================================= */
-
-async function comprar(symbol) {
-
-  if (operando) {
-    return;
-  }
-
-  if (
-    await temPosicao(symbol)
-  ) {
     console.log(
-      symbol,
-      "⛔ JÁ POSSUI POSIÇÃO"
+      `${symbol} 📊 SCORE ${score}/12 | RSI ${numero(r, 2)}`
     );
 
-    return;
-  }
 
-  if (
-    await temOrdemAberta(symbol)
-  ) {
-    console.log(
-      symbol,
-      "⛔ JÁ POSSUI ORDEM ABERTA"
-    );
+    if (
+      score <
+      SCORE_MINIMO
+    ) {
 
-    return;
-  }
+      return {
 
-  try {
+        valido: false,
 
-    operando = true;
+        motivo:
+          `Score ${score}/12 — mínimo ${SCORE_MINIMO}`
 
-    const acc =
-      await client.accountInfo();
+      };
 
-    const saldoUSDT =
-      parseFloat(
-        acc.balances.find(
-          b => b.asset === "USDT"
-        )?.free || 0
-      );
-
-    if (saldoUSDT < 15) {
-
-      console.log(
-        "❌ Saldo insuficiente."
-      );
-
-      operando = false;
-
-      return;
     }
+
+
+    /* Preço atual real */
 
     const precoAtual =
-      parseFloat(
+      Number(
         (
           await client.prices({
             symbol
@@ -880,57 +1518,264 @@ async function comprar(symbol) {
         )[symbol]
       );
 
-    const exchangeInfo =
-      await client.exchangeInfo();
+
+    if (
+      !Number.isFinite(
+        precoAtual
+      ) ||
+      precoAtual <= 0
+    ) {
+
+      return {
+
+        valido: false,
+
+        motivo:
+          "Preço atual inválido"
+
+      };
+
+    }
+
+
+    return {
+
+      valido: true,
+
+      precoAtual,
+
+      score,
+
+      rsi: r,
+
+      ema9,
+
+      ema21,
+
+      motivos
+
+    };
+
+
+  } catch (err) {
+
+    return {
+
+      valido: false,
+
+      motivo:
+        erroTexto(err)
+
+    };
+
+  }
+
+}
+
+
+/* =========================================================
+   COMPRA
+========================================================= */
+
+async function comprar(
+  symbol,
+  exchangeInfo
+) {
+
+  if (operando) {
+
+    return false;
+
+  }
+
+
+  try {
+
+    operando = true;
+
+
+    /* Verificação final */
+
+    const estado =
+      await existeOperacaoAtiva(
+        exchangeInfo
+      );
+
+
+    if (
+      estado.ativa
+    ) {
+
+      console.log(
+        "⛔ COMPRA BLOQUEADA:",
+        estado.motivo
+      );
+
+      return false;
+
+    }
+
+
+    if (
+      await temPosicao(
+        symbol
+      )
+    ) {
+
+      console.log(
+        symbol,
+        "⛔ JÁ POSSUI POSIÇÃO"
+      );
+
+      return false;
+
+    }
+
+
+    if (
+      await temOrdemAberta(
+        symbol
+      )
+    ) {
+
+      console.log(
+        symbol,
+        "⛔ JÁ POSSUI ORDEM ABERTA"
+      );
+
+      return false;
+
+    }
+
+
+    const acc =
+      await client.accountInfo();
+
+
+    const saldoUSDT =
+      Number(
+        acc.balances.find(
+          b =>
+            b.asset === "USDT"
+        )?.free || 0
+      );
+
+
+    if (
+      !Number.isFinite(
+        saldoUSDT
+      ) ||
+      saldoUSDT < 15
+    ) {
+
+      console.log(
+        "❌ SALDO USDT INSUFICIENTE:",
+        saldoUSDT
+      );
+
+      return false;
+
+    }
+
+
+    const precoAtual =
+      Number(
+        (
+          await client.prices({
+            symbol
+          })
+        )[symbol]
+      );
+
+
+    if (
+      !Number.isFinite(
+        precoAtual
+      ) ||
+      precoAtual <= 0
+    ) {
+
+      throw new Error(
+        "Preço atual inválido"
+      );
+
+    }
+
 
     const info =
       exchangeInfo.symbols.find(
         s =>
-          s.symbol === symbol
+          s.symbol ===
+          symbol
       );
+
 
     if (!info) {
 
       throw new Error(
-        "Informações do símbolo não encontradas."
+        "Informações do símbolo não encontradas"
       );
+
     }
 
+
     const lot =
-      info.filters.find(
-        f =>
-          f.filterType ===
-          "LOT_SIZE"
+      obterFiltro(
+        info,
+        "LOT_SIZE"
       );
+
 
     const priceFilter =
-      info.filters.find(
-        f =>
-          f.filterType ===
-          "PRICE_FILTER"
+      obterFiltro(
+        info,
+        "PRICE_FILTER"
       );
 
+
+    const minNotional =
+      obterMinNotional(
+        info
+      );
+
+
+    if (
+      !lot ||
+      !priceFilter
+    ) {
+
+      throw new Error(
+        "LOT_SIZE ou PRICE_FILTER não encontrado"
+      );
+
+    }
+
+
     const stepSize =
-      parseFloat(
+      Number(
         lot.stepSize
       );
 
+
     const tickSize =
-      parseFloat(
+      Number(
         priceFilter.tickSize
       );
 
-    /*
-       =====================================================
-       NÃO ALTERAR ESTA FÓRMULA
-       =====================================================
-    */
+
+    /* =====================================================
+       FÓRMULA DA COMPRA — MANTIDA
+
+       SALDO USDT × 95% ÷ PREÇO
+    ===================================================== */
 
     let quantidadeCompra =
       (
         saldoUSDT *
         PERCENTUAL_ENTRADA
-      ) / precoAtual;
+      ) /
+      precoAtual;
+
 
     quantidadeCompra =
       ajustar(
@@ -938,57 +1783,122 @@ async function comprar(symbol) {
         stepSize
       );
 
+
+    const valorEstimado =
+      quantidadeCompra *
+      precoAtual;
+
+
+    if (
+      quantidadeCompra <= 0
+    ) {
+
+      throw new Error(
+        "Quantidade de compra zerada após ajuste"
+      );
+
+    }
+
+
+    if (
+      minNotional > 0 &&
+      valorEstimado <
+        minNotional
+    ) {
+
+      throw new Error(
+        `Valor abaixo do mínimo da Binance: ${minNotional} USDT`
+      );
+
+    }
+
+
     console.log(
-      "🟢 COMPRANDO",
+      "\n🟢 ================================"
+    );
+
+
+    console.log(
+      "🟢 EXECUTANDO COMPRA:",
       symbol
     );
 
-    console.log(
-      "💵 SALDO USDT:",
-      saldoUSDT
-    );
 
     console.log(
-      "📊 ENTRADA:",
+      "💵 SALDO:",
+      numero(
+        saldoUSDT,
+        2
+      ),
+      "USDT"
+    );
+
+
+    console.log(
+      "💰 ENTRADA:",
       `${PERCENTUAL_ENTRADA * 100}%`
     );
+
 
     console.log(
       "🪙 QUANTIDADE:",
       quantidadeCompra
     );
 
-    /*
-       =====================================================
-       NÃO ALTERAR ESTA ORDEM
-       =====================================================
-    */
 
-    await client.order({
-      symbol,
-      side: "BUY",
-      type: "MARKET",
-      quantity: quantidadeCompra
-    });
+    console.log(
+      "🟢 ================================"
+    );
+
+
+    /* =====================================================
+       ORDEM DE COMPRA — MARKET
+    ===================================================== */
+
+    const ordemCompra =
+      await client.order({
+
+        symbol,
+
+        side: "BUY",
+
+        type: "MARKET",
+
+        quantity:
+          quantidadeCompra
+
+      });
+
+
+    console.log(
+      "✅ COMPRA EXECUTADA. ORDER ID:",
+      ordemCompra.orderId
+    );
+
 
     await sleep(3000);
 
+
     const asset =
       symbol.replace(
-        "USDT",
+        /USDT$/,
         ""
       );
+
 
     const accAtualizado =
       await client.accountInfo();
 
+
     let quantidadeReal =
-      parseFloat(
+      Number(
         accAtualizado.balances.find(
           b =>
-            b.asset === asset
+            b.asset ===
+            asset
         )?.free || 0
       );
+
 
     quantidadeReal =
       ajustar(
@@ -996,137 +1906,88 @@ async function comprar(symbol) {
         stepSize
       );
 
-    /*
-       =====================================================
-       PREÇO DE ENTRADA
-       =====================================================
-    */
 
-    const precoEntrada =
-      parseFloat(
-        (
-          await client.prices({
-            symbol
-          })
-        )[symbol]
+    if (
+      quantidadeReal <= 0
+    ) {
+
+      throw new Error(
+        `Saldo de ${asset} não encontrado após a compra`
       );
 
-    /*
-       =====================================================
-       TAKE PROFIT 5%
-       =====================================================
-    */
+    }
 
-    let precoVenda =
-      precoEntrada *
-      (1 + TAKE_PROFIT);
 
-    precoVenda =
-      ajustar(
-        precoVenda,
-        tickSize
-      );
+    /* =====================================================
+       PREÇO MÉDIO REAL DA COMPRA
+    ===================================================== */
 
-    console.log(
-      "🎯 VENDA EM:",
-      precoVenda
-    );
+    let precoEntrada =
+      precoAtual;
 
-    /*
-       =====================================================
-       NÃO ALTERAR ESTA ORDEM
-       =====================================================
-    */
 
-    await client.order({
-      symbol,
-      side: "SELL",
-      type: "LIMIT",
-      quantity: quantidadeReal,
-      price: precoVenda,
-      timeInForce: "GTC"
-    });
+    if (
+      Array.isArray(
+        ordemCompra.fills
+      ) &&
+      ordemCompra.fills.length > 0
+    ) {
 
-    console.log(
-      "✅ ORDEM DE VENDA CRIADA"
-    );
+      let quantidadeTotal = 0;
 
-    console.log(
-      `🎯 TAKE PROFIT: +${TAKE_PROFIT * 100}%`
-    );
+      let valorTotal = 0;
 
-  } catch (err) {
 
-    console.log(
-      "❌ Erro:",
-      err.body ||
-      err.message
-    );
+      for (
+        const fill of
+        ordemCompra.fills
+      ) {
 
-  } finally {
+        const quantidade =
+          Number(
+            fill.qty || 0
+          );
 
-    operando = false;
-  }
-}
 
-/* =========================================================
-   MONITORAMENTO DE PULLBACK
-========================================================= */
+        const preco =
+          Number(
+            fill.price || 0
+          );
 
-async function monitorarQueda(
-  symbol,
-  precoReferencia
-) {
 
-  if (
-    monitorando.has(symbol)
-  ) {
-    return;
-  }
+        quantidadeTotal +=
+          quantidade;
 
-  monitorando.add(symbol);
 
-  /*
-     Mantemos a lógica de esperar uma correção de 3%.
-     Porém, antes de comprar, o setup completo é
-     revalidado novamente.
-  */
+        valorTotal +=
+          quantidade *
+          preco;
 
-  const precoAlvo =
-    precoReferencia *
-    (1 - 0.03);
-
-  console.log(
-    "\n👀 MONITORANDO",
-    symbol
-  );
-
-  console.log(
-    "🎯 PREÇO DE REFERÊNCIA:",
-    precoReferencia
-  );
-
-  console.log(
-    "🎯 PREÇO DE PULLBACK:",
-    precoAlvo
-  );
-
-  const inicio =
-    Date.now();
-
-  while (true) {
-
-    try {
-
-      if (operando) {
-
-        await sleep(5000);
-
-        continue;
       }
 
-      const precoAtual =
-        parseFloat(
+
+      if (
+        quantidadeTotal > 0
+      ) {
+
+        precoEntrada =
+          valorTotal /
+          quantidadeTotal;
+
+      }
+
+    }
+
+
+    if (
+      !Number.isFinite(
+        precoEntrada
+      ) ||
+      precoEntrada <= 0
+    ) {
+
+      precoEntrada =
+        Number(
           (
             await client.prices({
               symbol
@@ -1134,346 +1995,114 @@ async function monitorarQueda(
           )[symbol]
         );
 
-      console.log(
-        symbol,
-        "💰 Atual:",
-        precoAtual
-      );
-
-      /*
-         Se atingir a correção de 3%,
-         fazemos uma nova validação.
-      */
-
-      if (
-        precoAtual <=
-        precoAlvo
-      ) {
-
-        console.log(
-          symbol,
-          "📉 CORREÇÃO DE 3% ATINGIDA"
-        );
-
-        console.log(
-          symbol,
-          "🔎 REVALIDANDO SETUP..."
-        );
-
-        const revalidacao =
-          await validarSetup(
-            symbol
-          );
-
-        if (
-          revalidacao.valido
-        ) {
-
-          console.log(
-            symbol,
-            "✅ SETUP CONTINUA VÁLIDO"
-          );
-
-          console.log(
-            symbol,
-            "📊 SCORE:",
-            revalidacao.score
-          );
-
-          await comprar(
-            symbol
-          );
-
-        } else {
-
-          console.log(
-            symbol,
-            "❌ SETUP INVALIDADO:",
-            revalidacao.motivo
-          );
-        }
-
-        monitorando.delete(
-          symbol
-        );
-
-        return;
-      }
-
-      /*
-         Tempo máximo
-      */
-
-      const tempoDecorrido =
-        Date.now() -
-        inicio;
-
-      if (
-        tempoDecorrido >=
-        TEMPO_MAXIMO_ESPERA
-      ) {
-
-        console.log(
-          symbol,
-          "⌛ TEMPO MÁXIMO ATINGIDO"
-        );
-
-        monitorando.delete(
-          symbol
-        );
-
-        return;
-      }
-
-      await sleep(
-        TEMPO_MONITORAMENTO
-      );
-
-    } catch (err) {
-
-      console.log(
-        "❌ Erro monitoramento:",
-        err.message
-      );
-
-      monitorando.delete(
-        symbol
-      );
-
-      return;
     }
-  }
-}
 
-/* =========================================================
-   ROBÔ PRINCIPAL
-========================================================= */
 
-async function iniciar() {
+    /* =====================================================
+       TAKE PROFIT +5%
+    ===================================================== */
 
-  while (true) {
+    let precoVenda =
+      precoEntrada *
+      (1 + TAKE_PROFIT);
 
-    try {
 
-      console.log(
-        "\n========================================"
+    precoVenda =
+      ajustar(
+        precoVenda,
+        tickSize
       );
 
-      console.log(
-        "🔎 NOVA VARREDURA TOP 20 MARKET CAP"
+
+    const valorVenda =
+      quantidadeReal *
+      precoVenda;
+
+
+    if (
+      minNotional > 0 &&
+      valorVenda <
+        minNotional
+    ) {
+
+      throw new Error(
+        `Venda abaixo do mínimo da Binance: ${minNotional} USDT`
       );
 
-      console.log(
-        "========================================\n"
-      );
-
-      /*
-         =====================================================
-         INFORMAÇÕES DA BINANCE
-         =====================================================
-      */
-
-      const exchangeInfo =
-        await client.exchangeInfo();
-
-      /*
-         =====================================================
-         TOP 20 MARKET CAP
-         =====================================================
-      */
-
-      const pares =
-        await obterTop20MarketCap(
-          exchangeInfo
-        );
-
-      if (
-        pares.length === 0
-      ) {
-
-        console.log(
-          "❌ Não foi possível obter o TOP 20."
-        );
-
-        await sleep(
-          INTERVALO_VARREDURA
-        );
-
-        continue;
-      }
-
-      console.log(
-        "\n📊 TOP 20 MARKET CAP:\n"
-      );
-
-      pares.forEach(
-        (par, index) => {
-
-          console.log(
-            `${index + 1}. ${par.symbol} | Rank #${par.rank}`
-          );
-        }
-      );
-
-      /*
-         =====================================================
-         ANALISAR CADA MOEDA
-         =====================================================
-      */
-
-      for (
-        const par of pares
-      ) {
-
-        console.log(
-          "\n➡️ ANALISANDO:",
-          par.symbol
-        );
-
-        /*
-           Se já está monitorando,
-           não cria outro monitoramento.
-        */
-
-        if (
-          monitorando.has(
-            par.symbol
-          )
-        ) {
-
-          console.log(
-            par.symbol,
-            "👀 JÁ MONITORANDO"
-          );
-
-          continue;
-        }
-
-        /*
-           Se já existe operação,
-           não procura outra.
-        */
-
-        if (operando) {
-
-          console.log(
-            "⏸️ OPERAÇÃO EM ANDAMENTO"
-          );
-
-          break;
-        }
-
-        /*
-           Validar setup
-        */
-
-        const setup =
-          await validarSetup(
-            par.symbol
-          );
-
-        if (
-          !setup.valido
-        ) {
-
-          console.log(
-            par.symbol,
-            "❌",
-            setup.motivo
-          );
-
-          continue;
-        }
-
-        /*
-           Setup aprovado
-        */
-
-        console.log(
-          par.symbol,
-          "✅ SETUP CONFIRMADO"
-        );
-
-        console.log(
-          par.symbol,
-          "📊 SCORE:",
-          setup.score
-        );
-
-        console.log(
-          par.symbol,
-          "📈 RSI:",
-          setup.rsi.toFixed(2)
-        );
-
-        /*
-           Mostrar motivos
-        */
-
-        console.log(
-          par.symbol,
-          "📝",
-          setup.motivos.join(
-            " | "
-          )
-        );
-
-        /*
-           Iniciar monitoramento
-        */
-
-        console.log(
-          par.symbol,
-          "👀 INICIANDO MONITORAMENTO"
-        );
-
-        monitorarQueda(
-          par.symbol,
-          setup.precoAtual
-        );
-      }
-
-    } catch (err) {
-
-      console.log(
-        "\n❌ ERRO PRINCIPAL:",
-        err.body ||
-        err.message
-      );
     }
+
 
     console.log(
-      "\n⏳ NOVA VARREDURA EM 15 MINUTOS...\n"
+      "🎯 PREÇO MÉDIO ENTRADA:",
+      precoEntrada
     );
 
-    await sleep(
-      INTERVALO_VARREDURA
+
+    console.log(
+      "🎯 TAKE PROFIT:",
+      precoVenda
     );
+
+
+    console.log(
+      "🛑 STOP LOSS: DESATIVADO"
+    );
+
+
+    /* =====================================================
+       ORDEM DE VENDA — LIMIT +5%
+    ===================================================== */
+
+    const ordemVenda =
+      await client.order({
+
+        symbol,
+
+        side: "SELL",
+
+        type: "LIMIT",
+
+        quantity:
+          quantidadeReal,
+
+        price:
+          precoVenda,
+
+        timeInForce:
+          "GTC"
+
+      });
+
+
+    console.log(
+      "✅ ORDEM DE VENDA CRIADA. ORDER ID:",
+      ordemVenda.orderId
+    );
+
+
+    console.log(
+      `🎯 ALVO DA OPERAÇÃO: +${TAKE_PROFIT * 100}%`
+    );
+
+
+    return true;
+
+
+  } catch (err) {
+
+    console.log(
+      "❌ ERRO NA COMPRA:",
+      erroTexto(err)
+    );
+
+
+    return false;
+
+
+  } finally {
+
+    operando = false;
+
   }
+
 }
-
-/* =========================================================
-   INICIAR
-========================================================= */
-
-console.log(
-  "🔥 ROBÔ TOP 20 MARKET CAP ATIVO"
-);
-
-console.log(
-  "🎯 TAKE PROFIT: +5%"
-);
-
-console.log(
-  "💰 ENTRADA: 95%"
-);
-
-console.log(
-  "🛑 STOP LOSS: DESATIVADO"
-);
-
-console.log(
-  "🇩🇪 EXECUÇÃO: FRANKFURT"
-);
-
-iniciar();

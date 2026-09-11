@@ -746,11 +746,101 @@ app.get("/api/market", async function(req,res){
   }catch(e){ res.status(500).json({erro:e.message}); }
 });
 
+
+
+/* =========================================================
+   V7 - RAIO-X TÉCNICO / OPORTUNIDADES
+   Informativo. Não envia ordens e não altera o robô.
+========================================================= */
+function calcularEMAvalores(valores, periodo){
+  if(!valores.length) return 0;
+  const p = Math.max(1, periodo || 21);
+  const k = 2 / (p + 1);
+  let ema = valores[0];
+  for(let i=1;i<valores.length;i++) ema = valores[i] * k + ema * (1-k);
+  return ema;
+}
+
+function calcularRSIvalores(valores, periodo){
+  const p = Math.max(2, periodo || 14);
+  if(valores.length <= p) return 50;
+  let gain=0, loss=0;
+  for(let i=valores.length-p;i<valores.length;i++){
+    const d = valores[i]-valores[i-1];
+    if(d>=0) gain += d; else loss += Math.abs(d);
+  }
+  const ag=gain/p, al=loss/p;
+  return al===0 ? 100 : 100-(100/(1+(ag/al)));
+}
+
+async function obterRaioX(conta, symbol){
+  const candles = await conta.client.candles({symbol, interval:"15m", limit:80});
+  if(!candles || candles.length<22) throw new Error("Poucos candles para análise.");
+  const closes=candles.map(function(c){return num(c.close);});
+  const volumes=candles.map(function(c){return num(c.volume);});
+  const price=closes[closes.length-1];
+  const ema=calcularEMAvalores(closes,21);
+  const rsi=calcularRSIvalores(closes,14);
+  const volAtual=volumes[volumes.length-1] || 0;
+  const base=volumes.slice(Math.max(0,volumes.length-21),volumes.length-1);
+  const volMedia=base.length ? base.reduce(function(a,b){return a+b;},0)/base.length : volAtual;
+  const volumeRatio=volMedia>0 ? volAtual/volMedia : 0;
+  const distancia=ema>0 ? (price/ema-1)*100 : 0;
+  const checks=[
+    {nome:"RSI entre 40 e 65",ok:rsi>=40 && rsi<=65,valor:rsi.toFixed(2)},
+    {nome:"Preço até 4% acima da EMA21",ok:distancia<=4,valor:(distancia>=0?"+":"")+distancia.toFixed(2)+"%"},
+    {nome:"Volume mínimo 0,80x",ok:volumeRatio>=0.80,valor:volumeRatio.toFixed(2)+"x"},
+    {nome:"Volume de breakout 1,30x",ok:volumeRatio>=1.30,valor:volumeRatio.toFixed(2)+"x"}
+  ];
+  return {symbol,price,ema,rsi,volumeRatio,distancia,checks,compatibilidade:checks.filter(function(x){return x.ok;}).length,atualizadoEm:Date.now()};
+}
+
+let v7OpportunityCache={time:0,data:[]};
+async function obterOportunidades(conta){
+  if(Date.now()-v7OpportunityCache.time<60000 && v7OpportunityCache.data.length) return v7OpportunityCache.data;
+  let candidates=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","TRXUSDT","LINKUSDT","AVAXUSDT","SUIUSDT","LTCUSDT"];
+  try{
+    const stats=await conta.client.dailyStats();
+    const usdt=(stats||[]).filter(function(x){return /USDT$/.test(String(x.symbol||"")) && !String(x.symbol||"").includes("UP") && !String(x.symbol||"").includes("DOWN") && num(x.quoteVolume)>0;});
+    usdt.sort(function(a,b){return num(b.quoteVolume)-num(a.quoteVolume);});
+    const top=usdt.slice(0,12).map(function(x){return x.symbol;});
+    candidates=Array.from(new Set(top.concat(candidates))).slice(0,12);
+  }catch(e){}
+  const result=[];
+  for(const symbol of candidates){
+    try{
+      const x=await obterRaioX(conta,symbol);
+      result.push(x);
+    }catch(e){}
+  }
+  result.sort(function(a,b){return b.compatibilidade-a.compatibilidade || b.volumeRatio-a.volumeRatio;});
+  v7OpportunityCache={time:Date.now(),data:result.slice(0,10)};
+  return v7OpportunityCache.data;
+}
+
+app.get("/api/xray", async function(req,res){
+  try{
+    const id=String(req.query.account||"1");
+    const symbol=String(req.query.symbol||"BTCUSDT").toUpperCase();
+    const conta=clientes.find(function(c){return c.id===id;});
+    if(!conta || !conta.client) return res.status(404).json({erro:"Conta não encontrada."});
+    res.json(await obterRaioX(conta,symbol));
+  }catch(e){res.status(500).json({erro:e.message});}
+});
+
+app.get("/api/opportunities", async function(req,res){
+  try{
+    const conta=clientes[0];
+    if(!conta || !conta.client) return res.status(500).json({erro:"Conta principal indisponível."});
+    res.json({atualizadoEm:Date.now(),itens:await obterOportunidades(conta)});
+  }catch(e){res.status(500).json({erro:e.message});}
+});
+
 app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v6.1",
+    painel: "premium-v7",
     contas: 2
   });
 });
@@ -1621,6 +1711,38 @@ select{
     grid-template-columns:1fr 1fr;
   }
 }
+
+
+/* ================= V7 ================= */
+.v7Grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+.v7Grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+.v7Card{background:linear-gradient(145deg,#101c30,#0b1422);border:1px solid #1d2c44;border-radius:18px;padding:20px;box-shadow:0 12px 35px rgba(0,0,0,.14);}
+.v7Title{font-size:18px;font-weight:900;margin:0 0 5px;}
+.v7Sub{font-size:11px;color:#73829a;margin-bottom:16px;line-height:1.5;}
+.v7HeroGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;}
+.v7BigMetric{padding:15px;border:1px solid #1d2c44;border-radius:14px;background:#0c1728;}
+.v7BigMetric span{display:block;color:#71809a;font-size:10px;text-transform:uppercase;font-weight:800;}
+.v7BigMetric b{display:block;font-size:22px;margin-top:7px;}
+.v7MiniGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+.v7Mini{padding:11px;border-radius:12px;background:#0b1524;border:1px solid #1a2a41;}
+.v7Mini span{display:block;color:#697891;font-size:9px;text-transform:uppercase;font-weight:800;}
+.v7Mini b{display:block;margin-top:5px;font-size:14px;}
+.v7Good{color:#20df96!important}.v7Bad{color:#ff6177!important}.v7Warn{color:#ffc85a!important}.v7Blue{color:#59a8ff!important}
+.v7StatusRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #17263b;}
+.v7StatusRow:last-child{border-bottom:0}.v7Dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;background:#64748b;}
+.v7Dot.ok{background:#20df96;box-shadow:0 0 12px rgba(32,223,150,.45)}.v7Dot.bad{background:#ff6177}.v7Dot.warn{background:#ffc85a}
+.v7Badge{font-size:9px;font-weight:900;padding:5px 8px;border-radius:999px;background:#14243a;color:#9ebbe3;}
+.v7Alert{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:13px;margin-top:10px;border:1px solid #20324b;background:#0b1626;}
+.v7Alert:first-child{margin-top:0}.v7AlertIcon{font-size:18px}.v7AlertText{font-size:11px;line-height:1.45;color:#b7c3d5}.v7AlertText b{color:#fff}
+.v7Table{width:100%;border-collapse:collapse;font-size:11px}.v7Table th{font-size:9px;color:#667792;text-align:left;padding:9px 6px;border-bottom:1px solid #1c2c43;text-transform:uppercase}.v7Table td{padding:10px 6px;border-bottom:1px solid #142238}.v7Table tr:last-child td{border-bottom:0}
+.v7BarWrap{height:11px;border-radius:999px;background:#111e31;overflow:hidden}.v7Bar{height:100%;border-radius:999px;background:#27b9ff;}
+.v7Progress{margin-top:8px}.v7ProgressTop{display:flex;justify-content:space-between;font-size:9px;color:#71809a}.v7Canvas{width:100%;height:220px;display:block;border:1px solid #17273d;border-radius:14px;background:#091321;}
+.v7Legend{display:flex;gap:16px;flex-wrap:wrap;font-size:9px;color:#71809a;margin-top:10px}.v7Legend span{display:inline-flex;align-items:center;gap:5px}.v7Legend i{width:8px;height:8px;border-radius:50%;display:inline-block;background:#27b9ff}
+.v7Opportunity{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #16263c}.v7Opportunity:last-child{border-bottom:0}.v7Coin{font-weight:900;font-size:13px}.v7ScoreBox{width:82px;text-align:center;padding:9px;border-radius:12px;background:#0b1829;border:1px solid #1e3550}.v7ScoreBox b{display:block;font-size:18px}.v7ScoreBox small{font-size:8px;color:#71809a;text-transform:uppercase}
+.v7Check{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #142238;font-size:10px}.v7Check:last-child{border-bottom:0}.v7Check b{font-size:10px}.v7Note{font-size:9px;color:#60718b;line-height:1.5;margin-top:10px}.v7Time{font-variant-numeric:tabular-nums;color:#8fa1bb;font-size:10px}.v7Rank{font-size:18px;font-weight:900}.v7Rank.gold{color:#ffc85a}.v7Rank.silver{color:#b9c6d6}.v7Rank.bronze{color:#d79a63}
+@media(max-width:1000px){.v7Grid,.v7Grid3{grid-template-columns:1fr}.v7HeroGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:82px 1fr auto}}
+@media(max-width:650px){.v7HeroGrid{grid-template-columns:1fr}.v7MiniGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:72px 1fr}.v7ScoreBox{grid-column:1/-1;width:auto}}
+
 </style>
 </head>
 
@@ -1671,9 +1793,8 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L — OPERAÇÃO ATUAL</span>
+          <span>P/L</span>
           <b id="tabPnl1">--</b>
-          <small id="tabPnlDetalhe1">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1698,9 +1819,8 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L — OPERAÇÃO ATUAL</span>
+          <span>P/L</span>
           <b id="tabPnl2">--</b>
-          <small id="tabPnlDetalhe2">--</small>
         </div>
 
         <div class="tabMetric">
@@ -2010,6 +2130,76 @@ select{
     </div>
   </section>
 
+
+
+  <!-- V7: PLACAR / ALERTAS / SAÚDE -->
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🏆 Placar da operação em tempo real</h3>
+        <div class="v7Sub">Comparação somente da operação atual detectada, desde a compra.</div>
+        <div class="v7HeroGrid">
+          <div class="v7BigMetric"><span>Líder</span><b id="v7Leader">--</b></div>
+          <div class="v7BigMetric"><span>Diferença</span><b id="v7Diff">--</b></div>
+          <div class="v7BigMetric"><span>Tempo da operação</span><b id="v7Elapsed">--</b></div>
+        </div>
+        <div class="v7MiniGrid" style="margin-top:12px">
+          <div class="v7Mini"><span>THIAGO</span><b id="v7ThiagoPnl">--</b></div>
+          <div class="v7Mini"><span>SERGIO</span><b id="v7SergioPnl">--</b></div>
+          <div class="v7Mini"><span>THIAGO R$</span><b id="v7ThiagoBrl">--</b></div>
+          <div class="v7Mini"><span>SERGIO R$</span><b id="v7SergioBrl">--</b></div>
+        </div>
+      </div>
+
+      <div class="v7Card">
+        <h3 class="v7Title">🚨 Alertas inteligentes</h3>
+        <div class="v7Sub">Avisos operacionais calculados pelo painel. Não enviam ordens.</div>
+        <div id="v7Alerts"><div class="v7Alert"><div class="v7AlertIcon">⏳</div><div class="v7AlertText">Aguardando dados...</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🤖 Saúde do robô</h3>
+        <div class="v7Sub">Diagnóstico da conexão e da atividade observada pelo painel.</div>
+        <div id="v7Health"></div>
+      </div>
+      <div class="v7Card">
+        <h3 class="v7Title">📈 Curva de patrimônio — sessão</h3>
+        <div class="v7Sub">Evolução observada enquanto esta página permanece aberta. Reiniciar a página reinicia a amostra.</div>
+        <canvas id="v7EquityCanvas" class="v7Canvas"></canvas>
+        <div class="v7Legend"><span><i></i>Patrimônio total das duas contas</span><span id="v7EquityInfo">--</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V7: RAIO-X -->
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🧪 Raio-X da moeda atual</h3>
+        <div class="v7Sub">Leitura técnica do painel usando os mesmos limites principais configurados no robô. O score interno original não é inventado.</div>
+        <div id="v7Xray"></div>
+      </div>
+      <div class="v7Card">
+        <h3 class="v7Title">🎯 Ranking de oportunidades</h3>
+        <div class="v7Sub">Pré-seleção técnica informativa baseada em mercado USDT com maior volume. Não representa o score interno do robô.</div>
+        <div id="v7Opportunities"><div class="empty">Calculando oportunidades...</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V7: AUDITORIA / LINHA DO TEMPO -->
+  <section class="section">
+    <div class="v7Card">
+      <h3 class="v7Title">🕵️ Auditoria das operações</h3>
+      <div class="v7Sub">Linha do tempo das compras e vendas que a Binance disponibiliza ao painel.</div>
+      <div id="v7Timeline"></div>
+    </div>
+  </section>
+
   <!-- PNL DETALHADO -->
   <section class="section">
 
@@ -2159,72 +2349,15 @@ function preencherTabs(){
       dinheiro(c.patrimonioUSDT) +
       " USDT";
 
-    const opAtual =
-      c.operacaoAtual && c.operacaoAtual.ativa
-        ? c.operacaoAtual
-        : null;
+    pnl.textContent =
+      (Number(c.pnlTotalEstimado || 0) >= 0
+        ? "+"
+        : "") +
+      dinheiro(c.pnlTotalEstimado) +
+      " USDT";
 
-    const pnlAtual =
-      Number(opAtual ? opAtual.pnlUSDT : 0);
-
-    const pctAtual =
-      Number(opAtual ? opAtual.pnlPct : 0);
-
-    const pnlBrlAtual =
-      pnlAtual *
-      Number(c.usdtBrl || 0);
-
-    if(opAtual){
-
-      pnl.textContent =
-        (pnlAtual >= 0 ? "+" : "") +
-        dinheiro(pnlAtual) +
-        " USDT";
-
-      pnl.className =
-        classe(pnlAtual);
-
-    }else{
-
-      pnl.textContent =
-        "SEM OPERAÇÃO";
-
-      pnl.className =
-        "muted";
-
-    }
-
-    const pnlDetalhe =
-      document.getElementById(
-        "tabPnlDetalhe" + c.id
-      );
-
-    if(pnlDetalhe){
-
-      if(opAtual){
-
-        pnlDetalhe.innerHTML =
-          "≈ R$ " +
-          dinheiro(pnlBrlAtual) +
-          " • " +
-          (pctAtual >= 0 ? "+" : "") +
-          pctAtual.toFixed(2) +
-          "%";
-
-        pnlDetalhe.className =
-          classe(pctAtual);
-
-      }else{
-
-        pnlDetalhe.textContent =
-          "Nenhuma operação atual detectada.";
-
-        pnlDetalhe.className =
-          "";
-
-      }
-
-    }
+    pnl.className =
+      classe(c.pnlTotalEstimado);
 
     const brl =
       document.getElementById(
@@ -3457,6 +3590,126 @@ function desenharGrafico(d){
     .fitContent();
 }
 
+
+
+/* =========================================================
+   V7 - FUNÇÕES VISUAIS
+========================================================= */
+let v7EquityHistory=[];
+let v7LastXrayKey="";
+let v7OpportunityBusy=false;
+
+function v7FmtPct(v){v=Number(v||0);return (v>=0?"+":"")+v.toFixed(2)+"%";}
+function v7ClassePct(v){return Number(v||0)>=0?"v7Good":"v7Bad";}
+function v7Elapsed(t){
+  if(!t) return "--";
+  let s=Math.max(0,Math.floor((Date.now()-Number(t))/1000));
+  const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); const sec=s%60;
+  if(d>0) return d+"d "+h+"h";
+  if(h>0) return h+"h "+m+"m";
+  return m+"m "+sec+"s";
+}
+
+function renderV7Score(){
+  const c1=getConta("1"),c2=getConta("2");
+  const a=c1&&c1.operacaoAtual&&c1.operacaoAtual.ativa?c1.operacaoAtual:null;
+  const b=c2&&c2.operacaoAtual&&c2.operacaoAtual.ativa?c2.operacaoAtual:null;
+  const leader=document.getElementById("v7Leader"),diff=document.getElementById("v7Diff"),elapsed=document.getElementById("v7Elapsed");
+  const tp=document.getElementById("v7ThiagoPnl"),sp=document.getElementById("v7SergioPnl"),tb=document.getElementById("v7ThiagoBrl"),sb=document.getElementById("v7SergioBrl");
+  if(a){tp.textContent=v7FmtPct(a.pnlPct);tp.className=v7ClassePct(a.pnlPct);tb.textContent="R$ "+dinheiro(Number(a.pnlBRL||0));}
+  else{tp.textContent="SEM OPERAÇÃO";tp.className="";tb.textContent="--";}
+  if(b){sp.textContent=v7FmtPct(b.pnlPct);sp.className=v7ClassePct(b.pnlPct);sb.textContent="R$ "+dinheiro(Number(b.pnlBRL||0));}
+  else{sp.textContent="SEM OPERAÇÃO";sp.className="";sb.textContent="--";}
+  const nowOp=a||b;
+  elapsed.textContent=nowOp?v7Elapsed(nowOp.entradaTime):"--";
+  if(a&&b){
+    const d=Number(a.pnlPct)-Number(b.pnlPct);
+    if(d>0){leader.textContent="🥇 THIAGO";leader.className="v7Good";diff.textContent="THIAGO +"+d.toFixed(2)+" p.p.";diff.className="v7Good";}
+    else if(d<0){leader.textContent="🥇 SERGIO";leader.className="v7Good";diff.textContent="SERGIO +"+Math.abs(d).toFixed(2)+" p.p.";diff.className="v7Good";}
+    else{leader.textContent="⚖️ EMPATE";leader.className="v7Warn";diff.textContent="0,00 p.p.";diff.className="v7Warn";}
+  }else if(a){leader.textContent="THIAGO";leader.className="v7Blue";diff.textContent="SERGIO sem operação";diff.className="";}
+  else if(b){leader.textContent="SERGIO";leader.className="v7Blue";diff.textContent="THIAGO sem operação";diff.className="";}
+  else{leader.textContent="AGUARDANDO";leader.className="";diff.textContent="--";diff.className="";}
+}
+
+function renderV7Alerts(){
+  const el=document.getElementById("v7Alerts"); const alerts=[];
+  (dados&&dados.contas||[]).forEach(function(c){
+    if(c.erro) alerts.push({i:"🔴",t:"<b>"+c.nome+":</b> API indisponível. "+c.erro});
+    const op=c.operacaoAtual;
+    if(op&&op.ativa){
+      const p=Number(op.pnlPct||0);
+      if(p>=4.5) alerts.push({i:"🎯",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação próxima do alvo de +5%. Variação atual "+v7FmtPct(p)+"."});
+      else if(p<0) alerts.push({i:"🔻",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação atualmente negativa em "+v7FmtPct(p)+"."});
+      else alerts.push({i:"🟢",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação positiva em "+v7FmtPct(p)+"."});
+    }else if(!c.erro){alerts.push({i:"⚪",t:"<b>"+c.nome+":</b> nenhuma operação atual detectada."});}
+  });
+  el.innerHTML=alerts.map(function(a){return '<div class="v7Alert"><div class="v7AlertIcon">'+a.i+'</div><div class="v7AlertText">'+a.t+'</div></div>';}).join("")||'<div class="v7Alert"><div class="v7AlertIcon">ℹ️</div><div class="v7AlertText">Sem alertas.</div></div>';
+}
+
+function renderV7Health(){
+  const el=document.getElementById("v7Health");
+  const now=Date.now();
+  const rows=[];
+  (dados&&dados.contas||[]).forEach(function(c){
+    const ok=!c.erro;
+    const last=(c.historico||[])[0];
+    rows.push('<div class="v7StatusRow"><span><i class="v7Dot '+(ok?'ok':'bad')+'"></i>'+c.nome+' • Binance</span><b class="v7Badge">'+(ok?'ONLINE':'ERRO')+'</b></div>');
+    rows.push('<div class="v7StatusRow"><span>Último trade</span><b class="v7Time">'+(last?dataHora(last.time):"sem dados")+'</b></div>');
+    rows.push('<div class="v7StatusRow"><span>Posições ativas</span><b>'+((c.posicoes||[]).length)+'</b></div>');
+  });
+  const age=dados&&dados.atualizadoEm?Math.max(0,now-Number(dados.atualizadoEm)):999999;
+  rows.push('<div class="v7StatusRow"><span><i class="v7Dot '+(age<30000?'ok':'warn')+'"></i>Atualização do painel</span><b class="v7Badge">'+(age<30000?'ATUALIZADO':'ATENÇÃO')+'</b></div>');
+  rows.push('<div class="v7Note">O painel é somente leitura. Este diagnóstico confirma a leitura da API e da atividade observada; ele não comprova que uma ordem foi enviada pelo robô.</div>');
+  el.innerHTML=rows.join("");
+}
+
+function renderV7Equity(){
+  if(!dados||!dados.contas)return;
+  const total=dados.contas.reduce(function(s,c){return s+Number(c.patrimonioUSDT||0);},0);
+  v7EquityHistory.push({t:Date.now(),v:total});
+  if(v7EquityHistory.length>60)v7EquityHistory.shift();
+  const canvas=document.getElementById("v7EquityCanvas"); if(!canvas)return;
+  const rect=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1; const w=Math.max(300,Math.floor(rect.width)); const h=220;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  if(v7EquityHistory.length<2){ctx.fillStyle="#71809a";ctx.font="12px sans-serif";ctx.fillText("Coletando pontos...",18,30);document.getElementById("v7EquityInfo").textContent=dinheiro(total)+" USDT agora";return;}
+  const vals=v7EquityHistory.map(function(x){return x.v;}); const min=Math.min.apply(null,vals),max=Math.max.apply(null,vals); const span=Math.max(max-min,0.01); const left=12,top=15,right=w-12,bottom=h-22;
+  ctx.strokeStyle="#17273d";ctx.lineWidth=1;for(let i=0;i<4;i++){const y=top+(bottom-top)*i/3;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();}
+  ctx.strokeStyle="#27b9ff";ctx.lineWidth=2;ctx.beginPath();v7EquityHistory.forEach(function(p,i){const x=left+(right-left)*i/(v7EquityHistory.length-1);const y=bottom-(p.v-min)/span*(bottom-top);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  const last=vals[vals.length-1],first=vals[0],delta=last-first;document.getElementById("v7EquityInfo").textContent=dinheiro(last)+" USDT • sessão "+(delta>=0?"+":"")+dinheiro(delta)+" USDT";
+}
+
+async function renderV7Xray(){
+  const c=getConta(contaSelecionada); if(!c)return;
+  const pos=(c.posicoes||[])[0]; const symbol=pos&&pos.symbol?pos.symbol:"BTCUSDT"; const key=contaSelecionada+"|"+symbol;
+  if(v7LastXrayKey===key && Date.now()-Number(window.v7LastXrayTime||0)<45000)return;
+  v7LastXrayKey=key;window.v7LastXrayTime=Date.now();
+  const el=document.getElementById("v7Xray");el.innerHTML='<div class="empty">Analisando '+symbol+'...</div>';
+  try{
+    const r=await fetch('/api/xray?account='+encodeURIComponent(contaSelecionada)+'&symbol='+encodeURIComponent(symbol),{cache:'no-store'});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha');
+    const rows=x.checks.map(function(q){return '<div class="v7Check"><span>'+(q.ok?'🟢':'🔴')+' '+q.nome+'</span><b class="'+(q.ok?'v7Good':'v7Bad')+'">'+q.valor+'</b></div>';}).join('');
+    el.innerHTML='<div class="v7MiniGrid"><div class="v7Mini"><span>MOEDA</span><b>'+x.symbol+'</b></div><div class="v7Mini"><span>COMPATIBILIDADE</span><b>'+x.compatibilidade+'/4</b></div><div class="v7Mini"><span>RSI 14</span><b>'+x.rsi.toFixed(2)+'</b></div><div class="v7Mini"><span>EMA 21</span><b>'+dinheiro(x.ema)+'</b></div></div><div style="margin-top:12px">'+rows+'</div><div class="v7Note">Score interno do robô: <b>não disponível na API do painel</b>. Os 4 testes acima são uma leitura técnica independente, usando os limites conhecidos da configuração do robô.</div>';
+  }catch(e){el.innerHTML='<div class="empty">Raio-X indisponível: '+(e.message||'erro')+'</div>';}
+}
+
+async function renderV7Opportunities(){
+  if(v7OpportunityBusy)return;v7OpportunityBusy=true;const el=document.getElementById("v7Opportunities");
+  try{
+    const r=await fetch('/api/opportunities',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.erro||'Falha');
+    el.innerHTML=(d.itens||[]).map(function(x,i){const cls=i===0?'gold':(i===1?'silver':(i===2?'bronze':''));return '<div class="v7Opportunity"><div><div class="v7Rank '+cls+'">#'+(i+1)+'</div><div class="v7Coin">'+x.symbol+'</div></div><div><div class="v7Check"><span>RSI</span><b class="'+(x.checks[0].ok?'v7Good':'v7Bad')+'">'+x.rsi.toFixed(1)+'</b></div><div class="v7Check"><span>EMA</span><b class="'+(x.checks[1].ok?'v7Good':'v7Bad')+'">'+(x.distancia>=0?'+':'')+x.distancia.toFixed(2)+'%</b></div><div class="v7Check"><span>Volume</span><b class="'+(x.volumeRatio>=.8?'v7Good':'v7Bad')+'">'+x.volumeRatio.toFixed(2)+'x</b></div></div><div class="v7ScoreBox"><b>'+x.compatibilidade+'/4</b><small>filtros</small></div></div>';}).join('')||'<div class="empty">Sem oportunidades disponíveis.</div>';
+  }catch(e){el.innerHTML='<div class="empty">Ranking indisponível no momento.</div>';}finally{v7OpportunityBusy=false;}
+}
+
+function renderV7Timeline(){
+  const all=[];(dados&&dados.contas||[]).forEach(function(c){(c.historico||[]).slice(0,20).forEach(function(t){all.push({...t,conta:c.nome});});});
+  all.sort(function(a,b){return Number(b.time)-Number(a.time);});
+  const el=document.getElementById('v7Timeline');
+  el.innerHTML=all.slice(0,16).map(function(t,i){const buy=t.lado==='COMPRA';return '<div class="v7StatusRow"><span><i class="v7Dot '+(buy?'ok':'bad')+'"></i><b>'+t.conta+'</b> • '+t.symbol+' • '+t.lado+'</span><span class="v7Time">'+numero(t.qty)+' @ '+dinheiro(t.price)+' USDT • '+dataHora(t.time)+'</span></div>';}).join('')||'<div class="empty">Nenhum evento encontrado.</div>';
+}
+
+function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();}
+
+
 /*
 =========================================================
 CARREGAMENTO
@@ -3507,6 +3760,7 @@ async function carregar(){
 
     renderPnl(contaAtual);
     renderAnalytics();
+    renderV7();
 
 
     document.getElementById(
@@ -3637,7 +3891,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V6 rodando na porta " +
+      "Binance-Robo Painel Premium V7 rodando na porta " +
       PORT
     );
   }

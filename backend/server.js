@@ -1743,6 +1743,194 @@ select{
 @media(max-width:1000px){.v7Grid,.v7Grid3{grid-template-columns:1fr}.v7HeroGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:82px 1fr auto}}
 @media(max-width:650px){.v7HeroGrid{grid-template-columns:1fr}.v7MiniGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:72px 1fr}.v7ScoreBox{grid-column:1/-1;width:auto}}
 
+
+/* =========================================================
+   V7 COMPACTA — PAINEL PRINCIPAL + SUBMENUS
+   ========================================================= */
+
+.accountTab{
+  cursor:pointer;
+}
+
+.accountTab:focus-visible,
+.menuBtn:focus-visible,
+.quickCurrent button:focus-visible,
+.sectionClose:focus-visible{
+  outline:2px solid #7aa2ff;
+  outline-offset:2px;
+}
+
+.tabMetric .tabPnlExtra{
+  display:block;
+  margin-top:4px;
+  font-size:11px;
+  font-weight:800;
+  color:#71809a;
+}
+
+.tabMetric .tabPnlExtra.green{color:#00e89a;}
+.tabMetric .tabPnlExtra.red{color:#ff5274;}
+
+.compactControl{
+  margin:18px 0 8px;
+}
+
+.quickCurrent{
+  display:grid;
+  grid-template-columns:1.4fr 1fr auto;
+  align-items:center;
+  gap:16px;
+  padding:14px 18px;
+  border:1px solid rgba(102,130,255,.22);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(22,35,67,.92),rgba(9,18,35,.96));
+  box-shadow:0 12px 35px rgba(0,0,0,.16);
+}
+
+.quickCurrentLabel{
+  display:block;
+  color:#74829a;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.08em;
+  margin-bottom:4px;
+}
+
+.quickCurrentMain{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.quickCurrentCoin{
+  font-size:18px;
+  font-weight:950;
+  color:#f5f7ff;
+}
+
+.quickCurrentStatus{
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(38,211,143,.10);
+  color:#00e89a;
+  font-size:9px;
+  font-weight:900;
+}
+
+.quickCurrentPnl{
+  font-size:17px;
+  font-weight:950;
+}
+
+.quickCurrentPct{
+  font-size:13px;
+  font-weight:900;
+  margin-left:5px;
+}
+
+.quickCurrent button{
+  border:1px solid rgba(122,162,255,.35);
+  background:rgba(77,111,255,.12);
+  color:#9fc2ff;
+  border-radius:11px;
+  padding:10px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.dashboardMenu{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:9px;
+  margin:10px 0 4px;
+}
+
+.menuBtn{
+  border:1px solid rgba(116,135,174,.18);
+  background:rgba(14,25,46,.72);
+  color:#aab7ce;
+  border-radius:13px;
+  padding:11px 10px;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:900;
+  transition:.18s ease;
+}
+
+.menuBtn:hover,
+.menuBtn.active{
+  border-color:rgba(112,143,255,.65);
+  background:rgba(59,86,163,.20);
+  color:#f3f6ff;
+  transform:translateY(-1px);
+}
+
+section.section.compactHidden{
+  display:none !important;
+}
+
+section.section.compactOpen{
+  display:block !important;
+  animation:compactOpen .22s ease;
+}
+
+@keyframes compactOpen{
+  from{opacity:0;transform:translateY(-5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.sectionClose{
+  float:right;
+  border:1px solid rgba(116,135,174,.25);
+  background:rgba(255,255,255,.035);
+  color:#8e9bb1;
+  border-radius:9px;
+  padding:6px 9px;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+  margin-top:-2px;
+}
+
+.sectionClose:hover{
+  color:#fff;
+  border-color:rgba(122,162,255,.55);
+}
+
+.cards.compactHidden{
+  display:none !important;
+}
+
+.compactHint{
+  text-align:center;
+  color:#59677d;
+  font-size:10px;
+  margin:8px 0 0;
+}
+
+@media(max-width:800px){
+  .quickCurrent{
+    grid-template-columns:1fr 1fr;
+  }
+  .quickCurrent button{
+    grid-column:1/-1;
+    width:100%;
+  }
+  .dashboardMenu{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:500px){
+  .quickCurrent{
+    grid-template-columns:1fr;
+  }
+  .dashboardMenu{
+    grid-template-columns:1fr 1fr;
+  }
+}
+
 </style>
 </head>
 
@@ -1793,8 +1981,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L ATUAL</span>
           <b id="tabPnl1">--</b>
+          <small id="tabPnlExtra1" class="tabPnlExtra">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1819,8 +2008,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L ATUAL</span>
           <b id="tabPnl2">--</b>
+          <small id="tabPnlExtra2" class="tabPnlExtra">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1832,9 +2022,94 @@ select{
 
   </div>
 
+  <!-- =====================================================
+       V7 COMPACTA — RESUMO PRINCIPAL
+       ===================================================== -->
+  <div class="compactControl">
+
+    <div class="quickCurrent">
+      <div>
+        <span class="quickCurrentLabel">OPERAÇÃO ATUAL</span>
+        <div class="quickCurrentMain">
+          <span id="quickCoin" class="quickCurrentCoin">--</span>
+          <span id="quickStatus" class="quickCurrentStatus">AGUARDANDO</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="quickCurrentLabel">RESULTADO DESDE A COMPRA</span>
+        <div>
+          <span id="quickPnl" class="quickCurrentPnl">--</span>
+          <span id="quickPct" class="quickCurrentPct">--</span>
+        </div>
+      </div>
+
+      <button type="button" onclick="abrirSecaoPainel(3)">
+        VER DETALHES
+      </button>
+    </div>
+
+    <div class="dashboardMenu" id="dashboardMenu">
+
+      <button type="button" class="menuBtn" data-panel="0" onclick="abrirSecaoPainel(0)">
+        🎯 Operação
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="1" onclick="abrirSecaoPainel(1)">
+        📊 Gráfico
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="2" onclick="abrirSecaoPainel(2)">
+        🤖 Robô
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="3" onclick="abrirSecaoPainel(3)">
+        🏆 Comparação
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="4" onclick="abrirSecaoPainel(4)">
+        📚 Performance
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="5" onclick="abrirSecaoPainel(5)">
+        🪙 Moedas
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="6" onclick="abrirSecaoPainel(6)">
+        📜 Atividade
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="7" onclick="abrirSecaoPainel(7)">
+        🚨 Alertas
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="8" onclick="abrirSecaoPainel(8)">
+        📈 Patrimônio
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="9" onclick="abrirSecaoPainel(9)">
+        🧪 Raio-X
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="10" onclick="abrirSecaoPainel(10)">
+        🕵️ Auditoria
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="11" onclick="abrirSecaoPainel(11)">
+        💰 P/L
+      </button>
+
+    </div>
+
+    <div class="compactHint">
+      Toque/clique em uma categoria para abrir os detalhes. A tela principal fica limpa e objetiva.
+    </div>
+
+  </div>
+
 
   <!-- CARDS DA CONTA SELECIONADA -->
-  <div class="cards">
+  <div class="cards compactHidden">
 
     <div class="card metricCard">
       <div class="metricLabel">💰 PATRIMÔNIO</div>
@@ -2349,15 +2624,73 @@ function preencherTabs(){
       dinheiro(c.patrimonioUSDT) +
       " USDT";
 
-    pnl.textContent =
-      (Number(c.pnlTotalEstimado || 0) >= 0
-        ? "+"
-        : "") +
-      dinheiro(c.pnlTotalEstimado) +
-      " USDT";
+    const opAtual =
+      c.operacaoAtual &&
+      c.operacaoAtual.ativa
+        ? c.operacaoAtual
+        : null;
 
-    pnl.className =
-      classe(c.pnlTotalEstimado);
+    const pnlAtual =
+      Number(opAtual ? opAtual.pnlUSDT : 0);
+
+    const pctAtual =
+      Number(opAtual ? opAtual.pnlPct : 0);
+
+    if(opAtual){
+
+      pnl.textContent =
+        (pnlAtual >= 0 ? "+" : "") +
+        dinheiro(pnlAtual) +
+        " USDT";
+
+      pnl.className =
+        classe(pnlAtual);
+
+    }else{
+
+      pnl.textContent =
+        "SEM OPERAÇÃO";
+
+      pnl.className =
+        "muted";
+
+    }
+
+    const extra =
+      document.getElementById(
+        "tabPnlExtra" + c.id
+      );
+
+    if(extra){
+
+      if(opAtual){
+
+        const pnlBrl =
+          pnlAtual *
+          Number(c.usdtBrl || 0);
+
+        extra.textContent =
+          "≈ R$ " +
+          dinheiro(pnlBrl) +
+          " • " +
+          (pctAtual >= 0 ? "+" : "") +
+          pctAtual.toFixed(2) +
+          "%";
+
+        extra.className =
+          "tabPnlExtra " +
+          classe(pctAtual);
+
+      }else{
+
+        extra.textContent =
+          "Sem operação atual";
+
+        extra.className =
+          "tabPnlExtra";
+
+      }
+    }
 
     const brl =
       document.getElementById(
@@ -2471,6 +2804,8 @@ function renderConta(){
   renderAtivos(c);
 
   renderHistorico(c);
+
+  atualizarResumoCompacto();
 
   // Mantém o gráfico na moeda da operação atual.
   const select =
@@ -3865,11 +4200,226 @@ window.addEventListener(
 );
 
 
+/* =========================================================
+   V7 COMPACTA — NAVEGAÇÃO POR SUBMENUS
+   ========================================================= */
+
+function obterSecoesPainel(){
+  return Array.from(
+    document.querySelectorAll("section.section")
+  );
+}
+
+function fecharTodasSecoesPainel(){
+  const secoes = obterSecoesPainel();
+
+  secoes.forEach(function(secao){
+    secao.classList.remove("compactOpen");
+    secao.classList.add("compactHidden");
+  });
+
+  document.querySelectorAll(".menuBtn").forEach(function(btn){
+    btn.classList.remove("active");
+  });
+}
+
+function abrirSecaoPainel(indice){
+  const secoes = obterSecoesPainel();
+  const secao = secoes[indice];
+
+  if(!secao) return;
+
+  const jaAberta =
+    secao.classList.contains("compactOpen");
+
+  fecharTodasSecoesPainel();
+
+  if(jaAberta){
+    return;
+  }
+
+  secao.classList.remove("compactHidden");
+  secao.classList.add("compactOpen");
+
+  const btn =
+    document.querySelector(
+      '.menuBtn[data-panel="' + indice + '"]'
+    );
+
+  if(btn){
+    btn.classList.add("active");
+  }
+
+  setTimeout(function(){
+    secao.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+  },30);
+}
+
+function fecharSecaoPainel(botao){
+  const secao = botao.closest("section.section");
+
+  if(!secao) return;
+
+  const secoes = obterSecoesPainel();
+  const indice = secoes.indexOf(secao);
+
+  secao.classList.remove("compactOpen");
+  secao.classList.add("compactHidden");
+
+  const btn =
+    document.querySelector(
+      '.menuBtn[data-panel="' + indice + '"]'
+    );
+
+  if(btn){
+    btn.classList.remove("active");
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+function inicializarNavegacaoCompacta(){
+
+  const secoes = obterSecoesPainel();
+
+  secoes.forEach(function(secao){
+
+    secao.classList.add("compactHidden");
+
+    if(
+      secao.querySelector(".sectionClose")
+    ){
+      return;
+    }
+
+    const close =
+      document.createElement("button");
+
+    close.type = "button";
+    close.className = "sectionClose";
+    close.textContent = "FECHAR";
+    close.setAttribute(
+      "onclick",
+      "fecharSecaoPainel(this)"
+    );
+
+    secao.insertBefore(
+      close,
+      secao.firstChild
+    );
+  });
+
+  fecharTodasSecoesPainel();
+}
+
+function atualizarResumoCompacto(){
+
+  if(!dados || !dados.contas) return;
+
+  const c =
+    dados.contas.find(function(x){
+      return x.id === contaSelecionada;
+    });
+
+  if(!c) return;
+
+  const op =
+    c.operacaoAtual &&
+    c.operacaoAtual.ativa
+      ? c.operacaoAtual
+      : null;
+
+  const coin =
+    document.getElementById("quickCoin");
+
+  const status =
+    document.getElementById("quickStatus");
+
+  const pnl =
+    document.getElementById("quickPnl");
+
+  const pct =
+    document.getElementById("quickPct");
+
+  if(!op){
+
+    if(coin) coin.textContent="--";
+
+    if(status){
+      status.textContent="SEM OPERAÇÃO";
+      status.className="quickCurrentStatus";
+    }
+
+    if(pnl){
+      pnl.textContent="--";
+      pnl.className="quickCurrentPnl";
+    }
+
+    if(pct){
+      pct.textContent="--";
+      pct.className="quickCurrentPct";
+    }
+
+    return;
+  }
+
+  const p =
+    Number(op.pnlUSDT || 0);
+
+  const v =
+    Number(op.pnlPct || 0);
+
+  if(coin){
+    coin.textContent =
+      op.symbol || "--";
+  }
+
+  if(status){
+    status.textContent =
+      "OPERAÇÃO ATIVA";
+
+    status.className =
+      "quickCurrentStatus";
+  }
+
+  if(pnl){
+    pnl.textContent =
+      (p>=0 ? "+" : "") +
+      dinheiro(p) +
+      " USDT";
+
+    pnl.className =
+      "quickCurrentPnl " +
+      classe(p);
+  }
+
+  if(pct){
+    pct.textContent =
+      (v>=0 ? "+" : "") +
+      v.toFixed(2) +
+      "%";
+
+    pct.className =
+      "quickCurrentPct " +
+      classe(v);
+  }
+}
+
+
+
 /*
 =========================================================
 INÍCIO
 =========================================================
 */
+
+inicializarNavegacaoCompacta();
 
 carregar();
 
@@ -3891,7 +4441,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V7 rodando na porta " +
+      "Binance-Robo Painel Premium V7.1 — Compacto rodando na porta " +
       PORT
     );
   }

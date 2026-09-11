@@ -945,6 +945,13 @@ select{
   font-size:13px;
 }
 
+.tabMetric small{
+  display:block;
+  color:#73839b;
+  font-size:8px;
+  margin-top:3px;
+}
+
 .cards{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -1078,6 +1085,14 @@ select{
   font-size:12px;
 }
 
+.brlLine{
+  display:block;
+  color:#71809a;
+  font-size:9px;
+  margin-top:3px;
+  font-weight:500;
+}
+
 .empty{
   min-height:150px;
   display:grid;
@@ -1156,6 +1171,33 @@ select{
 #chart{
   height:410px;
   width:100%;
+}
+
+.liveStrip{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  padding:12px 18px;
+  border-bottom:1px solid #1b273a;
+  background:#08111e;
+}
+
+.liveStrip div{
+  padding:9px 10px;
+  border:1px solid #1a2940;
+  border-radius:9px;
+  background:#0a1524;
+}
+
+.liveStrip span{
+  display:block;
+  color:var(--muted);
+  font-size:8px;
+  margin-bottom:4px;
+}
+
+.liveStrip b{
+  font-size:11px;
 }
 
 .chartLegend{
@@ -1282,6 +1324,10 @@ select{
   .pnlBox{
     grid-template-columns:1fr;
   }
+
+  .liveStrip{
+    grid-template-columns:1fr 1fr;
+  }
 }
 </style>
 </head>
@@ -1293,7 +1339,7 @@ select{
     <div class="logo">🤖</div>
     <div>
       <div class="brandTitle">Binance-Robo</div>
-      <div class="brandSub">Central de Controle Premium</div>
+      <div class="brandSub">Central de Controle Premium • THIAGO / SERGIO</div>
     </div>
   </div>
 
@@ -1329,6 +1375,7 @@ select{
         <div class="tabMetric">
           <span>PATRIMÔNIO</span>
           <b id="tabPat1">--</b>
+          <small id="tabPatBrl1">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1354,6 +1401,7 @@ select{
         <div class="tabMetric">
           <span>PATRIMÔNIO</span>
           <b id="tabPat2">--</b>
+          <small id="tabPatBrl2">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1455,7 +1503,7 @@ select{
           <div class="chartControls">
 
             <select id="symbolSelect">
-              <option value="BTCUSDT">BTCUSDT</option>
+              <option value="">MOEDA DA OPERAÇÃO</option>
             </select>
 
             <button class="interval active" data-i="15m">
@@ -1474,9 +1522,33 @@ select{
 
         </div>
 
+        <div class="liveStrip">
+          <div>
+            <span>MOEDA</span>
+            <b id="chartCoin">--</b>
+          </div>
+          <div>
+            <span>PREÇO ATUAL</span>
+            <b id="chartPrice">--</b>
+          </div>
+          <div>
+            <span>VARIAÇÃO DESDE A ENTRADA</span>
+            <b id="chartVariation">--</b>
+          </div>
+          <div>
+            <span>ALVO DE VENDA</span>
+            <b id="chartTarget">--</b>
+          </div>
+        </div>
+
         <div id="chart"></div>
 
         <div class="chartLegend">
+          🟢 Entrada &nbsp;&nbsp;
+          🟡 Ponto de venda / Take Profit &nbsp;&nbsp;
+          🔴 Stop Loss &nbsp;&nbsp;
+          📈 % acompanha a variação desde a compra
+        </div>
           🟢 Entrada/compra &nbsp;&nbsp;
           🟡 Take Profit &nbsp;&nbsp;
           🔴 Stop Loss
@@ -1551,7 +1623,7 @@ select{
   </div>
 
   <div class="footer">
-    Binance-Robo • THIAGO / SERGIO • Painel individual • Atualização automática
+    Binance-Robo • THIAGO / SERGIO • Painel individual • Atualização automática a cada 15 segundos
   </div>
 
 </div>
@@ -1665,6 +1737,17 @@ function preencherTabs(){
     pnl.className =
       classe(c.pnlTotalEstimado);
 
+    const brl =
+      document.getElementById(
+        "tabPatBrl" + c.id
+      );
+
+    if(brl){
+      brl.textContent =
+        "≈ R$ " +
+        dinheiro(c.patrimonioBRL);
+    }
+
     ops.textContent =
       (c.posicoes || []).length;
   });
@@ -1734,11 +1817,19 @@ function renderConta(){
 
   document.getElementById(
     "pnlDetalhe"
-  ).textContent =
+  ).innerHTML =
     "Realizado: " +
     dinheiro(c.pnlRealizado) +
-    " • Aberto: " +
-    dinheiro(c.pnlNaoRealizado);
+    " USDT • Aberto: " +
+    dinheiro(c.pnlNaoRealizado) +
+    " USDT" +
+    '<br><span style="color:#71809a">' +
+    "≈ R$ " +
+    dinheiro(
+      Number(c.pnlTotalEstimado || 0) *
+      Number(c.usdtBrl || 0)
+    ) +
+    "</span>";
 
 
   document.getElementById(
@@ -1758,6 +1849,39 @@ function renderConta(){
   renderAtivos(c);
 
   renderHistorico(c);
+
+  // Mantém o gráfico na moeda da operação atual.
+  const select =
+    document.getElementById(
+      "symbolSelect"
+    );
+
+  const pos =
+    (c.posicoes || [])[0];
+
+  if(pos && pos.symbol){
+
+    if(
+      !Array.from(select.options).some(
+        function(o){
+          return o.value === pos.symbol;
+        }
+      )
+    ){
+
+      const opt =
+        document.createElement(
+          "option"
+        );
+
+      opt.value = pos.symbol;
+      opt.textContent = pos.symbol;
+
+      select.appendChild(opt);
+    }
+
+    select.value = pos.symbol;
+  }
 }
 
 
@@ -1818,10 +1942,16 @@ function renderPosicao(c){
     '<div class="positionGrid">' +
 
       info("Entrada",
-        dinheiro(pos.precoMedio) + " USDT") +
+        dinheiro(pos.precoMedio) + " USDT" +
+        '<small class="brlLine">≈ R$ ' +
+        dinheiro(pos.precoMedio * c.usdtBrl) +
+        '</small>') +
 
       info("Preço atual",
-        dinheiro(pos.precoAtual) + " USDT") +
+        dinheiro(pos.precoAtual) + " USDT" +
+        '<small class="brlLine">≈ R$ ' +
+        dinheiro(pos.precoAtual * c.usdtBrl) +
+        '</small>') +
 
       info("P/L",
         '<span class="' +
@@ -1849,12 +1979,20 @@ function renderPosicao(c){
 
       info("Take Profit",
         pos.tp
-          ? dinheiro(pos.tp.price)
+          ? dinheiro(pos.tp.price) +
+            " USDT" +
+            '<small class="brlLine">≈ R$ ' +
+            dinheiro(pos.tp.price * c.usdtBrl) +
+            '</small>'
           : "--") +
 
       info("Stop Loss",
         pos.sl
-          ? dinheiro(pos.sl.stopPrice)
+          ? dinheiro(pos.sl.stopPrice) +
+            " USDT" +
+            '<small class="brlLine">≈ R$ ' +
+            dinheiro(pos.sl.stopPrice * c.usdtBrl) +
+            '</small>'
           : "--") +
 
       info("Ordens abertas",
@@ -2030,15 +2168,34 @@ function renderPnl(c){
     );
 
 
-  a.textContent =
+  const c =
+    dados &&
+    dados.contas
+      ? dados.contas.find(function(x){
+          return x.id === contaSelecionada;
+        })
+      : null;
+
+  const taxa =
+    c
+      ? Number(c.usdtBrl || 0)
+      : 0;
+
+  a.innerHTML =
     (realizado >= 0 ? "+" : "") +
     dinheiro(realizado) +
-    " USDT";
+    " USDT" +
+    '<div class="metricSub">≈ R$ ' +
+    dinheiro(realizado * taxa) +
+    '</div>';
 
-  b.textContent =
+  b.innerHTML =
     (aberto >= 0 ? "+" : "") +
     dinheiro(aberto) +
-    " USDT";
+    " USDT" +
+    '<div class="metricSub">≈ R$ ' +
+    dinheiro(aberto * taxa) +
+    '</div>';
 
 
   a.className =
@@ -2059,12 +2216,59 @@ GRÁFICO
 
 async function carregarGrafico(){
 
-  const symbol =
+  const c =
+    dados &&
+    dados.contas
+      ? dados.contas.find(function(x){
+          return x.id === contaSelecionada;
+        })
+      : null;
+
+  /*
+   * PRIORIDADE:
+   * 1. moeda da posição ativa da conta selecionada
+   * 2. moeda escolhida manualmente
+   * 3. BTCUSDT como último fallback
+   */
+  const pos =
+    c &&
+    c.posicoes &&
+    c.posicoes.length
+      ? c.posicoes[0]
+      : null;
+
+  const select =
     document.getElementById(
       "symbolSelect"
-    ).value ||
-    "BTCUSDT";
+    );
 
+  const symbolAtual =
+    pos && pos.symbol
+      ? pos.symbol
+      : (
+          select.value ||
+          "BTCUSDT"
+        );
+
+  // Mostra a moeda atual e mantém a opção selecionada.
+  if(
+    symbolAtual &&
+    !Array.from(select.options).some(
+      function(o){
+        return o.value === symbolAtual;
+      }
+    )
+  ){
+    const opt =
+      document.createElement("option");
+
+    opt.value = symbolAtual;
+    opt.textContent = symbolAtual;
+
+    select.appendChild(opt);
+  }
+
+  select.value = symbolAtual;
 
   try{
 
@@ -2075,7 +2279,7 @@ async function carregarGrafico(){
           contaSelecionada
         ) +
         "&symbol=" +
-        encodeURIComponent(symbol) +
+        encodeURIComponent(symbolAtual) +
         "&interval=" +
         encodeURIComponent(
           intervaloSelecionado
@@ -2085,10 +2289,41 @@ async function carregarGrafico(){
         }
       );
 
+    if(!response.ok){
+      throw new Error(
+        "HTTP " + response.status
+      );
+    }
 
     const data =
       await response.json();
 
+    // Dados da posição são usados para a leitura
+    // percentual em tempo real.
+    if(pos){
+      data.currentPrice =
+        Number(pos.precoAtual || 0);
+
+      data.entry =
+        Number(
+          pos.precoMedio ||
+          data.entry ||
+          0
+        );
+
+      data.tp =
+        pos.tp
+          ? Number(pos.tp.price || 0)
+          : data.tp;
+
+      data.sl =
+        pos.sl
+          ? Number(pos.sl.stopPrice || 0)
+          : data.sl;
+
+      data.symbol =
+        pos.symbol;
+    }
 
     desenharGrafico(data);
 
@@ -2102,7 +2337,6 @@ async function carregarGrafico(){
   }
 }
 
-
 function desenharGrafico(d){
 
   const el =
@@ -2112,6 +2346,15 @@ function desenharGrafico(d){
 
   el.innerHTML = "";
 
+  const symbol =
+    d.symbol ||
+    document.getElementById(
+      "symbolSelect"
+    ).value ||
+    "BTCUSDT";
+
+  const candles =
+    d.candles || [];
 
   if(
     typeof LightweightCharts ===
@@ -2126,6 +2369,17 @@ function desenharGrafico(d){
     return;
   }
 
+  if(!candles.length){
+
+    el.innerHTML =
+      '<div class="empty">' +
+      'Não foi possível carregar o gráfico de ' +
+      symbol +
+      '.' +
+      '</div>';
+
+    return;
+  }
 
   chart =
     LightweightCharts.createChart(
@@ -2157,10 +2411,13 @@ function desenharGrafico(d){
         timeScale:{
           borderColor:"#26364f",
           timeVisible:true
+        },
+
+        crosshair:{
+          mode:0
         }
       }
     );
-
 
   candleSeries =
     chart.addCandlestickSeries({
@@ -2171,17 +2428,108 @@ function desenharGrafico(d){
       wickDownColor:"#ff6177"
     });
 
-
   candleSeries.setData(
-    d.candles || []
+    candles
   );
 
+  const entry =
+    Number(d.entry || 0);
 
-  if(d.entry){
+  const current =
+    Number(
+      d.currentPrice ||
+      (
+        candles[candles.length - 1]
+          ? candles[candles.length - 1].close
+          : 0
+      )
+    );
+
+  /*
+   * Percentual real da moeda desde a entrada:
+   *
+   * ((preço atual / preço entrada) - 1) * 100
+   */
+  const variation =
+    entry > 0 && current > 0
+      ? ((current / entry) - 1) * 100
+      : 0;
+
+  /*
+   * Se existe ordem de venda na Binance,
+   * usamos a ordem real.
+   *
+   * Caso não exista, mostramos um alvo projetado
+   * de +5%, compatível com o TP de 5% do robô.
+   */
+  const realTp =
+    Number(d.tp || 0);
+
+  const projectedTp =
+    entry > 0
+      ? entry * 1.05
+      : 0;
+
+  const target =
+    realTp > 0
+      ? realTp
+      : projectedTp;
+
+  const sl =
+    Number(d.sl || 0);
+
+  // Cabeçalho do gráfico.
+  document.getElementById(
+    "chartCoin"
+  ).textContent =
+    symbol;
+
+  document.getElementById(
+    "chartPrice"
+  ).textContent =
+    current > 0
+      ? dinheiro(current) + " USDT"
+      : "--";
+
+  const variationEl =
+    document.getElementById(
+      "chartVariation"
+    );
+
+  variationEl.textContent =
+    (
+      variation >= 0
+        ? "+"
+        : ""
+    ) +
+    variation.toFixed(2) +
+    "%";
+
+  variationEl.className =
+    variation >= 0
+      ? "green"
+      : "red";
+
+  document.getElementById(
+    "chartTarget"
+  ).textContent =
+    target > 0
+      ? dinheiro(target) +
+        " USDT (" +
+        (
+          entry > 0
+            ? (((target / entry) - 1) * 100)
+                .toFixed(2)
+            : "0.00"
+        ) +
+        "%)"
+      : "--";
+
+  if(entry > 0){
 
     candleSeries.createPriceLine({
-      price:d.entry,
-      color:"#20df96",
+      price:entry,
+      color:"#27b9ff",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
@@ -2190,77 +2538,136 @@ function desenharGrafico(d){
 
   }
 
-
-  if(d.tp){
+  if(target > 0){
 
     candleSeries.createPriceLine({
-      price:d.tp,
+      price:target,
       color:"#ffc85a",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
-      title:"TP"
+      title:
+        realTp > 0
+          ? "VENDA / TP"
+          : "VENDA +5%"
     });
 
   }
 
-
-  if(d.sl){
+  if(sl > 0){
 
     candleSeries.createPriceLine({
-      price:d.sl,
+      price:sl,
       color:"#ff6177",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
-      title:"SL"
+      title:"STOP LOSS"
     });
 
   }
 
+  /*
+   * Encontrar o candle mais próximo da entrada
+   * para colocar o marcador de COMPRA.
+   */
+  let entryCandle = null;
 
-  if(
-    d.entry &&
-    d.entryTime &&
-    d.candles &&
-    d.candles.length
-  ){
+  if(entry > 0){
 
-    const candle =
-      d.candles.reduce(
-        function(prev, cur){
+    const tradesTime =
+      Number(d.entryTime || 0);
 
-          return Math.abs(
-            cur.time - d.entryTime
-          ) <
-          Math.abs(
-            prev.time - d.entryTime
-          )
-            ? cur
-            : prev;
+    if(tradesTime > 0){
 
-        }
-      );
+      entryCandle =
+        candles.reduce(
+          function(prev, cur){
 
+            return Math.abs(
+              cur.time - tradesTime
+            ) <
+            Math.abs(
+              prev.time - tradesTime
+            )
+              ? cur
+              : prev;
+
+          }
+        );
+
+    }else{
+
+      entryCandle =
+        candles.reduce(
+          function(prev, cur){
+
+            return Math.abs(
+              cur.close - entry
+            ) <
+            Math.abs(
+              prev.close - entry
+            )
+              ? cur
+              : prev;
+
+          }
+        );
+
+    }
+
+  }
+
+  /*
+   * Marcador de compra.
+   */
+  if(entryCandle){
 
     candleSeries.setMarkers([
       {
-        time:candle.time,
+        time:entryCandle.time,
         position:"belowBar",
-        color:"#20df96",
+        color:"#27b9ff",
         shape:"arrowUp",
-        text:"COMPRA"
+        text:
+          "ENTRADA " +
+          dinheiro(entry)
       }
     ]);
 
   }
 
+  /*
+   * Linha visual da evolução percentual:
+   * marca o preço atual e exibe o ganho/perda.
+   */
+  if(current > 0){
+
+    candleSeries.createPriceLine({
+      price:current,
+      color:
+        variation >= 0
+          ? "#20df96"
+          : "#ff6177",
+      lineWidth:2,
+      lineStyle:0,
+      axisLabelVisible:true,
+      title:
+        (
+          variation >= 0
+            ? "+"
+            : ""
+        ) +
+        variation.toFixed(2) +
+        "%"
+    });
+
+  }
 
   chart
     .timeScale()
     .fitContent();
 }
-
 
 /*
 =========================================================

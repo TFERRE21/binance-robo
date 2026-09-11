@@ -2168,14 +2168,6 @@ function renderPnl(c){
     );
 
 
-  const c =
-    dados &&
-    dados.contas
-      ? dados.contas.find(function(x){
-          return x.id === contaSelecionada;
-        })
-      : null;
-
   const taxa =
     c
       ? Number(c.usdtBrl || 0)
@@ -2679,13 +2671,24 @@ async function carregar(){
 
   try{
 
+    const controller =
+      new AbortController();
+
+    const timeout =
+      setTimeout(function(){
+        controller.abort();
+      }, 25000);
+
     const response =
       await fetch(
         "/api/dashboard",
         {
-          cache:"no-store"
+          cache:"no-store",
+          signal:controller.signal
         }
       );
+
+    clearTimeout(timeout);
 
 
     if(!response.ok){
@@ -2733,7 +2736,8 @@ async function carregar(){
     document.getElementById(
       "updated"
     ).textContent =
-      "Erro ao atualizar";
+      "Erro ao atualizar: " +
+      (e.message || "falha de conexão");
 
   }
 }

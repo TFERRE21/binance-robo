@@ -2,14 +2,13 @@ const express = require("express");
 const Binance = require("binance-api-node").default;
 
 const app = express();
-
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
 /* =========================================================
-   BINANCE
-   SOMENTE CONSULTAS
+   CONEXÃO BINANCE
+   SOMENTE LEITURA
 ========================================================= */
 
 const client = Binance({
@@ -30,7 +29,7 @@ app.get("/api/status", (req, res) => {
 });
 
 /* =========================================================
-   CONSULTAR CONTA BINANCE
+   CONTA BINANCE
 ========================================================= */
 
 app.get("/api/account", async (req, res) => {
@@ -38,25 +37,18 @@ app.get("/api/account", async (req, res) => {
   try {
 
     const account = await client.accountInfo();
-
     const balances = account.balances || [];
 
     const ativos = balances
-      .filter(balance => {
-        return (
-          Number(balance.free) > 0 ||
-          Number(balance.locked) > 0
-        );
-      })
+      .filter(balance =>
+        Number(balance.free) > 0 ||
+        Number(balance.locked) > 0
+      )
       .map(balance => ({
         asset: balance.asset,
         free: Number(balance.free),
         locked: Number(balance.locked)
       }));
-
-    /* =====================================================
-       PREÇOS
-    ===================================================== */
 
     let prices = {};
 
@@ -64,27 +56,21 @@ app.get("/api/account", async (req, res) => {
       prices = await client.prices();
     } catch (priceError) {
       console.log(
-        "Não foi possível carregar preços:",
+        "Aviso: preços indisponíveis:",
         priceError.message
       );
     }
 
-    /* =====================================================
-       CALCULAR VALORES EM USDT
-    ===================================================== */
-
     let patrimonioUSDT = 0;
 
-    const ativosComValor = ativos.map(asset => {
+    const saldos = ativos.map(asset => {
 
       const quantidade =
-        Number(asset.free) +
-        Number(asset.locked);
+        asset.free + asset.locked;
 
       let precoUSDT = 0;
       let valorUSDT = 0;
 
-      /* USDT vale 1 */
       if (asset.asset === "USDT") {
 
         precoUSDT = 1;
@@ -92,21 +78,20 @@ app.get("/api/account", async (req, res) => {
 
       } else {
 
-        const par = `${asset.asset}USDT`;
+        const par = asset.asset + "USDT";
 
         if (prices[par]) {
-
           precoUSDT = Number(prices[par]);
-
-          valorUSDT =
-            quantidade * precoUSDT;
+          valorUSDT = quantidade * precoUSDT;
         }
       }
 
       patrimonioUSDT += valorUSDT;
 
       return {
-        ...asset,
+        asset: asset.asset,
+        free: asset.free,
+        locked: asset.locked,
         quantidade,
         precoUSDT,
         valorUSDT
@@ -114,18 +99,15 @@ app.get("/api/account", async (req, res) => {
 
     });
 
-    /* =====================================================
-       SALDO USDT
-    ===================================================== */
-
     const usdt =
-      ativosComValor.find(
-        asset => asset.asset === "USDT"
-      );
-
-    /* =====================================================
-       RESPOSTA
-    ===================================================== */
+      saldos.find(item => item.asset === "USDT") || {
+        asset: "USDT",
+        free: 0,
+        locked: 0,
+        quantidade: 0,
+        precoUSDT: 1,
+        valorUSDT: 0
+      };
 
     res.json({
 
@@ -137,22 +119,13 @@ app.get("/api/account", async (req, res) => {
         canDeposit: account.canDeposit
       },
 
-      usdt: usdt || {
-        asset: "USDT",
-        free: 0,
-        locked: 0,
-        quantidade: 0,
-        precoUSDT: 1,
-        valorUSDT: 0
-      },
+      usdt,
 
       patrimonioUSDT,
 
-      totalAtivos:
-        ativosComValor.length,
+      totalAtivos: saldos.length,
 
-      saldos:
-        ativosComValor
+      saldos
 
     });
 
@@ -164,12 +137,8 @@ app.get("/api/account", async (req, res) => {
     );
 
     res.status(500).json({
-
       status: "error",
-
-      mensagem:
-        "Não foi possível consultar a conta Binance."
-
+      mensagem: "Não foi possível consultar a conta Binance."
     });
 
   }
@@ -180,10 +149,9 @@ app.get("/api/account", async (req, res) => {
    DASHBOARD
 ========================================================= */
 
-app.get("/", (req, res) => {
+app.get("/", async (req, res) => {
 
   res.send(`
-
 <!DOCTYPE html>
 
 <html lang="pt-BR">
@@ -192,10 +160,8 @@ app.get("/", (req, res) => {
 
 <meta charset="UTF-8">
 
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
->
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
 <title>Binance-Robo | Dashboard</title>
 
@@ -230,10 +196,6 @@ body {
 
 }
 
-/* =========================================================
-   HEADER
-========================================================= */
-
 .header {
 
   display: flex;
@@ -242,21 +204,15 @@ body {
 
   align-items: center;
 
-  padding: 24px 5%;
+  padding: 22px 5%;
 
   border-bottom:
     1px solid rgba(255,255,255,0.08);
 
-  backdrop-filter: blur(20px);
-
   background:
-    rgba(3,5,10,0.65);
+    rgba(3,5,10,0.75);
 
-  position: sticky;
-
-  top: 0;
-
-  z-index: 10;
+  backdrop-filter: blur(20px);
 
 }
 
@@ -272,11 +228,11 @@ body {
 
 .logo {
 
-  width: 48px;
+  width: 50px;
 
-  height: 48px;
+  height: 50px;
 
-  border-radius: 14px;
+  border-radius: 15px;
 
   display: flex;
 
@@ -304,8 +260,6 @@ body {
 
   font-size: 21px;
 
-  font-weight: 700;
-
 }
 
 .brand span {
@@ -328,7 +282,7 @@ body {
 
   gap: 8px;
 
-  padding: 9px 14px;
+  padding: 9px 15px;
 
   border-radius: 999px;
 
@@ -342,7 +296,7 @@ body {
 
   font-size: 13px;
 
-  font-weight: 600;
+  font-weight: 700;
 
 }
 
@@ -361,29 +315,21 @@ body {
 
 }
 
-/* =========================================================
-   CONTAINER
-========================================================= */
-
 .container {
 
   width: 90%;
 
   max-width: 1400px;
 
-  margin: 0 auto;
+  margin: auto;
 
   padding: 35px 0 60px;
 
 }
 
-/* =========================================================
-   HERO
-========================================================= */
-
 .hero {
 
-  margin-bottom: 30px;
+  margin-bottom: 28px;
 
 }
 
@@ -405,10 +351,6 @@ body {
 
 }
 
-/* =========================================================
-   CARDS
-========================================================= */
-
 .cards {
 
   display: grid;
@@ -423,8 +365,6 @@ body {
 }
 
 .card {
-
-  position: relative;
 
   padding: 25px;
 
@@ -442,30 +382,6 @@ body {
 
   box-shadow:
     0 20px 60px rgba(0,0,0,0.25);
-
-  overflow: hidden;
-
-}
-
-.card::after {
-
-  content: "";
-
-  position: absolute;
-
-  width: 120px;
-
-  height: 120px;
-
-  right: -50px;
-
-  top: -50px;
-
-  background: rgba(59,130,246,0.12);
-
-  border-radius: 50%;
-
-  filter: blur(10px);
 
 }
 
@@ -485,8 +401,6 @@ body {
 
   font-weight: 700;
 
-  letter-spacing: -1px;
-
 }
 
 .card-small {
@@ -498,10 +412,6 @@ body {
   font-size: 12px;
 
 }
-
-/* =========================================================
-   SECTION
-========================================================= */
 
 .section {
 
@@ -544,15 +454,13 @@ body {
 
 .update {
 
+  margin-top: 4px;
+
   color: #64748b;
 
   font-size: 12px;
 
 }
-
-/* =========================================================
-   BOTÃO
-========================================================= */
 
 button {
 
@@ -560,13 +468,13 @@ button {
 
   cursor: pointer;
 
-  padding: 10px 17px;
+  padding: 11px 18px;
 
   border-radius: 11px;
 
   color: white;
 
-  font-weight: 600;
+  font-weight: 700;
 
   background:
     linear-gradient(
@@ -578,22 +486,13 @@ button {
   box-shadow:
     0 8px 25px rgba(37,99,235,0.25);
 
-  transition: 0.2s;
-
 }
 
 button:hover {
 
   transform: translateY(-1px);
 
-  box-shadow:
-    0 12px 30px rgba(37,99,235,0.35);
-
 }
-
-/* =========================================================
-   TABLE
-========================================================= */
 
 .table-wrapper {
 
@@ -620,8 +519,6 @@ th {
   font-size: 11px;
 
   text-transform: uppercase;
-
-  letter-spacing: 0.8px;
 
 }
 
@@ -672,13 +569,13 @@ tr:hover {
   background:
     rgba(255,255,255,0.08);
 
-  font-size: 12px;
+  font-size: 11px;
 
 }
 
 .value {
 
-  font-weight: 600;
+  font-weight: 700;
 
 }
 
@@ -687,10 +584,6 @@ tr:hover {
   color: #64748b;
 
 }
-
-/* =========================================================
-   LOADING
-========================================================= */
 
 .loading {
 
@@ -701,10 +594,6 @@ tr:hover {
   color: #64748b;
 
 }
-
-/* =========================================================
-   FOOTER
-========================================================= */
 
 .footer {
 
@@ -718,40 +607,22 @@ tr:hover {
 
 }
 
-/* =========================================================
-   RESPONSIVO
-========================================================= */
-
 @media (max-width: 800px) {
 
   .cards {
-
     grid-template-columns: 1fr;
-
   }
 
   .header {
-
     padding: 18px;
-
   }
 
   .container {
-
     width: 94%;
-
   }
 
   .hero h2 {
-
     font-size: 25px;
-
-  }
-
-  .brand h1 {
-
-    font-size: 17px;
-
   }
 
 }
@@ -766,9 +637,7 @@ tr:hover {
 
   <div class="brand">
 
-    <div class="logo">
-      🤖
-    </div>
+    <div class="logo">🤖</div>
 
     <div>
 
@@ -792,146 +661,133 @@ tr:hover {
 
 <main class="container">
 
-  <section class="hero">
+<section class="hero">
 
-    <h2>Dashboard</h2>
+  <h2>Dashboard</h2>
 
-    <p>
-      Visão geral da conta Binance em tempo real.
-    </p>
+  <p>
+    Visão geral da conta Binance em tempo real.
+  </p>
 
-  </section>
+</section>
 
-  <section class="cards">
+<section class="cards">
 
-    <div class="card">
+  <div class="card">
 
-      <div class="card-label">
-        💰 Saldo disponível
+    <div class="card-label">
+      💰 Saldo disponível
+    </div>
+
+    <div class="card-value" id="saldoUSDT">
+      Carregando...
+    </div>
+
+    <div class="card-small">
+      USDT disponível
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <div class="card-label">
+      📊 Patrimônio estimado
+    </div>
+
+    <div class="card-value" id="patrimonio">
+      Carregando...
+    </div>
+
+    <div class="card-small">
+      Valor estimado em USDT
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <div class="card-label">
+      💼 Ativos
+    </div>
+
+    <div class="card-value" id="totalAtivos">
+      --
+    </div>
+
+    <div class="card-small">
+      Ativos com saldo
+    </div>
+
+  </div>
+
+</section>
+
+<section class="section">
+
+  <div class="section-header">
+
+    <div>
+
+      <div class="section-title">
+        Carteira
       </div>
 
-      <div
-        class="card-value"
-        id="saldoUSDT"
-      >
-        Carregando...
-      </div>
-
-      <div class="card-small">
-        USDT disponível
+      <div class="update" id="ultimaAtualizacao">
+        Aguardando atualização...
       </div>
 
     </div>
 
-    <div class="card">
+    <button onclick="carregarConta()">
+      🔄 Atualizar
+    </button>
 
-      <div class="card-label">
-        📊 Patrimônio estimado
-      </div>
+  </div>
 
-      <div
-        class="card-value"
-        id="patrimonio"
-      >
-        Carregando...
-      </div>
+  <div class="table-wrapper">
 
-      <div class="card-small">
-        Valor estimado em USDT
-      </div>
+    <table>
 
-    </div>
+      <thead>
 
-    <div class="card">
+        <tr>
 
-      <div class="card-label">
-        💼 Ativos
-      </div>
+          <th>Ativo</th>
 
-      <div
-        class="card-value"
-        id="totalAtivos"
-      >
-        --
-      </div>
+          <th>Quantidade</th>
 
-      <div class="card-small">
-        Ativos com saldo
-      </div>
+          <th>Disponível</th>
 
-    </div>
+          <th>Bloqueado</th>
 
-  </section>
+          <th>Preço USDT</th>
 
-  <section class="section">
+          <th>Valor estimado</th>
 
-    <div class="section-header">
+        </tr>
 
-      <div>
+      </thead>
 
-        <div class="section-title">
-          Carteira
-        </div>
+      <tbody id="tabela">
 
-        <div
-          class="update"
-          id="ultimaAtualizacao"
-        >
-          Aguardando atualização...
-        </div>
+        <tr>
 
-      </div>
+          <td colspan="6" class="loading">
 
-      <button onclick="carregarConta()">
-        🔄 Atualizar
-      </button>
+            Carregando dados da Binance...
 
-    </div>
+          </td>
 
-    <div class="table-wrapper">
+        </tr>
 
-      <table>
+      </tbody>
 
-        <thead>
+    </table>
 
-          <tr>
+  </div>
 
-            <th>Ativo</th>
-
-            <th>Quantidade</th>
-
-            <th>Disponível</th>
-
-            <th>Bloqueado</th>
-
-            <th>Preço USDT</th>
-
-            <th>Valor estimado</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody id="tabela">
-
-          <tr>
-
-            <td
-              colspan="6"
-              class="loading"
-            >
-              Carregando dados da Binance...
-            </td>
-
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </section>
+</section>
 
 </main>
 
@@ -943,39 +799,33 @@ tr:hover {
 
 <script>
 
-/* =========================================================
-   FORMATAÇÃO
-========================================================= */
+function numero(valor, casas) {
 
-function numero(valor, casas = 8) {
+  if (casas === undefined) {
+    casas = 8;
+  }
 
-  return Number(valor || 0)
-    .toLocaleString(
-      "pt-BR",
-      {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: casas
-      }
-    );
+  return Number(valor || 0).toLocaleString(
+    "pt-BR",
+    {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: casas
+    }
+  );
 
 }
 
 function dinheiro(valor) {
 
-  return Number(valor || 0)
-    .toLocaleString(
-      "pt-BR",
-      {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      }
-    );
+  return Number(valor || 0).toLocaleString(
+    "pt-BR",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }
+  );
 
 }
-
-/* =========================================================
-   CARREGAR CONTA
-========================================================= */
 
 async function carregarConta() {
 
@@ -984,20 +834,8 @@ async function carregarConta() {
 
   try {
 
-    tabela.innerHTML = `
-
-      <tr>
-
-        <td
-          colspan="6"
-          class="loading"
-        >
-          Atualizando dados...
-        </td>
-
-      </tr>
-
-    `;
+    tabela.innerHTML =
+      '<tr><td colspan="6" class="loading">Atualizando dados...</td></tr>';
 
     const resposta =
       await fetch("/api/account");
@@ -1014,70 +852,41 @@ async function carregarConta() {
 
     }
 
-    /* =====================================================
-       CARDS
-    ===================================================== */
-
     document.getElementById(
       "saldoUSDT"
     ).textContent =
-      "$ " +
-      dinheiro(dados.usdt.free);
+      "$ " + dinheiro(dados.usdt.free);
 
     document.getElementById(
       "patrimonio"
     ).textContent =
-      "$ " +
-      dinheiro(dados.patrimonioUSDT);
+      "$ " + dinheiro(dados.patrimonioUSDT);
 
     document.getElementById(
       "totalAtivos"
     ).textContent =
       dados.totalAtivos;
 
-    /* =====================================================
-       DATA
-    ===================================================== */
-
-    const agora =
-      new Date();
-
     document.getElementById(
       "ultimaAtualizacao"
     ).textContent =
       "Última atualização: " +
-      agora.toLocaleTimeString("pt-BR");
-
-    /* =====================================================
-       TABELA
-    ===================================================== */
+      new Date().toLocaleTimeString("pt-BR");
 
     if (
       !dados.saldos ||
       dados.saldos.length === 0
     ) {
 
-      tabela.innerHTML = `
-
-        <tr>
-
-          <td
-            colspan="6"
-            class="loading"
-          >
-            Nenhum ativo com saldo encontrado.
-          </td>
-
-        </tr>
-
-      `;
+      tabela.innerHTML =
+        '<tr><td colspan="6" class="loading">Nenhum ativo com saldo encontrado.</td></tr>';
 
       return;
 
     }
 
     tabela.innerHTML =
-      dados.saldos.map(asset => {
+      dados.saldos.map(function(asset) {
 
         const valor =
           asset.valorUSDT > 0
@@ -1089,47 +898,43 @@ async function carregarConta() {
             ? "$ " + numero(asset.precoUSDT, 8)
             : '<span class="muted">--</span>';
 
-        return `
+        const icone =
+          asset.asset.substring(0, 2);
 
-          <tr>
+        return (
+          '<tr>' +
 
-            <td>
+          '<td>' +
+            '<div class="coin">' +
+              '<div class="coin-icon">' +
+                icone +
+              '</div>' +
+              asset.asset +
+            '</div>' +
+          '</td>' +
 
-              <div class="coin">
+          '<td>' +
+            numero(asset.quantidade) +
+          '</td>' +
 
-                <div class="coin-icon">
-                  ${asset.asset.substring(0, 2)}
-                </div>
+          '<td>' +
+            numero(asset.free) +
+          '</td>' +
 
-                ${asset.asset}
+          '<td>' +
+            numero(asset.locked) +
+          '</td>' +
 
-              </div>
+          '<td>' +
+            preco +
+          '</td>' +
 
-            </td>
+          '<td class="value">' +
+            valor +
+          '</td>' +
 
-            <td>
-              ${numero(asset.quantidade)}
-            </td>
-
-            <td>
-              ${numero(asset.free)}
-            </td>
-
-            <td>
-              ${numero(asset.locked)}
-            </td>
-
-            <td>
-              ${preco}
-            </td>
-
-            <td class="value">
-              ${valor}
-            </td>
-
-          </tr>
-
-        `;
+          '</tr>'
+        );
 
       }).join("");
 
@@ -1137,40 +942,19 @@ async function carregarConta() {
 
     console.error(erro);
 
-    tabela.innerHTML = `
-
-      <tr>
-
-        <td
-          colspan="6"
-          class="loading"
-        >
-
-          ❌ Erro ao carregar dados da Binance.
-
-          <br><br>
-
-          ${erro.message}
-
-        </td>
-
-      </tr>
-
-    `;
+    tabela.innerHTML =
+      '<tr>' +
+        '<td colspan="6" class="loading">' +
+          '❌ Erro ao carregar dados da Binance.<br><br>' +
+          erro.message +
+        '</td>' +
+      '</tr>';
 
   }
 
 }
 
-/* =========================================================
-   PRIMEIRA CARGA
-========================================================= */
-
 carregarConta();
-
-/* =========================================================
-   ATUALIZAÇÃO AUTOMÁTICA
-========================================================= */
 
 setInterval(
   carregarConta,
@@ -1182,7 +966,6 @@ setInterval(
 </body>
 
 </html>
-
   `);
 
 });

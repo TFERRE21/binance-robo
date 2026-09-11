@@ -20,8 +20,7 @@ CONTA 2 = SERGIO
 API_KEY_2
 API_SECRET_2
 
-O painel é SOMENTE LEITURA.
-NÃO compra, NÃO vende e NÃO altera ordens.
+O painel é somente leitura, EXCETO pelo controle manual protegido da CONTA 2 / SERGIO.
 =========================================================
 */
 
@@ -536,6 +535,649 @@ API DASHBOARD
 =========================================================
 */
 
+
+/*
+=========================================================
+V8 — CONTROLE MANUAL DA CONTA SERGIO
+=========================================================
+IMPORTANTE:
+- Somente a CONTA 2 / SERGIO pode ser controlada manualmente.
+- As ações exigem o segredo PAINEL_MANUAL_TOKEN.
+- O token é enviado pelo navegador apenas no header
+  x-manual-token e nunca é exposto no HTML.
+- CANCELAR VENDA cancela ordens SELL abertas do símbolo.
+- VENDER AGORA cancela primeiro as ordens SELL abertas e,
+  depois, vende a quantidade livre do ativo via MARKET.
+- Depois da venda, o robô original pode continuar seu loop
+  normalmente. Ao detectar que não existe mais posição, ele
+  volta a procurar novas entradas na próxima varredura.
+- O painel NÃO altera a estratégia do robô.
+=========================================================
+*/
+
+const MANUAL_ACCOUNT_ID = "2";
+const MANUAL_SELL_FEE_RATE =
+  Number.isFinite(Number(process.env.MANUAL_SELL_FEE_RATE))
+    ? Number(process.env.MANUAL_SELL_FEE_RATE)
+    : 0.001; // 0,10% apenas para estimativa
+
+function validarTokenManual(req) {
+  const esperado =
+    String(process.env.PAINEL_MANUAL_TOKEN || "");
+
+  const recebido =
+    String(req.headers["x-manual-token"] || "");
+
+  return !!esperado && recebido === esperado;
+}
+
+function validarSymbolSpotUSDT(symbol) {
+  return /^[A-Z0-9]{2,30}USDT$/.test(
+    String(symbol || "").toUpperCase()
+  );
+}
+
+function obterContaManual() {
+  return clientes.find(function (c) {
+    return c.id === MANUAL_ACCOUNT_ID;
+  });
+}
+
+async function obterInfoSimbolo(conta, symbol) {
+  const exchangeInfo =
+    await conta.client.exchangeInfo();
+
+  const info =
+    (exchangeInfo.symbols || []).find(function (s) {
+      return (
+        s.symbol === symbol &&
+        s.status === "TRADING" &&
+        s.quoteAsset === "USDT"
+      );
+    });
+
+  if (!info) {
+    throw new Error(
+      "Par não encontrado ou não está disponível para negociação."
+    );
+  }
+
+  return info;
+}
+
+async function obterOrdensVendaAbertas(conta, symbol) {
+  const ordens =
+    await conta.client.openOrders({
+      symbol
+    });
+
+  return (ordens || []).filter(function (o) {
+    return (
+      String(o.side || "").toUpperCase() === "SELL" &&
+      String(o.status || "").toUpperCase() === "NEW"
+    );
+  });
+}
+
+async function obterPreviaVendaSergio(symbol) {
+  const conta = obterContaManual();
+
+  if (!conta || !conta.client) {
+    throw new Error("Conta SERGIO não está configurada.");
+  }
+
+  const info =
+    await obterInfoSimbolo(conta, symbol);
+
+  const asset =
+    String(info.baseAsset || "").toUpperCase();
+
+  const resultados =
+    await Promise.all([
+      conta.client.accountInfo(),
+      conta.client.prices({ symbol }),
+      obterOrdensVendaAbertas(conta, symbol),
+      obterTrades(conta, symbol, 1000)
+    ]);
+
+  const accountInfo = resultados[0];
+  const priceInfo = resultados[1];
+  const ordensVenda = resultados[2];
+  const trades = resultados[3];
+
+  const precoAtual =
+    num(priceInfo[symbol]);
+
+  if (!(precoAtual > 0)) {
+    throw new Error("Preço atual inválido.");
+  }
+
+  const saldo =
+    (accountInfo.balances || []).find(function (b) {
+      return (
+        String(b.asset || "").toUpperCase() ===
+        asset
+      );
+    });
+
+  const free =
+    num(saldo && saldo.free);
+
+  const locked =
+    num(saldo && saldo.locked);
+
+  const total =
+    free + locked;
+
+  const operacao =
+    calcularOperacaoAtual(trades);
+
+  /*
+   * Para a prévia, usamos a quantidade que efetivamente
+   * está na carteira. O custo médio usado para estimar o
+   * resultado vem da operação atual detectada.
+   */
+  const quantidadeVenda =
+    ajustarQuantidade(
+      total,
+      num(
+        encontrarFiltro(
+          info,
+          "LOT_SIZE"
+        )?.stepSize
+      )
+    );
+
+  const entrada =
+    operacao.ativa
+      ? num(operacao.entrada)
+      : 0;
+
+  const custoEstimado =
+    entrada > 0
+      ? entrada * quantidadeVenda
+      : 0;
+
+  const valorBruto =
+    precoAtual * quantidadeVenda;
+
+  const pnlBruto =
+    entrada > 0
+      ? valorBruto - custoEstimado
+      : 0;
+
+  const taxaEstimada =
+    valorBruto * MANUAL_SELL_FEE_RATE;
+
+  const pnlLiquidoEstimado =
+    pnlBruto - taxaEstimada;
+
+  const usdtBrl =
+    await obterUSDTBRL(conta.client);
+
+  return {
+    conta: "SERGIO",
+    accountId: MANUAL_ACCOUNT_ID,
+    symbol,
+    asset,
+    precoAtual,
+    entrada,
+    quantidadeCarteira: total,
+    quantidadeVenda,
+    free,
+    locked,
+    ordensVenda: ordensVenda.map(function (o) {
+      return {
+        orderId: String(o.orderId),
+        price: num(o.price),
+        origQty: num(o.origQty),
+        executedQty: num(o.executedQty),
+        status: o.status,
+        type: o.type
+      };
+    }),
+    temOrdemVenda: ordensVenda.length > 0,
+    valorBruto,
+    custoEstimado,
+    pnlBruto,
+    taxaEstimada,
+    taxaEstimativaPct:
+      MANUAL_SELL_FEE_RATE * 100,
+    pnlLiquidoEstimado,
+    pnlLiquidoBRL:
+      pnlLiquidoEstimado * usdtBrl,
+    usdtBrl,
+    operacaoAtual: operacao.ativa,
+    entradaTime: operacao.entradaTime,
+    atualizadoEm: Date.now(),
+    observacao:
+      entrada > 0
+        ? "Estimativa antes da execução, baseada no preço atual e no custo médio da operação atual. A taxa é uma estimativa configurável."
+        : "Não foi possível identificar uma operação atual. O resultado financeiro antes da venda não pode ser calculado com precisão."
+  };
+}
+
+app.get("/api/manual/preview", async function (req, res) {
+  try {
+    const symbol =
+      String(
+        req.query.symbol || ""
+      ).toUpperCase();
+
+    if (!process.env.PAINEL_MANUAL_TOKEN) {
+      return res.status(503).json({
+        erro:
+          "Controle manual desativado. Configure PAINEL_MANUAL_TOKEN no Northflank."
+      });
+    }
+
+    if (!validarTokenManual(req)) {
+      return res.status(401).json({
+        erro: "Token do controle manual inválido."
+      });
+    }
+
+    if (!validarSymbolSpotUSDT(symbol)) {
+      return res.status(400).json({
+        erro: "Símbolo inválido."
+      });
+    }
+
+    res.json(
+      await obterPreviaVendaSergio(symbol)
+    );
+  } catch (e) {
+    res.status(500).json({
+      erro: e.message
+    });
+  }
+});
+
+app.post("/api/manual/cancel-sell", async function (req, res) {
+  try {
+    if (!process.env.PAINEL_MANUAL_TOKEN) {
+      return res.status(503).json({
+        erro:
+          "Controle manual desativado. Configure PAINEL_MANUAL_TOKEN no Northflank."
+      });
+    }
+
+    if (!validarTokenManual(req)) {
+      return res.status(401).json({
+        erro: "Token do controle manual inválido."
+      });
+    }
+
+    const symbol =
+      String(
+        req.body && req.body.symbol || ""
+      ).toUpperCase();
+
+    if (!validarSymbolSpotUSDT(symbol)) {
+      return res.status(400).json({
+        erro: "Símbolo inválido."
+      });
+    }
+
+    const conta =
+      obterContaManual();
+
+    const ordens =
+      await obterOrdensVendaAbertas(
+        conta,
+        symbol
+      );
+
+    if (!ordens.length) {
+      return res.json({
+        ok: true,
+        canceladas: 0,
+        mensagem:
+          "Não existe ordem de venda aberta para este ativo.",
+        symbol,
+        atualizadoEm: Date.now()
+      });
+    }
+
+    const resultados = [];
+
+    for (const ordem of ordens) {
+      try {
+        const cancelada =
+          await conta.client.cancelOrder({
+            symbol,
+            orderId: ordem.orderId
+          });
+
+        resultados.push({
+          orderId: String(ordem.orderId),
+          ok: true,
+          status:
+            cancelada.status || "CANCELED"
+        });
+      } catch (e) {
+        resultados.push({
+          orderId: String(ordem.orderId),
+          ok: false,
+          erro: erroTexto(e)
+        });
+      }
+    }
+
+    const falhas =
+      resultados.filter(function (x) {
+        return !x.ok;
+      });
+
+    res.json({
+      ok: falhas.length === 0,
+      canceladas:
+        resultados.filter(function (x) {
+          return x.ok;
+        }).length,
+      falhas: falhas.length,
+      resultados,
+      symbol,
+      atualizadoEm: Date.now(),
+      mensagem:
+        falhas.length === 0
+          ? "Ordem(ns) de venda cancelada(s) com sucesso."
+          : "Algumas ordens não puderam ser canceladas."
+    });
+  } catch (e) {
+    res.status(500).json({
+      erro: e.message
+    });
+  }
+});
+
+app.post("/api/manual/sell", async function (req, res) {
+  try {
+    if (!process.env.PAINEL_MANUAL_TOKEN) {
+      return res.status(503).json({
+        erro:
+          "Controle manual desativado. Configure PAINEL_MANUAL_TOKEN no Northflank."
+      });
+    }
+
+    if (!validarTokenManual(req)) {
+      return res.status(401).json({
+        erro: "Token do controle manual inválido."
+      });
+    }
+
+    const symbol =
+      String(
+        req.body && req.body.symbol || ""
+      ).toUpperCase();
+
+    if (!validarSymbolSpotUSDT(symbol)) {
+      return res.status(400).json({
+        erro: "Símbolo inválido."
+      });
+    }
+
+    const conta =
+      obterContaManual();
+
+    /*
+     * Primeiro cancela as ordens SELL existentes.
+     * Só continua para a venda MARKET se todas forem
+     * canceladas com sucesso.
+     */
+    const ordens =
+      await obterOrdensVendaAbertas(
+        conta,
+        symbol
+      );
+
+    const cancelamentos = [];
+
+    for (const ordem of ordens) {
+      try {
+        const cancelada =
+          await conta.client.cancelOrder({
+            symbol,
+            orderId: ordem.orderId
+          });
+
+        cancelamentos.push({
+          orderId: String(ordem.orderId),
+          ok: true,
+          status:
+            cancelada.status || "CANCELED"
+        });
+      } catch (e) {
+        cancelamentos.push({
+          orderId: String(ordem.orderId),
+          ok: false,
+          erro: erroTexto(e)
+        });
+      }
+    }
+
+    const cancelamentoFalhou =
+      cancelamentos.some(function (x) {
+        return !x.ok;
+      });
+
+    if (cancelamentoFalhou) {
+      return res.status(409).json({
+        erro:
+          "A venda foi interrompida porque não foi possível cancelar todas as ordens SELL abertas.",
+        cancelamentos
+      });
+    }
+
+    /*
+     * Atualiza o saldo DEPOIS do cancelamento para que
+     * o MARKET SELL use a quantidade realmente livre.
+     */
+    const info =
+      await obterInfoSimbolo(
+        conta,
+        symbol
+      );
+
+    const accountInfo =
+      await conta.client.accountInfo();
+
+    const asset =
+      String(
+        info.baseAsset || ""
+      ).toUpperCase();
+
+    const saldo =
+      (accountInfo.balances || []).find(function (b) {
+        return (
+          String(b.asset || "").toUpperCase() ===
+          asset
+        );
+      });
+
+    const free =
+      num(saldo && saldo.free);
+
+    const lotSize =
+      encontrarFiltro(
+        info,
+        "LOT_SIZE"
+      );
+
+    const stepSize =
+      num(
+        lotSize &&
+        lotSize.stepSize
+      );
+
+    const quantity =
+      ajustarQuantidade(
+        free,
+        stepSize
+      );
+
+    const priceInfo =
+      await conta.client.prices({
+        symbol
+      });
+
+    const precoAtual =
+      num(priceInfo[symbol]);
+
+    const minNotional =
+      obterMinimoNotional(info);
+
+    const valorEstimado =
+      quantity * precoAtual;
+
+    if (!(quantity > 0)) {
+      return res.status(409).json({
+        erro:
+          "Não existe quantidade livre suficiente para vender.",
+        symbol,
+        free,
+        quantity
+      });
+    }
+
+    if (
+      minNotional > 0 &&
+      valorEstimado < minNotional
+    ) {
+      return res.status(409).json({
+        erro:
+          "A quantidade disponível ficou abaixo do mínimo de negociação.",
+        symbol,
+        quantity,
+        valorEstimado,
+        minNotional
+      });
+    }
+
+    const trades =
+      await obterTrades(
+        conta,
+        symbol,
+        1000
+      );
+
+    const operacao =
+      calcularOperacaoAtual(
+        trades
+      );
+
+    const entrada =
+      operacao.ativa
+        ? num(operacao.entrada)
+        : 0;
+
+    const custo =
+      entrada > 0
+        ? entrada * quantity
+        : 0;
+
+    const valorBruto =
+      quantity * precoAtual;
+
+    const pnlBruto =
+      entrada > 0
+        ? valorBruto - custo
+        : 0;
+
+    const taxaEstimada =
+      valorBruto * MANUAL_SELL_FEE_RATE;
+
+    const pnlLiquidoEstimado =
+      pnlBruto - taxaEstimada;
+
+    /*
+     * MARKET SELL — execução real.
+     */
+    const ordemVenda =
+      await conta.client.order({
+        symbol,
+        side: "SELL",
+        type: "MARKET",
+        quantity
+      });
+
+    /*
+     * Aguarda um pouco para a Binance refletir o trade
+     * e o dashboard poder mostrar o resultado atualizado.
+     */
+    await new Promise(function(resolve){
+      setTimeout(resolve, 1500);
+    });
+
+    let tradeConfirmado = null;
+
+    try {
+      const tradesDepois =
+        await obterTrades(
+          conta,
+          symbol,
+          20
+        );
+
+      tradeConfirmado =
+        tradesDepois
+          .slice()
+          .sort(function(a,b){
+            return num(b.time) - num(a.time);
+          })
+          .find(function(t){
+            return !t.isBuyer;
+          }) || null;
+    } catch (_) {}
+
+    res.json({
+      ok: true,
+      symbol,
+      asset,
+      quantidadeVendida: quantity,
+      precoReferencia: precoAtual,
+      entrada,
+      pnlBrutoEstimado,
+      taxaEstimada,
+      pnlLiquidoEstimado,
+      orderId: String(
+        ordemVenda.orderId
+      ),
+      status: ordemVenda.status,
+      executedQty:
+        num(ordemVenda.executedQty) || quantity,
+      cummulativeQuoteQty:
+        num(
+          ordemVenda.cummulativeQuoteQty
+        ),
+      fills:
+        (ordemVenda.fills || []).map(function(fill){
+          return {
+            price: num(fill.price),
+            qty: num(fill.qty),
+            commission: num(fill.commission),
+            commissionAsset:
+              fill.commissionAsset
+          };
+        }),
+      tradeConfirmado: tradeConfirmado
+        ? {
+            price: num(tradeConfirmado.price),
+            qty: num(tradeConfirmado.qty),
+            time: num(tradeConfirmado.time)
+          }
+        : null,
+      mensagem:
+        "Venda MARKET executada. O robô original pode continuar o ciclo normalmente e voltar a procurar uma nova entrada na próxima varredura.",
+      atualizadoEm: Date.now()
+    });
+  } catch (e) {
+    res.status(500).json({
+      erro: e.message
+    });
+  }
+});
+
 app.get("/api/dashboard", async function (req, res) {
   try {
     const contas = await Promise.all(
@@ -840,8 +1482,10 @@ app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v7",
-    contas: 2
+    painel: "premium-v8",
+    contas: 2,
+    controleManualSergio:
+      !!process.env.PAINEL_MANUAL_TOKEN
   });
 });
 
@@ -1727,6 +2371,285 @@ select{
 .v7Mini{padding:11px;border-radius:12px;background:#0b1524;border:1px solid #1a2a41;}
 .v7Mini span{display:block;color:#697891;font-size:9px;text-transform:uppercase;font-weight:800;}
 .v7Mini b{display:block;margin-top:5px;font-size:14px;}
+
+.v8ManualCard{
+  border:1px solid #5a3850;
+  border-radius:18px;
+  background:linear-gradient(145deg,#151827,#0b111e);
+  padding:20px;
+  box-shadow:0 16px 38px #0006;
+}
+.v8ManualHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+}
+.v8ManualTitle{
+  margin:0;
+  font-size:18px;
+  font-weight:900;
+}
+.v8ManualSub{
+  color:#8290a8;
+  font-size:10px;
+  line-height:1.5;
+  margin-top:5px;
+}
+.v8ManualStatus{
+  padding:7px 10px;
+  border-radius:999px;
+  background:#182338;
+  color:#9ebbe3;
+  font-size:9px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.v8Warning{
+  margin-top:15px;
+  padding:12px 14px;
+  border:1px solid #5b4820;
+  border-radius:12px;
+  background:#211b0b;
+  color:#d8c797;
+  font-size:10px;
+  line-height:1.5;
+}
+.v8TokenBox{
+  margin-top:15px;
+  padding:14px;
+  border:1px solid #1d2d44;
+  border-radius:14px;
+  background:#091321;
+}
+.v8TokenBox label{
+  display:block;
+  color:#93a3bb;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+  margin-bottom:7px;
+}
+.v8TokenRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:8px;
+}
+.v8TokenRow input{
+  min-width:0;
+  border:1px solid #263a58;
+  border-radius:10px;
+  padding:10px 12px;
+  background:#060c16;
+  color:#fff;
+  outline:none;
+}
+.v8TokenRow input:focus{
+  border-color:#4aa8ff;
+  box-shadow:0 0 0 2px #4aa8ff22;
+}
+.v8SecondaryBtn,
+.v8ActionBtn{
+  border:1px solid #2a3d5c;
+  border-radius:10px;
+  padding:10px 13px;
+  cursor:pointer;
+  color:#eaf2ff;
+  background:#14243a;
+  font-weight:900;
+  font-size:10px;
+}
+.v8SecondaryBtn:hover,
+.v8ActionBtn:hover{
+  filter:brightness(1.12);
+}
+.v8Actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:15px;
+}
+.v8ActionBtn.cancel{
+  border-color:#6a4c1f;
+  background:#241b0b;
+  color:#ffc85a;
+}
+.v8ActionBtn.sell{
+  border-color:#713343;
+  background:#2a1019;
+  color:#ff7f92;
+}
+.v8ActionBtn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.v8Preview{
+  margin-top:15px;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:9px;
+}
+.v8Metric{
+  padding:12px;
+  border:1px solid #1b2b43;
+  border-radius:12px;
+  background:#091321;
+}
+.v8Metric span{
+  display:block;
+  color:#71809a;
+  font-size:8px;
+  text-transform:uppercase;
+  font-weight:900;
+}
+.v8Metric b{
+  display:block;
+  margin-top:5px;
+  font-size:14px;
+}
+.v8Result{
+  margin-top:12px;
+  padding:15px;
+  border-radius:13px;
+  border:1px solid #233650;
+  background:#0b1727;
+}
+.v8ResultTitle{
+  color:#91a1b8;
+  font-size:9px;
+  font-weight:900;
+  text-transform:uppercase;
+}
+.v8ResultMain{
+  display:flex;
+  align-items:baseline;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-top:5px;
+}
+.v8ResultMain b{
+  font-size:24px;
+  font-weight:900;
+}
+.v8ResultMain small{
+  color:#9babc1;
+  font-size:11px;
+}
+.v8Info{
+  margin-top:8px;
+  color:#687993;
+  font-size:9px;
+  line-height:1.5;
+}
+.v8NoOp{
+  margin-top:15px;
+  min-height:125px;
+  display:grid;
+  place-items:center;
+  text-align:center;
+  gap:4px;
+  color:#7f8da4;
+  border:1px dashed #263a55;
+  border-radius:14px;
+  background:#091321;
+  padding:20px;
+}
+.v8NoOp b{
+  color:#dfe7f3;
+  font-size:12px;
+}
+.v8NoOp span{
+  font-size:9px;
+}
+.v8NoOpIcon{
+  font-size:25px;
+}
+.v8ModalBack{
+  position:fixed;
+  inset:0;
+  z-index:1000;
+  background:#000b;
+  display:grid;
+  place-items:center;
+  padding:20px;
+}
+.v8Modal{
+  width:min(520px,100%);
+  border:1px solid #344867;
+  border-radius:18px;
+  background:linear-gradient(145deg,#111d31,#080f1b);
+  box-shadow:0 30px 90px #000b;
+  padding:20px;
+}
+.v8Modal h3{
+  margin:0;
+  font-size:18px;
+}
+.v8Modal p{
+  color:#9aa9be;
+  font-size:10px;
+  line-height:1.5;
+}
+.v8ModalGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:12px;
+}
+.v8ModalItem{
+  padding:10px;
+  border:1px solid #1c2d45;
+  border-radius:11px;
+  background:#091321;
+}
+.v8ModalItem span{
+  display:block;
+  color:#6f7f97;
+  font-size:8px;
+  text-transform:uppercase;
+}
+.v8ModalItem b{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+}
+.v8ModalActions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:15px;
+}
+.v8ModalActions button{
+  border:0;
+  border-radius:11px;
+  padding:12px;
+  cursor:pointer;
+  font-weight:900;
+}
+.v8ModalCancel{
+  background:#17253a;
+  color:#c9d5e5;
+}
+.v8ModalConfirm{
+  background:#8e263c;
+  color:#fff;
+}
+.v8Toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  z-index:1100;
+  max-width:420px;
+  padding:13px 15px;
+  border:1px solid #2d4363;
+  border-radius:13px;
+  background:#0d192a;
+  color:#e8eef7;
+  box-shadow:0 20px 50px #0008;
+  font-size:10px;
+  line-height:1.5;
+}
+
 .v7Good{color:#20df96!important}.v7Bad{color:#ff6177!important}.v7Warn{color:#ffc85a!important}.v7Blue{color:#59a8ff!important}
 .v7StatusRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #17263b;}
 .v7StatusRow:last-child{border-bottom:0}.v7Dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;background:#64748b;}
@@ -2096,6 +3019,10 @@ section.section.compactOpen{
       </button>
 
       <button type="button" class="menuBtn" data-panel="11" onclick="abrirSecaoPainel(11)">
+        🎛️ Controle SERGIO
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="12" onclick="abrirSecaoPainel(12)">
         💰 P/L
       </button>
 
@@ -2518,6 +3445,62 @@ section.section.compactOpen{
     A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
     O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura e não envia ordens para a Binance.
   </div>
+
+
+  <!-- =====================================================
+       V8 — CONTROLE MANUAL SERGIO
+       ===================================================== -->
+  <section class="section">
+
+    <div class="v8ManualCard">
+
+      <div class="v8ManualHead">
+        <div>
+          <h2 class="v8ManualTitle">🎛️ Controle manual — SERGIO</h2>
+          <div class="v8ManualSub">
+            Ferramentas de emergência/controle da CONTA 2. As ações abaixo enviam ordens reais para a Binance.
+          </div>
+        </div>
+
+        <div id="v8ManualStatus" class="v8ManualStatus">
+          🔐 PROTEGIDO
+        </div>
+      </div>
+
+      <div class="v8Warning">
+        ⚠️ <b>Atenção:</b> este bloco pode cancelar uma ordem e vender a posição de SERGIO.
+        Antes da venda, o painel mostra uma estimativa de ganho/perda em USDT e R$.
+      </div>
+
+      <div class="v8TokenBox">
+        <label for="v8ManualToken">Token do controle manual</label>
+        <div class="v8TokenRow">
+          <input
+            id="v8ManualToken"
+            type="password"
+            autocomplete="off"
+            placeholder="Digite o PAINEL_MANUAL_TOKEN"
+          />
+          <button type="button" class="v8SecondaryBtn" onclick="v8SalvarToken()">
+            SALVAR NESTA SESSÃO
+          </button>
+        </div>
+        <div class="v8Tiny">
+          O token fica somente nesta sessão do navegador e é enviado ao backend no header da requisição.
+        </div>
+      </div>
+
+      <div id="v8ManualContent">
+        <div class="v8NoOp">
+          <div class="v8NoOpIcon">⏳</div>
+          <b>Aguardando operação da conta SERGIO...</b>
+          <span>Quando houver uma posição ativa, os controles serão liberados.</span>
+        </div>
+      </div>
+
+    </div>
+
+  </section>
 
   <div class="footer">
     Binance-Robo • THIAGO / SERGIO • Central Premium • Atualização automática a cada 15 segundos
@@ -4042,7 +5025,7 @@ function renderV7Timeline(){
   el.innerHTML=all.slice(0,16).map(function(t,i){const buy=t.lado==='COMPRA';return '<div class="v7StatusRow"><span><i class="v7Dot '+(buy?'ok':'bad')+'"></i><b>'+t.conta+'</b> • '+t.symbol+' • '+t.lado+'</span><span class="v7Time">'+numero(t.qty)+' @ '+dinheiro(t.price)+' USDT • '+dataHora(t.time)+'</span></div>';}).join('')||'<div class="empty">Nenhum evento encontrado.</div>';
 }
 
-function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();}
+function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();v8AtualizarControleManual();}
 
 
 /*
@@ -4413,6 +5396,686 @@ function atualizarResumoCompacto(){
 
 
 
+
+/*
+=========================================================
+V8 — CONTROLE MANUAL SERGIO
+=========================================================
+*/
+
+let v8ManualToken =
+  sessionStorage.getItem("binance_robo_manual_token") || "";
+
+let v8ManualSymbol =
+  "";
+
+let v8ManualPreview =
+  null;
+
+let v8ManualBusy =
+  false;
+
+function v8SalvarToken(){
+  const input =
+    document.getElementById("v8ManualToken");
+
+  if(!input) return;
+
+  const token =
+    String(input.value || "").trim();
+
+  if(!token){
+    v8Toast("Digite o token do controle manual.");
+    return;
+  }
+
+  v8ManualToken = token;
+
+  sessionStorage.setItem(
+    "binance_robo_manual_token",
+    token
+  );
+
+  v8Toast(
+    "Token salvo somente nesta sessão."
+  );
+
+  v8AtualizarControleManual();
+}
+
+function v8Headers(){
+  return {
+    "Content-Type":"application/json",
+    "x-manual-token":v8ManualToken
+  };
+}
+
+function v8FmtPnl(usdt, brl, pct){
+  const u =
+    Number(usdt || 0);
+
+  const b =
+    Number(brl || 0);
+
+  const p =
+    Number(pct || 0);
+
+  return (
+    (u >= 0 ? "+" : "") +
+    dinheiro(u) +
+    " USDT • " +
+    (b >= 0 ? "+" : "") +
+    "R$ " +
+    dinheiro(b) +
+    " • " +
+    (p >= 0 ? "+" : "") +
+    p.toFixed(2) +
+    "%"
+  );
+}
+
+function v8Toast(text){
+  const old =
+    document.querySelector(
+      ".v8Toast"
+    );
+
+  if(old) old.remove();
+
+  const el =
+    document.createElement("div");
+
+  el.className =
+    "v8Toast";
+
+  el.textContent =
+    text;
+
+  document.body.appendChild(el);
+
+  setTimeout(function(){
+    el.remove();
+  },6500);
+}
+
+function v8ContaSergio(){
+  return (
+    dados &&
+    dados.contas &&
+    dados.contas.find(function(c){
+      return c.id === "2";
+    })
+  ) || null;
+}
+
+function v8OperacaoSergio(){
+  const c =
+    v8ContaSergio();
+
+  return (
+    c &&
+    c.operacaoAtual &&
+    c.operacaoAtual.ativa
+      ? c.operacaoAtual
+      : null
+  );
+}
+
+async function v8AtualizarControleManual(){
+
+  const el =
+    document.getElementById(
+      "v8ManualContent"
+    );
+
+  const status =
+    document.getElementById(
+      "v8ManualStatus"
+    );
+
+  const tokenInput =
+    document.getElementById(
+      "v8ManualToken"
+    );
+
+  if(tokenInput){
+    tokenInput.value =
+      v8ManualToken;
+  }
+
+  if(!el) return;
+
+  const op =
+    v8OperacaoSergio();
+
+  if(!op){
+
+    if(status){
+      status.textContent =
+        "⚪ SEM OPERAÇÃO";
+    }
+
+    el.innerHTML =
+      '<div class="v8NoOp">' +
+        '<div class="v8NoOpIcon">💤</div>' +
+        '<b>Nenhuma operação atual detectada em SERGIO.</b>' +
+        '<span>Os controles manuais ficam disponíveis quando houver uma posição.</span>' +
+      '</div>';
+
+    return;
+  }
+
+  v8ManualSymbol =
+    String(
+      op.symbol || ""
+    ).toUpperCase();
+
+  if(!v8ManualSymbol){
+
+    el.innerHTML =
+      '<div class="v8NoOp">' +
+        '<b>Não foi possível identificar a moeda.</b>' +
+      '</div>';
+
+    return;
+  }
+
+  if(status){
+    status.textContent =
+      "🔐 CONTROLE SERGIO";
+  }
+
+  el.innerHTML =
+    '<div class="v8Preview">' +
+      '<div class="v8Metric">' +
+        '<span>MOEDA</span>' +
+        '<b id="v8Symbol">--</b>' +
+      '</div>' +
+      '<div class="v8Metric">' +
+        '<span>PREÇO ATUAL</span>' +
+        '<b id="v8Price">--</b>' +
+      '</div>' +
+      '<div class="v8Metric">' +
+        '<span>QUANTIDADE</span>' +
+        '<b id="v8Qty">--</b>' +
+      '</div>' +
+      '<div class="v8Metric">' +
+        '<span>ORDEM SELL</span>' +
+        '<b id="v8Order">--</b>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="v8Result">' +
+      '<div class="v8ResultTitle">Se vender agora — estimativa</div>' +
+      '<div class="v8ResultMain">' +
+        '<b id="v8Pnl">--</b>' +
+        '<small id="v8PnlPct">--</small>' +
+      '</div>' +
+      '<div id="v8PnlInfo" class="v8Info">Consultando Binance...</div>' +
+    '</div>' +
+
+    '<div class="v8Actions">' +
+      '<button id="v8CancelBtn" class="v8ActionBtn cancel" type="button" onclick="v8CancelarVenda()">' +
+        '🟠 CANCELAR ORDEM DE VENDA' +
+      '</button>' +
+      '<button id="v8SellBtn" class="v8ActionBtn sell" type="button" onclick="v8ConfirmarVenda()">' +
+        '🔴 VENDER AGORA' +
+      '</button>' +
+    '</div>' +
+
+    '<div class="v8Info">' +
+      'Cancelar venda não vende a moeda. Vender agora cancela primeiro a ordem SELL e depois envia uma ordem MARKET para vender a quantidade livre.' +
+    '</div>';
+
+  await v8AtualizarPrevia();
+}
+
+async function v8AtualizarPrevia(){
+
+  if(
+    !v8ManualSymbol ||
+    !v8ManualToken
+  ){
+
+    const info =
+      document.getElementById(
+        "v8PnlInfo"
+      );
+
+    if(info){
+      info.textContent =
+        "Digite o PAINEL_MANUAL_TOKEN para liberar a consulta.";
+    }
+
+    return;
+  }
+
+  const pnlEl =
+    document.getElementById(
+      "v8Pnl"
+    );
+
+  if(pnlEl){
+    pnlEl.textContent =
+      "CONSULTANDO...";
+  }
+
+  try{
+
+    const r =
+      await fetch(
+        "/api/manual/preview?symbol=" +
+        encodeURIComponent(
+          v8ManualSymbol
+        ),
+        {
+          cache:"no-store",
+          headers:v8Headers()
+        }
+      );
+
+    const d =
+      await r.json();
+
+    if(!r.ok){
+      throw new Error(
+        d.erro ||
+        "Falha na prévia."
+      );
+    }
+
+    v8ManualPreview =
+      d;
+
+    const symbol =
+      document.getElementById(
+        "v8Symbol"
+      );
+
+    const price =
+      document.getElementById(
+        "v8Price"
+      );
+
+    const qty =
+      document.getElementById(
+        "v8Qty"
+      );
+
+    const order =
+      document.getElementById(
+        "v8Order"
+      );
+
+    const pnl =
+      document.getElementById(
+        "v8Pnl"
+      );
+
+    const pct =
+      document.getElementById(
+        "v8PnlPct"
+      );
+
+    const info =
+      document.getElementById(
+        "v8PnlInfo"
+      );
+
+    if(symbol)
+      symbol.textContent =
+        d.symbol;
+
+    if(price)
+      price.textContent =
+        dinheiro(d.precoAtual) +
+        " USDT";
+
+    if(qty)
+      qty.textContent =
+        numero(d.quantidadeVenda);
+
+    if(order)
+      order.textContent =
+        d.temOrdemVenda
+          ? d.ordensVenda.length +
+            " aberta(s)"
+          : "NENHUMA";
+
+    const pctValue =
+      d.custoEstimado > 0
+        ? (
+            d.pnlLiquidoEstimado /
+            d.custoEstimado
+          ) * 100
+        : 0;
+
+    if(pnl){
+      pnl.textContent =
+        (d.pnlLiquidoEstimado >= 0
+          ? "+"
+          : "") +
+        dinheiro(
+          d.pnlLiquidoEstimado
+        ) +
+        " USDT";
+
+      pnl.className =
+        d.pnlLiquidoEstimado >= 0
+          ? "v7Good"
+          : "v7Bad";
+    }
+
+    if(pct){
+      pct.textContent =
+        (pctValue >= 0 ? "+" : "") +
+        pctValue.toFixed(2) +
+        "%";
+
+      pct.className =
+        pctValue >= 0
+          ? "v7Good"
+          : "v7Bad";
+    }
+
+    if(info){
+
+      info.innerHTML =
+        "≈ R$ " +
+        dinheiro(
+          d.pnlLiquidoBRL
+        ) +
+        " • valor da venda ≈ " +
+        dinheiro(
+          d.valorBruto
+        ) +
+        " USDT" +
+        " • taxa estimada " +
+        d.taxaEstimativaPct.toFixed(2) +
+        "%." +
+        "<br>" +
+        d.observacao;
+
+    }
+
+  }catch(e){
+
+    v8ManualPreview =
+      null;
+
+    const info =
+      document.getElementById(
+        "v8PnlInfo"
+      );
+
+    if(info){
+      info.textContent =
+        e.message ||
+        "Não foi possível consultar a prévia.";
+    }
+
+    if(pnlEl){
+      pnlEl.textContent =
+        "BLOQUEADO";
+      pnlEl.className =
+        "v8Bad";
+    }
+  }
+}
+
+async function v8CancelarVenda(){
+
+  if(v8ManualBusy) return;
+
+  if(!v8ManualToken){
+    v8Toast(
+      "Digite o token do controle manual."
+    );
+    return;
+  }
+
+  if(!v8ManualSymbol){
+    v8Toast(
+      "Nenhuma moeda atual detectada."
+    );
+    return;
+  }
+
+  const ok =
+    window.confirm(
+      "Cancelar a ordem de venda de " +
+      v8ManualSymbol +
+      " da conta SERGIO?\n\n" +
+      "Isso NÃO venderá a moeda."
+    );
+
+  if(!ok) return;
+
+  v8ManualBusy =
+    true;
+
+  const btn =
+    document.getElementById(
+      "v8CancelBtn"
+    );
+
+  if(btn){
+    btn.disabled =
+      true;
+    btn.textContent =
+      "CANCELANDO...";
+  }
+
+  try{
+
+    const r =
+      await fetch(
+        "/api/manual/cancel-sell",
+        {
+          method:"POST",
+          headers:v8Headers(),
+          body:JSON.stringify({
+            symbol:v8ManualSymbol
+          })
+        }
+      );
+
+    const d =
+      await r.json();
+
+    if(!r.ok){
+      throw new Error(
+        d.erro ||
+        "Falha ao cancelar."
+      );
+    }
+
+    v8Toast(
+      d.mensagem ||
+      "Ordem cancelada."
+    );
+
+    await carregar();
+
+  }catch(e){
+
+    v8Toast(
+      "ERRO: " +
+      (e.message || "falha")
+    );
+
+  }finally{
+
+    v8ManualBusy =
+      false;
+
+    const b =
+      document.getElementById(
+        "v8CancelBtn"
+      );
+
+    if(b){
+      b.disabled =
+        false;
+      b.textContent =
+        "🟠 CANCELAR ORDEM DE VENDA";
+    }
+
+  }
+}
+
+function v8ConfirmarVenda(){
+
+  if(v8ManualBusy) return;
+
+  if(!v8ManualToken){
+    v8Toast(
+      "Digite o token do controle manual."
+    );
+    return;
+  }
+
+  if(!v8ManualPreview){
+    v8Toast(
+      "Aguarde a prévia do resultado antes de vender."
+    );
+    return;
+  }
+
+  const d =
+    v8ManualPreview;
+
+  const pct =
+    d.custoEstimado > 0
+      ? (
+          d.pnlLiquidoEstimado /
+          d.custoEstimado
+        ) * 100
+      : 0;
+
+  const back =
+    document.createElement(
+      "div"
+    );
+
+  back.className =
+    "v8ModalBack";
+
+  back.innerHTML =
+    '<div class="v8Modal">' +
+      '<h3>⚠️ CONFIRMAR VENDA REAL</h3>' +
+      '<p>Esta ação enviará uma ordem MARKET para a conta SERGIO. O preço final pode variar porque a execução ocorre pelo preço disponível no mercado no momento da ordem.</p>' +
+
+      '<div class="v8ModalGrid">' +
+        '<div class="v8ModalItem"><span>MOEDA</span><b>'+d.symbol+'</b></div>' +
+        '<div class="v8ModalItem"><span>QUANTIDADE</span><b>'+numero(d.quantidadeVenda)+'</b></div>' +
+        '<div class="v8ModalItem"><span>PREÇO ATUAL</span><b>'+dinheiro(d.precoAtual)+' USDT</b></div>' +
+        '<div class="v8ModalItem"><span>ENTRADA MÉDIA</span><b>'+dinheiro(d.entrada)+' USDT</b></div>' +
+        '<div class="v8ModalItem"><span>RESULTADO ESTIMADO</span><b class="'+(d.pnlLiquidoEstimado>=0?'v7Good':'v7Bad')+'">'+(d.pnlLiquidoEstimado>=0?'+':'')+dinheiro(d.pnlLiquidoEstimado)+' USDT</b></div>' +
+        '<div class="v8ModalItem"><span>RESULTADO EM R$</span><b class="'+(d.pnlLiquidoBRL>=0?'v7Good':'v7Bad')+'">'+(d.pnlLiquidoBRL>=0?'+':'')+'R$ '+dinheiro(d.pnlLiquidoBRL)+'</b></div>' +
+        '<div class="v8ModalItem"><span>VARIAÇÃO ESTIMADA</span><b class="'+(pct>=0?'v7Good':'v7Bad')+'">'+(pct>=0?'+':'')+pct.toFixed(2)+'%</b></div>' +
+        '<div class="v8ModalItem"><span>ORDEM SELL</span><b>'+ (d.temOrdemVenda ? d.ordensVenda.length+" aberta(s)" : "nenhuma") +'</b></div>' +
+      '</div>' +
+
+      '<div class="v8Info">⚠️ A estimativa considera uma taxa configurada para prévia. O resultado real depende do preço de execução e das taxas efetivamente cobradas pela Binance.</div>' +
+
+      '<div class="v8ModalActions">' +
+        '<button type="button" class="v8ModalCancel">CANCELAR</button>' +
+        '<button type="button" class="v8ModalConfirm">CONFIRMAR VENDA</button>' +
+      '</div>' +
+    '</div>';
+
+  document.body.appendChild(
+    back
+  );
+
+  back.querySelector(
+    ".v8ModalCancel"
+  ).onclick =
+    function(){
+      back.remove();
+    };
+
+  back.querySelector(
+    ".v8ModalConfirm"
+  ).onclick =
+    async function(){
+
+      if(v8ManualBusy)
+        return;
+
+      v8ManualBusy =
+        true;
+
+      const confirmBtn =
+        back.querySelector(
+          ".v8ModalConfirm"
+        );
+
+      confirmBtn.disabled =
+        true;
+
+      confirmBtn.textContent =
+        "VENDENDO...";
+
+      try{
+
+        const r =
+          await fetch(
+            "/api/manual/sell",
+            {
+              method:"POST",
+              headers:v8Headers(),
+              body:JSON.stringify({
+                symbol:v8ManualSymbol
+              })
+            }
+          );
+
+        const result =
+          await r.json();
+
+        if(!r.ok){
+          throw new Error(
+            result.erro ||
+            "Falha na venda."
+          );
+        }
+
+        back.remove();
+
+        v8Toast(
+          "Venda executada. Ordem " +
+          result.orderId +
+          ". O robô voltará ao ciclo normal na próxima varredura."
+        );
+
+        await carregar();
+
+      }catch(e){
+
+        confirmBtn.disabled =
+          false;
+
+        confirmBtn.textContent =
+          "CONFIRMAR VENDA";
+
+        v8Toast(
+          "ERRO NA VENDA: " +
+          (e.message || "falha")
+        );
+
+      }finally{
+
+        v8ManualBusy =
+          false;
+
+      }
+
+    };
+}
+
+
 /*
 =========================================================
 INÍCIO
@@ -4441,7 +6104,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V7.1 — Compacto rodando na porta " +
+      "Binance-Robo Painel Premium V8 — Controle SERGIO rodando na porta " +
       PORT
     );
   }

@@ -1482,7 +1482,7 @@ app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v8",
+    painel: "premium-v8.1",
     contas: 2,
     controleManualSergio:
       !!process.env.PAINEL_MANUAL_TOKEN
@@ -2967,7 +2967,7 @@ section.section.compactOpen{
         </div>
       </div>
 
-      <button type="button" onclick="abrirSecaoPainel(3)">
+      <button type="button" onclick="abrirSecaoPainel('sec-operacao')">
         VER DETALHES
       </button>
     </div>
@@ -3022,10 +3022,6 @@ section.section.compactOpen{
         🎛️ Controle SERGIO
       </button>
 
-      <button type="button" class="menuBtn" data-panel="12" onclick="abrirSecaoPainel(12)">
-        💰 P/L
-      </button>
-
     </div>
 
     <div class="compactHint">
@@ -3066,7 +3062,7 @@ section.section.compactOpen{
 
 
   <!-- POSIÇÃO + ATIVOS -->
-  <section class="section">
+  <section id="sec-operacao" class="section compactHidden" style="display:none !important;">
 
     <div class="sectionHead">
       <div>
@@ -3095,7 +3091,7 @@ section.section.compactOpen{
 
 
   <!-- GRÁFICO + HISTÓRICO -->
-  <section class="section">
+  <section id="sec-mercado" class="section compactHidden" style="display:none !important;">
 
     <div class="sectionHead">
       <div>
@@ -3191,7 +3187,7 @@ section.section.compactOpen{
 
 
   <!-- STATUS DO ROBÔ / CONEXÕES -->
-  <section class="section">
+  <section id="sec-status" class="section compactHidden" style="display:none !important;">
     <div class="sectionHead">
       <div>
         <h2 class="sectionTitle">🤖 Status e inteligência</h2>
@@ -3278,7 +3274,7 @@ section.section.compactOpen{
   </section>
 
   <!-- PERFORMANCE HISTÓRICA -->
-  <section class="section">
+  <section id="sec-performance" class="section compactHidden" style="display:none !important;">
 
     <div class="analyticsGrid">
       <div class="card analyticsCard">
@@ -3299,7 +3295,7 @@ section.section.compactOpen{
   </section>
 
   <!-- MOEDAS + MERCADO + ATIVIDADE -->
-  <section class="section">
+  <section id="sec-moedas" class="section compactHidden" style="display:none !important;">
     <div class="analyticsGrid">
       <div class="card analyticsCard">
         <h3 class="analyticsTitle">🪙 Ranking das moedas</h3>
@@ -3324,7 +3320,7 @@ section.section.compactOpen{
     </div>
   </section>
 
-  <section class="section">
+  <section id="sec-atividade" class="section compactHidden" style="display:none !important;">
     <div class="card analyticsCard">
       <h3 class="analyticsTitle">📜 Atividade recente do robô</h3>
       <div class="analyticsSub">Eventos de compra/venda identificados no histórico das duas contas.</div>
@@ -3335,7 +3331,7 @@ section.section.compactOpen{
 
 
   <!-- V7: PLACAR / ALERTAS / SAÚDE -->
-  <section class="section">
+  <section id="sec-comparacao" class="section compactHidden" style="display:none !important;">
     <div class="v7Grid">
       <div class="v7Card">
         <h3 class="v7Title">🏆 Placar da operação em tempo real</h3>
@@ -3361,7 +3357,7 @@ section.section.compactOpen{
     </div>
   </section>
 
-  <section class="section">
+  <section id="sec-saude" class="section compactHidden" style="display:none !important;">
     <div class="v7Grid">
       <div class="v7Card">
         <h3 class="v7Title">🤖 Saúde do robô</h3>
@@ -3378,7 +3374,7 @@ section.section.compactOpen{
   </section>
 
   <!-- V7: RAIO-X -->
-  <section class="section">
+  <section id="sec-raiox" class="section compactHidden" style="display:none !important;">
     <div class="v7Grid">
       <div class="v7Card">
         <h3 class="v7Title">🧪 Raio-X da moeda atual</h3>
@@ -3394,7 +3390,7 @@ section.section.compactOpen{
   </section>
 
   <!-- V7: AUDITORIA / LINHA DO TEMPO -->
-  <section class="section">
+  <section id="sec-auditoria" class="section compactHidden" style="display:none !important;">
     <div class="v7Card">
       <h3 class="v7Title">🕵️ Auditoria das operações</h3>
       <div class="v7Sub">Linha do tempo das compras e vendas que a Binance disponibiliza ao painel.</div>
@@ -3403,7 +3399,7 @@ section.section.compactOpen{
   </section>
 
   <!-- PNL DETALHADO -->
-  <section class="section">
+  <section id="sec-pnl" class="section compactHidden" style="display:none !important;">
 
     <div class="pnlBox">
 
@@ -3443,14 +3439,14 @@ section.section.compactOpen{
 
   <div class="note">
     A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
-    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura e não envia ordens para a Binance.
+    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura, exceto pelo controle manual protegido da conta SERGIO.
   </div>
 
 
   <!-- =====================================================
        V8 — CONTROLE MANUAL SERGIO
        ===================================================== -->
-  <section class="section">
+  <section id="sec-controle-sergio" class="section compactHidden" style="display:none !important;">
 
     <div class="v8ManualCard">
 
@@ -5025,7 +5021,7 @@ function renderV7Timeline(){
   el.innerHTML=all.slice(0,16).map(function(t,i){const buy=t.lado==='COMPRA';return '<div class="v7StatusRow"><span><i class="v7Dot '+(buy?'ok':'bad')+'"></i><b>'+t.conta+'</b> • '+t.symbol+' • '+t.lado+'</span><span class="v7Time">'+numero(t.qty)+' @ '+dinheiro(t.price)+' USDT • '+dataHora(t.time)+'</span></div>';}).join('')||'<div class="empty">Nenhum evento encontrado.</div>';
 }
 
-function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();v8AtualizarControleManual();}
+function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();v8AtualizarControleManual().catch(function(e){ console.warn("Controle SERGIO:", e); });}
 
 
 /*
@@ -5070,29 +5066,61 @@ async function carregar(){
       await response.json();
 
 
-    preencherTabs();
+    try{
+      preencherTabs();
+    }catch(e){
+      console.warn("Erro nas abas:", e);
+    }
 
-    renderConta();
+    try{
+      renderConta();
+    }catch(e){
+      console.warn("Erro na conta:", e);
+    }
 
-    const contaAtual = dados.contas.find(function(c){ return c.id === contaSelecionada; }) || {};
+    const contaAtual =
+      dados.contas.find(function(c){
+        return c.id === contaSelecionada;
+      }) || {};
 
-    renderPnl(contaAtual);
-    renderAnalytics();
-    renderV7();
+    try{
+      renderPnl(contaAtual);
+    }catch(e){
+      console.warn("Erro no P/L:", e);
+    }
 
+    try{
+      renderAnalytics();
+    }catch(e){
+      console.warn("Erro nas análises:", e);
+    }
 
-    document.getElementById(
-      "updated"
-    ).textContent =
-      "Atualizado às " +
-      new Date(
-        dados.atualizadoEm
-      ).toLocaleTimeString(
-        "pt-BR"
+    try{
+      renderV7();
+    }catch(e){
+      console.warn("Erro no V7:", e);
+    }
+
+    const updated =
+      document.getElementById(
+        "updated"
       );
 
+    if(updated){
+      updated.textContent =
+        "Atualizado às " +
+        new Date(
+          dados.atualizadoEm
+        ).toLocaleTimeString(
+          "pt-BR"
+        );
+    }
 
-    carregarGrafico();
+    try{
+      carregarGrafico();
+    }catch(e){
+      console.warn("Erro no gráfico:", e);
+    }
 
   }catch(e){
 
@@ -5194,11 +5222,14 @@ function obterSecoesPainel(){
 }
 
 function fecharTodasSecoesPainel(){
-  const secoes = obterSecoesPainel();
-
-  secoes.forEach(function(secao){
+  obterSecoesPainel().forEach(function(secao){
     secao.classList.remove("compactOpen");
     secao.classList.add("compactHidden");
+    secao.style.setProperty(
+      "display",
+      "none",
+      "important"
+    );
   });
 
   document.querySelectorAll(".menuBtn").forEach(function(btn){
@@ -5206,9 +5237,18 @@ function fecharTodasSecoesPainel(){
   });
 }
 
-function abrirSecaoPainel(indice){
-  const secoes = obterSecoesPainel();
-  const secao = secoes[indice];
+function abrirSecaoPainel(alvo){
+  let secao = null;
+
+  if(typeof alvo === "number"){
+    secao =
+      obterSecoesPainel()[alvo] || null;
+  }else{
+    secao =
+      document.getElementById(
+        String(alvo || "")
+      );
+  }
 
   if(!secao) return;
 
@@ -5223,10 +5263,17 @@ function abrirSecaoPainel(indice){
 
   secao.classList.remove("compactHidden");
   secao.classList.add("compactOpen");
+  secao.style.setProperty(
+    "display",
+    "block",
+    "important"
+  );
 
   const btn =
     document.querySelector(
-      '.menuBtn[data-panel="' + indice + '"]'
+      '.menuBtn[data-panel="' +
+      secao.id +
+      '"]'
     );
 
   if(btn){
@@ -5234,27 +5281,34 @@ function abrirSecaoPainel(indice){
   }
 
   setTimeout(function(){
-    secao.scrollIntoView({
-      behavior:"smooth",
-      block:"start"
-    });
+    try{
+      secao.scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+      });
+    }catch(_){}
   },30);
 }
 
 function fecharSecaoPainel(botao){
-  const secao = botao.closest("section.section");
+  const secao =
+    botao.closest("section.section");
 
   if(!secao) return;
 
-  const secoes = obterSecoesPainel();
-  const indice = secoes.indexOf(secao);
-
   secao.classList.remove("compactOpen");
   secao.classList.add("compactHidden");
+  secao.style.setProperty(
+    "display",
+    "none",
+    "important"
+  );
 
   const btn =
     document.querySelector(
-      '.menuBtn[data-panel="' + indice + '"]'
+      '.menuBtn[data-panel="' +
+      secao.id +
+      '"]'
     );
 
   if(btn){
@@ -5268,25 +5322,39 @@ function fecharSecaoPainel(botao){
 }
 
 function inicializarNavegacaoCompacta(){
-
-  const secoes = obterSecoesPainel();
+  const secoes =
+    obterSecoesPainel();
 
   secoes.forEach(function(secao){
 
-    secao.classList.add("compactHidden");
+    secao.classList.add(
+      "compactHidden"
+    );
+
+    secao.style.setProperty(
+      "display",
+      "none",
+      "important"
+    );
 
     if(
-      secao.querySelector(".sectionClose")
+      secao.querySelector(
+        ".sectionClose"
+      )
     ){
       return;
     }
 
     const close =
-      document.createElement("button");
+      document.createElement(
+        "button"
+      );
 
     close.type = "button";
-    close.className = "sectionClose";
-    close.textContent = "FECHAR";
+    close.className =
+      "sectionClose";
+    close.textContent =
+      "FECHAR";
     close.setAttribute(
       "onclick",
       "fecharSecaoPainel(this)"
@@ -5296,6 +5364,26 @@ function inicializarNavegacaoCompacta(){
       close,
       secao.firstChild
     );
+  });
+
+  document.querySelectorAll(
+    ".menuBtn"
+  ).forEach(function(btn){
+
+    btn.addEventListener(
+      "click",
+      function(){
+
+        const alvo =
+          btn.getAttribute(
+            "data-panel"
+          );
+
+        abrirSecaoPainel(alvo);
+
+      }
+    );
+
   });
 
   fecharTodasSecoesPainel();
@@ -6104,7 +6192,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V8 — Controle SERGIO rodando na porta " +
+      "Binance-Robo Painel Premium V8.1 — Controle SERGIO rodando na porta " +
       PORT
     );
   }

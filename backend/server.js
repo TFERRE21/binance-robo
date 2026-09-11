@@ -536,364 +536,6 @@ API DASHBOARD
 =========================================================
 */
 
-
-/*
-=========================================================
-V9 — CONTROLE MANUAL SERGIO
-=========================================================
-Base: V7 Compacta estável.
-O robô original não é alterado.
-Apenas a conta 2 / SERGIO pode receber comandos manuais.
-
-Northflank:
-  PAINEL_MANUAL_TOKEN = token forte criado por você
-
-Opcional:
-  MANUAL_SELL_FEE_RATE = 0.001
-=========================================================
-*/
-const MANUAL_ACCOUNT_ID = "2";
-const MANUAL_SELL_FEE_RATE =
-  Number.isFinite(Number(process.env.MANUAL_SELL_FEE_RATE))
-    ? Number(process.env.MANUAL_SELL_FEE_RATE)
-    : 0.001;
-
-function manualTokenValido(req){
-  const esperado = String(process.env.PAINEL_MANUAL_TOKEN || "");
-  const recebido = String(req.headers["x-manual-token"] || "");
-  return !!esperado && esperado === recebido;
-}
-
-function contaManual(){
-  return clientes.find(function(c){
-    return c.id === MANUAL_ACCOUNT_ID;
-  });
-}
-
-function symbolManualValido(symbol){
-  return /^[A-Z0-9]{2,30}USDT$/.test(
-    String(symbol || "").toUpperCase()
-  );
-}
-
-async function infoSymbolManual(conta, symbol){
-  const data = await conta.client.exchangeInfo();
-  const info = (data.symbols || []).find(function(s){
-    return s.symbol === symbol &&
-      s.status === "TRADING" &&
-      s.quoteAsset === "USDT";
-  });
-  if(!info){
-    throw new Error("Par " + symbol + " não está disponível para negociação.");
-  }
-  return info;
-}
-
-function filtroManual(info, tipo){
-  return (info.filters || []).find(function(f){
-    return String(f.filterType || "").toUpperCase() === tipo;
-  }) || null;
-}
-
-function stepDecimalsManual(step){
-  const s = String(step || "");
-  if(!s.includes(".")) return 0;
-  return s.split(".")[1].replace(/0+$/,"").length;
-}
-
-function ajustarQtdManual(qtd, step){
-  const q = Number(qtd || 0);
-  const st = Number(step || 0);
-  if(!(q > 0)) return 0;
-  if(!(st > 0)) return q;
-  const casas = stepDecimalsManual(step);
-  const n = Math.floor((q / st) + 1e-10);
-  return Number((n * st).toFixed(casas));
-}
-
-function minimoNotionalManual(info){
-  const f =
-    filtroManual(info,"MIN_NOTIONAL") ||
-    filtroManual(info,"NOTIONAL");
-  return f ? num(f.minNotional) : 0;
-}
-
-async function saldoManual(conta, asset){
-  const acc = await conta.client.accountInfo();
-  const b = (acc.balances || []).find(function(x){
-    return String(x.asset || "").toUpperCase() ===
-      String(asset || "").toUpperCase();
-  });
-  return {
-    free: num(b && b.free),
-    locked: num(b && b.locked),
-    total: num(b && b.free) + num(b && b.locked)
-  };
-}
-
-async function sellsAbertasManual(conta, symbol){
-  const orders = await conta.client.openOrders({symbol});
-  return (orders || []).filter(function(o){
-    return String(o.side || "").toUpperCase() === "SELL" &&
-      String(o.status || "").toUpperCase() === "NEW";
-  });
-}
-
-async function previewManualSergio(symbol){
-  const conta = contaManual();
-  if(!conta || !conta.client){
-    throw new Error("Conta SERGIO não está configurada.");
-  }
-
-  const info = await infoSymbolManual(conta, symbol);
-  const asset = String(info.baseAsset || "").toUpperCase();
-
-  const [saldo, prices, ordens, trades] = await Promise.all([
-    saldoManual(conta, asset),
-    conta.client.prices({symbol}),
-    sellsAbertasManual(conta, symbol),
-    obterTrades(conta, symbol, 1000)
-  ]);
-
-  const atual = num(prices[symbol]);
-  if(!(atual > 0)) throw new Error("Preço atual inválido.");
-
-  const lot = filtroManual(info,"LOT_SIZE");
-  const step = num(lot && lot.stepSize);
-  const qtd = ajustarQtdManual(saldo.free, step);
-
-  const op = calcularOperacaoAtual(trades);
-  const entrada = op.ativa ? num(op.entrada) : 0;
-  const custo = entrada > 0 ? entrada * qtd : 0;
-  const bruto = atual * qtd;
-  const pnlBruto = entrada > 0 ? bruto - custo : 0;
-  const taxa = bruto * MANUAL_SELL_FEE_RATE;
-  const liquido = pnlBruto - taxa;
-  const usdtBrl = await obterUSDTBRL(conta.client);
-  const pct = custo > 0 ? (liquido / custo) * 100 : 0;
-
-  return {
-    conta:"SERGIO",
-    accountId:"2",
-    symbol,
-    asset,
-    precoAtual:atual,
-    entrada,
-    quantidadeCarteira:saldo.total,
-    quantidadeLivre:saldo.free,
-    quantidadeVenda:qtd,
-    locked:saldo.locked,
-    temOrdemVenda:ordens.length > 0,
-    ordensVenda:ordens.map(function(o){
-      return {
-        orderId:String(o.orderId),
-        type:o.type,
-        price:num(o.price),
-        origQty:num(o.origQty),
-        executedQty:num(o.executedQty),
-        status:o.status
-      };
-    }),
-    valorBruto:bruto,
-    custoEstimado:custo,
-    pnlBruto,
-    taxaEstimada:taxa,
-    taxaEstimativaPct:MANUAL_SELL_FEE_RATE*100,
-    pnlLiquidoEstimado:liquido,
-    pnlLiquidoBRL:liquido*usdtBrl,
-    pnlPctEstimado:pct,
-    usdtBrl,
-    operacaoAtual:op.ativa,
-    entradaTime:op.entradaTime,
-    minimoNotional:minimoNotionalManual(info),
-    atualizadoEm:Date.now()
-  };
-}
-
-app.get("/api/manual/preview", async function(req,res){
-  try{
-    if(!process.env.PAINEL_MANUAL_TOKEN)
-      return res.status(503).json({erro:"Configure PAINEL_MANUAL_TOKEN no Northflank."});
-
-    if(!manualTokenValido(req))
-      return res.status(401).json({erro:"Token do controle manual inválido."});
-
-    const symbol = String(req.query.symbol || "").toUpperCase();
-
-    if(!symbolManualValido(symbol))
-      return res.status(400).json({erro:"Símbolo inválido."});
-
-    res.json(await previewManualSergio(symbol));
-  }catch(e){
-    res.status(500).json({erro:e.message || "Falha na prévia."});
-  }
-});
-
-app.post("/api/manual/cancel-sell", async function(req,res){
-  try{
-    if(!process.env.PAINEL_MANUAL_TOKEN)
-      return res.status(503).json({erro:"Configure PAINEL_MANUAL_TOKEN no Northflank."});
-
-    if(!manualTokenValido(req))
-      return res.status(401).json({erro:"Token do controle manual inválido."});
-
-    const symbol = String(req.body && req.body.symbol || "").toUpperCase();
-
-    if(!symbolManualValido(symbol))
-      return res.status(400).json({erro:"Símbolo inválido."});
-
-    const conta = contaManual();
-    if(!conta || !conta.client)
-      return res.status(503).json({erro:"Conta SERGIO não está configurada."});
-
-    const ordens = await sellsAbertasManual(conta,symbol);
-
-    if(!ordens.length){
-      return res.json({
-        ok:true,
-        canceladas:0,
-        symbol,
-        mensagem:"Não existe ordem SELL aberta para " + symbol + ".",
-        atualizadoEm:Date.now()
-      });
-    }
-
-    const resultados = [];
-    for(const o of ordens){
-      try{
-        const r = await conta.client.cancelOrder({
-          symbol,
-          orderId:o.orderId
-        });
-        resultados.push({
-          orderId:String(o.orderId),
-          ok:true,
-          status:r.status || "CANCELED"
-        });
-      }catch(e){
-        resultados.push({
-          orderId:String(o.orderId),
-          ok:false,
-          erro:e.message || "Falha"
-        });
-      }
-    }
-
-    const falhas = resultados.filter(function(x){return !x.ok;});
-
-    res.json({
-      ok:falhas.length === 0,
-      canceladas:resultados.filter(function(x){return x.ok;}).length,
-      falhas:falhas.length,
-      resultados,
-      symbol,
-      mensagem:falhas.length === 0
-        ? "Ordem SELL cancelada com sucesso."
-        : "Nem todas as SELL puderam ser canceladas.",
-      atualizadoEm:Date.now()
-    });
-  }catch(e){
-    res.status(500).json({erro:e.message || "Falha ao cancelar."});
-  }
-});
-
-app.post("/api/manual/sell", async function(req,res){
-  try{
-    if(!process.env.PAINEL_MANUAL_TOKEN)
-      return res.status(503).json({erro:"Configure PAINEL_MANUAL_TOKEN no Northflank."});
-
-    if(!manualTokenValido(req))
-      return res.status(401).json({erro:"Token do controle manual inválido."});
-
-    const symbol = String(req.body && req.body.symbol || "").toUpperCase();
-
-    if(!symbolManualValido(symbol))
-      return res.status(400).json({erro:"Símbolo inválido."});
-
-    const conta = contaManual();
-    if(!conta || !conta.client)
-      return res.status(503).json({erro:"Conta SERGIO não está configurada."});
-
-    /* 1. Cancelar a SELL criada pelo robô. */
-    const ordens = await sellsAbertasManual(conta,symbol);
-
-    for(const o of ordens){
-      await conta.client.cancelOrder({
-        symbol,
-        orderId:o.orderId
-      });
-    }
-
-    /* 2. Esperar o saldo bloqueado voltar para FREE. */
-    await new Promise(function(resolve){
-      setTimeout(resolve,800);
-    });
-
-    /* 3. Ler saldo novamente. */
-    const info = await infoSymbolManual(conta,symbol);
-    const asset = String(info.baseAsset || "").toUpperCase();
-    const saldo = await saldoManual(conta,asset);
-
-    const lot = filtroManual(info,"LOT_SIZE");
-    const step = num(lot && lot.stepSize);
-    const quantity = ajustarQtdManual(saldo.free,step);
-
-    const prices = await conta.client.prices({symbol});
-    const atual = num(prices[symbol]);
-    const valor = quantity * atual;
-    const minNotional = minimoNotionalManual(info);
-
-    if(!(quantity > 0)){
-      return res.status(409).json({
-        erro:"Não existe saldo livre suficiente para vender.",
-        symbol,
-        saldoLivre:saldo.free
-      });
-    }
-
-    if(minNotional > 0 && valor < minNotional){
-      return res.status(409).json({
-        erro:"A quantidade disponível está abaixo do mínimo permitido.",
-        symbol,
-        quantity,
-        valorEstimado:valor,
-        minimoNotional:minNotional
-      });
-    }
-
-    /* 4. Venda real. */
-    const order = await conta.client.order({
-      symbol,
-      side:"SELL",
-      type:"MARKET",
-      quantity
-    });
-
-    res.json({
-      ok:true,
-      symbol,
-      asset,
-      quantity,
-      orderId:String(order.orderId),
-      status:order.status,
-      executedQty:num(order.executedQty),
-      cummulativeQuoteQty:num(order.cummulativeQuoteQty),
-      fills:(order.fills || []).map(function(f){
-        return {
-          price:num(f.price),
-          qty:num(f.qty),
-          commission:num(f.commission),
-          commissionAsset:f.commissionAsset
-        };
-      }),
-      mensagem:"Venda MARKET executada. O robô original permanece intacto e volta ao ciclo normal.",
-      atualizadoEm:Date.now()
-    });
-  }catch(e){
-    res.status(500).json({erro:e.message || "Falha na venda."});
-  }
-});
-
 app.get("/api/dashboard", async function (req, res) {
   try {
     const contas = await Promise.all(
@@ -2238,39 +1880,6 @@ section.section.compactOpen{
   to{opacity:1;transform:translateY(0)}
 }
 
-
-.v9ManualCard{border:1px solid rgba(112,143,255,.28);border-radius:18px;background:linear-gradient(145deg,rgba(18,31,55,.98),rgba(7,13,25,.98));padding:20px;box-shadow:0 18px 50px rgba(0,0,0,.28)}
-.v9ManualHead{display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
-.v9ManualHead h2{margin:0}.v9Sub{margin-top:5px;color:#8190a8;font-size:10px}
-.v9Status{padding:8px 11px;border-radius:999px;background:rgba(31,51,79,.7);color:#a8c9ff;font-size:9px;font-weight:900}
-.v9Warning{margin-top:14px;padding:12px;border:1px solid rgba(255,187,72,.25);background:rgba(76,52,12,.22);color:#d7c596;border-radius:12px;font-size:10px;line-height:1.5}
-.v9Token{margin-top:14px;padding:13px;border:1px solid rgba(116,135,174,.18);border-radius:13px;background:rgba(4,10,20,.55)}
-.v9Token label{display:block;color:#93a3bb;font-size:9px;font-weight:900;text-transform:uppercase;margin-bottom:7px}
-.v9TokenRow{display:grid;grid-template-columns:1fr auto;gap:8px}
-.v9TokenRow input{min-width:0;border:1px solid rgba(116,135,174,.28);background:#050b15;color:#fff;border-radius:10px;padding:10px 12px;outline:none}
-.v9TokenRow input:focus{border-color:#6f9dff}.v9Token small{display:block;margin-top:6px;color:#64738b;font-size:8px}
-.v9Preview{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:14px}
-.v9Metric{border:1px solid rgba(116,135,174,.17);border-radius:12px;padding:12px;background:rgba(4,10,20,.55)}
-.v9Metric span{display:block;color:#71809a;font-size:8px;font-weight:900;text-transform:uppercase}.v9Metric b{display:block;margin-top:5px;font-size:13px}
-.v9Result{margin-top:10px;padding:15px;border-radius:13px;border:1px solid rgba(112,143,255,.25);background:rgba(16,30,55,.45)}
-.v9ResultTitle{color:#8190a8;font-size:9px;font-weight:900;text-transform:uppercase}
-.v9ResultMain{display:flex;flex-wrap:wrap;align-items:baseline;gap:12px;margin-top:5px}.v9ResultMain b{font-size:24px;font-weight:900}.v9ResultMain span{font-size:13px;font-weight:900}
-.v9ResultInfo{margin-top:7px;color:#75849c;font-size:9px;line-height:1.5}
-.v9Actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.v9Btn{border:1px solid rgba(116,135,174,.25);border-radius:11px;padding:11px 13px;cursor:pointer;font-weight:900;font-size:10px}
-.v9Btn.secondary{background:#14243a;color:#b8d1ff}.v9Btn.cancel{background:#281e0b;border-color:#735321;color:#ffd16a}.v9Btn.sell{background:#2b1018;border-color:#7b3547;color:#ff879b}.v9Btn:disabled{opacity:.45;cursor:not-allowed}
-.v9Empty{margin-top:14px;min-height:120px;display:grid;place-items:center;text-align:center;border:1px dashed rgba(116,135,174,.22);border-radius:13px;background:rgba(4,10,20,.4);padding:18px}
-.v9Empty b{color:#dfe7f3;font-size:11px}.v9Empty span{color:#71809a;font-size:9px}
-.v9ModalBack{position:fixed;inset:0;z-index:9999;display:grid;place-items:center;padding:18px;background:rgba(0,0,0,.78)}
-.v9Modal{width:min(560px,100%);border:1px solid rgba(112,143,255,.4);border-radius:18px;background:#0a1220;box-shadow:0 30px 100px rgba(0,0,0,.65);padding:19px}
-.v9Modal h3{margin:0;font-size:18px}.v9Modal p{color:#8998ae;font-size:10px;line-height:1.5}
-.v9Grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.v9Grid div{padding:10px;border:1px solid rgba(116,135,174,.17);border-radius:10px;background:#07101c}
-.v9Grid span{display:block;color:#65748d;font-size:8px;text-transform:uppercase}.v9Grid b{display:block;margin-top:4px;font-size:12px}
-.v9ModalActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:13px}.v9ModalActions button{border:0;border-radius:11px;padding:12px;font-weight:900;cursor:pointer}
-.v9No{background:#172438;color:#c8d4e4}.v9Yes{background:#8e263c;color:#fff}
-.v9Toast{position:fixed;right:18px;bottom:18px;z-index:10000;max-width:420px;border:1px solid rgba(112,143,255,.3);border-radius:12px;background:#0c1727;color:#eaf1fb;padding:12px 14px;font-size:10px;line-height:1.5;box-shadow:0 20px 60px rgba(0,0,0,.5)}
-@media(max-width:760px){.v9Preview{grid-template-columns:1fr 1fr}.v9Actions{grid-template-columns:1fr}.v9TokenRow{grid-template-columns:1fr}}
-
 .sectionClose{
   float:right;
   border:1px solid rgba(116,135,174,.25);
@@ -2435,7 +2044,7 @@ section.section.compactOpen{
         </div>
       </div>
 
-      <button type="button" onclick="abrirSecaoPainel(0)">
+      <button type="button" onclick="abrirSecaoPainel(3)">
         VER DETALHES
       </button>
     </div>
@@ -2454,44 +2063,40 @@ section.section.compactOpen{
         🤖 Robô
       </button>
 
-      <button type="button" class="menuBtn" data-panel="6" onclick="abrirSecaoPainel(6)">
+      <button type="button" class="menuBtn" data-panel="3" onclick="abrirSecaoPainel(3)">
         🏆 Comparação
       </button>
 
-      <button type="button" class="menuBtn" data-panel="3" onclick="abrirSecaoPainel(3)">
+      <button type="button" class="menuBtn" data-panel="4" onclick="abrirSecaoPainel(4)">
         📚 Performance
       </button>
 
-      <button type="button" class="menuBtn" data-panel="4" onclick="abrirSecaoPainel(4)">
+      <button type="button" class="menuBtn" data-panel="5" onclick="abrirSecaoPainel(5)">
         🪙 Moedas
       </button>
 
-      <button type="button" class="menuBtn" data-panel="5" onclick="abrirSecaoPainel(5)">
+      <button type="button" class="menuBtn" data-panel="6" onclick="abrirSecaoPainel(6)">
         📜 Atividade
       </button>
 
-      <button type="button" class="menuBtn" data-panel="6" onclick="abrirSecaoPainel(6)">
+      <button type="button" class="menuBtn" data-panel="7" onclick="abrirSecaoPainel(7)">
         🚨 Alertas
       </button>
 
-      <button type="button" class="menuBtn" data-panel="7" onclick="abrirSecaoPainel(7)">
+      <button type="button" class="menuBtn" data-panel="8" onclick="abrirSecaoPainel(8)">
         📈 Patrimônio
       </button>
 
-      <button type="button" class="menuBtn" data-panel="8" onclick="abrirSecaoPainel(8)">
+      <button type="button" class="menuBtn" data-panel="9" onclick="abrirSecaoPainel(9)">
         🧪 Raio-X
       </button>
 
-      <button type="button" class="menuBtn" data-panel="9" onclick="abrirSecaoPainel(9)">
+      <button type="button" class="menuBtn" data-panel="10" onclick="abrirSecaoPainel(10)">
         🕵️ Auditoria
       </button>
 
-      <button type="button" class="menuBtn" data-panel="10" onclick="abrirSecaoPainel(10)">
-        💰 P/L
-      </button>
-
       <button type="button" class="menuBtn" data-panel="11" onclick="abrirSecaoPainel(11)">
-        🎛️ Controle SERGIO
+        💰 P/L
       </button>
 
     </div>
@@ -2913,46 +2518,6 @@ section.section.compactOpen{
     A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
     O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura e não envia ordens para a Binance.
   </div>
-
-
-  <section class="section">
-
-    <div class="v9ManualCard">
-
-      <div class="v9ManualHead">
-        <div>
-          <h2>🎛️ Controle manual — SERGIO</h2>
-          <div class="v9Sub">
-            Controle exclusivo da CONTA 2. O robô original não é alterado.
-          </div>
-        </div>
-        <div id="v9ManualStatus" class="v9Status">🔒 PROTEGIDO</div>
-      </div>
-
-      <div class="v9Warning">
-        ⚠️ Os comandos abaixo alteram ordens reais da Binance.
-        A venda exige confirmação e mostra antes o ganho/perda estimado em USDT, R$ e %.
-      </div>
-
-      <div class="v9Token">
-        <label>Token do controle manual</label>
-        <div class="v9TokenRow">
-          <input id="v9ManualToken" type="password" autocomplete="off" placeholder="PAINEL_MANUAL_TOKEN">
-          <button type="button" class="v9Btn secondary" onclick="v9SalvarToken()">LIBERAR CONTROLE</button>
-        </div>
-        <small>O token fica somente nesta sessão do navegador.</small>
-      </div>
-
-      <div id="v9ManualBody">
-        <div class="v9Empty">
-          <b>Aguardando os dados da conta SERGIO...</b>
-          <span>Abra este submenu depois que o painel terminar de atualizar.</span>
-        </div>
-      </div>
-
-    </div>
-
-  </section>
 
   <div class="footer">
     Binance-Robo • THIAGO / SERGIO • Central Premium • Atualização automática a cada 15 segundos
@@ -4477,7 +4042,7 @@ function renderV7Timeline(){
   el.innerHTML=all.slice(0,16).map(function(t,i){const buy=t.lado==='COMPRA';return '<div class="v7StatusRow"><span><i class="v7Dot '+(buy?'ok':'bad')+'"></i><b>'+t.conta+'</b> • '+t.symbol+' • '+t.lado+'</span><span class="v7Time">'+numero(t.qty)+' @ '+dinheiro(t.price)+' USDT • '+dataHora(t.time)+'</span></div>';}).join('')||'<div class="empty">Nenhum evento encontrado.</div>';
 }
 
-function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();v9Atualizar().catch(function(e){console.warn("V9 SERGIO:",e);});}
+function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();}
 
 
 /*
@@ -4848,245 +4413,6 @@ function atualizarResumoCompacto(){
 
 
 
-
-/*
-=========================================================
-V9 — CONTROLE MANUAL SERGIO — FRONTEND
-=========================================================
-*/
-let v9Token=sessionStorage.getItem("binance_robo_manual_token")||"";
-let v9Symbol="";
-let v9Preview=null;
-let v9Busy=false;
-
-function v9Toast(msg){
-  const old=document.querySelector(".v9Toast");
-  if(old) old.remove();
-  const el=document.createElement("div");
-  el.className="v9Toast";
-  el.textContent=String(msg||"");
-  document.body.appendChild(el);
-  setTimeout(function(){if(el.parentNode)el.remove();},6000);
-}
-
-function v9SalvarToken(){
-  const input=document.getElementById("v9ManualToken");
-  if(!input)return;
-  const token=String(input.value||"").trim();
-  if(!token){v9Toast("Digite o PAINEL_MANUAL_TOKEN.");return;}
-  v9Token=token;
-  sessionStorage.setItem("binance_robo_manual_token",token);
-  v9Toast("Controle manual liberado nesta sessão.");
-  v9Atualizar();
-}
-
-function v9Headers(){
-  return {"Content-Type":"application/json","x-manual-token":v9Token};
-}
-
-function v9ContaSergio(){
-  if(!dados||!Array.isArray(dados.contas))return null;
-  return dados.contas.find(function(c){return String(c.id)==="2";})||null;
-}
-
-function v9OperacaoAtual(){
-  const c=v9ContaSergio();
-  if(!c)return null;
-  return c.operacaoAtual&&c.operacaoAtual.ativa?c.operacaoAtual:null;
-}
-
-async function v9Atualizar(){
-  const body=document.getElementById("v9ManualBody");
-  const status=document.getElementById("v9ManualStatus");
-  const input=document.getElementById("v9ManualToken");
-  if(input)input.value=v9Token;
-  if(!body)return;
-
-  const op=v9OperacaoAtual();
-
-  if(!op){
-    if(status)status.textContent="⚪ SEM OPERAÇÃO";
-    body.innerHTML='<div class="v9Empty"><b>Nenhuma operação atual detectada em SERGIO.</b><span>Quando houver uma posição ativa, os controles aparecerão aqui.</span></div>';
-    v9Symbol="";v9Preview=null;return;
-  }
-
-  v9Symbol=String(op.symbol||"").toUpperCase();
-
-  body.innerHTML=
-    '<div class="v9Preview">'+
-      '<div class="v9Metric"><span>MOEDA</span><b id="v9Symbol">--</b></div>'+
-      '<div class="v9Metric"><span>PREÇO ATUAL</span><b id="v9Price">--</b></div>'+
-      '<div class="v9Metric"><span>QUANTIDADE</span><b id="v9Qty">--</b></div>'+
-      '<div class="v9Metric"><span>ORDEM SELL</span><b id="v9Order">--</b></div>'+
-    '</div>'+
-    '<div class="v9Result">'+
-      '<div class="v9ResultTitle">Resultado se vender agora</div>'+
-      '<div class="v9ResultMain"><b id="v9Pnl">--</b><span id="v9Pct">--</span></div>'+
-      '<div id="v9BRL" class="v9ResultInfo">--</div>'+
-      '<div id="v9Info" class="v9ResultInfo">--</div>'+
-    '</div>'+
-    '<div class="v9Actions">'+
-      '<button id="v9CancelBtn" type="button" class="v9Btn cancel" onclick="v9Cancelar()">🟠 CANCELAR ORDEM DE VENDA</button>'+
-      '<button id="v9SellBtn" type="button" class="v9Btn sell" onclick="v9AbrirConfirmacao()">🔴 VENDER AGORA</button>'+
-    '</div>';
-
-  if(status)status.textContent="🔐 SERGIO • CONTROLE MANUAL";
-
-  await v9Previa();
-}
-
-async function v9Previa(){
-  const info=document.getElementById("v9Info");
-  if(!v9Token){
-    if(info)info.textContent="Digite o token para consultar a prévia.";
-    return;
-  }
-
-  try{
-    const r=await fetch("/api/manual/preview?symbol="+encodeURIComponent(v9Symbol),{
-      cache:"no-store",headers:v9Headers()
-    });
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.erro||"Falha na prévia.");
-    v9Preview=d;
-
-    const pnl=Number(d.pnlLiquidoEstimado||0);
-    const pct=Number(d.pnlPctEstimado||0);
-    const brl=Number(d.pnlLiquidoBRL||0);
-
-    const s=document.getElementById("v9Symbol");
-    const p=document.getElementById("v9Price");
-    const q=document.getElementById("v9Qty");
-    const o=document.getElementById("v9Order");
-    const pe=document.getElementById("v9Pnl");
-    const pcte=document.getElementById("v9Pct");
-    const be=document.getElementById("v9BRL");
-
-    if(s)s.textContent=d.symbol;
-    if(p)p.textContent=dinheiro(d.precoAtual)+" USDT";
-    if(q)q.textContent=numero(d.quantidadeVenda);
-    if(o)o.textContent=d.temOrdemVenda?d.ordensVenda.length+" aberta(s)":"NENHUMA";
-
-    if(pe){
-      pe.textContent=(pnl>=0?"+":"")+dinheiro(pnl)+" USDT";
-      pe.className=pnl>=0?"v7Good":"v7Bad";
-    }
-    if(pcte){
-      pcte.textContent=(pct>=0?"+":"")+pct.toFixed(2)+"%";
-      pcte.className=pct>=0?"v7Good":"v7Bad";
-    }
-    if(be){
-      be.textContent=(brl>=0?"+":"")+"R$ "+dinheiro(brl)+
-        " • venda bruta ≈ "+dinheiro(d.valorBruto)+" USDT";
-    }
-    if(info){
-      info.textContent=
-        "Entrada: "+dinheiro(d.entrada)+" USDT • Taxa estimada: "+
-        d.taxaEstimativaPct.toFixed(2)+"% • USDT/BRL: "+dinheiro(d.usdtBrl);
-    }
-  }catch(e){
-    v9Preview=null;
-    if(info)info.textContent="Prévia indisponível: "+(e.message||"erro");
-  }
-}
-
-async function v9Cancelar(){
-  if(v9Busy)return;
-  if(!v9Token){v9Toast("Digite o token do controle manual.");return;}
-  if(!v9Symbol){v9Toast("Nenhuma operação atual encontrada.");return;}
-
-  if(!window.confirm(
-    "Cancelar a ordem SELL de "+v9Symbol+" da conta SERGIO?\n\nA moeda NÃO será vendida."
-  ))return;
-
-  v9Busy=true;
-  const btn=document.getElementById("v9CancelBtn");
-  if(btn){btn.disabled=true;btn.textContent="CANCELANDO...";}
-
-  try{
-    const r=await fetch("/api/manual/cancel-sell",{
-      method:"POST",headers:v9Headers(),
-      body:JSON.stringify({symbol:v9Symbol})
-    });
-    const d=await r.json();
-    if(!r.ok)throw new Error(d.erro||"Falha.");
-    v9Toast(d.mensagem||"SELL cancelada.");
-    await carregar();
-    setTimeout(v9Atualizar,250);
-  }catch(e){
-    v9Toast("ERRO: "+(e.message||"falha"));
-  }finally{
-    v9Busy=false;
-    const b=document.getElementById("v9CancelBtn");
-    if(b){b.disabled=false;b.textContent="🟠 CANCELAR ORDEM DE VENDA";}
-  }
-}
-
-function v9AbrirConfirmacao(){
-  if(v9Busy)return;
-  if(!v9Token){v9Toast("Digite o token do controle manual.");return;}
-  if(!v9Preview){v9Toast("Aguarde uma prévia válida antes de vender.");return;}
-
-  const d=v9Preview;
-  const back=document.createElement("div");
-  back.className="v9ModalBack";
-
-  back.innerHTML=
-    '<div class="v9Modal">'+
-      '<h3>⚠️ CONFIRMAR VENDA REAL — SERGIO</h3>'+
-      '<p>Será cancelada a SELL aberta e depois enviada uma ordem MARKET. O preço final pode variar durante a execução.</p>'+
-      '<div class="v9Grid">'+
-        '<div><span>MOEDA</span><b>'+d.symbol+'</b></div>'+
-        '<div><span>QUANTIDADE</span><b>'+numero(d.quantidadeVenda)+'</b></div>'+
-        '<div><span>ENTRADA</span><b>'+dinheiro(d.entrada)+' USDT</b></div>'+
-        '<div><span>PREÇO ATUAL</span><b>'+dinheiro(d.precoAtual)+' USDT</b></div>'+
-        '<div><span>GANHO/PERDA</span><b class="'+(d.pnlLiquidoEstimado>=0?"v7Good":"v7Bad")+'">'+(d.pnlLiquidoEstimado>=0?"+":"")+dinheiro(d.pnlLiquidoEstimado)+' USDT</b></div>'+
-        '<div><span>GANHO/PERDA EM R$</span><b class="'+(d.pnlLiquidoBRL>=0?"v7Good":"v7Bad")+'">'+(d.pnlLiquidoBRL>=0?"+":"")+"R$ "+dinheiro(d.pnlLiquidoBRL)+'</b></div>'+
-        '<div><span>VARIAÇÃO</span><b class="'+(d.pnlPctEstimado>=0?"v7Good":"v7Bad")+'">'+(d.pnlPctEstimado>=0?"+":"")+Number(d.pnlPctEstimado).toFixed(2)+'%</b></div>'+
-        '<div><span>SELL ABERTA</span><b>'+(d.temOrdemVenda?d.ordensVenda.length+" aberta(s)":"NENHUMA")+'</b></div>'+
-      '</div>'+
-      '<div class="v9ResultInfo">⚠️ Estimativa antes da execução. O resultado real depende do preço de execução e das taxas efetivas da Binance.</div>'+
-      '<div class="v9ModalActions">'+
-        '<button type="button" class="v9No">NÃO VENDER</button>'+
-        '<button type="button" class="v9Yes">CONFIRMAR VENDA</button>'+
-      '</div>'+
-    '</div>';
-
-  document.body.appendChild(back);
-
-  back.querySelector(".v9No").onclick=function(){back.remove();};
-
-  back.querySelector(".v9Yes").onclick=async function(){
-    if(v9Busy)return;
-    v9Busy=true;
-    const yes=back.querySelector(".v9Yes");
-    yes.disabled=true;yes.textContent="EXECUTANDO...";
-
-    try{
-      const r=await fetch("/api/manual/sell",{
-        method:"POST",headers:v9Headers(),
-        body:JSON.stringify({symbol:v9Symbol})
-      });
-      const d=await r.json();
-      if(!r.ok)throw new Error(d.erro||"Falha na venda.");
-
-      back.remove();
-      v9Toast(
-        "Venda executada. Ordem "+d.orderId+". O painel será atualizado."
-      );
-      await carregar();
-      setTimeout(v9Atualizar,300);
-    }catch(e){
-      yes.disabled=false;
-      yes.textContent="CONFIRMAR VENDA";
-      v9Toast("ERRO NA VENDA: "+(e.message||"falha"));
-    }finally{
-      v9Busy=false;
-    }
-  };
-}
-
-
 /*
 =========================================================
 INÍCIO
@@ -5115,7 +4441,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V9 — Base V7 estável + Controle SERGIO rodando na porta " +
+      "Binance-Robo Painel Premium V7.1 — Compacto rodando na porta " +
       PORT
     );
   }

@@ -8,27 +8,35 @@ app.use(express.json());
 
 /*
 =========================================================
-BINANCE-ROBO - PAINEL PREMIUM
-DUAS CONTAS SEPARADAS
-- Conta 1 = API_KEY_1 / API_SECRET_1
-- Conta 2 = API_KEY_2 / API_SECRET_2
+BINANCE-ROBO - PAINEL PREMIUM V2
+=========================================================
+DUAS CONTAS TOTALMENTE SEPARADAS:
 
-IMPORTANTE:
-Este painel é SOMENTE LEITURA.
-Ele não compra nem vende.
+CONTA 1 = THIAGO
+API_KEY_1
+API_SECRET_1
+
+CONTA 2 = SERGIO
+API_KEY_2
+API_SECRET_2
+
+O painel é SOMENTE LEITURA.
+NÃO compra, NÃO vende e NÃO altera ordens.
 =========================================================
 */
 
 const CONTAS = [
   {
     id: "1",
-    nome: process.env.NOME_CONTA_1 || "SUA CONTA",
+    nome: "THIAGO",
+    descricao: "Minha conta",
     apiKey: process.env.API_KEY_1,
     apiSecret: process.env.API_SECRET_1
   },
   {
     id: "2",
-    nome: process.env.NOME_CONTA_2 || "CONTA DO AMIGO",
+    nome: "SERGIO",
+    descricao: "Conta do amigo",
     apiKey: process.env.API_KEY_2,
     apiSecret: process.env.API_SECRET_2
   }
@@ -38,6 +46,7 @@ const clientes = CONTAS.map(function (conta) {
   return {
     id: conta.id,
     nome: conta.nome,
+    descricao: conta.descricao,
     apiKey: conta.apiKey,
     apiSecret: conta.apiSecret,
     client:
@@ -51,7 +60,7 @@ const clientes = CONTAS.map(function (conta) {
 });
 
 function num(v) {
-  var n = Number(v);
+  const n = Number(v);
   return Number.isFinite(n) ? n : 0;
 }
 
@@ -59,27 +68,9 @@ function assetNormalizado(asset) {
   return String(asset || "").replace(/^LD/, "");
 }
 
-function escapeHtml(value) {
-  return String(value == null ? "" : value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-/*
-=========================================================
-USDT / BRL
-=========================================================
-*/
-
 async function obterUSDTBRL(client) {
   try {
-    var prices = await client.prices({
-      symbol: "USDTBRL"
-    });
-
+    const prices = await client.prices({ symbol: "USDTBRL" });
     if (prices && prices.USDTBRL) {
       return num(prices.USDTBRL);
     }
@@ -90,42 +81,39 @@ async function obterUSDTBRL(client) {
 
 /*
 =========================================================
-DADOS DA CONTA
+CONTA
 =========================================================
 */
 
 async function obterConta(conta) {
   if (!conta.client) {
-    throw new Error(
-      "Credenciais não encontradas para " + conta.nome
-    );
+    throw new Error("Credenciais não configuradas.");
   }
 
-  var resultado = await Promise.all([
+  const resultado = await Promise.all([
     conta.client.accountInfo(),
     conta.client.prices(),
     obterUSDTBRL(conta.client)
   ]);
 
-  var info = resultado[0];
-  var prices = resultado[1];
-  var usdtBrl = resultado[2];
+  const info = resultado[0];
+  const prices = resultado[1];
+  const usdtBrl = resultado[2];
 
-  var ativos = [];
-  var patrimonioUSDT = 0;
+  const ativos = [];
+  let patrimonioUSDT = 0;
 
-  for (var i = 0; i < (info.balances || []).length; i++) {
-    var b = info.balances[i];
-
-    var free = num(b.free);
-    var locked = num(b.locked);
-    var total = free + locked;
+  for (const b of info.balances || []) {
+    const free = num(b.free);
+    const locked = num(b.locked);
+    const total = free + locked;
 
     if (total <= 0) continue;
 
-    var asset = assetNormalizado(b.asset);
-    var precoUSDT = 0;
-    var valorUSDT = 0;
+    const asset = assetNormalizado(b.asset);
+
+    let precoUSDT = 0;
+    let valorUSDT = 0;
 
     if (asset === "USDT") {
       precoUSDT = 1;
@@ -145,12 +133,12 @@ async function obterConta(conta) {
       patrimonioUSDT += valorUSDT;
 
       ativos.push({
-        asset: asset,
-        free: free,
-        locked: locked,
-        total: total,
-        precoUSDT: precoUSDT,
-        valorUSDT: valorUSDT,
+        asset,
+        free,
+        locked,
+        total,
+        precoUSDT,
+        valorUSDT,
         valorBRL: valorUSDT * usdtBrl
       });
     }
@@ -163,68 +151,61 @@ async function obterConta(conta) {
   return {
     id: conta.id,
     nome: conta.nome,
-    patrimonioUSDT: patrimonioUSDT,
+    descricao: conta.descricao,
+    patrimonioUSDT,
     patrimonioUSD: patrimonioUSDT,
     patrimonioBRL: patrimonioUSDT * usdtBrl,
-    usdtBrl: usdtBrl,
+    usdtBrl,
     totalAtivos: ativos.length,
-    ativos: ativos,
+    ativos,
     atualizadoEm: Date.now()
   };
 }
 
 /*
 =========================================================
-TRADES
+TRADES / PNL
 =========================================================
 */
 
-async function obterTrades(conta, symbol, limit) {
+async function obterTrades(conta, symbol, limit = 1000) {
   try {
     return await conta.client.myTrades({
-      symbol: symbol,
-      limit: limit || 1000
+      symbol,
+      limit
     });
   } catch (e) {
     return [];
   }
 }
 
-/*
-=========================================================
-PNL REALIZADO - ESTIMATIVA POR FIFO
-=========================================================
-*/
-
 function calcularPnL(trades) {
-  var fila = [];
-  var realizado = 0;
+  const fila = [];
+  let realizado = 0;
 
-  var ordenados = (trades || []).slice().sort(function (a, b) {
-    return num(a.time) - num(b.time);
-  });
+  const ordenados = (trades || [])
+    .slice()
+    .sort(function (a, b) {
+      return num(a.time) - num(b.time);
+    });
 
-  for (var i = 0; i < ordenados.length; i++) {
-    var t = ordenados[i];
-
-    var qty = num(t.qty);
-    var price = num(t.price);
-    var fee = num(t.commission);
-    var isBuy = Boolean(t.isBuyer);
+  for (const t of ordenados) {
+    const qty = num(t.qty);
+    const price = num(t.price);
 
     if (qty <= 0 || price <= 0) continue;
 
-    if (isBuy) {
+    if (t.isBuyer) {
       fila.push({
-        qty: qty,
-        price: price
+        qty,
+        price
       });
     } else {
-      var restante = qty;
+      let restante = qty;
 
-      while (restante > 0.0000000001 && fila.length > 0) {
-        var lote = fila[0];
-        var usado = Math.min(restante, lote.qty);
+      while (restante > 0.0000000001 && fila.length) {
+        const lote = fila[0];
+        const usado = Math.min(restante, lote.qty);
 
         realizado += usado * (price - lote.price);
 
@@ -236,11 +217,13 @@ function calcularPnL(trades) {
         }
       }
 
+      const commission = num(t.commission);
+
       if (
-        fee > 0 &&
+        commission > 0 &&
         String(t.commissionAsset || "").toUpperCase() === "USDT"
       ) {
-        realizado -= fee;
+        realizado -= commission;
       }
     }
   }
@@ -250,33 +233,32 @@ function calcularPnL(trades) {
 
 /*
 =========================================================
-POSIÇÕES ATIVAS
+POSIÇÕES
 =========================================================
 */
 
 async function obterPosicoes(conta, dadosConta) {
-  var posicoes = [];
+  const posicoes = [];
 
-  var ativos = (dadosConta.ativos || []).filter(function (a) {
+  const ativos = (dadosConta.ativos || []).filter(function (a) {
     return a.asset !== "USDT" && a.valorUSDT >= 3;
   });
 
-  for (var i = 0; i < ativos.length; i++) {
-    var ativo = ativos[i];
-    var symbol = ativo.asset + "USDT";
+  for (const ativo of ativos) {
+    const symbol = ativo.asset + "USDT";
+    const trades = await obterTrades(conta, symbol, 1000);
 
-    var trades = await obterTrades(conta, symbol, 1000);
+    let comprado = 0;
+    let custoCompra = 0;
+    let vendido = 0;
+    let ultimoTrade = null;
 
-    var comprado = 0;
-    var custoCompra = 0;
-    var vendido = 0;
-    var ultimoTrade = null;
-
-    for (var j = 0; j < trades.length; j++) {
-      var t = trades[j];
-      var qty = num(t.qty);
-      var price = num(t.price);
-      var quote = num(t.quoteQty) || qty * price;
+    for (const t of trades) {
+      const qty = num(t.qty);
+      const price = num(t.price);
+      const quote =
+        num(t.quoteQty) ||
+        qty * price;
 
       if (t.isBuyer) {
         comprado += qty;
@@ -293,66 +275,76 @@ async function obterPosicoes(conta, dadosConta) {
       }
     }
 
-    var quantidade = ativo.total;
-    var quantidadeLiquida = Math.max(0, comprado - vendido);
-    var precoMedio = comprado > 0 ? custoCompra / comprado : 0;
-    var precoAtual = ativo.precoUSDT;
-    var valorAtual = quantidade * precoAtual;
+    const quantidade = ativo.total;
+    const quantidadeLiquida = Math.max(
+      0,
+      comprado - vendido
+    );
 
-    var pnlAberto =
+    const precoMedio =
+      comprado > 0
+        ? custoCompra / comprado
+        : 0;
+
+    const precoAtual = ativo.precoUSDT;
+
+    const valorAtual =
+      quantidade * precoAtual;
+
+    const pnlNaoRealizado =
       precoMedio > 0
         ? (precoAtual - precoMedio) * quantidade
         : 0;
 
-    var pnlPercentual =
+    const pnlPct =
       precoMedio > 0
         ? ((precoAtual / precoMedio) - 1) * 100
         : 0;
 
-    var pnlRealizado = calcularPnL(trades);
-
-    var ordensAbertas = [];
+    let ordensAbertas = [];
 
     try {
-      ordensAbertas = await conta.client.openOrders({
-        symbol: symbol
-      });
+      ordensAbertas =
+        await conta.client.openOrders({
+          symbol
+        });
     } catch (e) {}
 
-    var vendas = ordensAbertas.filter(function (o) {
-      return String(o.side || "").toUpperCase() === "SELL";
-    });
-
-    var tpOrder = vendas
+    const vendas = ordensAbertas
       .filter(function (o) {
-        return num(o.price) > 0;
+        return (
+          String(o.side).toUpperCase() === "SELL" &&
+          num(o.price) > 0
+        );
       })
       .sort(function (a, b) {
         return num(a.price) - num(b.price);
-      })[0];
+      });
 
-    var slOrder = ordensAbertas
-      .filter(function (o) {
+    const tpOrder = vendas[0] || null;
+
+    const slOrder =
+      ordensAbertas.find(function (o) {
         return [
           "STOP",
           "STOP_LOSS",
           "STOP_LOSS_LIMIT"
-        ].indexOf(
+        ].includes(
           String(o.type || "").toUpperCase()
-        ) >= 0;
-      })[0];
+        );
+      }) || null;
 
     posicoes.push({
-      symbol: symbol,
+      symbol,
       asset: ativo.asset,
-      quantidade: quantidade,
-      quantidadeLiquida: quantidadeLiquida,
-      precoMedio: precoMedio,
-      precoAtual: precoAtual,
-      valorAtual: valorAtual,
-      pnlNaoRealizado: pnlAberto,
-      pnlNaoRealizadoPct: pnlPercentual,
-      pnlRealizado: pnlRealizado,
+      quantidade,
+      quantidadeLiquida,
+      precoMedio,
+      precoAtual,
+      valorAtual,
+      pnlNaoRealizado,
+      pnlNaoRealizadoPct: pnlPct,
+      pnlRealizado: calcularPnL(trades),
       tp: tpOrder
         ? {
             price: num(tpOrder.price),
@@ -399,24 +391,31 @@ HISTÓRICO
 */
 
 async function obterHistorico(conta, dadosConta) {
-  var ativos = (dadosConta.ativos || [])
+  const ativos = (dadosConta.ativos || [])
     .filter(function (a) {
-      return a.asset !== "USDT" && a.valorUSDT > 0.01;
+      return (
+        a.asset !== "USDT" &&
+        a.valorUSDT > 0.01
+      );
     })
-    .slice(0, 15);
+    .slice(0, 20);
 
-  var resultado = [];
+  const resultado = [];
 
-  for (var i = 0; i < ativos.length; i++) {
-    var symbol = ativos[i].asset + "USDT";
-    var trades = await obterTrades(conta, symbol, 100);
+  for (const ativo of ativos) {
+    const symbol = ativo.asset + "USDT";
+    const trades = await obterTrades(
+      conta,
+      symbol,
+      100
+    );
 
-    for (var j = 0; j < trades.length; j++) {
-      var t = trades[j];
-
+    for (const t of trades) {
       resultado.push({
-        symbol: symbol,
-        lado: t.isBuyer ? "COMPRA" : "VENDA",
+        symbol,
+        lado: t.isBuyer
+          ? "COMPRA"
+          : "VENDA",
         qty: num(t.qty),
         price: num(t.price),
         quoteQty: num(t.quoteQty),
@@ -431,67 +430,66 @@ async function obterHistorico(conta, dadosConta) {
     return b.time - a.time;
   });
 
-  return resultado.slice(0, 40);
+  return resultado.slice(0, 50);
 }
 
 /*
 =========================================================
-DASHBOARD DE UMA CONTA
+DASHBOARD INDIVIDUAL
 =========================================================
 */
 
 async function obterDashboardConta(conta) {
-  var dados = await obterConta(conta);
-  var posicoes = await obterPosicoes(conta, dados);
-  var historico = await obterHistorico(conta, dados);
+  const dados = await obterConta(conta);
 
-  var pnlAberto = posicoes.reduce(function (s, p) {
-    return s + num(p.pnlNaoRealizado);
-  }, 0);
+  const [posicoes, historico] =
+    await Promise.all([
+      obterPosicoes(conta, dados),
+      obterHistorico(conta, dados)
+    ]);
 
-  var pnlRealizado = posicoes.reduce(function (s, p) {
-    return s + num(p.pnlRealizado);
-  }, 0);
+  const pnlAberto = posicoes.reduce(
+    function (s, p) {
+      return s + num(p.pnlNaoRealizado);
+    },
+    0
+  );
 
-  var ultimaCompra =
-    historico.find(function (h) {
-      return h.lado === "COMPRA";
-    }) || null;
-
-  var ultimaVenda =
-    historico.find(function (h) {
-      return h.lado === "VENDA";
-    }) || null;
+  const pnlRealizado = posicoes.reduce(
+    function (s, p) {
+      return s + num(p.pnlRealizado);
+    },
+    0
+  );
 
   return {
-    id: dados.id,
-    nome: dados.nome,
-    patrimonioUSDT: dados.patrimonioUSDT,
-    patrimonioUSD: dados.patrimonioUSD,
-    patrimonioBRL: dados.patrimonioBRL,
-    usdtBrl: dados.usdtBrl,
-    totalAtivos: dados.totalAtivos,
-    ativos: dados.ativos,
-    posicoes: posicoes,
-    historico: historico,
+    ...dados,
+    posicoes,
+    historico,
     pnlNaoRealizado: pnlAberto,
-    pnlRealizado: pnlRealizado,
-    pnlTotalEstimado: pnlAberto + pnlRealizado,
-    ultimaCompra: ultimaCompra,
-    ultimaVenda: ultimaVenda,
-    atualizadoEm: dados.atualizadoEm
+    pnlRealizado,
+    pnlTotalEstimado:
+      pnlAberto + pnlRealizado,
+    ultimaCompra:
+      historico.find(function (h) {
+        return h.lado === "COMPRA";
+      }) || null,
+    ultimaVenda:
+      historico.find(function (h) {
+        return h.lado === "VENDA";
+      }) || null
   };
 }
 
 /*
 =========================================================
-API PRINCIPAL
+API DASHBOARD
 =========================================================
 */
 
 app.get("/api/dashboard", async function (req, res) {
   try {
-    var contas = await Promise.all(
+    const contas = await Promise.all(
       clientes.map(async function (conta) {
         try {
           return await obterDashboardConta(conta);
@@ -499,6 +497,7 @@ app.get("/api/dashboard", async function (req, res) {
           return {
             id: conta.id,
             nome: conta.nome,
+            descricao: conta.descricao,
             erro: e.message,
             patrimonioUSDT: 0,
             patrimonioUSD: 0,
@@ -516,19 +515,9 @@ app.get("/api/dashboard", async function (req, res) {
       })
     );
 
-    var totalUSDT = contas.reduce(function (s, c) {
-      return s + num(c.patrimonioUSDT);
-    }, 0);
-
-    var totalBRL = contas.reduce(function (s, c) {
-      return s + num(c.patrimonioBRL);
-    }, 0);
-
     res.json({
       atualizadoEm: Date.now(),
-      totalUSDT: totalUSDT,
-      totalBRL: totalBRL,
-      contas: contas
+      contas
     });
   } catch (e) {
     res.status(500).json({
@@ -539,13 +528,13 @@ app.get("/api/dashboard", async function (req, res) {
 
 /*
 =========================================================
-API DE UMA CONTA
+API DE CONTA
 =========================================================
 */
 
 app.get("/api/account/:id", async function (req, res) {
   try {
-    var conta = clientes.find(function (c) {
+    const conta = clientes.find(function (c) {
       return c.id === String(req.params.id);
     });
 
@@ -573,17 +562,21 @@ API DO GRÁFICO
 
 app.get("/api/chart", async function (req, res) {
   try {
-    var accountId = String(req.query.account || "1");
-    var symbol = String(
-      req.query.symbol || "BTCUSDT"
-    ).toUpperCase();
+    const account =
+      String(req.query.account || "1");
 
-    var interval = String(
-      req.query.interval || "15m"
-    );
+    const symbol =
+      String(
+        req.query.symbol || "BTCUSDT"
+      ).toUpperCase();
 
-    var conta = clientes.find(function (c) {
-      return c.id === accountId;
+    const interval =
+      String(
+        req.query.interval || "15m"
+      );
+
+    const conta = clientes.find(function (c) {
+      return c.id === account;
     });
 
     if (!conta) {
@@ -592,98 +585,123 @@ app.get("/api/chart", async function (req, res) {
       });
     }
 
-    var candles = await conta.client.candles({
-      symbol: symbol,
-      interval: interval,
-      limit: 300
-    });
-
-    var trades = await obterTrades(
-      conta,
-      symbol,
-      1000
-    );
-
-    var buys = trades
-      .filter(function (t) {
-        return Boolean(t.isBuyer);
-      })
-      .sort(function (a, b) {
-        return num(a.time) - num(b.time);
+    const candles =
+      await conta.client.candles({
+        symbol,
+        interval,
+        limit: 300
       });
 
-    var entry = null;
-    var entryTime = null;
+    const trades =
+      await obterTrades(
+        conta,
+        symbol,
+        1000
+      );
 
-    if (buys.length > 0) {
-      var buyQty = buys.reduce(function (s, t) {
-        return s + num(t.qty);
-      }, 0);
+    const buys =
+      trades
+        .filter(function (t) {
+          return Boolean(t.isBuyer);
+        })
+        .sort(function (a, b) {
+          return num(a.time) - num(b.time);
+        });
 
-      var buyCost = buys.reduce(function (s, t) {
-        return (
-          s +
-          (num(t.quoteQty) ||
-            num(t.qty) * num(t.price))
-        );
-      }, 0);
+    let entry = null;
+    let entryTime = null;
 
-      if (buyQty > 0) {
-        entry = buyCost / buyQty;
+    if (buys.length) {
+      const qty = buys.reduce(
+        function (s, t) {
+          return s + num(t.qty);
+        },
+        0
+      );
+
+      const cost = buys.reduce(
+        function (s, t) {
+          return (
+            s +
+            (
+              num(t.quoteQty) ||
+              num(t.qty) * num(t.price)
+            )
+          );
+        },
+        0
+      );
+
+      if (qty > 0) {
+        entry = cost / qty;
       }
 
-      entryTime = Math.floor(
-        num(buys[buys.length - 1].time) / 1000
-      );
+      entryTime =
+        Math.floor(
+          num(
+            buys[buys.length - 1].time
+          ) / 1000
+        );
     }
 
-    var orders = [];
+    let orders = [];
 
     try {
-      orders = await conta.client.openOrders({
-        symbol: symbol
-      });
+      orders =
+        await conta.client.openOrders({
+          symbol
+        });
     } catch (e) {}
 
-    var sell = orders
-      .filter(function (o) {
-        return (
-          String(o.side || "").toUpperCase() ===
-            "SELL" &&
-          num(o.price) > 0
-        );
-      })
-      .sort(function (a, b) {
-        return num(a.price) - num(b.price);
-      })[0];
+    const sell =
+      orders
+        .filter(function (o) {
+          return (
+            String(o.side).toUpperCase() ===
+              "SELL" &&
+            num(o.price) > 0
+          );
+        })
+        .sort(function (a, b) {
+          return num(a.price) - num(b.price);
+        })[0] || null;
 
-    var stop = orders.find(function (o) {
-      return [
-        "STOP",
-        "STOP_LOSS",
-        "STOP_LOSS_LIMIT"
-      ].indexOf(
-        String(o.type || "").toUpperCase()
-      ) >= 0;
-    });
+    const stop =
+      orders.find(function (o) {
+        return [
+          "STOP",
+          "STOP_LOSS",
+          "STOP_LOSS_LIMIT"
+        ].includes(
+          String(o.type || "").toUpperCase()
+        );
+      }) || null;
 
     res.json({
-      symbol: symbol,
-      interval: interval,
+      symbol,
+      interval,
       candles: candles.map(function (c) {
         return {
-          time: Math.floor(num(c.openTime) / 1000),
+          time:
+            Math.floor(
+              num(c.openTime) / 1000
+            ),
           open: num(c.open),
           high: num(c.high),
           low: num(c.low),
           close: num(c.close)
         };
       }),
-      entry: entry,
-      entryTime: entryTime,
-      tp: sell ? num(sell.price) : null,
+      entry,
+      entryTime,
+      tp: sell
+        ? num(sell.price)
+        : null,
       sl: stop
-        ? num(stop.stopPrice || stop.price)
+        ? num(
+            stop.stopPrice ||
+            stop.price
+          )
         : null
     });
   } catch (e) {
@@ -693,24 +711,18 @@ app.get("/api/chart", async function (req, res) {
   }
 });
 
-/*
-=========================================================
-STATUS
-=========================================================
-*/
-
 app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium",
-    contas: clientes.length
+    painel: "premium-v2",
+    contas: 2
   });
 });
 
 /*
 =========================================================
-INTERFACE
+INTERFACE PREMIUM
 =========================================================
 */
 
@@ -720,28 +732,25 @@ app.get("/", function (req, res) {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-
-<title>Binance-Robo | Painel Premium</title>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Binance-Robo | Central de Operações</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
-
 :root{
-  --bg:#070b14;
-  --panel:#101827;
-  --panel2:#0b1321;
-  --line:#253249;
-  --text:#f6f8fc;
-  --muted:#8c99ae;
-  --green:#20d890;
-  --red:#ff5d73;
-  --blue:#49a7ff;
-  --gold:#f6bb55;
-  --purple:#856bff;
+  --bg:#050812;
+  --bg2:#09101d;
+  --panel:#0d1626;
+  --panel2:#111c2e;
+  --line:#21304a;
+  --text:#f7f9fd;
+  --muted:#8290a8;
+  --blue:#4aa8ff;
+  --green:#20df96;
+  --red:#ff6177;
+  --yellow:#ffc85a;
+  --purple:#8368ff;
 }
 
 *{
@@ -750,117 +759,225 @@ app.get("/", function (req, res) {
 
 body{
   margin:0;
-  background:
-    radial-gradient(
-      circle at 15% 0%,
-      #18264d 0%,
-      #070b14 42%
-    );
   color:var(--text);
-  font-family:Arial,Helvetica,sans-serif;
+  background:
+    radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),
+    radial-gradient(circle at 100% 20%,#111b37 0%,transparent 28%),
+    var(--bg);
+  font-family:Inter,Arial,sans-serif;
 }
 
-header{
-  height:82px;
-  padding:0 5%;
+button,
+select{
+  font:inherit;
+}
+
+.header{
+  height:78px;
+  border-bottom:1px solid #1a2639;
+  background:#04070eee;
   display:flex;
   align-items:center;
   justify-content:space-between;
-  background:#050811ee;
-  border-bottom:1px solid #1b2536;
+  padding:0 42px;
   position:sticky;
   top:0;
-  z-index:10;
-  backdrop-filter:blur(12px);
+  z-index:20;
+  backdrop-filter:blur(15px);
 }
 
 .brand{
   display:flex;
   align-items:center;
-  gap:14px;
+  gap:13px;
 }
 
 .logo{
-  width:46px;
-  height:46px;
-  border-radius:14px;
+  width:43px;
+  height:43px;
   display:grid;
   place-items:center;
-  background:linear-gradient(135deg,#ffad00,#ffd25c);
-  font-size:25px;
+  border-radius:13px;
+  background:linear-gradient(135deg,#ffae00,#ffd55b);
+  font-size:23px;
+  box-shadow:0 8px 25px #0007;
 }
 
-.brand h1{
-  margin:0;
-  font-size:19px;
+.brandTitle{
+  font-size:17px;
+  font-weight:900;
 }
 
-.brand small{
+.brandSub{
   color:var(--muted);
-  font-size:12px;
+  font-size:10px;
+  margin-top:2px;
 }
 
-.online{
-  color:#26df94;
-  background:#08271d;
-  border:1px solid #145c43;
-  border-radius:30px;
-  padding:9px 15px;
-  font-size:12px;
+.status{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  padding:9px 13px;
+  border:1px solid #17573f;
+  background:#082319;
+  border-radius:999px;
+  color:var(--green);
+  font-size:11px;
   font-weight:800;
 }
 
-main{
-  max-width:1500px;
-  margin:auto;
-  padding:30px 5% 60px;
+.statusDot{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--green);
+  box-shadow:0 0 12px var(--green);
 }
 
-.topTitle{
+.container{
+  max-width:1450px;
+  margin:auto;
+  padding:30px 38px 55px;
+}
+
+.hero{
   display:flex;
   justify-content:space-between;
-  align-items:flex-end;
+  align-items:end;
+  gap:20px;
   margin-bottom:22px;
 }
 
-.topTitle h2{
+.hero h1{
   margin:0;
   font-size:34px;
 }
 
-.topTitle p{
-  margin:8px 0 0;
+.hero p{
+  margin:7px 0 0;
   color:var(--muted);
+  font-size:13px;
 }
 
-.muted{
+.update{
   color:var(--muted);
-  font-size:11px;
+  font-size:10px;
+}
+
+.accountTabs{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-bottom:22px;
+}
+
+.accountTab{
+  position:relative;
+  cursor:pointer;
+  text-align:left;
+  border:1px solid var(--line);
+  border-radius:17px;
+  padding:17px 20px;
+  background:linear-gradient(145deg,#0f192a,#0a111e);
+  color:var(--text);
+  transition:.2s;
+}
+
+.accountTab:hover{
+  transform:translateY(-1px);
+  border-color:#405577;
+}
+
+.accountTab.active{
+  border-color:#5d73ff;
+  background:
+    linear-gradient(145deg,#152347,#0b1425);
+  box-shadow:0 0 0 1px #5d73ff33,0 12px 35px #0007;
+}
+
+.accountTab.active:after{
+  content:"";
+  position:absolute;
+  left:20px;
+  right:20px;
+  bottom:-1px;
+  height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  border-radius:10px 10px 0 0;
+}
+
+.tabTop{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.tabName{
+  font-size:20px;
+  font-weight:900;
+}
+
+.tabBadge{
+  padding:5px 9px;
+  border-radius:8px;
+  background:#15253d;
+  color:#9bc7ff;
+  font-size:9px;
+  font-weight:800;
+}
+
+.tabValues{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:12px;
+  margin-top:12px;
+}
+
+.tabMetric span{
+  display:block;
+  color:var(--muted);
+  font-size:9px;
+  margin-bottom:4px;
+}
+
+.tabMetric b{
+  font-size:13px;
 }
 
 .cards{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:16px;
+  gap:14px;
 }
 
 .card{
-  background:linear-gradient(145deg,#121e34,#0c1422);
   border:1px solid var(--line);
-  border-radius:18px;
-  padding:20px;
-  box-shadow:0 14px 40px #0005;
+  border-radius:17px;
+  background:
+    linear-gradient(145deg,#101b2d,#0a111e);
+  box-shadow:0 14px 35px #0005;
 }
 
-.label{
+.metricCard{
+  padding:18px;
+}
+
+.metricLabel{
   color:var(--muted);
-  font-size:12px;
-  margin-bottom:9px;
+  font-size:10px;
+  margin-bottom:8px;
 }
 
-.value{
-  font-size:26px;
+.metricValue{
+  font-size:24px;
   font-weight:900;
+}
+
+.metricSub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:9px;
 }
 
 .green{
@@ -875,412 +992,552 @@ main{
   color:var(--blue)!important;
 }
 
-.gold{
-  color:var(--gold)!important;
+.yellow{
+  color:var(--yellow)!important;
 }
 
 .section{
-  margin-top:22px;
+  margin-top:20px;
+}
+
+.sectionHead{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:11px;
 }
 
 .sectionTitle{
-  margin:0 0 12px;
-  font-size:18px;
-}
-
-.accounts{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
-}
-
-.account{
-  background:linear-gradient(145deg,#111b2d,#0b121f);
-  border:1px solid var(--line);
-  border-radius:20px;
-  padding:22px;
-}
-
-.accountHead{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  margin-bottom:18px;
-}
-
-.accountHead h3{
   margin:0;
-  font-size:20px;
+  font-size:16px;
 }
 
-.badge{
-  color:#9cc6ff;
-  background:#15243a;
-  border-radius:20px;
-  padding:6px 10px;
-  font-size:11px;
-}
-
-.metrics{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-}
-
-.metric{
-  background:#0a111d;
-  border:1px solid #1d293b;
-  border-radius:13px;
-  padding:13px;
-}
-
-.metric strong{
-  font-size:17px;
-}
-
-.sub{
-  margin-top:6px;
+.sectionDesc{
   color:var(--muted);
-  font-size:11px;
+  font-size:9px;
 }
 
-.operation{
-  margin-top:15px;
-  padding:15px;
-  border-radius:14px;
-  background:#0a111d;
-  border:1px solid #1d293b;
+.mainGrid{
+  display:grid;
+  grid-template-columns:1.55fr .75fr;
+  gap:17px;
 }
 
-.opTop{
+.positionCard{
+  padding:20px;
+}
+
+.positionHeader{
   display:flex;
   justify-content:space-between;
-  align-items:center;
-  gap:10px;
+  align-items:flex-start;
+}
+
+.positionLabel{
+  color:var(--muted);
+  font-size:9px;
+  margin-bottom:5px;
 }
 
 .coin{
-  font-size:22px;
+  font-size:27px;
   font-weight:900;
 }
 
-.pill{
-  padding:6px 10px;
-  border-radius:20px;
-  font-size:11px;
-  font-weight:800;
+.positionStatus{
+  padding:7px 11px;
+  border-radius:999px;
+  background:#063a29;
+  color:var(--green);
+  font-size:9px;
+  font-weight:900;
 }
 
-.pillBuy{
-  color:#31e59d;
-  background:#063d2a;
-}
-
-.kv{
+.positionGrid{
   display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin-top:14px;
+  grid-template-columns:repeat(5,1fr);
+  gap:9px;
+  margin-top:17px;
 }
 
-.kvItem{
+.info{
+  padding:12px;
+  border:1px solid #1c2940;
+  border-radius:11px;
+  background:#09111e;
+}
+
+.info span{
   color:var(--muted);
-  font-size:11px;
-}
-
-.kvItem b{
   display:block;
-  color:var(--text);
-  margin-top:4px;
-  font-size:13px;
+  font-size:9px;
+  margin-bottom:5px;
 }
 
-.compare{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:18px;
-}
-
-.mini{
-  background:linear-gradient(145deg,#101a2b,#0b121e);
-  border:1px solid var(--line);
-  border-radius:18px;
-  padding:18px;
-}
-
-.mini h4{
-  margin:0 0 14px;
-  font-size:17px;
-}
-
-.bar{
-  height:8px;
-  margin-top:10px;
-  border-radius:20px;
-  background:#172235;
-  overflow:hidden;
-}
-
-.bar i{
-  display:block;
-  height:100%;
-  background:linear-gradient(90deg,#49a7ff,#856bff);
-}
-
-.layout{
-  display:grid;
-  grid-template-columns:1.6fr 1fr;
-  gap:18px;
-}
-
-.chartBox{
-  min-height:470px;
-}
-
-.controls{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin-bottom:10px;
-}
-
-.controls select,
-.controls button{
-  background:#111d31;
-  color:#e0e8f6;
-  border:1px solid #29364d;
-  border-radius:9px;
-  padding:8px 12px;
-  cursor:pointer;
-}
-
-.controls button.active{
-  background:linear-gradient(135deg,#6f55ff,#856bff);
-  border-color:#856bff;
-}
-
-#chart{
-  width:100%;
-  height:390px;
-}
-
-.tableWrap{
-  overflow:auto;
-}
-
-table{
-  width:100%;
-  border-collapse:collapse;
+.info b{
   font-size:12px;
 }
 
-th,
-td{
-  padding:11px 8px;
-  text-align:left;
-  border-bottom:1px solid #1c2738;
-}
-
-th{
+.empty{
+  min-height:150px;
+  display:grid;
+  place-items:center;
   color:var(--muted);
-  font-weight:600;
-}
-
-footer{
+  font-size:12px;
   text-align:center;
-  color:var(--muted);
-  font-size:11px;
-  padding:20px 5% 35px;
 }
 
-@media(max-width:1050px){
+.assetsCard{
+  padding:20px;
+}
 
+.assetRow{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  padding:11px 0;
+  border-bottom:1px solid #192438;
+}
+
+.assetRow:last-child{
+  border-bottom:0;
+}
+
+.assetName{
+  font-weight:800;
+  font-size:12px;
+}
+
+.assetAmount{
+  color:var(--muted);
+  font-size:9px;
+  margin-top:3px;
+}
+
+.assetValue{
+  text-align:right;
+  font-weight:800;
+  font-size:11px;
+}
+
+.chartCard{
+  padding:0;
+  overflow:hidden;
+}
+
+.chartHeader{
+  padding:16px 18px;
+  border-bottom:1px solid #1b273a;
+}
+
+.chartControls{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+  margin-top:11px;
+}
+
+.chartControls select,
+.chartControls button{
+  border:1px solid #293951;
+  background:#0b1524;
+  color:#dce7f8;
+  padding:7px 10px;
+  border-radius:8px;
+  font-size:10px;
+  cursor:pointer;
+}
+
+.chartControls button.active{
+  background:linear-gradient(135deg,#654eff,#806aff);
+  border-color:#8368ff;
+}
+
+#chart{
+  height:410px;
+  width:100%;
+}
+
+.chartLegend{
+  padding:9px 18px 13px;
+  color:var(--muted);
+  font-size:9px;
+}
+
+.historyCard{
+  padding:0;
+  overflow:hidden;
+}
+
+.historyHead{
+  padding:16px 18px;
+  border-bottom:1px solid #1b273a;
+}
+
+.history{
+  max-height:460px;
+  overflow:auto;
+}
+
+.historyRow{
+  display:grid;
+  grid-template-columns:1fr .8fr .7fr 1fr;
+  gap:7px;
+  padding:11px 18px;
+  border-bottom:1px solid #182337;
+  font-size:10px;
+}
+
+.historyRow span:nth-child(2){
+  color:#9eabc0;
+}
+
+.buy{
+  color:var(--green);
+  font-weight:800;
+}
+
+.sell{
+  color:var(--red);
+  font-weight:800;
+}
+
+.pnlBox{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+
+.pnlPanel{
+  padding:19px;
+}
+
+.pnlNumber{
+  font-size:25px;
+  font-weight:900;
+  margin-top:6px;
+}
+
+.note{
+  margin-top:14px;
+  color:#64728a;
+  font-size:9px;
+  line-height:1.5;
+}
+
+.footer{
+  text-align:center;
+  color:#59677d;
+  font-size:9px;
+  padding-top:28px;
+}
+
+@media(max-width:1000px){
   .cards{
     grid-template-columns:repeat(2,1fr);
   }
 
-  .accounts,
-  .layout{
+  .mainGrid{
     grid-template-columns:1fr;
   }
 
+  .positionGrid{
+    grid-template-columns:repeat(3,1fr);
+  }
 }
 
 @media(max-width:650px){
+  .header{
+    padding:0 15px;
+  }
+
+  .container{
+    padding:20px 14px 40px;
+  }
+
+  .hero{
+    display:block;
+  }
+
+  .update{
+    margin-top:10px;
+  }
+
+  .accountTabs{
+    grid-template-columns:1fr;
+  }
 
   .cards{
     grid-template-columns:1fr;
   }
 
-  .metrics{
+  .tabValues{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .positionGrid{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .pnlBox{
     grid-template-columns:1fr;
   }
-
-  .kv{
-    grid-template-columns:repeat(2,1fr);
-  }
-
-  .compare{
-    grid-template-columns:1fr;
-  }
-
-  .topTitle{
-    display:block;
-  }
-
-  .topTitle h2{
-    font-size:28px;
-  }
-
 }
-
 </style>
 </head>
 
 <body>
 
-<header>
-
+<header class="header">
   <div class="brand">
-
     <div class="logo">🤖</div>
-
     <div>
-      <h1>Binance-Robo</h1>
-      <small>Painel de Controle Premium</small>
+      <div class="brandTitle">Binance-Robo</div>
+      <div class="brandSub">Central de Controle Premium</div>
     </div>
-
   </div>
 
-  <div class="online">● ONLINE</div>
-
+  <div class="status">
+    <span class="statusDot"></span>
+    ONLINE
+  </div>
 </header>
 
-<main>
+<div class="container">
 
-  <div class="topTitle">
-
+  <div class="hero">
     <div>
-      <h2>Dashboard</h2>
-      <p>Controle separado das duas contas Binance.</p>
+      <h1 id="pageTitle">THIAGO</h1>
+      <p id="pageSubtitle">Painel individual da sua conta Binance.</p>
     </div>
 
-    <div id="atualizado" class="muted"></div>
+    <div id="updated" class="update">
+      Atualizando...
+    </div>
+  </div>
+
+  <!-- BOTÕES DAS DUAS CONTAS -->
+  <div class="accountTabs">
+
+    <button id="tab1" class="accountTab active" onclick="selecionarConta('1')">
+      <div class="tabTop">
+        <div class="tabName">👤 THIAGO</div>
+        <div class="tabBadge">CONTA 1</div>
+      </div>
+
+      <div class="tabValues">
+        <div class="tabMetric">
+          <span>PATRIMÔNIO</span>
+          <b id="tabPat1">--</b>
+        </div>
+
+        <div class="tabMetric">
+          <span>P/L</span>
+          <b id="tabPnl1">--</b>
+        </div>
+
+        <div class="tabMetric">
+          <span>OPERAÇÕES</span>
+          <b id="tabOps1">--</b>
+        </div>
+      </div>
+    </button>
+
+
+    <button id="tab2" class="accountTab" onclick="selecionarConta('2')">
+      <div class="tabTop">
+        <div class="tabName">👤 SERGIO</div>
+        <div class="tabBadge">CONTA 2</div>
+      </div>
+
+      <div class="tabValues">
+        <div class="tabMetric">
+          <span>PATRIMÔNIO</span>
+          <b id="tabPat2">--</b>
+        </div>
+
+        <div class="tabMetric">
+          <span>P/L</span>
+          <b id="tabPnl2">--</b>
+        </div>
+
+        <div class="tabMetric">
+          <span>OPERAÇÕES</span>
+          <b id="tabOps2">--</b>
+        </div>
+      </div>
+    </button>
 
   </div>
 
 
+  <!-- CARDS DA CONTA SELECIONADA -->
   <div class="cards">
 
-    <div class="card">
-      <div class="label">💰 Patrimônio total</div>
-      <div id="totalUSDT" class="value">--</div>
-      <div id="totalBRL" class="sub">--</div>
+    <div class="card metricCard">
+      <div class="metricLabel">💰 PATRIMÔNIO</div>
+      <div id="patrimonio" class="metricValue">--</div>
+      <div id="patrimonioBRL" class="metricSub">--</div>
     </div>
 
-    <div class="card">
-      <div class="label">📈 Lucro / Perda estimado</div>
-      <div id="totalPnL" class="value">--</div>
-      <div class="sub">Realizado + posição aberta</div>
+    <div class="card metricCard">
+      <div class="metricLabel">📈 LUCRO / PERDA</div>
+      <div id="pnl" class="metricValue">--</div>
+      <div id="pnlDetalhe" class="metricSub">--</div>
     </div>
 
-    <div class="card">
-      <div class="label">🟢 Operações ativas</div>
-      <div id="totalOps" class="value">--</div>
-      <div class="sub">Posições detectadas</div>
+    <div class="card metricCard">
+      <div class="metricLabel">🟢 OPERAÇÕES ATIVAS</div>
+      <div id="operacoes" class="metricValue">--</div>
+      <div class="metricSub">Posições detectadas</div>
     </div>
 
-    <div class="card">
-      <div class="label">🪙 Ativos</div>
-      <div id="totalAssets" class="value">--</div>
-      <div class="sub">Somando as duas contas</div>
+    <div class="card metricCard">
+      <div class="metricLabel">🪙 ATIVOS</div>
+      <div id="ativos" class="metricValue">--</div>
+      <div class="metricSub">Ativos com valor</div>
     </div>
 
   </div>
 
 
+  <!-- POSIÇÃO + ATIVOS -->
   <section class="section">
 
-    <h3 class="sectionTitle">👥 Contas separadas</h3>
+    <div class="sectionHead">
+      <div>
+        <h2 class="sectionTitle">🎯 Operação da conta</h2>
+        <div class="sectionDesc">
+          Informações da conta selecionada
+        </div>
+      </div>
+    </div>
 
-    <div class="accounts">
+    <div class="mainGrid">
 
-      <div id="conta1" class="account"></div>
+      <div id="position" class="card positionCard"></div>
 
-      <div id="conta2" class="account"></div>
+      <div class="card assetsCard">
+        <h3 class="sectionTitle">🪙 Carteira</h3>
+        <div class="sectionDesc" style="margin-top:4px">
+          Maiores ativos por valor
+        </div>
+        <div id="assets" style="margin-top:10px"></div>
+      </div>
 
     </div>
 
   </section>
 
 
+  <!-- GRÁFICO + HISTÓRICO -->
   <section class="section">
 
-    <h3 class="sectionTitle">📊 Comparativo</h3>
+    <div class="sectionHead">
+      <div>
+        <h2 class="sectionTitle">📊 Mercado e histórico</h2>
+        <div class="sectionDesc">
+          Gráfico individual da conta selecionada
+        </div>
+      </div>
+    </div>
 
-    <div id="comparativo" class="compare"></div>
+    <div class="mainGrid">
 
-  </section>
+      <div class="card chartCard">
 
+        <div class="chartHeader">
 
-  <section class="section layout">
+          <div style="font-weight:900;font-size:14px">
+            Gráfico da operação
+          </div>
 
-    <div class="card chartBox">
+          <div class="chartControls">
 
-      <h3 class="sectionTitle">📉 Gráfico da operação</h3>
+            <select id="symbolSelect">
+              <option value="BTCUSDT">BTCUSDT</option>
+            </select>
 
-      <div class="controls">
+            <button class="interval active" data-i="15m">
+              15m
+            </button>
 
-        <select id="accountSelect">
-          <option value="1">SUA CONTA</option>
-          <option value="2">CONTA DO AMIGO</option>
-        </select>
+            <button class="interval" data-i="1h">
+              1h
+            </button>
 
-        <select id="symbolSelect">
-          <option value="BTCUSDT">BTCUSDT</option>
-        </select>
+            <button class="interval" data-i="4h">
+              4h
+            </button>
 
-        <button data-interval="15m" class="active">15m</button>
-        <button data-interval="1h">1h</button>
-        <button data-interval="4h">4h</button>
+          </div>
+
+        </div>
+
+        <div id="chart"></div>
+
+        <div class="chartLegend">
+          🟢 Entrada/compra &nbsp;&nbsp;
+          🟡 Take Profit &nbsp;&nbsp;
+          🔴 Stop Loss
+        </div>
 
       </div>
 
-      <div id="chart"></div>
 
-      <div class="sub">
-        🟢 entrada/compra
-        • 🟡 Take Profit
-        • 🔴 Stop Loss
+      <div class="card historyCard">
+
+        <div class="historyHead">
+          <div style="font-weight:900;font-size:14px">
+            🧾 Últimas operações
+          </div>
+
+          <div class="sectionDesc" style="margin-top:4px">
+            Somente da conta selecionada
+          </div>
+        </div>
+
+        <div id="history" class="history"></div>
+
       </div>
 
     </div>
 
+  </section>
 
-    <div class="card">
 
-      <h3 class="sectionTitle">🧾 Últimas operações</h3>
+  <!-- PNL DETALHADO -->
+  <section class="section">
 
-      <div class="tableWrap">
+    <div class="pnlBox">
 
-        <table>
+      <div class="card pnlPanel">
+        <div class="metricLabel">
+          💵 P/L REALIZADO
+        </div>
 
-          <thead>
+        <div id="pnlRealizado" class="pnlNumber">
+          --
+        </div>
 
-            <tr>
-              <th>Conta</th>
-              <th>Par</th>
-              <th>Lado</th>
-              <th>Preço</th>
-              <th>Data</th>
-            </tr>
+        <div class="metricSub">
+          Resultado estimado de operações já encerradas.
+        </div>
+      </div>
 
-          </thead>
 
-          <tbody id="historico"></tbody>
+      <div class="card pnlPanel">
+        <div class="metricLabel">
+          📊 P/L EM ABERTO
+        </div>
 
-        </table>
+        <div id="pnlAberto" class="pnlNumber">
+          --
+        </div>
 
+        <div class="metricSub">
+          Resultado estimado das posições atuais.
+        </div>
       </div>
 
     </div>
@@ -1288,25 +1545,25 @@ footer{
   </section>
 
 
-  <div class="muted" style="margin-top:16px">
-    * O P/L histórico é uma estimativa baseada nos trades disponíveis na API da Binance.
-    Para contabilidade completa desde o primeiro dia, seria necessário registrar as operações
-    em banco de dados.
+  <div class="note">
+    O P/L histórico é uma estimativa baseada nos trades disponíveis na API da Binance.
+    O painel é somente leitura e não envia ordens para a Binance.
   </div>
 
-</main>
+  <div class="footer">
+    Binance-Robo • THIAGO / SERGIO • Painel individual • Atualização automática
+  </div>
 
-
-<footer>
-  Binance-Robo • Painel somente leitura • As chaves nunca são exibidas no navegador.
-</footer>
+</div>
 
 
 <script>
 
-var dados = null;
-var chart = null;
-var candleSeries = null;
+let dados = null;
+let contaSelecionada = "1";
+let chart = null;
+let candleSeries = null;
+let intervaloSelecionado = "15m";
 
 
 function dinheiro(v){
@@ -1320,13 +1577,21 @@ function dinheiro(v){
 }
 
 
-function percentual(v){
-  return Number(v || 0).toFixed(2) + "%";
+function numero(v){
+  return Number(v || 0).toLocaleString(
+    "pt-BR",
+    {
+      minimumFractionDigits:2,
+      maximumFractionDigits:8
+    }
+  );
 }
 
 
-function classeValor(v){
-  return Number(v || 0) >= 0 ? "green" : "red";
+function classe(v){
+  return Number(v || 0) >= 0
+    ? "green"
+    : "red";
 }
 
 
@@ -1339,309 +1604,121 @@ function dataHora(t){
 }
 
 
-function esc(v){
-  return String(v == null ? "" : v)
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
-}
+function selecionarConta(id){
 
+  contaSelecionada = String(id);
 
-/*
-=========================================================
-HTML DE CADA CONTA
-=========================================================
-*/
-
-function htmlConta(c){
-
-  if(c.erro){
-
-    return (
-      '<div class="accountHead">' +
-        '<h3>' + esc(c.nome) + '</h3>' +
-        '<span class="badge">ERRO</span>' +
-      '</div>' +
-
-      '<div class="red">' +
-        esc(c.erro) +
-      '</div>'
+  document
+    .getElementById("tab1")
+    .classList.toggle(
+      "active",
+      contaSelecionada === "1"
     );
-  }
 
+  document
+    .getElementById("tab2")
+    .classList.toggle(
+      "active",
+      contaSelecionada === "2"
+    );
 
-  var pos =
-    c.posicoes &&
-    c.posicoes.length
-      ? c.posicoes[0]
-      : null;
+  renderConta();
 
-
-  var pnl =
-    Number(c.pnlTotalEstimado || 0);
-
-
-  var html =
-    '<div class="accountHead">' +
-
-      '<h3>' +
-        esc(c.nome) +
-      '</h3>' +
-
-      '<span class="badge">' +
-        'CONTA ' + esc(c.id) +
-      '</span>' +
-
-    '</div>' +
-
-
-    '<div class="metrics">' +
-
-      '<div class="metric">' +
-
-        '<div class="label">Patrimônio</div>' +
-
-        '<strong>' +
-          dinheiro(c.patrimonioUSDT) +
-          ' USDT' +
-        '</strong>' +
-
-        '<div class="sub">' +
-          'R$ ' +
-          dinheiro(c.patrimonioBRL) +
-        '</div>' +
-
-      '</div>' +
-
-
-      '<div class="metric">' +
-
-        '<div class="label">Lucro / Perda</div>' +
-
-        '<strong class="' +
-          classeValor(pnl) +
-        '">' +
-
-          (pnl >= 0 ? "+" : "") +
-          dinheiro(pnl) +
-          ' USDT' +
-
-        '</strong>' +
-
-        '<div class="sub">' +
-
-          'Real.: ' +
-          dinheiro(c.pnlRealizado) +
-
-          ' • Aberto: ' +
-          dinheiro(c.pnlNaoRealizado) +
-
-        '</div>' +
-
-      '</div>' +
-
-
-      '<div class="metric">' +
-
-        '<div class="label">Ativos</div>' +
-
-        '<strong>' +
-          esc(c.totalAtivos) +
-        '</strong>' +
-
-        '<div class="sub">USDT / Cripto</div>' +
-
-      '</div>' +
-
-    '</div>';
-
-
-  if(pos){
-
-    html +=
-
-      '<div class="operation">' +
-
-        '<div class="opTop">' +
-
-          '<div>' +
-
-            '<div class="label">' +
-              'OPERAÇÃO ATIVA DETECTADA' +
-            '</div>' +
-
-            '<div class="coin">' +
-              esc(pos.symbol) +
-            '</div>' +
-
-          '</div>' +
-
-          '<span class="pill pillBuy">' +
-            '🟢 POSIÇÃO' +
-          '</span>' +
-
-        '</div>' +
-
-
-        '<div class="kv">' +
-
-          '<div class="kvItem">' +
-            'Entrada' +
-            '<b>' +
-              dinheiro(pos.precoMedio) +
-              ' USDT' +
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'Atual' +
-            '<b>' +
-              dinheiro(pos.precoAtual) +
-              ' USDT' +
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'P/L' +
-            '<b class="' +
-              classeValor(pos.pnlNaoRealizado) +
-            '">' +
-
-              (pos.pnlNaoRealizado >= 0 ? "+" : "") +
-              dinheiro(pos.pnlNaoRealizado) +
-              ' (' +
-              percentual(pos.pnlNaoRealizadoPct) +
-              ')' +
-
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'Quantidade' +
-            '<b>' +
-              Number(pos.quantidade || 0).toFixed(8) +
-            '</b>' +
-          '</div>' +
-
-        '</div>' +
-
-
-        '<div class="kv">' +
-
-          '<div class="kvItem">' +
-            'Take Profit' +
-            '<b>' +
-              (
-                pos.tp
-                  ? dinheiro(pos.tp.price)
-                  : "--"
-              ) +
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'Stop Loss' +
-            '<b>' +
-              (
-                pos.sl
-                  ? dinheiro(pos.sl.stopPrice)
-                  : "--"
-              ) +
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'Ordens abertas' +
-            '<b>' +
-              esc(pos.ordensAbertas) +
-            '</b>' +
-          '</div>' +
-
-          '<div class="kvItem">' +
-            'Último trade' +
-            '<b>' +
-              (
-                pos.ultimaOperacao
-                  ? dataHora(pos.ultimaOperacao.time)
-                  : "--"
-              ) +
-            '</b>' +
-          '</div>' +
-
-        '</div>' +
-
-      '</div>';
-
-  }else{
-
-    html +=
-
-      '<div class="operation">' +
-
-        '<div class="label">OPERAÇÃO ATIVA</div>' +
-
-        '<strong>' +
-          'Nenhuma posição ≥ 3 USDT detectada.' +
-        '</strong>' +
-
-      '</div>';
-  }
-
-
-  return html;
+  carregarGrafico();
 }
 
 
-/*
-=========================================================
-RENDER
-=========================================================
-*/
-
-function render(){
+function preencherTabs(){
 
   if(!dados || !dados.contas) return;
 
+  dados.contas.forEach(function(c){
 
-  var c1 = dados.contas[0];
-  var c2 = dados.contas[1];
+    const pat =
+      document.getElementById(
+        "tabPat" + c.id
+      );
+
+    const pnl =
+      document.getElementById(
+        "tabPnl" + c.id
+      );
+
+    const ops =
+      document.getElementById(
+        "tabOps" + c.id
+      );
+
+    if(!pat) return;
+
+    pat.textContent =
+      dinheiro(c.patrimonioUSDT) +
+      " USDT";
+
+    pnl.textContent =
+      (Number(c.pnlTotalEstimado || 0) >= 0
+        ? "+"
+        : "") +
+      dinheiro(c.pnlTotalEstimado) +
+      " USDT";
+
+    pnl.className =
+      classe(c.pnlTotalEstimado);
+
+    ops.textContent =
+      (c.posicoes || []).length;
+  });
+}
+
+
+function renderConta(){
+
+  if(!dados) return;
+
+  const c =
+    dados.contas.find(function(x){
+      return x.id === contaSelecionada;
+    });
+
+  if(!c) return;
 
 
   document.getElementById(
-    "totalUSDT"
+    "pageTitle"
   ).textContent =
-    dinheiro(dados.totalUSDT) +
+    c.nome;
+
+
+  document.getElementById(
+    "pageSubtitle"
+  ).textContent =
+    c.nome === "THIAGO"
+      ? "Painel individual da sua conta Binance."
+      : "Painel individual da conta de Sergio.";
+
+
+  document.getElementById(
+    "patrimonio"
+  ).textContent =
+    dinheiro(c.patrimonioUSDT) +
     " USDT";
 
 
   document.getElementById(
-    "totalBRL"
+    "patrimonioBRL"
   ).textContent =
     "R$ " +
-    dinheiro(dados.totalBRL);
+    dinheiro(c.patrimonioBRL) +
+    " • USDT/BRL " +
+    dinheiro(c.usdtBrl);
 
 
-  var pnl =
-    Number(c1.pnlTotalEstimado || 0) +
-    Number(c2.pnlTotalEstimado || 0);
+  const pnl =
+    Number(c.pnlTotalEstimado || 0);
 
 
-  var ops =
-    (c1.posicoes || []).length +
-    (c2.posicoes || []).length;
-
-
-  var assets =
-    Number(c1.totalAtivos || 0) +
-    Number(c2.totalAtivos || 0);
-
-
-  var pnlEl =
-    document.getElementById(
-      "totalPnL"
-    );
+  const pnlEl =
+    document.getElementById("pnl");
 
 
   pnlEl.textContent =
@@ -1651,328 +1728,326 @@ function render(){
 
 
   pnlEl.className =
-    "value " +
-    classeValor(pnl);
+    "metricValue " +
+    classe(pnl);
 
 
   document.getElementById(
-    "totalOps"
-  ).textContent = ops;
-
-
-  document.getElementById(
-    "totalAssets"
-  ).textContent = assets;
-
-
-  document.getElementById(
-    "conta1"
-  ).innerHTML =
-    htmlConta(c1);
-
-
-  document.getElementById(
-    "conta2"
-  ).innerHTML =
-    htmlConta(c2);
-
-
-  document.getElementById(
-    "atualizado"
+    "pnlDetalhe"
   ).textContent =
-    "Atualizado às " +
-    new Date(
-      dados.atualizadoEm
-    ).toLocaleTimeString(
-      "pt-BR"
-    );
-
-
-  /*
-  =======================================================
-  COMPARATIVO
-  =======================================================
-  */
-
-  var max =
-    Math.max(
-      Number(c1.patrimonioUSDT || 0),
-      Number(c2.patrimonioUSDT || 0),
-      1
-    );
+    "Realizado: " +
+    dinheiro(c.pnlRealizado) +
+    " • Aberto: " +
+    dinheiro(c.pnlNaoRealizado);
 
 
   document.getElementById(
-    "comparativo"
-  ).innerHTML =
-
-    htmlComparativo(c1,max) +
-    htmlComparativo(c2,max);
+    "operacoes"
+  ).textContent =
+    (c.posicoes || []).length;
 
 
-  /*
-  =======================================================
-  SÍMBOLOS
-  =======================================================
-  */
-
-  var simbolos = [];
-
-  [c1,c2].forEach(function(c){
-
-    (c.posicoes || []).forEach(function(p){
-
-      if(
-        simbolos.indexOf(p.symbol) === -1
-      ){
-        simbolos.push(p.symbol);
-      }
-
-    });
-
-  });
+  document.getElementById(
+    "ativos"
+  ).textContent =
+    c.totalAtivos;
 
 
-  var select =
-    document.getElementById(
-      "symbolSelect"
-    );
+  renderPosicao(c);
 
+  renderAtivos(c);
 
-  var atual =
-    select.value;
-
-
-  if(simbolos.length){
-
-    select.innerHTML =
-      simbolos.map(function(s){
-
-        return (
-          '<option value="' +
-          esc(s) +
-          '">' +
-          esc(s) +
-          '</option>'
-        );
-
-      }).join("");
-
-    if(
-      simbolos.indexOf(atual) >= 0
-    ){
-      select.value = atual;
-    }
-
-  }else{
-
-    select.innerHTML =
-      '<option value="BTCUSDT">BTCUSDT</option>';
-
-  }
-
-
-  /*
-  =======================================================
-  HISTÓRICO
-  =======================================================
-  */
-
-  var historico = [];
-
-  [c1,c2].forEach(function(c){
-
-    (c.historico || []).forEach(function(h){
-
-      historico.push({
-        conta:c.nome,
-        symbol:h.symbol,
-        lado:h.lado,
-        price:h.price,
-        time:h.time
-      });
-
-    });
-
-  });
-
-
-  historico.sort(function(a,b){
-    return b.time - a.time;
-  });
-
-
-  historico =
-    historico.slice(0,25);
-
-
-  var tbody =
-    document.getElementById(
-      "historico"
-    );
-
-
-  if(!historico.length){
-
-    tbody.innerHTML =
-      '<tr>' +
-        '<td colspan="5">' +
-          'Nenhuma operação recente encontrada.' +
-        '</td>' +
-      '</tr>';
-
-  }else{
-
-    tbody.innerHTML =
-      historico.map(function(h){
-
-        var ladoClass =
-          h.lado === "COMPRA"
-            ? "green"
-            : "red";
-
-        return (
-          '<tr>' +
-
-            '<td>' +
-              esc(h.conta) +
-            '</td>' +
-
-            '<td>' +
-              '<b>' +
-                esc(h.symbol) +
-              '</b>' +
-            '</td>' +
-
-            '<td class="' +
-              ladoClass +
-            '">' +
-              esc(h.lado) +
-            '</td>' +
-
-            '<td>' +
-              dinheiro(h.price) +
-            '</td>' +
-
-            '<td>' +
-              dataHora(h.time) +
-            '</td>' +
-
-          '</tr>'
-        );
-
-      }).join("");
-
-  }
-
+  renderHistorico(c);
 }
 
 
-function htmlComparativo(c,max){
+function renderPosicao(c){
 
-  var patrimonio =
-    Number(c.patrimonioUSDT || 0);
-
-  var largura =
-    Math.min(
-      100,
-      (patrimonio / max) * 100
+  const el =
+    document.getElementById(
+      "position"
     );
 
+  const pos =
+    (c.posicoes || [])[0];
+
+
+  if(!pos){
+
+    el.innerHTML =
+      '<div class="empty">' +
+        '<div>' +
+          '<div style="font-size:25px">💤</div>' +
+          '<div style="margin-top:8px">' +
+            'Nenhuma posição ativa detectada.' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+
+    return;
+  }
+
+
+  const pnl =
+    Number(pos.pnlNaoRealizado || 0);
+
+
+  el.innerHTML =
+
+    '<div class="positionHeader">' +
+
+      '<div>' +
+
+        '<div class="positionLabel">' +
+          'OPERAÇÃO ATIVA DETECTADA' +
+        '</div>' +
+
+        '<div class="coin">' +
+          pos.symbol +
+        '</div>' +
+
+      '</div>' +
+
+      '<div class="positionStatus">' +
+        '● POSIÇÃO ATIVA' +
+      '</div>' +
+
+    '</div>' +
+
+
+    '<div class="positionGrid">' +
+
+      info("Entrada",
+        dinheiro(pos.precoMedio) + " USDT") +
+
+      info("Preço atual",
+        dinheiro(pos.precoAtual) + " USDT") +
+
+      info("P/L",
+        '<span class="' +
+        classe(pnl) +
+        '">' +
+        (pnl >= 0 ? "+" : "") +
+        dinheiro(pnl) +
+        ' (' +
+        Number(
+          pos.pnlNaoRealizadoPct || 0
+        ).toFixed(2) +
+        '%)' +
+        '</span>') +
+
+      info("Quantidade",
+        numero(pos.quantidade)) +
+
+      info("Valor",
+        dinheiro(pos.valorAtual) + " USDT") +
+
+    '</div>' +
+
+
+    '<div class="positionGrid">' +
+
+      info("Take Profit",
+        pos.tp
+          ? dinheiro(pos.tp.price)
+          : "--") +
+
+      info("Stop Loss",
+        pos.sl
+          ? dinheiro(pos.sl.stopPrice)
+          : "--") +
+
+      info("Ordens abertas",
+        String(pos.ordensAbertas)) +
+
+      info("Último trade",
+        pos.ultimaOperacao
+          ? (
+              pos.ultimaOperacao.lado +
+              " • " +
+              dataHora(
+                pos.ultimaOperacao.time
+              )
+            )
+          : "--") +
+
+      info("Realizado",
+        dinheiro(pos.pnlRealizado) +
+        " USDT") +
+
+    '</div>';
+}
+
+
+function info(titulo, valor){
 
   return (
-
-    '<div class="mini">' +
-
-      '<h4>' +
-        esc(c.nome) +
-      '</h4>' +
-
-      '<div class="muted">' +
-        'Patrimônio' +
-      '</div>' +
-
-      '<strong>' +
-        dinheiro(patrimonio) +
-        ' USDT' +
-      '</strong>' +
-
-      '<div class="bar">' +
-
-        '<i style="width:' +
-          largura +
-        '%"></i>' +
-
-      '</div>' +
-
-      '<div class="sub">' +
-
-        'P/L: ' +
-
-        '<span class="' +
-          classeValor(c.pnlTotalEstimado) +
-        '">' +
-
-          (c.pnlTotalEstimado >= 0 ? "+" : "") +
-          dinheiro(c.pnlTotalEstimado) +
-          ' USDT' +
-
-        '</span>' +
-
-      '</div>' +
-
+    '<div class="info">' +
+      '<span>' +
+        titulo +
+      '</span>' +
+      '<b>' +
+        valor +
+      '</b>' +
     '</div>'
-
   );
 }
 
 
-/*
-=========================================================
-CARREGAR
-=========================================================
-*/
+function renderAtivos(c){
 
-async function carregar(){
-
-  try{
-
-    var resposta =
-      await fetch(
-        "/api/dashboard",
-        {
-          cache:"no-store"
-        }
-      );
-
-
-    if(!resposta.ok){
-      throw new Error(
-        "HTTP " + resposta.status
-      );
-    }
-
-
-    dados =
-      await resposta.json();
-
-
-    render();
-
-
-    carregarGrafico();
-
-  }catch(e){
-
+  const el =
     document.getElementById(
-      "atualizado"
-    ).textContent =
-      "Erro ao atualizar painel";
+      "assets"
+    );
 
-    console.error(e);
+  const ativos =
+    (c.ativos || []).slice(0,8);
 
+
+  if(!ativos.length){
+
+    el.innerHTML =
+      '<div class="empty">' +
+        'Nenhum ativo com valor encontrado.' +
+      '</div>';
+
+    return;
   }
 
+
+  el.innerHTML =
+    ativos.map(function(a){
+
+      return (
+        '<div class="assetRow">' +
+
+          '<div>' +
+            '<div class="assetName">' +
+              a.asset +
+            '</div>' +
+
+            '<div class="assetAmount">' +
+              numero(a.total) +
+            '</div>' +
+          '</div>' +
+
+          '<div class="assetValue">' +
+            dinheiro(a.valorUSDT) +
+            ' USDT' +
+            '<div class="assetAmount">' +
+              'R$ ' +
+              dinheiro(a.valorBRL) +
+            '</div>' +
+          '</div>' +
+
+        '</div>'
+      );
+
+    }).join("");
+}
+
+
+function renderHistorico(c){
+
+  const el =
+    document.getElementById(
+      "history"
+    );
+
+  const lista =
+    (c.historico || [])
+      .slice(0,35);
+
+
+  if(!lista.length){
+
+    el.innerHTML =
+      '<div class="empty">' +
+        'Nenhuma operação encontrada.' +
+      '</div>';
+
+    return;
+  }
+
+
+  el.innerHTML =
+    lista.map(function(h){
+
+      return (
+        '<div class="historyRow">' +
+
+          '<span>' +
+            h.symbol +
+          '</span>' +
+
+          '<span>' +
+            numero(h.qty) +
+          '</span>' +
+
+          '<span class="' +
+            (
+              h.lado === "COMPRA"
+                ? "buy"
+                : "sell"
+            ) +
+          '">' +
+            h.lado +
+          '</span>' +
+
+          '<span>' +
+            dinheiro(h.price) +
+            '<br>' +
+            '<small style="color:#627089">' +
+              dataHora(h.time) +
+            '</small>' +
+          '</span>' +
+
+        '</div>'
+      );
+
+    }).join("");
+}
+
+
+function renderPnl(c){
+
+  const realizado =
+    Number(c.pnlRealizado || 0);
+
+  const aberto =
+    Number(c.pnlNaoRealizado || 0);
+
+
+  const a =
+    document.getElementById(
+      "pnlRealizado"
+    );
+
+  const b =
+    document.getElementById(
+      "pnlAberto"
+    );
+
+
+  a.textContent =
+    (realizado >= 0 ? "+" : "") +
+    dinheiro(realizado) +
+    " USDT";
+
+  b.textContent =
+    (aberto >= 0 ? "+" : "") +
+    dinheiro(aberto) +
+    " USDT";
+
+
+  a.className =
+    "pnlNumber " +
+    classe(realizado);
+
+  b.className =
+    "pnlNumber " +
+    classe(aberto);
 }
 
 
@@ -1984,68 +2059,56 @@ GRÁFICO
 
 async function carregarGrafico(){
 
-  var account =
-    document.getElementById(
-      "accountSelect"
-    ).value;
-
-
-  var symbol =
+  const symbol =
     document.getElementById(
       "symbolSelect"
     ).value ||
     "BTCUSDT";
 
 
-  var botao =
-    document.querySelector(
-      ".controls button.active"
-    );
-
-
-  var interval =
-    botao
-      ? botao.getAttribute("data-interval")
-      : "15m";
-
-
   try{
 
-    var url =
-      "/api/chart?account=" +
-      encodeURIComponent(account) +
-      "&symbol=" +
-      encodeURIComponent(symbol) +
-      "&interval=" +
-      encodeURIComponent(interval);
+    const response =
+      await fetch(
+        "/api/chart?account=" +
+        encodeURIComponent(
+          contaSelecionada
+        ) +
+        "&symbol=" +
+        encodeURIComponent(symbol) +
+        "&interval=" +
+        encodeURIComponent(
+          intervaloSelecionado
+        ),
+        {
+          cache:"no-store"
+        }
+      );
 
 
-    var resposta =
-      await fetch(url);
+    const data =
+      await response.json();
 
 
-    var d =
-      await resposta.json();
-
-
-    desenharGrafico(d);
+    desenharGrafico(data);
 
   }catch(e){
 
-    console.error(e);
+    console.error(
+      "Erro gráfico:",
+      e
+    );
 
   }
-
 }
 
 
 function desenharGrafico(d){
 
-  var el =
+  const el =
     document.getElementById(
       "chart"
     );
-
 
   el.innerHTML = "";
 
@@ -2056,7 +2119,7 @@ function desenharGrafico(d){
   ){
 
     el.innerHTML =
-      '<div class="red">' +
+      '<div class="empty">' +
       'Biblioteca do gráfico não carregou.' +
       '</div>';
 
@@ -2069,31 +2132,30 @@ function desenharGrafico(d){
       el,
       {
         width:el.clientWidth,
-        height:390,
+        height:410,
 
         layout:{
           background:{
-            color:"#0d1421"
+            color:"#0b1320"
           },
-          textColor:"#8794aa"
+          textColor:"#8795ab"
         },
 
         grid:{
           vertLines:{
-            color:"#172235"
+            color:"#172337"
           },
-
           horzLines:{
-            color:"#172235"
+            color:"#172337"
           }
         },
 
         rightPriceScale:{
-          borderColor:"#26344a"
+          borderColor:"#26364f"
         },
 
         timeScale:{
-          borderColor:"#26344a",
+          borderColor:"#26364f",
           timeVisible:true
         }
       }
@@ -2101,15 +2163,13 @@ function desenharGrafico(d){
 
 
   candleSeries =
-    chart.addCandlestickSeries(
-      {
-        upColor:"#20d890",
-        downColor:"#ff5d73",
-        borderVisible:false,
-        wickUpColor:"#20d890",
-        wickDownColor:"#ff5d73"
-      }
-    );
+    chart.addCandlestickSeries({
+      upColor:"#20df96",
+      downColor:"#ff6177",
+      borderVisible:false,
+      wickUpColor:"#20df96",
+      wickDownColor:"#ff6177"
+    });
 
 
   candleSeries.setData(
@@ -2121,11 +2181,11 @@ function desenharGrafico(d){
 
     candleSeries.createPriceLine({
       price:d.entry,
-      color:"#20d890",
+      color:"#20df96",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
-      title:"COMPRA"
+      title:"ENTRADA"
     });
 
   }
@@ -2135,7 +2195,7 @@ function desenharGrafico(d){
 
     candleSeries.createPriceLine({
       price:d.tp,
-      color:"#f6bb55",
+      color:"#ffc85a",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
@@ -2149,7 +2209,7 @@ function desenharGrafico(d){
 
     candleSeries.createPriceLine({
       price:d.sl,
-      color:"#ff5d73",
+      color:"#ff6177",
       lineWidth:2,
       lineStyle:2,
       axisLabelVisible:true,
@@ -2166,19 +2226,15 @@ function desenharGrafico(d){
     d.candles.length
   ){
 
-    var alvo =
-      Number(d.entryTime);
-
-
-    var candle =
+    const candle =
       d.candles.reduce(
-        function(prev,cur){
+        function(prev, cur){
 
           return Math.abs(
-            cur.time - alvo
+            cur.time - d.entryTime
           ) <
           Math.abs(
-            prev.time - alvo
+            prev.time - d.entryTime
           )
             ? cur
             : prev;
@@ -2191,9 +2247,9 @@ function desenharGrafico(d){
       {
         time:candle.time,
         position:"belowBar",
-        color:"#20d890",
+        color:"#20df96",
         shape:"arrowUp",
-        text:"ENTRADA"
+        text:"COMPRA"
       }
     ]);
 
@@ -2203,7 +2259,76 @@ function desenharGrafico(d){
   chart
     .timeScale()
     .fitContent();
+}
 
+
+/*
+=========================================================
+CARREGAMENTO
+=========================================================
+*/
+
+async function carregar(){
+
+  try{
+
+    const response =
+      await fetch(
+        "/api/dashboard",
+        {
+          cache:"no-store"
+        }
+      );
+
+
+    if(!response.ok){
+      throw new Error(
+        "HTTP " +
+        response.status
+      );
+    }
+
+
+    dados =
+      await response.json();
+
+
+    preencherTabs();
+
+    renderConta();
+
+    renderPnl(
+      dados.contas.find(
+        function(c){
+          return c.id === contaSelecionada;
+        }
+      ) || {}
+    );
+
+
+    document.getElementById(
+      "updated"
+    ).textContent =
+      "Atualizado às " +
+      new Date(
+        dados.atualizadoEm
+      ).toLocaleTimeString(
+        "pt-BR"
+      );
+
+
+    carregarGrafico();
+
+  }catch(e){
+
+    console.error(e);
+
+    document.getElementById(
+      "updated"
+    ).textContent =
+      "Erro ao atualizar";
+
+  }
 }
 
 
@@ -2214,15 +2339,9 @@ EVENTOS
 */
 
 document
-  .getElementById("accountSelect")
-  .addEventListener(
-    "change",
-    carregarGrafico
-  );
-
-
-document
-  .getElementById("symbolSelect")
+  .getElementById(
+    "symbolSelect"
+  )
   .addEventListener(
     "change",
     carregarGrafico
@@ -2231,7 +2350,7 @@ document
 
 document
   .querySelectorAll(
-    ".controls button"
+    ".interval"
   )
   .forEach(function(button){
 
@@ -2241,7 +2360,7 @@ document
 
         document
           .querySelectorAll(
-            ".controls button"
+            ".interval"
           )
           .forEach(function(b){
             b.classList.remove(
@@ -2253,6 +2372,12 @@ document
         button.classList.add(
           "active"
         );
+
+
+        intervaloSelecionado =
+          button.getAttribute(
+            "data-i"
+          );
 
 
         carregarGrafico();
@@ -2290,12 +2415,6 @@ INÍCIO
 
 carregar();
 
-
-/*
-Atualização automática:
-15 segundos
-*/
-
 setInterval(
   carregar,
   15000
@@ -2309,18 +2428,12 @@ setInterval(
 });
 
 
-/*
-=========================================================
-SERVIDOR
-=========================================================
-*/
-
 app.listen(
   PORT,
   "0.0.0.0",
   function(){
     console.log(
-      "Painel premium rodando na porta " +
+      "Binance-Robo Painel Premium V2 rodando na porta " +
       PORT
     );
   }

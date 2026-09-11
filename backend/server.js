@@ -233,6 +233,59 @@ function calcularPnL(trades) {
 
 /*
 =========================================================
+OPERAÇÃO ATUAL
+=========================================================
+Identifica somente os trades após a última VENDA do ativo.
+Assim, a comparação THIAGO x SERGIO não mistura operações
+antigas com a operação que está aberta agora.
+*/
+function calcularOperacaoAtual(trades) {
+  const lista = (trades || []).slice().sort(function(a,b){
+    return num(a.time) - num(b.time);
+  });
+
+  let ultimoSellIndex = -1;
+  for (let i = 0; i < lista.length; i++) {
+    if (!lista[i].isBuyer) ultimoSellIndex = i;
+  }
+
+  const atual = lista.slice(ultimoSellIndex + 1);
+  const compras = atual.filter(function(t){ return !!t.isBuyer; });
+  const vendas = atual.filter(function(t){ return !t.isBuyer; });
+
+  let qtdComprada = 0;
+  let custo = 0;
+  let qtdVendida = 0;
+
+  compras.forEach(function(t){
+    const qty = num(t.qty);
+    const quote = num(t.quoteQty) || qty * num(t.price);
+    qtdComprada += qty;
+    custo += quote;
+  });
+
+  vendas.forEach(function(t){
+    qtdVendida += num(t.qty);
+  });
+
+  const quantidade = Math.max(0, qtdComprada - qtdVendida);
+  const entrada = qtdComprada > 0 ? custo / qtdComprada : 0;
+  const primeiraCompra = compras[0] || null;
+
+  return {
+    ativa: quantidade > 0 && entrada > 0,
+    quantidade,
+    entrada,
+    entradaTime: primeiraCompra ? num(primeiraCompra.time) : 0,
+    compras: compras.length,
+    vendas: vendas.length,
+    qtdComprada,
+    qtdVendida
+  };
+}
+
+/*
+=========================================================
 POSIÇÕES
 =========================================================
 */
@@ -248,25 +301,9 @@ async function obterPosicoes(conta, dadosConta) {
     const symbol = ativo.asset + "USDT";
     const trades = await obterTrades(conta, symbol, 1000);
 
-    let comprado = 0;
-    let custoCompra = 0;
-    let vendido = 0;
     let ultimoTrade = null;
 
     for (const t of trades) {
-      const qty = num(t.qty);
-      const price = num(t.price);
-      const quote =
-        num(t.quoteQty) ||
-        qty * price;
-
-      if (t.isBuyer) {
-        comprado += qty;
-        custoCompra += quote;
-      } else {
-        vendido += qty;
-      }
-
       if (
         !ultimoTrade ||
         num(t.time) > num(ultimoTrade.time)
@@ -275,25 +312,22 @@ async function obterPosicoes(conta, dadosConta) {
       }
     }
 
+    const operacao = calcularOperacaoAtual(trades);
     const quantidade = ativo.total;
-    const quantidadeLiquida = Math.max(
-      0,
-      comprado - vendido
-    );
+    const quantidadeOperacao = operacao.ativa
+      ? Math.min(quantidade, operacao.quantidade)
+      : 0;
 
-    const precoMedio =
-      comprado > 0
-        ? custoCompra / comprado
-        : 0;
-
+    const quantidadeLiquida = operacao.quantidade;
+    const precoMedio = operacao.entrada;
     const precoAtual = ativo.precoUSDT;
 
     const valorAtual =
       quantidade * precoAtual;
 
     const pnlNaoRealizado =
-      precoMedio > 0
-        ? (precoAtual - precoMedio) * quantidade
+      precoMedio > 0 && quantidadeOperacao > 0
+        ? (precoAtual - precoMedio) * quantidadeOperacao
         : 0;
 
     const pnlPct =
@@ -345,6 +379,17 @@ async function obterPosicoes(conta, dadosConta) {
       pnlNaoRealizado,
       pnlNaoRealizadoPct: pnlPct,
       pnlRealizado: calcularPnL(trades),
+      operacaoAtual: {
+        ativa: operacao.ativa,
+        quantidade: quantidadeOperacao,
+        entrada: precoMedio,
+        entradaTime: operacao.entradaTime,
+        compras: operacao.compras,
+        vendas: operacao.vendas,
+        pnlUSDT: pnlNaoRealizado,
+        pnlBRL: pnlNaoRealizado * num(dadosConta.usdtBrl),
+        pnlPct
+      },
       tp: tpOrder
         ? {
             price: num(tpOrder.price),
@@ -477,7 +522,11 @@ async function obterDashboardConta(conta) {
     ultimaVenda:
       historico.find(function (h) {
         return h.lado === "VENDA";
-      }) || null
+      }) || null,
+    operacaoAtual:
+      posicoes.length && posicoes[0].operacaoAtual && posicoes[0].operacaoAtual.ativa
+        ? { ...posicoes[0].operacaoAtual, symbol: posicoes[0].symbol, precoAtual: posicoes[0].precoAtual, tp: posicoes[0].tp, sl: posicoes[0].sl }
+        : null
   };
 }
 
@@ -599,50 +648,15 @@ app.get("/api/chart", async function (req, res) {
         1000
       );
 
-    const buys =
-      trades
-        .filter(function (t) {
-          return Boolean(t.isBuyer);
-        })
-        .sort(function (a, b) {
-          return num(a.time) - num(b.time);
-        });
+    const operacao = calcularOperacaoAtual(trades);
 
-    let entry = null;
-    let entryTime = null;
+    const entry = operacao.ativa
+      ? operacao.entrada
+      : null;
 
-    if (buys.length) {
-      const qty = buys.reduce(
-        function (s, t) {
-          return s + num(t.qty);
-        },
-        0
-      );
-
-      const cost = buys.reduce(
-        function (s, t) {
-          return (
-            s +
-            (
-              num(t.quoteQty) ||
-              num(t.qty) * num(t.price)
-            )
-          );
-        },
-        0
-      );
-
-      if (qty > 0) {
-        entry = cost / qty;
-      }
-
-      entryTime =
-        Math.floor(
-          num(
-            buys[buys.length - 1].time
-          ) / 1000
-        );
-    }
+    const entryTime = operacao.ativa
+      ? Math.floor(num(operacao.entradaTime) / 1000)
+      : null;
 
     let orders = [];
 
@@ -736,7 +750,7 @@ app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v5",
+    painel: "premium-v6.1",
     contas: 2
   });
 });
@@ -1335,6 +1349,205 @@ select{
 .marketMini b{font-size:13px;}
 .signalUnavailable{margin-top:12px;padding:12px;border:1px dashed #33445f;border-radius:10px;color:#8997ac;font-size:9px;line-height:1.5;}
 .metricSub .metricSub{margin-top:2px;}
+
+/* =====================================================
+   V6 - LAYOUT PREMIUM / OPERAÇÃO ATUAL
+===================================================== */
+.operationSection{
+  position:relative;
+}
+.operationSection .sectionHead{
+  margin-bottom:13px;
+}
+.operationCompare{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr);
+  gap:12px;
+  align-items:stretch;
+}
+.operationCard{
+  padding:20px;
+  position:relative;
+  overflow:hidden;
+  transition:.25s ease;
+}
+.operationCard:before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+}
+.operationCard:hover{
+  transform:translateY(-2px);
+  border-color:#3d5273;
+  box-shadow:0 20px 45px #0007;
+}
+.operationTop{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.operationTop h3{
+  margin:8px 0 0;
+  font-size:22px;
+}
+.accountPill{
+  display:inline-block;
+  padding:4px 7px;
+  border-radius:6px;
+  background:#17243a;
+  color:#9bb7dd;
+  font-size:8px;
+  font-weight:900;
+}
+.operationState{
+  padding:6px 9px;
+  border-radius:999px;
+  background:#101c2e;
+  color:var(--muted);
+  border:1px solid #26364f;
+  font-size:8px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.operationState.live{
+  color:var(--green);
+  background:#08291e;
+  border-color:#155b42;
+}
+.operationState.win{
+  color:var(--green);
+}
+.operationState.loss{
+  color:var(--red);
+  background:#320d16;
+  border-color:#6d2030;
+}
+.operationCoin{
+  margin-top:20px;
+  font-size:26px;
+  font-weight:950;
+  letter-spacing:.3px;
+}
+.operationMain{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #1b2940;
+  border-radius:12px;
+  background:linear-gradient(145deg,#0a1422,#08101c);
+}
+.operationMain span,
+.operationDetails span{
+  display:block;
+  color:var(--muted);
+  font-size:8px;
+  margin-bottom:5px;
+}
+.operationMain strong{
+  display:block;
+  font-size:21px;
+}
+.operationMain small{
+  display:block;
+  color:#74829a;
+  font-size:8px;
+  margin-top:3px;
+}
+.operationDetails{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:10px;
+}
+.operationDetails>div{
+  padding:10px;
+  border:1px solid #1a2940;
+  border-radius:10px;
+  background:#09111e;
+}
+.operationDetails b{
+  font-size:10px;
+}
+.versusCard{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  color:var(--muted);
+  font-size:8px;
+  font-weight:800;
+  text-align:center;
+}
+.versusCircle{
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size:13px;
+  font-weight:950;
+  background:radial-gradient(circle at 30% 25%,#7e6aff,#372a9a 70%);
+  box-shadow:0 0 30px #6957ff44;
+  border:1px solid #8679ff66;
+  margin-bottom:8px;
+}
+.leaderBadge{
+  padding:7px 11px;
+  border-radius:999px;
+  background:#151d2c;
+  border:1px solid #2b3a54;
+  color:#aebbd0;
+  font-size:8px;
+  font-weight:900;
+}
+.leaderBadge.good{
+  background:#08291e;
+  color:var(--green);
+  border-color:#155b42;
+}
+.leaderBadge.neutral{
+  background:#2b2308;
+  color:var(--yellow);
+  border-color:#68521a;
+}
+
+/* Mais profundidade e hierarquia visual */
+.header{
+  box-shadow:0 8px 35px #0008;
+}
+.hero{
+  padding:20px 22px;
+  border:1px solid #1b2940;
+  border-radius:20px;
+  background:linear-gradient(135deg,#0f1a2d99,#09111f88);
+  box-shadow:0 18px 45px #0005;
+}
+.cards .card{
+  min-height:108px;
+}
+.cards .card:first-child{
+  background:linear-gradient(145deg,#12233a,#0b1422);
+}
+.accountTab{
+  overflow:hidden;
+}
+.accountTab:before{
+  content:"";
+  position:absolute;
+  width:120px;
+  height:120px;
+  right:-35px;
+  top:-60px;
+  border-radius:50%;
+  background:#4aa8ff14;
+  pointer-events:none;
+}
 @media(max-width:1000px){
   .statusGrid{grid-template-columns:repeat(2,1fr);}
   .analyticsGrid{grid-template-columns:1fr;}
@@ -1458,8 +1671,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L — OPERAÇÃO ATUAL</span>
           <b id="tabPnl1">--</b>
+          <small id="tabPnlDetalhe1">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1484,8 +1698,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L — OPERAÇÃO ATUAL</span>
           <b id="tabPnl2">--</b>
+          <small id="tabPnlDetalhe2">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1686,12 +1901,67 @@ select{
     </div>
   </section>
 
-  <!-- PERFORMANCE -->
+  <!-- COMPARAÇÃO DA OPERAÇÃO ATUAL -->
+  <section class="section operationSection">
+    <div class="sectionHead">
+      <div>
+        <h2 class="sectionTitle">🏆 Operação atual • THIAGO × SERGIO</h2>
+        <div class="sectionDesc">Comparação feita somente a partir da compra que iniciou a posição atual — operações antigas ficam fora deste indicador.</div>
+      </div>
+      <div id="operationLeader" class="leaderBadge">AGUARDANDO DADOS</div>
+    </div>
+
+    <div class="operationCompare">
+      <div id="opCard1" class="card operationCard">
+        <div class="operationTop">
+          <div><span class="accountPill">CONTA 1</span><h3>THIAGO</h3></div>
+          <div id="opStatus1" class="operationState">SEM OPERAÇÃO</div>
+        </div>
+        <div class="operationCoin" id="opCoin1">--</div>
+        <div class="operationMain">
+          <div><span>RESULTADO</span><strong id="opPnl1">--</strong><small id="opPnlBrl1">--</small></div>
+          <div><span>VARIAÇÃO</span><strong id="opPct1">--</strong></div>
+        </div>
+        <div class="operationDetails">
+          <div><span>Entrada</span><b id="opEntry1">--</b></div>
+          <div><span>Atual</span><b id="opCurrent1">--</b></div>
+          <div><span>Quantidade</span><b id="opQty1">--</b></div>
+          <div><span>Início</span><b id="opTime1">--</b></div>
+        </div>
+      </div>
+
+      <div class="versusCard">
+        <div class="versusCircle">VS</div>
+        <div id="versusText">Comparando</div>
+      </div>
+
+      <div id="opCard2" class="card operationCard">
+        <div class="operationTop">
+          <div><span class="accountPill">CONTA 2</span><h3>SERGIO</h3></div>
+          <div id="opStatus2" class="operationState">SEM OPERAÇÃO</div>
+        </div>
+        <div class="operationCoin" id="opCoin2">--</div>
+        <div class="operationMain">
+          <div><span>RESULTADO</span><strong id="opPnl2">--</strong><small id="opPnlBrl2">--</small></div>
+          <div><span>VARIAÇÃO</span><strong id="opPct2">--</strong></div>
+        </div>
+        <div class="operationDetails">
+          <div><span>Entrada</span><b id="opEntry2">--</b></div>
+          <div><span>Atual</span><b id="opCurrent2">--</b></div>
+          <div><span>Quantidade</span><b id="opQty2">--</b></div>
+          <div><span>Início</span><b id="opTime2">--</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE HISTÓRICA -->
   <section class="section">
+
     <div class="analyticsGrid">
       <div class="card analyticsCard">
-        <h3 class="analyticsTitle">🏆 Performance THIAGO × SERGIO</h3>
-        <div class="analyticsSub">Estimativa calculada a partir dos trades retornados pela Binance.</div>
+        <h3 class="analyticsTitle">📚 Performance histórica</h3>
+        <div class="analyticsSub">Histórico separado da operação atual. Pode incluir operações anteriores retornadas pela Binance.</div>
         <table class="perfTable">
           <thead><tr><th>INDICADOR</th><th>THIAGO</th><th>SERGIO</th><th>TOTAL</th></tr></thead>
           <tbody id="performanceTable"></tbody>
@@ -1780,12 +2050,12 @@ select{
 
 
   <div class="note">
-    O P/L histórico é uma estimativa baseada nos trades disponíveis na API da Binance.
-    O painel é somente leitura e não envia ordens para a Binance.
+    A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
+    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura e não envia ordens para a Binance.
   </div>
 
   <div class="footer">
-    Binance-Robo • THIAGO / SERGIO • Painel individual • Atualização automática a cada 15 segundos
+    Binance-Robo • THIAGO / SERGIO • Central Premium • Atualização automática a cada 15 segundos
   </div>
 
 </div>
@@ -1889,15 +2159,72 @@ function preencherTabs(){
       dinheiro(c.patrimonioUSDT) +
       " USDT";
 
-    pnl.textContent =
-      (Number(c.pnlTotalEstimado || 0) >= 0
-        ? "+"
-        : "") +
-      dinheiro(c.pnlTotalEstimado) +
-      " USDT";
+    const opAtual =
+      c.operacaoAtual && c.operacaoAtual.ativa
+        ? c.operacaoAtual
+        : null;
 
-    pnl.className =
-      classe(c.pnlTotalEstimado);
+    const pnlAtual =
+      Number(opAtual ? opAtual.pnlUSDT : 0);
+
+    const pctAtual =
+      Number(opAtual ? opAtual.pnlPct : 0);
+
+    const pnlBrlAtual =
+      pnlAtual *
+      Number(c.usdtBrl || 0);
+
+    if(opAtual){
+
+      pnl.textContent =
+        (pnlAtual >= 0 ? "+" : "") +
+        dinheiro(pnlAtual) +
+        " USDT";
+
+      pnl.className =
+        classe(pnlAtual);
+
+    }else{
+
+      pnl.textContent =
+        "SEM OPERAÇÃO";
+
+      pnl.className =
+        "muted";
+
+    }
+
+    const pnlDetalhe =
+      document.getElementById(
+        "tabPnlDetalhe" + c.id
+      );
+
+    if(pnlDetalhe){
+
+      if(opAtual){
+
+        pnlDetalhe.innerHTML =
+          "≈ R$ " +
+          dinheiro(pnlBrlAtual) +
+          " • " +
+          (pctAtual >= 0 ? "+" : "") +
+          pctAtual.toFixed(2) +
+          "%";
+
+        pnlDetalhe.className =
+          classe(pctAtual);
+
+      }else{
+
+        pnlDetalhe.textContent =
+          "Nenhuma operação atual detectada.";
+
+        pnlDetalhe.className =
+          "";
+
+      }
+
+    }
 
     const brl =
       document.getElementById(
@@ -2425,9 +2752,86 @@ function estatisticasConta(c){
   };
 }
 
+function renderCurrentOperation(){
+  const c1=getConta("1");
+  const c2=getConta("2");
+  const contas=[c1,c2];
+  const ops=contas.map(function(c){ return c && c.operacaoAtual ? c.operacaoAtual : null; });
+
+  contas.forEach(function(c,idx){
+    const n=idx+1;
+    const op=ops[idx];
+    const card=document.getElementById("opCard"+n);
+    const state=document.getElementById("opStatus"+n);
+    if(!op || !op.ativa){
+      state.textContent="SEM OPERAÇÃO";
+      state.className="operationState";
+      document.getElementById("opCoin"+n).textContent="--";
+      document.getElementById("opPnl"+n).textContent="--";
+      document.getElementById("opPnl"+n).className="";
+      document.getElementById("opPnlBrl"+n).textContent="--";
+      document.getElementById("opPct"+n).textContent="--";
+      document.getElementById("opPct"+n).className="";
+      document.getElementById("opEntry"+n).textContent="--";
+      document.getElementById("opCurrent"+n).textContent="--";
+      document.getElementById("opQty"+n).textContent="--";
+      document.getElementById("opTime"+n).textContent="--";
+      return;
+    }
+
+    const pct=Number(op.pnlPct||0);
+    const pnl=Number(op.pnlUSDT||0);
+    const conta=c;
+    state.textContent="OPERAÇÃO ATIVA";
+    state.className="operationState live "+(pct>=0?"win":"loss");
+    document.getElementById("opCoin"+n).textContent=op.symbol || "--";
+    document.getElementById("opPnl"+n).textContent=(pnl>=0?"+":"")+dinheiro(pnl)+" USDT";
+    document.getElementById("opPnl"+n).className=classe(pnl);
+    document.getElementById("opPnlBrl"+n).textContent="≈ R$ "+dinheiro(pnl*Number(conta.usdtBrl||0));
+    document.getElementById("opPct"+n).textContent=(pct>=0?"+":"")+pct.toFixed(2)+"%";
+    document.getElementById("opPct"+n).className=classe(pct);
+    document.getElementById("opEntry"+n).textContent=dinheiro(op.entrada)+" USDT";
+    document.getElementById("opCurrent"+n).textContent=dinheiro(op.precoAtual)+" USDT";
+    document.getElementById("opQty"+n).textContent=numero(op.quantidade);
+    document.getElementById("opTime"+n).textContent=dataHora(op.entradaTime);
+  });
+
+  const a=ops[0], b=ops[1];
+  const leader=document.getElementById("operationLeader");
+  const versus=document.getElementById("versusText");
+  if(a && b && a.ativa && b.ativa){
+    if(a.pnlPct>b.pnlPct){
+      leader.textContent="🥇 THIAGO NA FRENTE";
+      leader.className="leaderBadge good";
+      versus.textContent="THIAGO +"+(Number(a.pnlPct)-Number(b.pnlPct)).toFixed(2)+" p.p.";
+    }else if(b.pnlPct>a.pnlPct){
+      leader.textContent="🥇 SERGIO NA FRENTE";
+      leader.className="leaderBadge good";
+      versus.textContent="SERGIO +"+(Number(b.pnlPct)-Number(a.pnlPct)).toFixed(2)+" p.p.";
+    }else{
+      leader.textContent="⚖️ EMPATE";
+      leader.className="leaderBadge neutral";
+      versus.textContent="Mesma variação";
+    }
+  }else if(a && a.ativa){
+    leader.textContent="THIAGO • ÚNICA OPERAÇÃO";
+    leader.className="leaderBadge neutral";
+    versus.textContent="SERGIO sem posição";
+  }else if(b && b.ativa){
+    leader.textContent="SERGIO • ÚNICA OPERAÇÃO";
+    leader.className="leaderBadge neutral";
+    versus.textContent="THIAGO sem posição";
+  }else{
+    leader.textContent="AGUARDANDO OPERAÇÕES";
+    leader.className="leaderBadge";
+    versus.textContent="Sem posições ativas";
+  }
+}
+
 function renderAnalytics(){
   if(!dados || !dados.contas) return;
   const c1=getConta("1"), c2=getConta("2");
+  renderCurrentOperation();
   const s1=estatisticasConta(c1), s2=estatisticasConta(c2);
 
   const total={
@@ -3233,7 +3637,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V2 rodando na porta " +
+      "Binance-Robo Painel Premium V6 rodando na porta " +
       PORT
     );
   }

@@ -1,30 +1,44 @@
 require("dotenv").config();
-
 const Binance = require("binance-api-node").default;
 
-
-/* =========================================================
-   BINANCE
-========================================================= */
-
-const client = Binance({
-  apiKey: process.env.API_KEY,
-  apiSecret: process.env.API_SECRET
-});
+const CONTAS = [
+  {
+    id: 1,
+    nome: "SUA CONTA",
+    apiKey: process.env.API_KEY_1,
+    apiSecret: process.env.API_SECRET_1
+  },
+  {
+    id: 2,
+    nome: "CONTA DO AMIGO",
+    apiKey: process.env.API_KEY_2,
+    apiSecret: process.env.API_SECRET_2
+  }
+].map(conta => ({
+  ...conta,
+  client: Binance({
+    apiKey: conta.apiKey,
+    apiSecret: conta.apiSecret
+  }),
+  estado: {
+    operando: false,
+    ultimaVenda: 0,
+    ultimaMoedaOperada: null,
+    horarioUltimaOperacaoMoeda: 0
+  }
+}));
 
 
 /* =========================================================
    CONFIGURAÇÕES PRINCIPAIS
 ========================================================= */
 
-// Timeframe de entrada
 const INTERVALO_ENTRADA = "15m";
 
-// Timeframes de tendência
 const INTERVALO_4H = "4h";
+
 const INTERVALO_1D = "1d";
 
-// TOP 20 por capitalização de mercado
 const MAX_MOEDAS = 20;
 
 
@@ -32,14 +46,10 @@ const MAX_MOEDAS = 20;
    OPERAÇÃO
 ========================================================= */
 
-// Alvo de lucro
 const TAKE_PROFIT = 0.05;
 
-// NÃO ALTERAR:
-// Compra utilizando 95% do saldo
 const PERCENTUAL_ENTRADA = 0.98;
 
-// Stop Loss continua desligado
 const STOP_LOSS_ATIVO = false;
 
 
@@ -47,24 +57,18 @@ const STOP_LOSS_ATIVO = false;
    FILTRO DE ENTRADA
 ========================================================= */
 
-// RSI saudável
 const RSI_MIN = 40;
+
 const RSI_MAX = 65;
 
-// Se estiver mais de 4% acima da EMA21,
-// considera preço muito esticado
 const DISTANCIA_MAXIMA_ENTRADA = 0.04;
 
-// Para pullback, preferimos proximidade maior
 const DISTANCIA_PULLBACK = 0.025;
 
-// Volume mínimo
 const VOLUME_MINIMO = 0.80;
 
-// Breakout precisa de volume mais forte
 const VOLUME_BREAKOUT = 1.30;
 
-// Score mínimo
 const SCORE_MINIMO = 7;
 
 
@@ -72,14 +76,10 @@ const SCORE_MINIMO = 7;
    FILTRO DO MERCADO
 ========================================================= */
 
-// Score mínimo para considerar o mercado favorável
 const SCORE_MERCADO_MINIMO = 2;
 
-// BTC acima de 4% da EMA21 4H
-// = mercado possivelmente muito aquecido
 const MERCADO_ESTICADO = 0.04;
 
-// RSI 4H acima disso também caracteriza mercado quente
 const RSI_MERCADO_QUENTE = 70;
 
 
@@ -87,24 +87,18 @@ const RSI_MERCADO_QUENTE = 70;
    TEMPOS
 ========================================================= */
 
-// Varredura a cada 15 minutos
 const INTERVALO_VARREDURA =
   15 * 60 * 1000;
 
-// Pausa entre moedas
 const PAUSA_ENTRE_MOEDAS =
   1000;
 
-// Após fechar uma operação,
-// aguarda 30 minutos antes de nova compra
 const COOLDOWN_GERAL =
   30 * 60 * 1000;
 
-// Não recomprar a mesma moeda imediatamente
 const COOLDOWN_MESMA_MOEDA =
   2 * 60 * 60 * 1000;
 
-// Cache do Market Cap
 const CACHE_MARKET_CAP =
   15 * 60 * 1000;
 
@@ -113,26 +107,16 @@ const CACHE_MARKET_CAP =
    DUST
 ========================================================= */
 
-// Saldo inferior a 5 USDT será considerado
-// apenas resíduo e não bloqueará o robô.
 const VALOR_MINIMO_POSICAO = 5;
 
 
 /* =========================================================
-   CONTROLE
+   CACHE
 ========================================================= */
-
-let operando = false;
 
 let cacheMarketCap = [];
 
 let ultimaAtualizacaoMarketCap = 0;
-
-let ultimaVenda = 0;
-
-let ultimaMoedaOperada = null;
-
-let horarioUltimaOperacaoMoeda = 0;
 
 
 /* =========================================================
@@ -190,40 +174,23 @@ function erroTexto(err) {
 
   }
 
-
   if (err.body) {
 
     try {
 
-      if (
-        typeof err.body === "string"
-      ) {
-
-        return err.body;
-
-      }
-
-
-      return JSON.stringify(
-        err.body
-      );
-
+      return typeof err.body === "string"
+        ? err.body
+        : JSON.stringify(err.body);
 
     } catch (_) {
 
-      return String(
-        err.body
-      );
+      return String(err.body);
 
     }
 
   }
 
-
-  return (
-    err.message ||
-    String(err)
-  );
+  return err.message || String(err);
 
 }
 
@@ -235,9 +202,7 @@ function erroTexto(err) {
 function ehStablecoin(asset) {
 
   return STABLECOINS.has(
-    String(
-      asset || ""
-    ).toUpperCase()
+    String(asset || "").toUpperCase()
   );
 
 }
@@ -250,10 +215,7 @@ function ehStablecoin(asset) {
 function ehAlavancada(asset) {
 
   const nome =
-    String(
-      asset || ""
-    ).toUpperCase();
-
+    String(asset || "").toUpperCase();
 
   return SUFIXOS_ALAVANCADOS.some(
     sufixo =>
@@ -281,9 +243,7 @@ function calcularEMA(
 
   }
 
-
   let mediaInicial = 0;
-
 
   for (
     let i = 0;
@@ -292,25 +252,17 @@ function calcularEMA(
   ) {
 
     mediaInicial +=
-      Number(
-        valores[i]
-      );
+      Number(valores[i]);
 
   }
 
-
-  mediaInicial /=
-    periodo;
-
+  mediaInicial /= periodo;
 
   const multiplicador =
-    2 /
-    (periodo + 1);
-
+    2 / (periodo + 1);
 
   let resultado =
     mediaInicial;
-
 
   for (
     let i = periodo;
@@ -320,16 +272,13 @@ function calcularEMA(
 
     resultado =
       (
-        Number(
-          valores[i]
-        ) -
+        Number(valores[i]) -
         resultado
       ) *
       multiplicador +
       resultado;
 
   }
-
 
   return resultado;
 
@@ -347,24 +296,19 @@ function calcularRSI(
 
   if (
     !Array.isArray(valores) ||
-    valores.length <
-      periodo + 1
+    valores.length < periodo + 1
   ) {
 
     return null;
 
   }
 
-
   let ganhos = 0;
 
   let perdas = 0;
 
-
   const inicio =
-    valores.length -
-    periodo;
-
+    valores.length - periodo;
 
   for (
     let i = inicio;
@@ -373,51 +317,34 @@ function calcularRSI(
   ) {
 
     const diferenca =
-      Number(
-        valores[i]
-      ) -
-      Number(
-        valores[i - 1]
-      );
+      Number(valores[i]) -
+      Number(valores[i - 1]);
 
+    if (diferenca > 0) {
 
-    if (
-      diferenca > 0
-    ) {
-
-      ganhos +=
-        diferenca;
+      ganhos += diferenca;
 
     } else {
 
       perdas +=
-        Math.abs(
-          diferenca
-        );
+        Math.abs(diferenca);
 
     }
 
   }
 
-
-  if (
-    perdas === 0
-  ) {
+  if (perdas === 0) {
 
     return 100;
 
   }
 
-
   const rs =
-    ganhos /
-    perdas;
-
+    ganhos / perdas;
 
   return (
     100 -
-    100 /
-      (1 + rs)
+    100 / (1 + rs)
   );
 
 }
@@ -427,13 +354,10 @@ function calcularRSI(
    CASAS DECIMAIS
 ========================================================= */
 
-function casasDecimais(
-  valor
-) {
+function casasDecimais(valor) {
 
   const texto =
     String(valor);
-
 
   if (
     texto.includes("e-")
@@ -445,7 +369,6 @@ function casasDecimais(
 
   }
 
-
   if (
     !texto.includes(".")
   ) {
@@ -453,7 +376,6 @@ function casasDecimais(
     return 0;
 
   }
-
 
   return texto
     .split(".")[1]
@@ -482,22 +404,14 @@ function ajustarQuantidade(
 
   }
 
-
   const casas =
     casasDecimais(step);
 
-
-  const ajustado =
-    Math.floor(
-      valor / step
-    ) *
-    step;
-
-
   return Number(
-    ajustado.toFixed(
-      casas
-    )
+    (
+      Math.floor(valor / step) *
+      step
+    ).toFixed(casas)
   );
 
 }
@@ -522,22 +436,14 @@ function ajustarPreco(
 
   }
 
-
   const casas =
     casasDecimais(tick);
 
-
-  const ajustado =
-    Math.floor(
-      valor / tick
-    ) *
-    tick;
-
-
   return Number(
-    ajustado.toFixed(
-      casas
-    )
+    (
+      Math.floor(valor / tick) *
+      tick
+    ).toFixed(casas)
   );
 
 }
@@ -554,8 +460,7 @@ function encontrarFiltro(
 
   return info?.filters?.find(
     filtro =>
-      filtro.filterType ===
-      tipo
+      filtro.filterType === tipo
   );
 
 }
@@ -565,16 +470,13 @@ function encontrarFiltro(
    MIN NOTIONAL
 ========================================================= */
 
-function obterMinimoNotional(
-  info
-) {
+function obterMinimoNotional(info) {
 
   const notional =
     encontrarFiltro(
       info,
       "NOTIONAL"
     );
-
 
   if (
     notional?.minNotional
@@ -586,26 +488,15 @@ function obterMinimoNotional(
 
   }
 
-
   const antigo =
     encontrarFiltro(
       info,
       "MIN_NOTIONAL"
     );
 
-
-  if (
-    antigo?.minNotional
-  ) {
-
-    return Number(
-      antigo.minNotional
-    );
-
-  }
-
-
-  return 0;
+  return antigo?.minNotional
+    ? Number(antigo.minNotional)
+    : 0;
 
 }
 
@@ -621,18 +512,10 @@ async function obterTop20MarketCap(
   const agora =
     Date.now();
 
-
-  /*
-     Utilizar cache evita consultas
-     excessivas ao CoinGecko.
-  */
-
   if (
-    cacheMarketCap.length > 0 &&
-    (
-      agora -
-      ultimaAtualizacaoMarketCap
-    ) <
+    cacheMarketCap.length &&
+    agora -
+      ultimaAtualizacaoMarketCap <
       CACHE_MARKET_CAP
   ) {
 
@@ -640,23 +523,18 @@ async function obterTop20MarketCap(
 
   }
 
-
   try {
 
     console.log(
       "🌎 ATUALIZANDO TOP 20 MARKET CAP..."
     );
 
-
     const resposta =
       await fetch(
         "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false"
       );
 
-
-    if (
-      !resposta.ok
-    ) {
+    if (!resposta.ok) {
 
       throw new Error(
         `CoinGecko HTTP ${resposta.status}`
@@ -664,13 +542,10 @@ async function obterTop20MarketCap(
 
     }
 
-
     const moedas =
       await resposta.json();
 
-
     const resultado = [];
-
 
     for (
       const moeda of moedas
@@ -685,59 +560,25 @@ async function obterTop20MarketCap(
 
       }
 
-
       const simbolo =
         String(
           moeda.symbol || ""
         ).toUpperCase();
-
 
       const nome =
         String(
           moeda.name || ""
         );
 
-
-      if (!simbolo) {
-
-        continue;
-
-      }
-
-
-      /*
-         Stablecoin
-      */
-
       if (
-        ehStablecoin(
-          simbolo
-        )
+        !simbolo ||
+        ehStablecoin(simbolo) ||
+        ehAlavancada(simbolo)
       ) {
 
         continue;
 
       }
-
-
-      /*
-         Alavancada
-      */
-
-      if (
-        ehAlavancada(
-          simbolo
-        )
-      ) {
-
-        continue;
-
-      }
-
-
-      /*
-         Procurar par USDT na Binance.
-      */
 
       const par =
         exchangeInfo.symbols.find(
@@ -752,30 +593,19 @@ async function obterTop20MarketCap(
               simbolo
         );
 
-
       if (!par) {
 
         continue;
 
       }
 
-
       const base =
         String(
           par.baseAsset
         ).toUpperCase();
 
-
       if (
-        ehStablecoin(base)
-      ) {
-
-        continue;
-
-      }
-
-
-      if (
+        ehStablecoin(base) ||
         ehAlavancada(base)
       ) {
 
@@ -783,42 +613,24 @@ async function obterTop20MarketCap(
 
       }
 
-
-      /*
-         Evitar moedas muito novas.
-      */
-
       if (
-        par.onboardDate
-      ) {
-
-        const idade =
-          Date.now() -
-          Number(
-            par.onboardDate
-          );
-
-
-        if (
-          idade <
+        par.onboardDate &&
+        Date.now() -
+          Number(par.onboardDate) <
           365 *
           24 *
           60 *
           60 *
           1000
-        ) {
+      ) {
 
-          console.log(
-            `${par.symbol} ⛔ MOEDA NOVA`
-          );
+        console.log(
+          `${par.symbol} ⛔ MOEDA NOVA`
+        );
 
-
-          continue;
-
-        }
+        continue;
 
       }
-
 
       resultado.push({
 
@@ -828,8 +640,7 @@ async function obterTop20MarketCap(
         baseAsset:
           base,
 
-        nome:
-          nome,
+        nome,
 
         rank:
           Number(
@@ -847,22 +658,17 @@ async function obterTop20MarketCap(
 
     }
 
-
     cacheMarketCap =
       resultado;
 
-
     ultimaAtualizacaoMarketCap =
       agora;
-
 
     console.log(
       `✅ TOP ${resultado.length} ATIVOS ATUALIZADO`
     );
 
-
     return resultado;
-
 
   } catch (err) {
 
@@ -871,20 +677,17 @@ async function obterTop20MarketCap(
       erroTexto(err)
     );
 
-
     if (
-      cacheMarketCap.length > 0
+      cacheMarketCap.length
     ) {
 
       console.log(
         "♻️ USANDO TOP 20 ANTERIOR"
       );
 
-
       return cacheMarketCap;
 
     }
-
 
     return [];
 
@@ -897,26 +700,9 @@ async function obterTop20MarketCap(
    AVALIAR MERCADO
 ========================================================= */
 
-async function avaliarMercado() {
+async function avaliarMercado(client) {
 
   try {
-
-    console.log(
-      "\n🌎 ========================================"
-    );
-
-    console.log(
-      "🌎 AVALIANDO MERCADO"
-    );
-
-    console.log(
-      "🌎 ========================================"
-    );
-
-
-    /*
-       BTC 1D
-    */
 
     const candles1D =
       await client.candles({
@@ -925,27 +711,19 @@ async function avaliarMercado() {
           "BTCUSDT",
 
         interval:
-          "1d",
+          INTERVALO_1D,
 
         limit:
           250
 
       });
 
-
-    const fechados1D =
-      candles1D.slice(
-        0,
-        -1
-      );
-
-
     const closes1D =
-      fechados1D.map(
-        c =>
-          Number(c.close)
-      );
-
+      candles1D
+        .slice(0, -1)
+        .map(
+          c => Number(c.close)
+        );
 
     if (
       closes1D.length < 200
@@ -954,11 +732,8 @@ async function avaliarMercado() {
       return {
 
         favoravel: false,
-
         quente: false,
-
         score: 0,
-
         motivo:
           "Poucos candles BTC 1D"
 
@@ -966,13 +741,11 @@ async function avaliarMercado() {
 
     }
 
-
     const ema50_1D =
       calcularEMA(
         closes1D,
         50
       );
-
 
     const ema200_1D =
       calcularEMA(
@@ -980,28 +753,19 @@ async function avaliarMercado() {
         200
       );
 
-
     const preco1D =
-      closes1D[
-        closes1D.length - 1
-      ];
-
+      closes1D.at(-1);
 
     let score = 0;
 
     const motivos = [];
-
-
-    /*
-       BTC acima EMA50 1D
-    */
 
     if (
       preco1D >
       ema50_1D
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "BTC 1D > EMA50"
@@ -1015,17 +779,12 @@ async function avaliarMercado() {
 
     }
 
-
-    /*
-       BTC EMA50 > EMA200
-    */
-
     if (
       ema50_1D >
       ema200_1D
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "BTC EMA50 > EMA200"
@@ -1039,11 +798,6 @@ async function avaliarMercado() {
 
     }
 
-
-    /*
-       BTC 4H
-    */
-
     const candles4H =
       await client.candles({
 
@@ -1051,27 +805,19 @@ async function avaliarMercado() {
           "BTCUSDT",
 
         interval:
-          "4h",
+          INTERVALO_4H,
 
         limit:
           150
 
       });
 
-
-    const fechados4H =
-      candles4H.slice(
-        0,
-        -1
-      );
-
-
     const closes4H =
-      fechados4H.map(
-        c =>
-          Number(c.close)
-      );
-
+      candles4H
+        .slice(0, -1)
+        .map(
+          c => Number(c.close)
+        );
 
     if (
       closes4H.length < 50
@@ -1080,11 +826,8 @@ async function avaliarMercado() {
       return {
 
         favoravel: false,
-
         quente: false,
-
         score,
-
         motivo:
           "Poucos candles BTC 4H"
 
@@ -1092,13 +835,11 @@ async function avaliarMercado() {
 
     }
 
-
     const ema21_4H =
       calcularEMA(
         closes4H,
         21
       );
-
 
     const ema50_4H =
       calcularEMA(
@@ -1106,30 +847,21 @@ async function avaliarMercado() {
         50
       );
 
-
     const rsi4H =
       calcularRSI(
         closes4H,
         14
       );
 
-
     const preco4H =
-      closes4H[
-        closes4H.length - 1
-      ];
-
-
-    /*
-       BTC 4H acima EMA50
-    */
+      closes4H.at(-1);
 
     if (
       preco4H >
       ema50_4H
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "BTC 4H > EMA50"
@@ -1143,17 +875,12 @@ async function avaliarMercado() {
 
     }
 
-
-    /*
-       EMA21 > EMA50
-    */
-
     if (
       ema21_4H >
       ema50_4H
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "BTC 4H EMA21 > EMA50"
@@ -1167,11 +894,6 @@ async function avaliarMercado() {
 
     }
 
-
-    /*
-       Detectar mercado muito quente.
-    */
-
     const distanciaEMA21 =
       (
         preco4H -
@@ -1179,89 +901,59 @@ async function avaliarMercado() {
       ) /
       ema21_4H;
 
-
     const quente =
       distanciaEMA21 >
         MERCADO_ESTICADO ||
       rsi4H >
         RSI_MERCADO_QUENTE;
 
-
     const favoravel =
       score >=
       SCORE_MERCADO_MINIMO;
-
 
     console.log(
       `🌎 BTC: ${preco4H.toFixed(2)}`
     );
 
-
     console.log(
       `📊 BTC RSI 4H: ${rsi4H.toFixed(2)}`
     );
-
 
     console.log(
       `📏 BTC distância EMA21: ${(distanciaEMA21 * 100).toFixed(2)}%`
     );
 
-
     console.log(
       `📊 SCORE MERCADO: ${score}/4`
     );
-
 
     console.log(
       `🔥 MERCADO QUENTE: ${quente ? "SIM" : "NÃO"}`
     );
 
-
-    if (
+    console.log(
       favoravel
-    ) {
-
-      console.log(
-        "🟢 MERCADO FAVORÁVEL"
-      );
-
-    } else {
-
-      console.log(
-        "🔴 MERCADO DESFAVORÁVEL"
-      );
-
-    }
-
+        ? "🟢 MERCADO FAVORÁVEL"
+        : "🔴 MERCADO DESFAVORÁVEL"
+    );
 
     console.log(
       "📝",
-      motivos.join(
-        " | "
-      )
+      motivos.join(" | ")
     );
-
 
     return {
 
       favoravel,
-
       quente,
-
       score,
-
       rsi4H,
-
       preco4H,
-
       ema21_4H,
-
       ema50_4H,
-
       motivos
 
     };
-
 
   } catch (err) {
 
@@ -1270,15 +962,11 @@ async function avaliarMercado() {
       erroTexto(err)
     );
 
-
     return {
 
       favoravel: false,
-
       quente: false,
-
       score: 0,
-
       motivo:
         erroTexto(err)
 
@@ -1294,28 +982,22 @@ async function avaliarMercado() {
 ========================================================= */
 
 async function verificarPosicao(
+  client,
   exchangeInfo
 ) {
 
   try {
 
-    /*
-       PRIMEIRO:
-       ordens abertas.
-    */
-
     const ordens =
       await client.openOrders();
 
-
     const ordemUSDT =
       ordens.find(
-        ordem =>
+        o =>
           String(
-            ordem.symbol || ""
+            o.symbol || ""
           ).endsWith("USDT")
       );
-
 
     if (
       ordemUSDT
@@ -1332,14 +1014,8 @@ async function verificarPosicao(
 
     }
 
-
-    /*
-       Depois verificar saldos.
-    */
-
     const conta =
       await client.accountInfo();
-
 
     for (
       const saldo of
@@ -1351,40 +1027,16 @@ async function verificarPosicao(
           saldo.asset || ""
         ).toUpperCase();
 
-
-      if (!asset) {
-
-        continue;
-
-      }
-
-
       if (
-        asset === "USDT"
-      ) {
-
-        continue;
-
-      }
-
-
-      if (
-        ehStablecoin(asset)
-      ) {
-
-        continue;
-
-      }
-
-
-      if (
+        !asset ||
+        asset === "USDT" ||
+        ehStablecoin(asset) ||
         ehAlavancada(asset)
       ) {
 
         continue;
 
       }
-
 
       const quantidade =
         Number(
@@ -1393,7 +1045,6 @@ async function verificarPosicao(
         Number(
           saldo.locked || 0
         );
-
 
       if (
         !Number.isFinite(
@@ -1405,11 +1056,6 @@ async function verificarPosicao(
         continue;
 
       }
-
-
-      /*
-         Procurar par USDT.
-      */
 
       const par =
         exchangeInfo.symbols.find(
@@ -1424,40 +1070,31 @@ async function verificarPosicao(
               asset
         );
 
-
       if (!par) {
 
         continue;
 
       }
 
-
       let precoAtual;
-
 
       try {
 
-        const preco =
-          await client.prices({
-            symbol:
-              par.symbol
-          });
-
-
         precoAtual =
           Number(
-            preco[
-              par.symbol
-            ]
+            (
+              await client.prices({
+                symbol:
+                  par.symbol
+              })
+            )[par.symbol]
           );
 
-
-      } catch (err) {
+      } catch (_) {
 
         continue;
 
       }
-
 
       if (
         !Number.isFinite(
@@ -1470,16 +1107,9 @@ async function verificarPosicao(
 
       }
 
-
       const valorUSDT =
         quantidade *
         precoAtual;
-
-
-      /*
-         DUST:
-         ignorar resíduos pequenos.
-      */
 
       if (
         valorUSDT <
@@ -1490,16 +1120,13 @@ async function verificarPosicao(
           `🧹 DUST IGNORADO: ${asset} = ${valorUSDT.toFixed(4)} USDT`
         );
 
-
         continue;
 
       }
 
-
       console.log(
         `🔒 POSIÇÃO REAL: ${asset} = ${valorUSDT.toFixed(2)} USDT`
       );
-
 
       return {
 
@@ -1512,7 +1139,6 @@ async function verificarPosicao(
 
     }
 
-
     return {
 
       ativa: false,
@@ -1522,20 +1148,12 @@ async function verificarPosicao(
 
     };
 
-
   } catch (err) {
 
     console.log(
       "⚠️ ERRO AO VERIFICAR POSIÇÃO:",
       erroTexto(err)
     );
-
-
-    /*
-       Segurança:
-       se não sabemos o estado da conta,
-       NÃO fazemos nova compra.
-    */
 
     return {
 
@@ -1556,21 +1174,17 @@ async function verificarPosicao(
 ========================================================= */
 
 function verificarCooldown(
+  estado,
   symbol
 ) {
 
   const agora =
     Date.now();
 
-
-  /*
-     Cooldown geral
-    */
-
   if (
-    ultimaVenda > 0 &&
+    estado.ultimaVenda > 0 &&
     agora -
-      ultimaVenda <
+      estado.ultimaVenda <
       COOLDOWN_GERAL
   ) {
 
@@ -1579,11 +1193,10 @@ function verificarCooldown(
         COOLDOWN_GERAL -
         (
           agora -
-          ultimaVenda
+          estado.ultimaVenda
         )
       ) /
       60000;
-
 
     return {
 
@@ -1596,16 +1209,11 @@ function verificarCooldown(
 
   }
 
-
-  /*
-     Cooldown da mesma moeda.
-  */
-
   if (
-    ultimaMoedaOperada ===
+    estado.ultimaMoedaOperada ===
       symbol &&
     agora -
-      horarioUltimaOperacaoMoeda <
+      estado.horarioUltimaOperacaoMoeda <
       COOLDOWN_MESMA_MOEDA
   ) {
 
@@ -1614,11 +1222,10 @@ function verificarCooldown(
         COOLDOWN_MESMA_MOEDA -
         (
           agora -
-          horarioUltimaOperacaoMoeda
+          estado.horarioUltimaOperacaoMoeda
         )
       ) /
       60000;
-
 
     return {
 
@@ -1630,7 +1237,6 @@ function verificarCooldown(
     };
 
   }
-
 
   return {
 
@@ -1649,6 +1255,7 @@ function verificarCooldown(
 ========================================================= */
 
 async function analisarMoeda(
+  client,
   symbol,
   mercado
 ) {
@@ -1660,9 +1267,9 @@ async function analisarMoeda(
     const motivos = [];
 
 
-    /* =====================================================
+    /* ================================
        1D
-    ===================================================== */
+    ================================= */
 
     const candles1D =
       await client.candles({
@@ -1670,27 +1277,19 @@ async function analisarMoeda(
         symbol,
 
         interval:
-          "1d",
+          INTERVALO_1D,
 
         limit:
           250
 
       });
 
-
-    const fechados1D =
-      candles1D.slice(
-        0,
-        -1
-      );
-
-
     const closes1D =
-      fechados1D.map(
-        c =>
-          Number(c.close)
-      );
-
+      candles1D
+        .slice(0, -1)
+        .map(
+          c => Number(c.close)
+        );
 
     if (
       closes1D.length < 200
@@ -1707,13 +1306,11 @@ async function analisarMoeda(
 
     }
 
-
     const ema50_1D =
       calcularEMA(
         closes1D,
         50
       );
-
 
     const ema200_1D =
       calcularEMA(
@@ -1721,16 +1318,8 @@ async function analisarMoeda(
         200
       );
 
-
     const preco1D =
-      closes1D[
-        closes1D.length - 1
-      ];
-
-
-    /*
-       Tendência 1D
-    */
+      closes1D.at(-1);
 
     if (
       preco1D >
@@ -1751,17 +1340,12 @@ async function analisarMoeda(
 
     }
 
-
-    /*
-       Estrutura 1D
-    */
-
     if (
       ema50_1D >
       ema200_1D
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "1D EMA50 > EMA200 +1"
@@ -1776,9 +1360,9 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        4H
-    ===================================================== */
+    ================================= */
 
     const candles4H =
       await client.candles({
@@ -1786,27 +1370,19 @@ async function analisarMoeda(
         symbol,
 
         interval:
-          "4h",
+          INTERVALO_4H,
 
         limit:
           150
 
       });
 
-
-    const fechados4H =
-      candles4H.slice(
-        0,
-        -1
-      );
-
-
     const closes4H =
-      fechados4H.map(
-        c =>
-          Number(c.close)
-      );
-
+      candles4H
+        .slice(0, -1)
+        .map(
+          c => Number(c.close)
+        );
 
     if (
       closes4H.length < 50
@@ -1823,13 +1399,11 @@ async function analisarMoeda(
 
     }
 
-
     const ema21_4H =
       calcularEMA(
         closes4H,
         21
       );
-
 
     const ema50_4H =
       calcularEMA(
@@ -1837,16 +1411,8 @@ async function analisarMoeda(
         50
       );
 
-
     const preco4H =
-      closes4H[
-        closes4H.length - 1
-      ];
-
-
-    /*
-       Preço acima EMA50
-    */
+      closes4H.at(-1);
 
     if (
       preco4H >
@@ -1867,17 +1433,12 @@ async function analisarMoeda(
 
     }
 
-
-    /*
-       EMA21 > EMA50
-    */
-
     if (
       ema21_4H >
       ema50_4H
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "4H EMA21 > EMA50 +1"
@@ -1892,9 +1453,9 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        15M
-    ===================================================== */
+    ================================= */
 
     const candles15M =
       await client.candles({
@@ -1902,13 +1463,12 @@ async function analisarMoeda(
         symbol,
 
         interval:
-          "15m",
+          INTERVALO_ENTRADA,
 
         limit:
           120
 
       });
-
 
     const fechados15M =
       candles15M.slice(
@@ -1916,41 +1476,30 @@ async function analisarMoeda(
         -1
       );
 
-
     const closes =
       fechados15M.map(
-        c =>
-          Number(c.close)
+        c => Number(c.close)
       );
-
 
     const opens =
       fechados15M.map(
-        c =>
-          Number(c.open)
+        c => Number(c.open)
       );
-
 
     const highs =
       fechados15M.map(
-        c =>
-          Number(c.high)
+        c => Number(c.high)
       );
-
 
     const lows =
       fechados15M.map(
-        c =>
-          Number(c.low)
+        c => Number(c.low)
       );
-
 
     const volumes =
       fechados15M.map(
-        c =>
-          Number(c.volume)
+        c => Number(c.volume)
       );
-
 
     if (
       closes.length < 50
@@ -1967,13 +1516,11 @@ async function analisarMoeda(
 
     }
 
-
     const ema9 =
       calcularEMA(
         closes,
         9
       );
-
 
     const ema21 =
       calcularEMA(
@@ -1981,33 +1528,28 @@ async function analisarMoeda(
         21
       );
 
-
     const rsiAtual =
       calcularRSI(
         closes,
         14
       );
 
-
     const ultimo =
       closes.length - 1;
-
 
     const preco =
       closes[ultimo];
 
-
     const abertura =
       opens[ultimo];
-
 
     const volume =
       volumes[ultimo];
 
 
-    /* =====================================================
-       EMA 9 > EMA21
-    ===================================================== */
+    /* ================================
+       EMA
+    ================================= */
 
     if (
       ema9 >
@@ -2029,16 +1571,16 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        RSI
-    ===================================================== */
+    ================================= */
 
     if (
       rsiAtual >= RSI_MIN &&
       rsiAtual <= RSI_MAX
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         `RSI ${rsiAtual.toFixed(2)} +1`
@@ -2051,12 +1593,6 @@ async function analisarMoeda(
       );
 
     }
-
-
-    /*
-       RSI muito alto:
-       não comprar topo.
-    */
 
     if (
       rsiAtual >
@@ -2075,9 +1611,9 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        DISTÂNCIA EMA21
-    ===================================================== */
+    ================================= */
 
     const distanciaEMA21 =
       (
@@ -2085,15 +1621,6 @@ async function analisarMoeda(
         ema21
       ) /
       ema21;
-
-
-    /*
-       Preço abaixo EMA21 em pequena correção
-       pode ser aceitável.
-
-       Mas acima de 4%:
-       não perseguir.
-    */
 
     if (
       distanciaEMA21 >
@@ -2105,19 +1632,11 @@ async function analisarMoeda(
         valido: false,
 
         motivo:
-          `Preço esticado ${(
-            distanciaEMA21 *
-            100
-          ).toFixed(2)}% acima EMA21`
+          `Preço esticado ${(distanciaEMA21 * 100).toFixed(2)}% acima EMA21`
 
       };
 
     }
-
-
-    /*
-       Proximidade da EMA21
-    */
 
     if (
       Math.abs(
@@ -2126,7 +1645,7 @@ async function analisarMoeda(
       DISTANCIA_PULLBACK
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "Preço próximo EMA21 +1"
@@ -2135,16 +1654,15 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        VOLUME
-    ===================================================== */
+    ================================= */
 
     const volumesAnteriores =
       volumes.slice(
         -21,
         -1
       );
-
 
     const volumeMedio =
       volumesAnteriores.reduce(
@@ -2157,20 +1675,17 @@ async function analisarMoeda(
         1
       );
 
-
     const volumeRatio =
       volumeMedio > 0
-        ? volume /
-          volumeMedio
+        ? volume / volumeMedio
         : 0;
-
 
     if (
       volumeRatio >=
       VOLUME_MINIMO
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         `Volume ${(volumeRatio * 100).toFixed(0)}% média +1`
@@ -2185,16 +1700,16 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
-       CANDLE POSITIVO
-    ===================================================== */
+    /* ================================
+       CANDLE
+    ================================= */
 
     if (
       preco >
       abertura
     ) {
 
-      score += 1;
+      score++;
 
       motivos.push(
         "Candle positivo +1"
@@ -2203,26 +1718,14 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        PULLBACK
-    ===================================================== */
-
-    const ultimosLows =
-      lows.slice(
-        -6
-      );
-
+    ================================= */
 
     const menorLow =
       Math.min(
-        ...ultimosLows
+        ...lows.slice(-6)
       );
-
-
-    /*
-       O preço tocou/chegou próximo da EMA21
-       recentemente.
-    */
 
     const distanciaLowEMA =
       Math.abs(
@@ -2233,34 +1736,26 @@ async function analisarMoeda(
         ema21
       );
 
-
     const pullback =
       distanciaLowEMA <=
       DISTANCIA_PULLBACK &&
       preco >=
-        ema21 *
-        0.995 &&
+        ema21 * 0.995 &&
       preco <=
-        ema21 *
-        1.04;
+        ema21 * 1.04;
 
 
-    /* =====================================================
+    /* ================================
        BREAKOUT
-    ===================================================== */
-
-    const highsAnteriores =
-      highs.slice(
-        -11,
-        -1
-      );
-
+    ================================= */
 
     const maiorHigh =
       Math.max(
-        ...highsAnteriores
+        ...highs.slice(
+          -11,
+          -1
+        )
       );
-
 
     const breakout =
       preco >
@@ -2270,20 +1765,19 @@ async function analisarMoeda(
       distanciaEMA21 <=
         DISTANCIA_MAXIMA_ENTRADA;
 
-
     let tipoEntrada =
       null;
 
 
-    /*
-       PULLBACK TEM PRIORIDADE.
-    */
+    /* ================================
+       ENTRADA
+    ================================= */
 
     if (
       pullback
     ) {
 
-      score += 1;
+      score++;
 
       tipoEntrada =
         "PULLBACK";
@@ -2296,11 +1790,6 @@ async function analisarMoeda(
       breakout
     ) {
 
-      /*
-         Se o mercado estiver quente,
-         NÃO compramos breakout.
-      */
-
       if (
         mercado.quente
       ) {
@@ -2311,7 +1800,7 @@ async function analisarMoeda(
 
       } else {
 
-        score += 1;
+        score++;
 
         tipoEntrada =
           "BREAKOUT";
@@ -2331,46 +1820,35 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
-       SE MERCADO ESTIVER QUENTE
-    ===================================================== */
+    /* ================================
+       MERCADO QUENTE
+    ================================= */
 
     if (
-      mercado.quente
+      mercado.quente &&
+      tipoEntrada !==
+        "PULLBACK"
     ) {
 
-      /*
-         Mercado quente:
-         somente pullback.
-      */
+      return {
 
-      if (
-        tipoEntrada !==
-        "PULLBACK"
-      ) {
+        valido: false,
 
-        return {
+        motivo:
+          "Mercado muito aquecido — aguardando pullback"
 
-          valido: false,
-
-          motivo:
-            "Mercado muito aquecido — aguardando pullback"
-
-        };
-
-      }
+      };
 
     }
 
 
-    /* =====================================================
+    /* ================================
        SCORE
-    ===================================================== */
+    ================================= */
 
     console.log(
       `${symbol} 📊 SCORE ${score}/12 | RSI ${rsiAtual.toFixed(2)} | ${tipoEntrada || "SEM ENTRADA"}`
     );
-
 
     if (
       score <
@@ -2388,11 +1866,6 @@ async function analisarMoeda(
 
     }
 
-
-    /* =====================================================
-       ENTRADA PRECISA SER DEFINIDA
-    ===================================================== */
-
     if (!tipoEntrada) {
 
       return {
@@ -2407,9 +1880,9 @@ async function analisarMoeda(
     }
 
 
-    /* =====================================================
+    /* ================================
        PREÇO ATUAL
-    ===================================================== */
+    ================================= */
 
     const precoAtual =
       Number(
@@ -2419,7 +1892,6 @@ async function analisarMoeda(
           })
         )[symbol]
       );
-
 
     if (
       !Number.isFinite(
@@ -2439,20 +1911,12 @@ async function analisarMoeda(
 
     }
 
-
-    /*
-       Confirmar que o preço atual
-       não disparou para muito longe
-       enquanto analisávamos.
-    */
-
     const distanciaAtual =
       (
         precoAtual -
         ema21
       ) /
       ema21;
-
 
     if (
       distanciaAtual >
@@ -2469,7 +1933,6 @@ async function analisarMoeda(
       };
 
     }
-
 
     return {
 
@@ -2492,7 +1955,6 @@ async function analisarMoeda(
 
     };
 
-
   } catch (err) {
 
     return {
@@ -2514,63 +1976,63 @@ async function analisarMoeda(
 ========================================================= */
 
 async function executarCompra(
+  client,
+  estado,
   symbol,
-  exchangeInfo
+  exchangeInfo,
+  nomeConta
 ) {
 
   if (
-    operando
+    estado.operando
   ) {
-
-    console.log(
-      "⏸️ Já existe operação em andamento."
-    );
-
 
     return false;
 
   }
 
-
   try {
 
-    operando = true;
+    estado.operando = true;
+
+    console.log(
+      `👤 CONTA: ${nomeConta} | EXECUTANDO COMPRA`
+    );
 
 
-    /* =====================================================
-       CONFIRMAR POSIÇÃO
-    ===================================================== */
+    /* ================================
+       POSIÇÃO
+    ================================= */
 
-    const estado =
+    const posicao =
       await verificarPosicao(
+        client,
         exchangeInfo
       );
 
-
     if (
-      estado.ativa
+      posicao.ativa
     ) {
 
       console.log(
         "🔒 COMPRA CANCELADA:",
-        estado.motivo
+        posicao.motivo
       );
-
 
       return false;
 
     }
 
 
-    /* =====================================================
+    /* ================================
        COOLDOWN
-    ===================================================== */
+    ================================= */
 
     const cooldown =
       verificarCooldown(
+        estado,
         symbol
       );
-
 
     if (
       cooldown.bloqueado
@@ -2580,19 +2042,17 @@ async function executarCompra(
         `⏳ ${symbol}: ${cooldown.motivo}`
       );
 
-
       return false;
 
     }
 
 
-    /* =====================================================
-       CONTA
-    ===================================================== */
+    /* ================================
+       SALDO
+    ================================= */
 
     const conta =
       await client.accountInfo();
-
 
     const saldoUSDT =
       Number(
@@ -2603,6 +2063,9 @@ async function executarCompra(
         )?.free || 0
       );
 
+    console.log(
+      `💵 ${nomeConta} | SALDO USDT: ${saldoUSDT}`
+    );
 
     if (
       !Number.isFinite(
@@ -2613,18 +2076,17 @@ async function executarCompra(
     ) {
 
       console.log(
-        `❌ SALDO INSUFICIENTE: ${saldoUSDT} USDT`
+        `❌ ${nomeConta} | SALDO INSUFICIENTE: ${saldoUSDT} USDT`
       );
-
 
       return false;
 
     }
 
 
-    /* =====================================================
+    /* ================================
        PREÇO
-    ===================================================== */
+    ================================= */
 
     const precoAtual =
       Number(
@@ -2634,7 +2096,6 @@ async function executarCompra(
           })
         )[symbol]
       );
-
 
     if (
       !Number.isFinite(
@@ -2650,9 +2111,9 @@ async function executarCompra(
     }
 
 
-    /* =====================================================
-       INFORMAÇÕES DO PAR
-    ===================================================== */
+    /* ================================
+       PAR
+    ================================= */
 
     const info =
       exchangeInfo.symbols.find(
@@ -2660,7 +2121,6 @@ async function executarCompra(
           s.symbol ===
           symbol
       );
-
 
     if (!info) {
 
@@ -2670,20 +2130,17 @@ async function executarCompra(
 
     }
 
-
     const lotSize =
       encontrarFiltro(
         info,
         "LOT_SIZE"
       );
 
-
     const priceFilter =
       encontrarFiltro(
         info,
         "PRICE_FILTER"
       );
-
 
     if (
       !lotSize ||
@@ -2696,18 +2153,15 @@ async function executarCompra(
 
     }
 
-
     const stepSize =
       Number(
         lotSize.stepSize
       );
 
-
     const tickSize =
       Number(
         priceFilter.tickSize
       );
-
 
     const minNotional =
       obterMinimoNotional(
@@ -2715,28 +2169,19 @@ async function executarCompra(
       );
 
 
-    /* =====================================================
-       FÓRMULA DA COMPRA
-
-       NÃO ALTERAR.
-
-       95% DO SALDO.
-    ===================================================== */
+    /* ================================
+       QUANTIDADE
+    ================================= */
 
     let quantidadeCompra =
-      (
-        saldoUSDT *
-        PERCENTUAL_ENTRADA
-      ) /
-      precoAtual;
-
-
-    quantidadeCompra =
       ajustarQuantidade(
-        quantidadeCompra,
+        (
+          saldoUSDT *
+          PERCENTUAL_ENTRADA
+        ) /
+        precoAtual,
         stepSize
       );
-
 
     if (
       quantidadeCompra <= 0
@@ -2748,11 +2193,9 @@ async function executarCompra(
 
     }
 
-
     const valorCompra =
       quantidadeCompra *
       precoAtual;
-
 
     if (
       minNotional > 0 &&
@@ -2767,52 +2210,36 @@ async function executarCompra(
     }
 
 
+    /* ================================
+       COMPRA
+    ================================= */
+
     console.log(
       "\n========================================"
     );
 
-
     console.log(
-      "🟢 COMPRA AUTORIZADA:",
-      symbol
+      `🟢 ${nomeConta} | COMPRA AUTORIZADA: ${symbol}`
     );
-
-
-    console.log(
-      "💵 SALDO:",
-      saldoUSDT,
-      "USDT"
-    );
-
 
     console.log(
       "💰 UTILIZANDO:",
       `${PERCENTUAL_ENTRADA * 100}%`
     );
 
-
     console.log(
       "🪙 QUANTIDADE:",
       quantidadeCompra
     );
-
 
     console.log(
       "💵 VALOR:",
       valorCompra
     );
 
-
     console.log(
       "========================================"
     );
-
-
-    /* =====================================================
-       MARKET BUY
-
-       NÃO ALTERAR.
-    ===================================================== */
 
     const ordemCompra =
       await client.order({
@@ -2830,15 +2257,8 @@ async function executarCompra(
 
       });
 
-
     console.log(
-      "✅ COMPRA EXECUTADA"
-    );
-
-
-    console.log(
-      "🆔 PEDIDO:",
-      ordemCompra.orderId
+      `✅ ${nomeConta} | COMPRA EXECUTADA | PEDIDO: ${ordemCompra.orderId}`
     );
 
 
@@ -2847,20 +2267,18 @@ async function executarCompra(
     );
 
 
-    /* =====================================================
-       SALDO REAL
-    ===================================================== */
+    /* ================================
+       SALDO DO ATIVO
+    ================================= */
 
     const contaAtualizada =
       await client.accountInfo();
-
 
     const asset =
       symbol.replace(
         /USDT$/,
         ""
       );
-
 
     let quantidadeReal =
       Number(
@@ -2871,13 +2289,11 @@ async function executarCompra(
         )?.free || 0
       );
 
-
     quantidadeReal =
       ajustarQuantidade(
         quantidadeReal,
         stepSize
       );
-
 
     if (
       quantidadeReal <= 0
@@ -2890,26 +2306,20 @@ async function executarCompra(
     }
 
 
-    /* =====================================================
-       PREÇO MÉDIO REAL
-    ===================================================== */
+    /* ================================
+       PREÇO MÉDIO
+    ================================= */
 
     let precoEntrada =
       precoAtual;
 
-
     if (
-      ordemCompra.fills &&
-      ordemCompra.fills.length > 0
+      ordemCompra.fills?.length
     ) {
 
-      let quantidadeTotal =
-        0;
+      let quantidadeTotal = 0;
 
-
-      let valorTotal =
-        0;
-
+      let valorTotal = 0;
 
       for (
         const fill of
@@ -2921,23 +2331,19 @@ async function executarCompra(
             fill.qty || 0
           );
 
-
         const preco =
           Number(
             fill.price || 0
           );
 
-
         quantidadeTotal +=
           quantidade;
-
 
         valorTotal +=
           quantidade *
           preco;
 
       }
-
 
       if (
         quantidadeTotal > 0
@@ -2952,31 +2358,23 @@ async function executarCompra(
     }
 
 
-    /* =====================================================
-       TAKE PROFIT +5%
-
-       NÃO ALTERAR.
-    ===================================================== */
+    /* ================================
+       TAKE PROFIT
+    ================================= */
 
     let precoVenda =
-      precoEntrada *
-      (
-        1 +
-        TAKE_PROFIT
-      );
-
-
-    precoVenda =
       ajustarPreco(
-        precoVenda,
+        precoEntrada *
+          (
+            1 +
+            TAKE_PROFIT
+          ),
         tickSize
       );
-
 
     const valorVenda =
       quantidadeReal *
       precoVenda;
-
 
     if (
       minNotional > 0 &&
@@ -2990,44 +2388,30 @@ async function executarCompra(
 
     }
 
-
     console.log(
-      "\n🎯 ========================================"
+      `🎯 ${nomeConta} | ENTRADA: ${precoEntrada}`
     );
 
-
     console.log(
-      "🎯 PREÇO DE ENTRADA:",
-      precoEntrada
+      `🎯 ${nomeConta} | TAKE PROFIT: ${precoVenda}`
     );
-
-
-    console.log(
-      "🎯 TAKE PROFIT:",
-      precoVenda
-    );
-
 
     console.log(
       "🎯 ALVO: +5%"
     );
 
-
     console.log(
-      "🛑 STOP LOSS: DESATIVADO"
+      `🛑 STOP LOSS: ${
+        STOP_LOSS_ATIVO
+          ? "ATIVO"
+          : "DESATIVADO"
+      }`
     );
 
 
-    console.log(
-      "🎯 ========================================"
-    );
-
-
-    /* =====================================================
-       LIMIT SELL
-
-       NÃO ALTERAR.
-    ===================================================== */
+    /* ================================
+       VENDA LIMIT
+    ================================= */
 
     const ordemVenda =
       await client.order({
@@ -3051,85 +2435,31 @@ async function executarCompra(
 
       });
 
-
     console.log(
-      "✅ ORDEM DE VENDA CRIADA"
+      `✅ ${nomeConta} | ORDEM DE VENDA CRIADA | PEDIDO: ${ordemVenda.orderId}`
     );
 
-
-    console.log(
-      "🆔 PEDIDO:",
-      ordemVenda.orderId
-    );
-
-
-    console.log(
-      "🎯 AGUARDANDO +5%"
-    );
-
-
-    /*
-       Registrar operação.
-    */
-
-    ultimaMoedaOperada =
+    estado.ultimaMoedaOperada =
       symbol;
 
-
-    horarioUltimaOperacaoMoeda =
+    estado.horarioUltimaOperacaoMoeda =
       Date.now();
-
 
     return true;
 
-
   } catch (err) {
 
     console.log(
-      "❌ ERRO NA COMPRA:",
+      `❌ ${nomeConta} | ERRO NA COMPRA:`,
       erroTexto(err)
     );
 
-
     return false;
-
 
   } finally {
 
-    operando = false;
-
-  }
-
-}
-
-
-/* =========================================================
-   MONITORAR VENDA / DETECTAR FECHAMENTO
-========================================================= */
-
-async function verificarSeVendaFoiConcluida(
-  exchangeInfo
-) {
-
-  try {
-
-    /*
-       Se existe posição real,
-       ainda está operando.
-    */
-
-    const estado =
-      await verificarPosicao(
-        exchangeInfo
-      );
-
-
-    return !estado.ativa;
-
-
-  } catch (err) {
-
-    return false;
+    estado.operando =
+      false;
 
   }
 
@@ -3140,100 +2470,26 @@ async function verificarSeVendaFoiConcluida(
    ROBÔ PRINCIPAL
 ========================================================= */
 
-async function iniciarRobo() {
+async function iniciarRobo(
+  conta
+) {
+
+  const {
+    client,
+    estado,
+    nome
+  } = conta;
 
   console.log(
-    "\n🔥 ========================================"
+    `\n🚀 INICIANDO ROBÔ — ${nome}`
   );
 
-
   console.log(
-    "🔥 ROBÔ BINANCE"
+    "🔥 ESTRATÉGIA: TOP 20 | BTC 1D+4H | EMA | RSI | PULLBACK/BREAKOUT | SCORE 7/12 | TP +5%"
   );
 
-
   console.log(
-    "🔥 ESTRATÉGIA FILTRO DE MERCADO"
-  );
-
-
-  console.log(
-    "🔥 TOP 20 MARKET CAP"
-  );
-
-
-  console.log(
-    "🔥 ========================================"
-  );
-
-
-  console.log(
-    "💰 ENTRADA: 95%"
-  );
-
-
-  console.log(
-    "🎯 TAKE PROFIT: +5%"
-  );
-
-
-  console.log(
-    "🛑 STOP LOSS: DESATIVADO"
-  );
-
-
-  console.log(
-    "📊 SCORE MÍNIMO: 7/12"
-  );
-
-
-  console.log(
-    "🌎 FILTRO DE MERCADO: BTC 1D + 4H"
-  );
-
-
-  console.log(
-    "📈 RSI: 40–65"
-  );
-
-
-  console.log(
-    "📊 VOLUME NORMAL: ≥80%"
-  );
-
-
-  console.log(
-    "🚀 BREAKOUT: VOLUME ≥130%"
-  );
-
-
-  console.log(
-    "📉 PULLBACK: PRIORIDADE"
-  );
-
-
-  console.log(
-    "🚨 PREÇO >4% EMA21: BLOQUEADO"
-  );
-
-
-  console.log(
-    "⏳ COOLDOWN: 30 MIN"
-  );
-
-
-  console.log(
-    "🧹 DUST <5 USDT: IGNORADO"
-  );
-
-
-  console.log(
-    "🔒 UMA POSIÇÃO POR VEZ"
-  );
-
-
-  console.log(
-    "========================================\n"
+    "🔒 UMA POSIÇÃO POR VEZ POR CONTA"
   );
 
 
@@ -3246,81 +2502,57 @@ async function iniciarRobo() {
     try {
 
       console.log(
-        "\n\n========================================"
+        `\n\n========================================\n👤 CONTA: ${nome}\n🔎 NOVA VARREDURA\n${new Date().toISOString()}\n========================================`
       );
 
 
-      console.log(
-        "🔎 NOVA VARREDURA"
-      );
-
-
-      console.log(
-        new Date().toISOString()
-      );
-
-
-      console.log(
-        "========================================"
-      );
-
-
-      /* =====================================================
-         BINANCE
-      ===================================================== */
+      /* ================================
+         EXCHANGE INFO
+      ================================= */
 
       const exchangeInfo =
         await client.exchangeInfo();
 
 
-      /* =====================================================
-         VERIFICAR POSIÇÃO
-      ===================================================== */
+      /* ================================
+         POSIÇÃO
+      ================================= */
 
-      const estado =
+      const posicao =
         await verificarPosicao(
+          client,
           exchangeInfo
         );
 
-
       if (
-        estado.ativa
+        posicao.ativa
       ) {
 
         console.log(
-          "🔒 OPERAÇÃO ATIVA:",
-          estado.motivo
+          `🔒 ${nome} | OPERAÇÃO ATIVA: ${posicao.motivo}`
         );
-
 
         console.log(
           "⏳ Aguardando TAKE PROFIT."
         );
 
-
         await sleep(
           INTERVALO_VARREDURA
         );
-
 
         continue;
 
       }
 
 
-      console.log(
-        "✅ SEM POSIÇÃO REAL"
-      );
-
-
-      /* =====================================================
+      /* ================================
          COOLDOWN GERAL
-      ===================================================== */
+      ================================= */
 
       if (
-        ultimaVenda > 0 &&
+        estado.ultimaVenda > 0 &&
         Date.now() -
-          ultimaVenda <
+          estado.ultimaVenda <
           COOLDOWN_GERAL
       ) {
 
@@ -3329,118 +2561,78 @@ async function iniciarRobo() {
             COOLDOWN_GERAL -
             (
               Date.now() -
-              ultimaVenda
+              estado.ultimaVenda
             )
           ) /
           60000;
 
-
         console.log(
-          `⏳ COOLDOWN APÓS VENDA: ${restante.toFixed(0)} minutos`
+          `⏳ ${nome} | COOLDOWN APÓS VENDA: ${restante.toFixed(0)} minutos`
         );
-
 
         await sleep(
           INTERVALO_VARREDURA
         );
-
 
         continue;
 
       }
 
 
-      /* =====================================================
-         PRIMEIRO AVALIAR O MERCADO
-      ===================================================== */
+      /* ================================
+         MERCADO
+      ================================= */
 
       const mercado =
-        await avaliarMercado();
-
+        await avaliarMercado(
+          client
+        );
 
       if (
         !mercado.favoravel
       ) {
 
         console.log(
-          "\n🔴 ========================================"
+          `🔴 ${nome} | MERCADO NÃO FAVORÁVEL — NENHUMA COMPRA`
         );
-
-
-        console.log(
-          "🔴 MERCADO NÃO FAVORÁVEL"
-        );
-
-
-        console.log(
-          "🔴 NENHUMA COMPRA SERÁ FEITA"
-        );
-
-
-        console.log(
-          "⏳ Aguardando próxima avaliação..."
-        );
-
-
-        console.log(
-          "🔴 ========================================\n"
-        );
-
 
         await sleep(
           INTERVALO_VARREDURA
         );
-
 
         continue;
 
       }
 
 
-      /* =====================================================
+      /* ================================
          TOP 20
-      ===================================================== */
+      ================================= */
 
       const pares =
         await obterTop20MarketCap(
           exchangeInfo
         );
 
-
       if (
-        !pares ||
-        pares.length === 0
+        !pares.length
       ) {
 
         console.log(
           "❌ TOP 20 indisponível."
         );
 
-
         await sleep(
           INTERVALO_VARREDURA
         );
-
 
         continue;
 
       }
 
-
       console.log(
-        "\n📊 ========================================"
+        "\n📊 TOP 20 MARKET CAP"
       );
-
-
-      console.log(
-        "📊 TOP 20 MARKET CAP"
-      );
-
-
-      console.log(
-        "📊 ========================================"
-      );
-
 
       pares.forEach(
         (par, index) => {
@@ -3453,61 +2645,48 @@ async function iniciarRobo() {
       );
 
 
-      /* =====================================================
-         ANALISAR MOEDAS
-      ===================================================== */
+      /* ================================
+         ANALISAR
+      ================================= */
 
       let encontrouEntrada =
         false;
-
 
       for (
         const par of pares
       ) {
 
         if (
-          operando
+          estado.operando
         ) {
 
           break;
 
         }
 
-
-        /*
-           Confirmar posição antes de cada moeda.
-        */
-
         const estadoAtual =
           await verificarPosicao(
+            client,
             exchangeInfo
           );
-
 
         if (
           estadoAtual.ativa
         ) {
 
           console.log(
-            "🔒 OPERAÇÃO DETECTADA:",
-            estadoAtual.motivo
+            `🔒 ${nome} | OPERAÇÃO DETECTADA: ${estadoAtual.motivo}`
           );
-
 
           break;
 
         }
 
-
-        /*
-           Cooldown específico.
-        */
-
         const cooldown =
           verificarCooldown(
+            estado,
             par.symbol
           );
-
 
         if (
           cooldown.bloqueado
@@ -3517,23 +2696,20 @@ async function iniciarRobo() {
             `${par.symbol} ⏳ ${cooldown.motivo}`
           );
 
-
           continue;
 
         }
 
-
         console.log(
-          `\n➡️ ANALISANDO: ${par.symbol}`
+          `\n➡️ ${nome} | ANALISANDO: ${par.symbol}`
         );
-
 
         const setup =
           await analisarMoeda(
+            client,
             par.symbol,
             mercado
           );
-
 
         if (
           !setup.valido
@@ -3543,74 +2719,31 @@ async function iniciarRobo() {
             `${par.symbol} ❌ ${setup.motivo}`
           );
 
-
           await sleep(
             PAUSA_ENTRE_MOEDAS
           );
-
 
           continue;
 
         }
 
-
-        /* =====================================================
-           SETUP APROVADO
-        ===================================================== */
-
         console.log(
-          "\n🟢 ========================================"
+          `🟢 ${nome} | SETUP APROVADO: ${par.symbol} | SCORE ${setup.score}/12 | RSI ${setup.rsi.toFixed(2)} | ${setup.tipoEntrada}`
         );
 
 
-        console.log(
-          `🟢 SETUP APROVADO: ${par.symbol}`
-        );
-
-
-        console.log(
-          `📊 SCORE: ${setup.score}/12`
-        );
-
-
-        console.log(
-          `📈 RSI: ${setup.rsi.toFixed(2)}`
-        );
-
-
-        console.log(
-          `🎯 TIPO: ${setup.tipoEntrada}`
-        );
-
-
-        console.log(
-          `💰 PREÇO: ${setup.precoAtual}`
-        );
-
-
-        console.log(
-          "📝",
-          setup.motivos.join(
-            " | "
-          )
-        );
-
-
-        console.log(
-          "🟢 ========================================"
-        );
-
-
-        /* =====================================================
+        /* ================================
            COMPRA
-        ===================================================== */
+        ================================= */
 
         const comprou =
           await executarCompra(
+            client,
+            estado,
             par.symbol,
-            exchangeInfo
+            exchangeInfo,
+            nome
           );
-
 
         if (
           comprou
@@ -3619,41 +2752,13 @@ async function iniciarRobo() {
           encontrouEntrada =
             true;
 
-
           console.log(
-            "\n🚀 ========================================"
+            `🚀 ${nome} | OPERAÇÃO ABERTA: ${par.symbol} | ALVO +5%`
           );
-
-
-          console.log(
-            `🚀 OPERAÇÃO ABERTA: ${par.symbol}`
-          );
-
-
-          console.log(
-            `🚀 TIPO: ${setup.tipoEntrada}`
-          );
-
-
-          console.log(
-            "🚀 ALVO: +5%"
-          );
-
-
-          console.log(
-            "🚀 ROBÔ AGUARDANDO VENDA"
-          );
-
-
-          console.log(
-            "🚀 ========================================\n"
-          );
-
 
           break;
 
         }
-
 
         await sleep(
           PAUSA_ENTRE_MOEDAS
@@ -3661,47 +2766,33 @@ async function iniciarRobo() {
 
       }
 
-
       if (
         !encontrouEntrada
       ) {
 
         console.log(
-          "\n🔎 NENHUMA ENTRADA ENCONTRADA NESTA VARREDURA."
+          `🔎 ${nome} | NENHUMA ENTRADA ENCONTRADA NESTA VARREDURA.`
         );
 
       }
 
-
     } catch (err) {
 
       console.log(
-        "\n❌ ERRO NA VARREDURA:"
-      );
-
-
-      console.log(
+        `❌ ${nome} | ERRO NA VARREDURA:`,
         erroTexto(err)
       );
 
     }
 
 
-    /*
-       ========================================================
-       IMPORTANTE
-
-       O robô nunca encerra normalmente.
-
-       Depois da varredura, aguarda 15 minutos e começa
-       novamente.
-       ========================================================
-    */
+    /* ================================
+       PRÓXIMA VARREDURA
+    ================================= */
 
     console.log(
-      "\n⏳ PRÓXIMA VARREDURA EM 15 MINUTOS..."
+      `⏳ ${nome} | PRÓXIMA VARREDURA EM 15 MINUTOS...`
     );
-
 
     await sleep(
       INTERVALO_VARREDURA
@@ -3713,18 +2804,19 @@ async function iniciarRobo() {
 
 
 /* =========================================================
-   VALIDAR API
+   VALIDAR APIs
 ========================================================= */
 
 if (
-  !process.env.API_KEY ||
-  !process.env.API_SECRET
+  !process.env.API_KEY_1 ||
+  !process.env.API_SECRET_1 ||
+  !process.env.API_KEY_2 ||
+  !process.env.API_SECRET_2
 ) {
 
-  console.log(
-    "❌ API_KEY ou API_SECRET não configuradas."
+  console.error(
+    "❌ Configure API_KEY_1, API_SECRET_1, API_KEY_2 e API_SECRET_2 no Northflank."
   );
-
 
   process.exit(1);
 
@@ -3736,17 +2828,15 @@ if (
 ========================================================= */
 
 console.log(
-  "🚀 Iniciando server.js..."
+  "🚀 BINANCE-ROBO — 2 CONTAS"
 );
 
-
 console.log(
-  "🔐 API configurada."
+  "👤 CONTA 1: SUA CONTA"
 );
 
-
 console.log(
-  "🇩🇪 Execução preparada para Frankfurt."
+  "👤 CONTA 2: CONTA DO AMIGO"
 );
 
 
@@ -3756,45 +2846,40 @@ console.log(
 
 process.on(
   "unhandledRejection",
-  err => {
-
+  err =>
     console.log(
       "❌ UNHANDLED REJECTION:",
       erroTexto(err)
-    );
-
-  }
+    )
 );
-
 
 process.on(
   "uncaughtException",
-  err => {
-
+  err =>
     console.log(
       "❌ UNCAUGHT EXCEPTION:",
       erroTexto(err)
-    );
-
-  }
+    )
 );
 
 
 /* =========================================================
-   INICIAR
+   INICIAR AS DUAS CONTAS
 ========================================================= */
 
-iniciarRobo()
-  .catch(
-    err => {
+Promise.all(
+  CONTAS.map(
+    iniciarRobo
+  )
+).catch(
+  err => {
 
-      console.log(
-        "❌ FALHA FATAL:",
-        erroTexto(err)
-      );
+    console.log(
+      "❌ FALHA FATAL NAS CONTAS:",
+      erroTexto(err)
+    );
 
+    process.exit(1);
 
-      process.exit(1);
-
-    }
-  );
+  }
+);

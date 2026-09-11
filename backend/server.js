@@ -20,8 +20,8 @@ CONTA 2 = SERGIO
 API_KEY_2
 API_SECRET_2
 
-O painel consulta as duas contas.
-CONTROLE MANUAL SOMENTE DA CONTA SERGIO, protegido por token.
+O painel consulta as duas contas. CONTROLE MANUAL SOMENTE NA CONTA SERGIO:
+VENDA A MERCADO E CANCELAMENTO DE ORDENS SELL, PROTEGIDOS POR TOKEN.
 =========================================================
 */
 
@@ -233,21 +233,23 @@ function calcularPnL(trades) {
 
 /*
 =========================================================
-POSIÇÕES
+OPERAÇÃO ATUAL
 =========================================================
+Identifica somente os trades após a última VENDA do ativo.
+Assim, a comparação THIAGO x SERGIO não mistura operações
+antigas com a operação que está aberta agora.
 */
-
 function calcularOperacaoAtual(trades) {
   const lista = (trades || []).slice().sort(function(a,b){
     return num(a.time) - num(b.time);
   });
 
-  let ultimoSell = -1;
+  let ultimoSellIndex = -1;
   for (let i = 0; i < lista.length; i++) {
-    if (!lista[i].isBuyer) ultimoSell = i;
+    if (!lista[i].isBuyer) ultimoSellIndex = i;
   }
 
-  const atual = lista.slice(ultimoSell + 1);
+  const atual = lista.slice(ultimoSellIndex + 1);
   const compras = atual.filter(function(t){ return !!t.isBuyer; });
   const vendas = atual.filter(function(t){ return !t.isBuyer; });
 
@@ -275,73 +277,156 @@ function calcularOperacaoAtual(trades) {
     quantidade,
     entrada,
     entradaTime: primeiraCompra ? num(primeiraCompra.time) : 0,
-    qtdComprada,
-    qtdVendida,
     compras: compras.length,
-    vendas: vendas.length
+    vendas: vendas.length,
+    qtdComprada,
+    qtdVendida
   };
 }
 
+/*
+=========================================================
+POSIÇÕES
+=========================================================
+*/
+
 async function obterPosicoes(conta, dadosConta) {
-  const ativos = (dadosConta.ativos || []).filter(function(a){
-    return a.asset !== "USDT" && a.valorUSDT >= 3 && a.precoUSDT > 0;
+  const posicoes = [];
+
+  const ativos = (dadosConta.ativos || []).filter(function (a) {
+    return a.asset !== "USDT" && a.valorUSDT >= 3;
   });
 
-  const resultados = await Promise.all(ativos.map(async function(ativo){
+  for (const ativo of ativos) {
     const symbol = ativo.asset + "USDT";
     const trades = await obterTrades(conta, symbol, 1000);
 
+    let ultimoTrade = null;
+
+    for (const t of trades) {
+      if (
+        !ultimoTrade ||
+        num(t.time) > num(ultimoTrade.time)
+      ) {
+        ultimoTrade = t;
+      }
+    }
+
     const operacao = calcularOperacaoAtual(trades);
     const quantidade = ativo.total;
-    const precoAtual = ativo.precoUSDT;
+    const quantidadeOperacao = operacao.ativa
+      ? Math.min(quantidade, operacao.quantidade)
+      : 0;
+
+    const quantidadeLiquida = operacao.quantidade;
     const precoMedio = operacao.entrada;
-    const valorAtual = quantidade * precoAtual;
-    const pnlNaoRealizado = precoMedio > 0
-      ? (precoAtual - precoMedio) * quantidade
-      : 0;
-    const pnlPct = precoMedio > 0
-      ? ((precoAtual / precoMedio) - 1) * 100
-      : 0;
+    const precoAtual = ativo.precoUSDT;
+
+    const valorAtual =
+      quantidade * precoAtual;
+
+    const pnlNaoRealizado =
+      precoMedio > 0 && quantidadeOperacao > 0
+        ? (precoAtual - precoMedio) * quantidadeOperacao
+        : 0;
+
+    const pnlPct =
+      precoMedio > 0
+        ? ((precoAtual / precoMedio) - 1) * 100
+        : 0;
 
     let ordensAbertas = [];
-    try {
-      ordensAbertas = await conta.client.openOrders({symbol});
-    } catch(e) {}
 
-    const vendas = ordensAbertas.filter(function(o){
-      return String(o.side).toUpperCase() === "SELL" && num(o.price) > 0;
-    }).sort(function(a,b){ return num(a.price) - num(b.price); });
+    try {
+      ordensAbertas =
+        await conta.client.openOrders({
+          symbol
+        });
+    } catch (e) {}
+
+    const vendas = ordensAbertas
+      .filter(function (o) {
+        return (
+          String(o.side).toUpperCase() === "SELL" &&
+          num(o.price) > 0
+        );
+      })
+      .sort(function (a, b) {
+        return num(a.price) - num(b.price);
+      });
 
     const tpOrder = vendas[0] || null;
-    const slOrder = ordensAbertas.find(function(o){
-      return ["STOP","STOP_LOSS","STOP_LOSS_LIMIT","TAKE_PROFIT","TAKE_PROFIT_LIMIT"].includes(String(o.type || "").toUpperCase());
-    }) || null;
 
-    const ordenados = trades.slice().sort(function(a,b){ return num(a.time)-num(b.time); });
-    const ultimoTrade = ordenados[ordenados.length-1] || null;
+    const slOrder =
+      ordensAbertas.find(function (o) {
+        return [
+          "STOP",
+          "STOP_LOSS",
+          "STOP_LOSS_LIMIT"
+        ].includes(
+          String(o.type || "").toUpperCase()
+        );
+      }) || null;
 
-    return {
+    posicoes.push({
       symbol,
       asset: ativo.asset,
       quantidade,
-      quantidadeLivre: ativo.free,
-      quantidadeBloqueada: ativo.locked,
-      quantidadeLiquida: operacao.quantidade,
-      operacaoAtual: operacao,
+      quantidadeLiquida,
       precoMedio,
       precoAtual,
       valorAtual,
       pnlNaoRealizado,
       pnlNaoRealizadoPct: pnlPct,
       pnlRealizado: calcularPnL(trades),
-      tp: tpOrder ? {price:num(tpOrder.price),qty:num(tpOrder.origQty),type:tpOrder.type,status:tpOrder.status,orderId:tpOrder.orderId} : null,
-      sl: slOrder ? {stopPrice:num(slOrder.stopPrice || slOrder.price),price:num(slOrder.price),type:slOrder.type,status:slOrder.status,orderId:slOrder.orderId} : null,
+      operacaoAtual: {
+        ativa: operacao.ativa,
+        quantidade: quantidadeOperacao,
+        entrada: precoMedio,
+        entradaTime: operacao.entradaTime,
+        compras: operacao.compras,
+        vendas: operacao.vendas,
+        pnlUSDT: pnlNaoRealizado,
+        pnlBRL: pnlNaoRealizado * num(dadosConta.usdtBrl),
+        pnlPct
+      },
+      tp: tpOrder
+        ? {
+            price: num(tpOrder.price),
+            qty: num(tpOrder.origQty),
+            type: tpOrder.type,
+            status: tpOrder.status
+          }
+        : null,
+      sl: slOrder
+        ? {
+            stopPrice: num(
+              slOrder.stopPrice || slOrder.price
+            ),
+            price: num(slOrder.price),
+            type: slOrder.type,
+            status: slOrder.status
+          }
+        : null,
       ordensAbertas: ordensAbertas.length,
-      ultimaOperacao: ultimoTrade ? {lado:ultimoTrade.isBuyer ? "COMPRA" : "VENDA",qty:num(ultimoTrade.qty),price:num(ultimoTrade.price),time:num(ultimoTrade.time)} : null
-    };
-  }));
+      ultimaOperacao: ultimoTrade
+        ? {
+            lado: ultimoTrade.isBuyer
+              ? "COMPRA"
+              : "VENDA",
+            qty: num(ultimoTrade.qty),
+            price: num(ultimoTrade.price),
+            time: num(ultimoTrade.time)
+          }
+        : null
+    });
+  }
 
-  return resultados.sort(function(a,b){ return b.valorAtual-a.valorAtual; });
+  posicoes.sort(function (a, b) {
+    return b.valorAtual - a.valorAtual;
+  });
+
+  return posicoes;
 }
 
 /*
@@ -351,28 +436,46 @@ HISTÓRICO
 */
 
 async function obterHistorico(conta, dadosConta) {
-  const ativos = (dadosConta.ativos || []).filter(function(a){
-    return a.asset !== "USDT" && a.valorUSDT > 0.01;
-  }).slice(0, 30);
+  const ativos = (dadosConta.ativos || [])
+    .filter(function (a) {
+      return (
+        a.asset !== "USDT" &&
+        a.valorUSDT > 0.01
+      );
+    })
+    .slice(0, 20);
 
-  const blocos = await Promise.all(ativos.map(async function(ativo){
+  const resultado = [];
+
+  for (const ativo of ativos) {
     const symbol = ativo.asset + "USDT";
-    const trades = await obterTrades(conta, symbol, 100);
-    return trades.map(function(t){
-      return {
-        symbol,
-        lado:t.isBuyer ? "COMPRA" : "VENDA",
-        qty:num(t.qty),
-        price:num(t.price),
-        quoteQty:num(t.quoteQty),
-        commission:num(t.commission),
-        commissionAsset:t.commissionAsset,
-        time:num(t.time)
-      };
-    });
-  }));
+    const trades = await obterTrades(
+      conta,
+      symbol,
+      100
+    );
 
-  return blocos.flat().sort(function(a,b){ return b.time-a.time; }).slice(0,100);
+    for (const t of trades) {
+      resultado.push({
+        symbol,
+        lado: t.isBuyer
+          ? "COMPRA"
+          : "VENDA",
+        qty: num(t.qty),
+        price: num(t.price),
+        quoteQty: num(t.quoteQty),
+        commission: num(t.commission),
+        commissionAsset: t.commissionAsset,
+        time: num(t.time)
+      });
+    }
+  }
+
+  resultado.sort(function (a, b) {
+    return b.time - a.time;
+  });
+
+  return resultado.slice(0, 50);
 }
 
 /*
@@ -419,170 +522,252 @@ async function obterDashboardConta(conta) {
     ultimaVenda:
       historico.find(function (h) {
         return h.lado === "VENDA";
-      }) || null
+      }) || null,
+    operacaoAtual:
+      posicoes.length && posicoes[0].operacaoAtual && posicoes[0].operacaoAtual.ativa
+        ? { ...posicoes[0].operacaoAtual, symbol: posicoes[0].symbol, precoAtual: posicoes[0].precoAtual, tp: posicoes[0].tp, sl: posicoes[0].sl }
+        : null
   };
 }
 
+
 /*
 =========================================================
-CONTROLE MANUAL SERGIO
+CONTROLE MANUAL — SERGIO
+Somente venda a mercado da posição informada e
+cancelamento de ordem SELL ativa.
+Protegido por PAINEL_MANUAL_TOKEN.
+Não altera a conta THIAGO.
 =========================================================
 */
 const MANUAL_TOKEN = String(process.env.PAINEL_MANUAL_TOKEN || "").trim();
-const MANUAL_FEE_RATE = num(process.env.MANUAL_SELL_FEE_RATE) || 0.001;
 
-function manualAutorizado(req){
-  if(!MANUAL_TOKEN) return false;
-  const recebido = String(req.headers["x-manual-token"] || req.body?.token || "").trim();
-  return recebido && recebido === MANUAL_TOKEN;
+function autorizarManualSergio(req, res) {
+  if (!MANUAL_TOKEN) {
+    res.status(503).json({
+      erro: "Controle manual desativado: configure PAINEL_MANUAL_TOKEN no painel."
+    });
+    return false;
+  }
+
+  const token = String(
+    (req.body && req.body.token) ||
+    req.headers["x-painel-token"] ||
+    ""
+  ).trim();
+
+  if (!token || token !== MANUAL_TOKEN) {
+    res.status(401).json({ erro: "Token do controle manual inválido." });
+    return false;
+  }
+
+  return true;
 }
 
-function clienteSergio(){
-  return clientes.find(function(c){ return c.id === "2"; }) || null;
+function obterContaSergio() {
+  return clientes.find(function(c) {
+    return c.id === "2";
+  });
 }
 
-async function obterFiltrosSymbol(client, symbol){
+async function obterRegraQuantidade(client, symbol) {
   const info = await client.exchangeInfo();
-  const item = (info.symbols || []).find(function(s){ return s.symbol === symbol; });
-  if(!item) throw new Error("Par " + symbol + " não encontrado na Binance.");
-  const filters = {};
-  (item.filters || []).forEach(function(f){ filters[f.filterType] = f; });
-  return {item, filters};
+  const item = (info.symbols || []).find(function(s) {
+    return String(s.symbol).toUpperCase() === String(symbol).toUpperCase();
+  });
+
+  if (!item) throw new Error("Símbolo não encontrado na Binance: " + symbol);
+
+  const filters = item.filters || [];
+  const lot = filters.find(function(f) {
+    return f.filterType === "LOT_SIZE";
+  });
+
+  const marketLot = filters.find(function(f) {
+    return f.filterType === "MARKET_LOT_SIZE";
+  });
+
+  const escolhido = marketLot || lot;
+
+  return {
+    minQty: num(escolhido && escolhido.minQty),
+    stepSize: num(escolhido && escolhido.stepSize),
+    minNotional: num(
+      (filters.find(function(f){ return f.filterType === "MIN_NOTIONAL"; }) || {}).minNotional ||
+      (filters.find(function(f){ return f.filterType === "NOTIONAL"; }) || {}).minNotional
+    )
+  };
 }
 
-function casasDoPasso(step){
-  const s=String(step || "0.00000001");
-  if(s.indexOf("e-") >= 0) return Number(s.split("e-")[1]);
-  const p=s.indexOf(".");
-  return p>=0 ? s.length-p-1 : 0;
+function ajustarQuantidade(qty, stepSize) {
+  if (qty <= 0) return 0;
+  if (!stepSize || stepSize <= 0) return qty;
+
+  const casas = Math.max(
+    0,
+    Math.ceil(-Math.log10(stepSize))
+  );
+
+  const ajustada = Math.floor((qty + 1e-12) / stepSize) * stepSize;
+  return Number(ajustada.toFixed(casas));
 }
 
-function ajustarStep(qty, step){
-  const n=num(qty), st=num(step);
-  if(n<=0 || st<=0) return 0;
-  const out=Math.floor((n + 1e-12)/st)*st;
-  return Number(out.toFixed(casasDoPasso(step)));
-}
+app.post("/api/manual/sell", async function(req, res) {
+  try {
+    if (!autorizarManualSergio(req, res)) return;
 
-async function manualPreviewSergio(symbol){
-  const conta=clienteSergio();
-  if(!conta || !conta.client) throw new Error("Credenciais da conta SERGIO não configuradas.");
-  symbol=String(symbol || "").toUpperCase().trim();
-  if(!/^[A-Z0-9]{5,20}$/.test(symbol)) throw new Error("Símbolo inválido.");
-
-  const info=await conta.client.accountInfo();
-  const asset=symbol.endsWith("USDT") ? symbol.slice(0,-4) : "";
-  if(!asset) throw new Error("Use um par terminado em USDT, por exemplo BTCUSDT.");
-  const bal=(info.balances || []).find(function(b){ return String(b.asset).toUpperCase()===asset; });
-  const free=num(bal && bal.free);
-  const locked=num(bal && bal.locked);
-  const prices=await conta.client.prices({symbol});
-  const price=num(prices && prices[symbol]);
-  if(price<=0) throw new Error("Não consegui obter o preço de " + symbol + ".");
-  const spec=await obterFiltrosSymbol(conta.client,symbol);
-  const lot=spec.filters.LOT_SIZE || spec.filters.MARKET_LOT_SIZE || {};
-  const minNotional=num((spec.filters.NOTIONAL||{}).minNotional) || num((spec.filters.MIN_NOTIONAL||{}).minNotional) || 0;
-  const minQty=num(lot.minQty);
-  const maxQty=num(lot.maxQty);
-  const step=num(lot.stepSize);
-  let ordens=[];
-  try{ ordens=await conta.client.openOrders({symbol}); }catch(e){}
-  const sellOrders=ordens.filter(function(o){ return String(o.side).toUpperCase()==="SELL"; });
-  const opTrade=await obterTrades(conta,symbol,1000);
-  const op=calcularOperacaoAtual(opTrade);
-  const pnl=op.entrada>0 ? (price-op.entrada)*Math.max(0,op.quantidade) : 0;
-  return {account:"2",accountName:"SERGIO",symbol,asset,price,free,locked,minQty,maxQty,stepSize:step,minNotional,openSellOrders:sellOrders.map(function(o){return {orderId:o.orderId,price:num(o.price),origQty:num(o.origQty),type:o.type,status:o.status};}),entry:op.entrada,currentOperationQty:op.quantidade,pnl,pnlPct:op.entrada>0?((price/op.entrada)-1)*100:0,feeEstimate:Math.max(0,op.quantidade*price)*MANUAL_FEE_RATE};
-}
-
-app.get("/api/manual/preview", async function(req,res){
-  try{
-    if(!MANUAL_TOKEN) return res.status(503).json({ok:false,erro:"PAINEL_MANUAL_TOKEN não configurado no Northflank."});
-    const symbol=String(req.query.symbol || "").toUpperCase();
-    const data=await manualPreviewSergio(symbol);
-    res.json({ok:true,...data});
-  }catch(e){ res.status(400).json({ok:false,erro:e.message}); }
-});
-
-app.post("/api/manual/cancel-sell", async function(req,res){
-  try{
-    if(!manualAutorizado(req)) return res.status(403).json({ok:false,erro:"Token manual inválido ou não configurado."});
-    const conta=clienteSergio();
-    if(!conta || !conta.client) throw new Error("Conta SERGIO indisponível.");
-    const symbol=String(req.body?.symbol || "").toUpperCase();
-    if(!symbol.endsWith("USDT")) throw new Error("Símbolo inválido.");
-    const orders=await conta.client.openOrders({symbol});
-    const sells=orders.filter(function(o){return String(o.side).toUpperCase()==="SELL";});
-    const resultados=[];
-    for(const o of sells){
-      try{
-        const r=await conta.client.cancelOrder({symbol,orderId:o.orderId});
-        resultados.push({orderId:o.orderId,ok:true,status:r.status});
-      }catch(e){ resultados.push({orderId:o.orderId,ok:false,erro:e.message}); }
+    const conta = obterContaSergio();
+    if (!conta || !conta.client) {
+      return res.status(500).json({ erro: "Conta SERGIO indisponível." });
     }
-    res.json({ok:true,symbol,canceladas:resultados.length,resultados});
-  }catch(e){res.status(400).json({ok:false,erro:e.message});}
+
+    const symbol = String(req.body && req.body.symbol || "").toUpperCase().trim();
+
+    if (!/^[A-Z0-9]+USDT$/.test(symbol)) {
+      return res.status(400).json({
+        erro: "Informe um par SPOT terminado em USDT."
+      });
+    }
+
+    // Primeiro cancela SELLs abertas do mesmo ativo para evitar conflito.
+    let abertas = [];
+    try {
+      abertas = await conta.client.openOrders({ symbol });
+    } catch (e) {}
+
+    const sells = abertas.filter(function(o) {
+      return String(o.side || "").toUpperCase() === "SELL";
+    });
+
+    for (const o of sells) {
+      try {
+        await conta.client.cancelOrder({
+          symbol,
+          orderId: o.orderId
+        });
+      } catch (e) {}
+    }
+
+    const account = await conta.client.accountInfo();
+    const asset = symbol.replace(/USDT$/, "");
+
+    const saldo = (account.balances || []).find(function(b) {
+      return String(b.asset).toUpperCase() === asset;
+    });
+
+    const livre = num(saldo && saldo.free);
+
+    if (livre <= 0) {
+      return res.status(400).json({
+        erro: "Não há saldo livre de " + asset + " para vender."
+      });
+    }
+
+    const regra = await obterRegraQuantidade(conta.client, symbol);
+    const quantidade = ajustarQuantidade(livre, regra.stepSize);
+
+    if (quantidade <= 0 || (regra.minQty > 0 && quantidade < regra.minQty)) {
+      return res.status(400).json({
+        erro: "Quantidade disponível abaixo do mínimo permitido para " + symbol + "."
+      });
+    }
+
+    const ordem = await conta.client.order({
+      symbol,
+      side: "SELL",
+      type: "MARKET",
+      quantity: String(quantidade),
+      newOrderRespType: "FULL"
+    });
+
+    res.json({
+      ok: true,
+      conta: "SERGIO",
+      acao: "VENDA",
+      symbol,
+      quantidade,
+      orderId: ordem.orderId || null,
+      mensagem: "Venda a mercado enviada com sucesso."
+    });
+
+  } catch (e) {
+    res.status(500).json({
+      erro: e && e.message ? e.message : String(e)
+    });
+  }
 });
 
-app.post("/api/manual/buy", async function(req,res){
-  try{
-    if(!manualAutorizado(req)) return res.status(403).json({ok:false,erro:"Token manual inválido ou não configurado."});
-    const conta=clienteSergio();
-    if(!conta || !conta.client) throw new Error("Conta SERGIO indisponível.");
-    const symbol=String(req.body?.symbol || "").toUpperCase();
-    const usdt=num(req.body?.usdt);
-    if(!symbol.endsWith("USDT")) throw new Error("Use um par USDT, por exemplo BTCUSDT.");
-    if(usdt<=0) throw new Error("Informe um valor de compra em USDT maior que zero.");
-    const spec=await obterFiltrosSymbol(conta.client,symbol);
-    const prices=await conta.client.prices({symbol});
-    const price=num(prices && prices[symbol]);
-    if(price<=0) throw new Error("Preço indisponível.");
-    const minNotional=num((spec.filters.NOTIONAL||{}).minNotional) || num((spec.filters.MIN_NOTIONAL||{}).minNotional) || 0;
-    if(minNotional && usdt < minNotional) throw new Error("Compra abaixo do mínimo da Binance: " + minNotional + " USDT.");
-    // MARKET BUY com quoteOrderQty: o valor informado é exatamente o orçamento em USDT.
-    const ordem=await conta.client.order({symbol,side:"BUY",type:"MARKET",quoteOrderQty:usdt.toFixed(2),newOrderRespType:"FULL"});
-    res.json({ok:true,conta:"SERGIO",acao:"COMPRA",symbol,usdt,price,orderId:ordem.orderId,status:ordem.status,executedQty:num(ordem.executedQty),cummulativeQuoteQty:num(ordem.cummulativeQuoteQty)});
-  }catch(e){res.status(400).json({ok:false,erro:e.message});}
-});
+app.post("/api/manual/cancel-sell", async function(req, res) {
+  try {
+    if (!autorizarManualSergio(req, res)) return;
 
-app.post("/api/manual/sell", async function(req,res){
-  try{
-    if(!manualAutorizado(req)) return res.status(403).json({ok:false,erro:"Token manual inválido ou não configurado."});
-    const conta=clienteSergio();
-    if(!conta || !conta.client) throw new Error("Conta SERGIO indisponível.");
-    const symbol=String(req.body?.symbol || "").toUpperCase();
-    if(!symbol.endsWith("USDT")) throw new Error("Use um par USDT, por exemplo BTCUSDT.");
+    const conta = obterContaSergio();
+    if (!conta || !conta.client) {
+      return res.status(500).json({ erro: "Conta SERGIO indisponível." });
+    }
 
-    // Primeiro cancela qualquer SELL aberto para liberar saldo.
-    try{
-      const orders=await conta.client.openOrders({symbol});
-      for(const o of orders){
-        if(String(o.side).toUpperCase()==="SELL"){
-          try{ await conta.client.cancelOrder({symbol,orderId:o.orderId}); }catch(e){}
-        }
+    const symbol = String(req.body && req.body.symbol || "").toUpperCase().trim();
+
+    if (!/^[A-Z0-9]+USDT$/.test(symbol)) {
+      return res.status(400).json({
+        erro: "Informe um par SPOT terminado em USDT."
+      });
+    }
+
+    const abertas = await conta.client.openOrders({ symbol });
+
+    const sells = abertas.filter(function(o) {
+      return String(o.side || "").toUpperCase() === "SELL";
+    });
+
+    if (!sells.length) {
+      return res.json({
+        ok: true,
+        conta: "SERGIO",
+        symbol,
+        canceladas: 0,
+        mensagem: "Nenhuma ordem de venda ativa encontrada."
+      });
+    }
+
+    const canceladas = [];
+
+    for (const o of sells) {
+      try {
+        const resultado = await conta.client.cancelOrder({
+          symbol,
+          orderId: o.orderId
+        });
+
+        canceladas.push({
+          orderId: o.orderId,
+          status: resultado.status || "CANCELED",
+          price: num(o.price),
+          qty: num(o.origQty)
+        });
+      } catch (e) {
+        // A ordem pode ter sido executada/cancelada entre a leitura e o cancelamento.
       }
-    }catch(e){}
+    }
 
-    await new Promise(function(resolve){setTimeout(resolve,900);});
-    const info=await conta.client.accountInfo();
-    const asset=symbol.slice(0,-4);
-    const bal=(info.balances || []).find(function(b){return String(b.asset).toUpperCase()===asset;});
-    const free=num(bal && bal.free);
-    if(free<=0) throw new Error("Saldo livre de " + asset + " é zero.");
+    res.json({
+      ok: true,
+      conta: "SERGIO",
+      symbol,
+      canceladas: canceladas.length,
+      ordens: canceladas,
+      mensagem: canceladas.length
+        ? "Ordem(ns) de venda cancelada(s) com sucesso."
+        : "Nenhuma ordem de venda permaneceu ativa para cancelamento."
+    });
 
-    const spec=await obterFiltrosSymbol(conta.client,symbol);
-    const lot=spec.filters.MARKET_LOT_SIZE || spec.filters.LOT_SIZE || {};
-    let qty=ajustarStep(free,lot.stepSize);
-    const minQty=num(lot.minQty);
-    if(qty<=0 || (minQty && qty<minQty)) throw new Error("Quantidade abaixo do mínimo permitido pela Binance.");
-    const prices=await conta.client.prices({symbol});
-    const price=num(prices && prices[symbol]);
-    const minNotional=num((spec.filters.NOTIONAL||{}).minNotional) || num((spec.filters.MIN_NOTIONAL||{}).minNotional) || 0;
-    if(minNotional && qty*price < minNotional) throw new Error("Valor da venda abaixo do mínimo da Binance: " + minNotional + " USDT.");
-
-    const ordem=await conta.client.order({symbol,side:"SELL",type:"MARKET",quantity:String(qty),newOrderRespType:"FULL"});
-    res.json({ok:true,conta:"SERGIO",acao:"VENDA",symbol,price,quantity:qty,orderId:ordem.orderId,status:ordem.status,executedQty:num(ordem.executedQty),cummulativeQuoteQty:num(ordem.cummulativeQuoteQty)});
-  }catch(e){res.status(400).json({ok:false,erro:e.message});}
+  } catch (e) {
+    res.status(500).json({
+      erro: e && e.message ? e.message : String(e)
+    });
+  }
 });
+
 
 /*
 =========================================================
@@ -702,50 +887,15 @@ app.get("/api/chart", async function (req, res) {
         1000
       );
 
-    const buys =
-      trades
-        .filter(function (t) {
-          return Boolean(t.isBuyer);
-        })
-        .sort(function (a, b) {
-          return num(a.time) - num(b.time);
-        });
+    const operacao = calcularOperacaoAtual(trades);
 
-    let entry = null;
-    let entryTime = null;
+    const entry = operacao.ativa
+      ? operacao.entrada
+      : null;
 
-    if (buys.length) {
-      const qty = buys.reduce(
-        function (s, t) {
-          return s + num(t.qty);
-        },
-        0
-      );
-
-      const cost = buys.reduce(
-        function (s, t) {
-          return (
-            s +
-            (
-              num(t.quoteQty) ||
-              num(t.qty) * num(t.price)
-            )
-          );
-        },
-        0
-      );
-
-      if (qty > 0) {
-        entry = cost / qty;
-      }
-
-      entryTime =
-        Math.floor(
-          num(
-            buys[buys.length - 1].time
-          ) / 1000
-        );
-    }
+    const entryTime = operacao.ativa
+      ? Math.floor(num(operacao.entradaTime) / 1000)
+      : null;
 
     let orders = [];
 
@@ -835,11 +985,101 @@ app.get("/api/market", async function(req,res){
   }catch(e){ res.status(500).json({erro:e.message}); }
 });
 
+
+
+/* =========================================================
+   V7 - RAIO-X TÉCNICO / OPORTUNIDADES
+   Informativo. Não envia ordens e não altera o robô.
+========================================================= */
+function calcularEMAvalores(valores, periodo){
+  if(!valores.length) return 0;
+  const p = Math.max(1, periodo || 21);
+  const k = 2 / (p + 1);
+  let ema = valores[0];
+  for(let i=1;i<valores.length;i++) ema = valores[i] * k + ema * (1-k);
+  return ema;
+}
+
+function calcularRSIvalores(valores, periodo){
+  const p = Math.max(2, periodo || 14);
+  if(valores.length <= p) return 50;
+  let gain=0, loss=0;
+  for(let i=valores.length-p;i<valores.length;i++){
+    const d = valores[i]-valores[i-1];
+    if(d>=0) gain += d; else loss += Math.abs(d);
+  }
+  const ag=gain/p, al=loss/p;
+  return al===0 ? 100 : 100-(100/(1+(ag/al)));
+}
+
+async function obterRaioX(conta, symbol){
+  const candles = await conta.client.candles({symbol, interval:"15m", limit:80});
+  if(!candles || candles.length<22) throw new Error("Poucos candles para análise.");
+  const closes=candles.map(function(c){return num(c.close);});
+  const volumes=candles.map(function(c){return num(c.volume);});
+  const price=closes[closes.length-1];
+  const ema=calcularEMAvalores(closes,21);
+  const rsi=calcularRSIvalores(closes,14);
+  const volAtual=volumes[volumes.length-1] || 0;
+  const base=volumes.slice(Math.max(0,volumes.length-21),volumes.length-1);
+  const volMedia=base.length ? base.reduce(function(a,b){return a+b;},0)/base.length : volAtual;
+  const volumeRatio=volMedia>0 ? volAtual/volMedia : 0;
+  const distancia=ema>0 ? (price/ema-1)*100 : 0;
+  const checks=[
+    {nome:"RSI entre 40 e 65",ok:rsi>=40 && rsi<=65,valor:rsi.toFixed(2)},
+    {nome:"Preço até 4% acima da EMA21",ok:distancia<=4,valor:(distancia>=0?"+":"")+distancia.toFixed(2)+"%"},
+    {nome:"Volume mínimo 0,80x",ok:volumeRatio>=0.80,valor:volumeRatio.toFixed(2)+"x"},
+    {nome:"Volume de breakout 1,30x",ok:volumeRatio>=1.30,valor:volumeRatio.toFixed(2)+"x"}
+  ];
+  return {symbol,price,ema,rsi,volumeRatio,distancia,checks,compatibilidade:checks.filter(function(x){return x.ok;}).length,atualizadoEm:Date.now()};
+}
+
+let v7OpportunityCache={time:0,data:[]};
+async function obterOportunidades(conta){
+  if(Date.now()-v7OpportunityCache.time<60000 && v7OpportunityCache.data.length) return v7OpportunityCache.data;
+  let candidates=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT","ADAUSDT","DOGEUSDT","TRXUSDT","LINKUSDT","AVAXUSDT","SUIUSDT","LTCUSDT"];
+  try{
+    const stats=await conta.client.dailyStats();
+    const usdt=(stats||[]).filter(function(x){return /USDT$/.test(String(x.symbol||"")) && !String(x.symbol||"").includes("UP") && !String(x.symbol||"").includes("DOWN") && num(x.quoteVolume)>0;});
+    usdt.sort(function(a,b){return num(b.quoteVolume)-num(a.quoteVolume);});
+    const top=usdt.slice(0,12).map(function(x){return x.symbol;});
+    candidates=Array.from(new Set(top.concat(candidates))).slice(0,12);
+  }catch(e){}
+  const result=[];
+  for(const symbol of candidates){
+    try{
+      const x=await obterRaioX(conta,symbol);
+      result.push(x);
+    }catch(e){}
+  }
+  result.sort(function(a,b){return b.compatibilidade-a.compatibilidade || b.volumeRatio-a.volumeRatio;});
+  v7OpportunityCache={time:Date.now(),data:result.slice(0,10)};
+  return v7OpportunityCache.data;
+}
+
+app.get("/api/xray", async function(req,res){
+  try{
+    const id=String(req.query.account||"1");
+    const symbol=String(req.query.symbol||"BTCUSDT").toUpperCase();
+    const conta=clientes.find(function(c){return c.id===id;});
+    if(!conta || !conta.client) return res.status(404).json({erro:"Conta não encontrada."});
+    res.json(await obterRaioX(conta,symbol));
+  }catch(e){res.status(500).json({erro:e.message});}
+});
+
+app.get("/api/opportunities", async function(req,res){
+  try{
+    const conta=clientes[0];
+    if(!conta || !conta.client) return res.status(500).json({erro:"Conta principal indisponível."});
+    res.json({atualizadoEm:Date.now(),itens:await obterOportunidades(conta)});
+  }catch(e){res.status(500).json({erro:e.message});}
+});
+
 app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v5",
+    painel: "premium-v7",
     contas: 2
   });
 });
@@ -1438,6 +1678,205 @@ select{
 .marketMini b{font-size:13px;}
 .signalUnavailable{margin-top:12px;padding:12px;border:1px dashed #33445f;border-radius:10px;color:#8997ac;font-size:9px;line-height:1.5;}
 .metricSub .metricSub{margin-top:2px;}
+
+/* =====================================================
+   V6 - LAYOUT PREMIUM / OPERAÇÃO ATUAL
+===================================================== */
+.operationSection{
+  position:relative;
+}
+.operationSection .sectionHead{
+  margin-bottom:13px;
+}
+.operationCompare{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 90px minmax(0,1fr);
+  gap:12px;
+  align-items:stretch;
+}
+.operationCard{
+  padding:20px;
+  position:relative;
+  overflow:hidden;
+  transition:.25s ease;
+}
+.operationCard:before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+}
+.operationCard:hover{
+  transform:translateY(-2px);
+  border-color:#3d5273;
+  box-shadow:0 20px 45px #0007;
+}
+.operationTop{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  align-items:flex-start;
+}
+.operationTop h3{
+  margin:8px 0 0;
+  font-size:22px;
+}
+.accountPill{
+  display:inline-block;
+  padding:4px 7px;
+  border-radius:6px;
+  background:#17243a;
+  color:#9bb7dd;
+  font-size:8px;
+  font-weight:900;
+}
+.operationState{
+  padding:6px 9px;
+  border-radius:999px;
+  background:#101c2e;
+  color:var(--muted);
+  border:1px solid #26364f;
+  font-size:8px;
+  font-weight:900;
+  white-space:nowrap;
+}
+.operationState.live{
+  color:var(--green);
+  background:#08291e;
+  border-color:#155b42;
+}
+.operationState.win{
+  color:var(--green);
+}
+.operationState.loss{
+  color:var(--red);
+  background:#320d16;
+  border-color:#6d2030;
+}
+.operationCoin{
+  margin-top:20px;
+  font-size:26px;
+  font-weight:950;
+  letter-spacing:.3px;
+}
+.operationMain{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+  padding:14px;
+  border:1px solid #1b2940;
+  border-radius:12px;
+  background:linear-gradient(145deg,#0a1422,#08101c);
+}
+.operationMain span,
+.operationDetails span{
+  display:block;
+  color:var(--muted);
+  font-size:8px;
+  margin-bottom:5px;
+}
+.operationMain strong{
+  display:block;
+  font-size:21px;
+}
+.operationMain small{
+  display:block;
+  color:#74829a;
+  font-size:8px;
+  margin-top:3px;
+}
+.operationDetails{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:10px;
+}
+.operationDetails>div{
+  padding:10px;
+  border:1px solid #1a2940;
+  border-radius:10px;
+  background:#09111e;
+}
+.operationDetails b{
+  font-size:10px;
+}
+.versusCard{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  color:var(--muted);
+  font-size:8px;
+  font-weight:800;
+  text-align:center;
+}
+.versusCircle{
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size:13px;
+  font-weight:950;
+  background:radial-gradient(circle at 30% 25%,#7e6aff,#372a9a 70%);
+  box-shadow:0 0 30px #6957ff44;
+  border:1px solid #8679ff66;
+  margin-bottom:8px;
+}
+.leaderBadge{
+  padding:7px 11px;
+  border-radius:999px;
+  background:#151d2c;
+  border:1px solid #2b3a54;
+  color:#aebbd0;
+  font-size:8px;
+  font-weight:900;
+}
+.leaderBadge.good{
+  background:#08291e;
+  color:var(--green);
+  border-color:#155b42;
+}
+.leaderBadge.neutral{
+  background:#2b2308;
+  color:var(--yellow);
+  border-color:#68521a;
+}
+
+/* Mais profundidade e hierarquia visual */
+.header{
+  box-shadow:0 8px 35px #0008;
+}
+.hero{
+  padding:20px 22px;
+  border:1px solid #1b2940;
+  border-radius:20px;
+  background:linear-gradient(135deg,#0f1a2d99,#09111f88);
+  box-shadow:0 18px 45px #0005;
+}
+.cards .card{
+  min-height:108px;
+}
+.cards .card:first-child{
+  background:linear-gradient(145deg,#12233a,#0b1422);
+}
+.accountTab{
+  overflow:hidden;
+}
+.accountTab:before{
+  content:"";
+  position:absolute;
+  width:120px;
+  height:120px;
+  right:-35px;
+  top:-60px;
+  border-radius:50%;
+  background:#4aa8ff14;
+  pointer-events:none;
+}
 @media(max-width:1000px){
   .statusGrid{grid-template-columns:repeat(2,1fr);}
   .analyticsGrid{grid-template-columns:1fr;}
@@ -1447,6 +1886,79 @@ select{
   .marketGrid{grid-template-columns:1fr;}
   .activityRow{grid-template-columns:62px 65px 1fr;}
   .activityPrice{grid-column:3;text-align:left;}
+}
+
+
+/* =========================================================
+   CONTROLE SERGIO — VENDA / CANCELAR SELL
+========================================================= */
+.sergioControl{
+  margin-top:14px;
+  padding:15px;
+  border:1px solid #2a3852;
+  border-radius:13px;
+  background:linear-gradient(145deg,#101a2b,#09111d);
+}
+.sergioControlTitle{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:10px;
+}
+.sergioControlTitle b{font-size:12px;}
+.sergioControlTitle span{
+  font-size:8px;
+  font-weight:900;
+  color:#ffc85a;
+  padding:5px 8px;
+  border-radius:999px;
+  background:#302508;
+  border:1px solid #68521a;
+}
+.sergioControlGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+}
+.sergioControl input{
+  width:100%;
+  border:1px solid #293951;
+  background:#07101c;
+  color:#e9f1ff;
+  padding:10px;
+  border-radius:9px;
+  outline:none;
+  font-size:10px;
+}
+.sergioControlButtons{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:9px;
+  margin-top:9px;
+}
+.sergioBtn{
+  border:0;
+  border-radius:9px;
+  padding:11px;
+  cursor:pointer;
+  color:#fff;
+  font-weight:900;
+  font-size:10px;
+}
+.sergioBtn.sellBtn{background:#9e2439;}
+.sergioBtn.cancelBtn{background:#6d5314;}
+.sergioBtn:disabled{opacity:.45;cursor:not-allowed;}
+.sergioControlMsg{
+  margin-top:9px;
+  min-height:18px;
+  color:#8290a8;
+  font-size:9px;
+  line-height:1.45;
+}
+@media(max-width:650px){
+  .sergioControlGrid,
+  .sergioControlButtons{grid-template-columns:1fr;}
 }
 
 .footer{
@@ -1512,20 +2024,224 @@ select{
   }
 }
 
-.manualBox{margin-top:16px;padding:16px;border:1px solid #2b3c58;border-radius:14px;background:linear-gradient(145deg,#0a1423,#08101b);}
-.manualHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;}
-.manualTitle{font-size:13px;font-weight:900;}
-.manualBadge{font-size:8px;font-weight:900;padding:5px 8px;border-radius:999px;background:#302508;color:var(--yellow);border:1px solid #68521a;}
-.manualGrid{display:grid;grid-template-columns:1.2fr .8fr .8fr auto auto;gap:8px;align-items:end;}
-.manualField label{display:block;color:var(--muted);font-size:8px;margin-bottom:5px;}
-.manualField input,.manualField select{width:100%;border:1px solid #293951;background:#0b1524;color:#dce7f8;padding:9px 10px;border-radius:8px;font-size:10px;}
-.manualBtn{border:1px solid #334866;background:#132238;color:#fff;padding:10px 12px;border-radius:8px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap;}
-.manualBtn.buyBtn{border-color:#176b4d;background:#0b3a2a;color:#55efad;}
-.manualBtn.sellBtn{border-color:#713044;background:#421522;color:#ff8ca0;}
-.manualBtn.cancelBtn{border-color:#66531e;background:#302708;color:#ffd875;}
-.manualPreview{margin-top:11px;padding:11px;border:1px dashed #30425d;border-radius:10px;color:#93a2b8;font-size:9px;line-height:1.6;min-height:36px;}
-.manualWarn{margin-top:8px;color:#ffca64;font-size:8px;line-height:1.5;}
-@media(max-width:900px){.manualGrid{grid-template-columns:1fr 1fr;}.manualBtn{width:100%;}.manualField:first-child{grid-column:1/-1;}}
+
+/* ================= V7 ================= */
+.v7Grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+.v7Grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;}
+.v7Card{background:linear-gradient(145deg,#101c30,#0b1422);border:1px solid #1d2c44;border-radius:18px;padding:20px;box-shadow:0 12px 35px rgba(0,0,0,.14);}
+.v7Title{font-size:18px;font-weight:900;margin:0 0 5px;}
+.v7Sub{font-size:11px;color:#73829a;margin-bottom:16px;line-height:1.5;}
+.v7HeroGrid{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:12px;}
+.v7BigMetric{padding:15px;border:1px solid #1d2c44;border-radius:14px;background:#0c1728;}
+.v7BigMetric span{display:block;color:#71809a;font-size:10px;text-transform:uppercase;font-weight:800;}
+.v7BigMetric b{display:block;font-size:22px;margin-top:7px;}
+.v7MiniGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+.v7Mini{padding:11px;border-radius:12px;background:#0b1524;border:1px solid #1a2a41;}
+.v7Mini span{display:block;color:#697891;font-size:9px;text-transform:uppercase;font-weight:800;}
+.v7Mini b{display:block;margin-top:5px;font-size:14px;}
+.v7Good{color:#20df96!important}.v7Bad{color:#ff6177!important}.v7Warn{color:#ffc85a!important}.v7Blue{color:#59a8ff!important}
+.v7StatusRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #17263b;}
+.v7StatusRow:last-child{border-bottom:0}.v7Dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:7px;background:#64748b;}
+.v7Dot.ok{background:#20df96;box-shadow:0 0 12px rgba(32,223,150,.45)}.v7Dot.bad{background:#ff6177}.v7Dot.warn{background:#ffc85a}
+.v7Badge{font-size:9px;font-weight:900;padding:5px 8px;border-radius:999px;background:#14243a;color:#9ebbe3;}
+.v7Alert{display:flex;gap:10px;align-items:flex-start;padding:12px;border-radius:13px;margin-top:10px;border:1px solid #20324b;background:#0b1626;}
+.v7Alert:first-child{margin-top:0}.v7AlertIcon{font-size:18px}.v7AlertText{font-size:11px;line-height:1.45;color:#b7c3d5}.v7AlertText b{color:#fff}
+.v7Table{width:100%;border-collapse:collapse;font-size:11px}.v7Table th{font-size:9px;color:#667792;text-align:left;padding:9px 6px;border-bottom:1px solid #1c2c43;text-transform:uppercase}.v7Table td{padding:10px 6px;border-bottom:1px solid #142238}.v7Table tr:last-child td{border-bottom:0}
+.v7BarWrap{height:11px;border-radius:999px;background:#111e31;overflow:hidden}.v7Bar{height:100%;border-radius:999px;background:#27b9ff;}
+.v7Progress{margin-top:8px}.v7ProgressTop{display:flex;justify-content:space-between;font-size:9px;color:#71809a}.v7Canvas{width:100%;height:220px;display:block;border:1px solid #17273d;border-radius:14px;background:#091321;}
+.v7Legend{display:flex;gap:16px;flex-wrap:wrap;font-size:9px;color:#71809a;margin-top:10px}.v7Legend span{display:inline-flex;align-items:center;gap:5px}.v7Legend i{width:8px;height:8px;border-radius:50%;display:inline-block;background:#27b9ff}
+.v7Opportunity{display:grid;grid-template-columns:90px 1fr auto;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #16263c}.v7Opportunity:last-child{border-bottom:0}.v7Coin{font-weight:900;font-size:13px}.v7ScoreBox{width:82px;text-align:center;padding:9px;border-radius:12px;background:#0b1829;border:1px solid #1e3550}.v7ScoreBox b{display:block;font-size:18px}.v7ScoreBox small{font-size:8px;color:#71809a;text-transform:uppercase}
+.v7Check{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #142238;font-size:10px}.v7Check:last-child{border-bottom:0}.v7Check b{font-size:10px}.v7Note{font-size:9px;color:#60718b;line-height:1.5;margin-top:10px}.v7Time{font-variant-numeric:tabular-nums;color:#8fa1bb;font-size:10px}.v7Rank{font-size:18px;font-weight:900}.v7Rank.gold{color:#ffc85a}.v7Rank.silver{color:#b9c6d6}.v7Rank.bronze{color:#d79a63}
+@media(max-width:1000px){.v7Grid,.v7Grid3{grid-template-columns:1fr}.v7HeroGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:82px 1fr auto}}
+@media(max-width:650px){.v7HeroGrid{grid-template-columns:1fr}.v7MiniGrid{grid-template-columns:1fr 1fr}.v7Opportunity{grid-template-columns:72px 1fr}.v7ScoreBox{grid-column:1/-1;width:auto}}
+
+
+/* =========================================================
+   V7 COMPACTA — PAINEL PRINCIPAL + SUBMENUS
+   ========================================================= */
+
+.accountTab{
+  cursor:pointer;
+}
+
+.accountTab:focus-visible,
+.menuBtn:focus-visible,
+.quickCurrent button:focus-visible,
+.sectionClose:focus-visible{
+  outline:2px solid #7aa2ff;
+  outline-offset:2px;
+}
+
+.tabMetric .tabPnlExtra{
+  display:block;
+  margin-top:4px;
+  font-size:11px;
+  font-weight:800;
+  color:#71809a;
+}
+
+.tabMetric .tabPnlExtra.green{color:#00e89a;}
+.tabMetric .tabPnlExtra.red{color:#ff5274;}
+
+.compactControl{
+  margin:18px 0 8px;
+}
+
+.quickCurrent{
+  display:grid;
+  grid-template-columns:1.4fr 1fr auto;
+  align-items:center;
+  gap:16px;
+  padding:14px 18px;
+  border:1px solid rgba(102,130,255,.22);
+  border-radius:18px;
+  background:linear-gradient(135deg,rgba(22,35,67,.92),rgba(9,18,35,.96));
+  box-shadow:0 12px 35px rgba(0,0,0,.16);
+}
+
+.quickCurrentLabel{
+  display:block;
+  color:#74829a;
+  font-size:10px;
+  font-weight:800;
+  letter-spacing:.08em;
+  margin-bottom:4px;
+}
+
+.quickCurrentMain{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+
+.quickCurrentCoin{
+  font-size:18px;
+  font-weight:950;
+  color:#f5f7ff;
+}
+
+.quickCurrentStatus{
+  padding:4px 8px;
+  border-radius:999px;
+  background:rgba(38,211,143,.10);
+  color:#00e89a;
+  font-size:9px;
+  font-weight:900;
+}
+
+.quickCurrentPnl{
+  font-size:17px;
+  font-weight:950;
+}
+
+.quickCurrentPct{
+  font-size:13px;
+  font-weight:900;
+  margin-left:5px;
+}
+
+.quickCurrent button{
+  border:1px solid rgba(122,162,255,.35);
+  background:rgba(77,111,255,.12);
+  color:#9fc2ff;
+  border-radius:11px;
+  padding:10px 14px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.dashboardMenu{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:9px;
+  margin:10px 0 4px;
+}
+
+.menuBtn{
+  border:1px solid rgba(116,135,174,.18);
+  background:rgba(14,25,46,.72);
+  color:#aab7ce;
+  border-radius:13px;
+  padding:11px 10px;
+  cursor:pointer;
+  font-size:11px;
+  font-weight:900;
+  transition:.18s ease;
+}
+
+.menuBtn:hover,
+.menuBtn.active{
+  border-color:rgba(112,143,255,.65);
+  background:rgba(59,86,163,.20);
+  color:#f3f6ff;
+  transform:translateY(-1px);
+}
+
+section.section.compactHidden{
+  display:none !important;
+}
+
+section.section.compactOpen{
+  display:block !important;
+  animation:compactOpen .22s ease;
+}
+
+@keyframes compactOpen{
+  from{opacity:0;transform:translateY(-5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.sectionClose{
+  float:right;
+  border:1px solid rgba(116,135,174,.25);
+  background:rgba(255,255,255,.035);
+  color:#8e9bb1;
+  border-radius:9px;
+  padding:6px 9px;
+  font-size:10px;
+  font-weight:900;
+  cursor:pointer;
+  margin-top:-2px;
+}
+
+.sectionClose:hover{
+  color:#fff;
+  border-color:rgba(122,162,255,.55);
+}
+
+.cards.compactHidden{
+  display:none !important;
+}
+
+.compactHint{
+  text-align:center;
+  color:#59677d;
+  font-size:10px;
+  margin:8px 0 0;
+}
+
+@media(max-width:800px){
+  .quickCurrent{
+    grid-template-columns:1fr 1fr;
+  }
+  .quickCurrent button{
+    grid-column:1/-1;
+    width:100%;
+  }
+  .dashboardMenu{
+    grid-template-columns:repeat(2,1fr);
+  }
+}
+
+@media(max-width:500px){
+  .quickCurrent{
+    grid-template-columns:1fr;
+  }
+  .dashboardMenu{
+    grid-template-columns:1fr 1fr;
+  }
+}
 
 </style>
 </head>
@@ -1577,8 +2293,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L ATUAL</span>
           <b id="tabPnl1">--</b>
+          <small id="tabPnlExtra1" class="tabPnlExtra">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1603,8 +2320,9 @@ select{
         </div>
 
         <div class="tabMetric">
-          <span>P/L</span>
+          <span>P/L ATUAL</span>
           <b id="tabPnl2">--</b>
+          <small id="tabPnlExtra2" class="tabPnlExtra">--</small>
         </div>
 
         <div class="tabMetric">
@@ -1616,9 +2334,94 @@ select{
 
   </div>
 
+  <!-- =====================================================
+       V7 COMPACTA — RESUMO PRINCIPAL
+       ===================================================== -->
+  <div class="compactControl">
+
+    <div class="quickCurrent">
+      <div>
+        <span class="quickCurrentLabel">OPERAÇÃO ATUAL</span>
+        <div class="quickCurrentMain">
+          <span id="quickCoin" class="quickCurrentCoin">--</span>
+          <span id="quickStatus" class="quickCurrentStatus">AGUARDANDO</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="quickCurrentLabel">RESULTADO DESDE A COMPRA</span>
+        <div>
+          <span id="quickPnl" class="quickCurrentPnl">--</span>
+          <span id="quickPct" class="quickCurrentPct">--</span>
+        </div>
+      </div>
+
+      <button type="button" onclick="abrirSecaoPainel(3)">
+        VER DETALHES
+      </button>
+    </div>
+
+    <div class="dashboardMenu" id="dashboardMenu">
+
+      <button type="button" class="menuBtn" data-panel="0" onclick="abrirSecaoPainel(0)">
+        🎯 Operação
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="1" onclick="abrirSecaoPainel(1)">
+        📊 Gráfico
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="2" onclick="abrirSecaoPainel(2)">
+        🤖 Robô
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="3" onclick="abrirSecaoPainel(3)">
+        🏆 Comparação
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="4" onclick="abrirSecaoPainel(4)">
+        📚 Performance
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="5" onclick="abrirSecaoPainel(5)">
+        🪙 Moedas
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="6" onclick="abrirSecaoPainel(6)">
+        📜 Atividade
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="7" onclick="abrirSecaoPainel(7)">
+        🚨 Alertas
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="8" onclick="abrirSecaoPainel(8)">
+        📈 Patrimônio
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="9" onclick="abrirSecaoPainel(9)">
+        🧪 Raio-X
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="10" onclick="abrirSecaoPainel(10)">
+        🕵️ Auditoria
+      </button>
+
+      <button type="button" class="menuBtn" data-panel="11" onclick="abrirSecaoPainel(11)">
+        💰 P/L
+      </button>
+
+    </div>
+
+    <div class="compactHint">
+      Toque/clique em uma categoria para abrir os detalhes. A tela principal fica limpa e objetiva.
+    </div>
+
+  </div>
+
 
   <!-- CARDS DA CONTA SELECIONADA -->
-  <div class="cards">
+  <div class="cards compactHidden">
 
     <div class="card metricCard">
       <div class="metricLabel">💰 PATRIMÔNIO</div>
@@ -1671,34 +2474,6 @@ select{
         <div id="assets" style="margin-top:10px"></div>
       </div>
 
-    </div>
-
-    <div id="manualSergio" class="manualBox" style="display:none">
-      <div class="manualHead">
-        <div class="manualTitle">🎛️ CONTROLE MANUAL • SERGIO</div>
-        <div class="manualBadge">CONTA 2 • AÇÃO REAL NA BINANCE</div>
-      </div>
-      <div class="manualGrid">
-        <div class="manualField">
-          <label>PAR PARA OPERAR</label>
-          <input id="manualSymbol" list="manualSymbols" value="" placeholder="BTCUSDT">
-          <datalist id="manualSymbols"></datalist>
-        </div>
-        <div class="manualField">
-          <label>COMPRA • USDT</label>
-          <input id="manualBuyUsdt" type="number" min="0" step="0.01" placeholder="100">
-        </div>
-        <div class="manualField">
-          <label>TOKEN DO PAINEL</label>
-          <input id="manualToken" type="password" placeholder="PAINEL_MANUAL_TOKEN">
-        </div>
-        <button class="manualBtn buyBtn" onclick="manualComprarSergio()">🟢 COMPRAR</button>
-        <button class="manualBtn sellBtn" onclick="manualVenderSergio()">🔴 VENDER</button>
-        <button class="manualBtn cancelBtn" onclick="manualCancelarSergio()">🟡 CANCELAR SELL</button>
-        <button class="manualBtn" onclick="manualPreviaSergio()">🔎 ATUALIZAR</button>
-      </div>
-      <div id="manualPreview" class="manualPreview">Selecione um par e clique em ATUALIZAR.</div>
-      <div class="manualWarn">⚠️ COMPRAR e VENDER enviam ordens reais para a conta SERGIO. O botão VENDER cancela primeiro as ordens SELL abertas, relê o saldo livre e vende o máximo permitido pela Binance.</div>
     </div>
 
   </section>
@@ -1805,7 +2580,7 @@ select{
     <div class="sectionHead">
       <div>
         <h2 class="sectionTitle">🤖 Status e inteligência</h2>
-        <div class="sectionDesc">Conexão das duas contas e leitura operacional. THIAGO somente leitura; SERGIO com controle manual protegido.</div>
+        <div class="sectionDesc">Conexão das duas contas e leitura operacional sem enviar ordens.</div>
       </div>
     </div>
 
@@ -1833,12 +2608,67 @@ select{
     </div>
   </section>
 
-  <!-- PERFORMANCE -->
+  <!-- COMPARAÇÃO DA OPERAÇÃO ATUAL -->
+  <section class="section operationSection">
+    <div class="sectionHead">
+      <div>
+        <h2 class="sectionTitle">🏆 Operação atual • THIAGO × SERGIO</h2>
+        <div class="sectionDesc">Comparação feita somente a partir da compra que iniciou a posição atual — operações antigas ficam fora deste indicador.</div>
+      </div>
+      <div id="operationLeader" class="leaderBadge">AGUARDANDO DADOS</div>
+    </div>
+
+    <div class="operationCompare">
+      <div id="opCard1" class="card operationCard">
+        <div class="operationTop">
+          <div><span class="accountPill">CONTA 1</span><h3>THIAGO</h3></div>
+          <div id="opStatus1" class="operationState">SEM OPERAÇÃO</div>
+        </div>
+        <div class="operationCoin" id="opCoin1">--</div>
+        <div class="operationMain">
+          <div><span>RESULTADO</span><strong id="opPnl1">--</strong><small id="opPnlBrl1">--</small></div>
+          <div><span>VARIAÇÃO</span><strong id="opPct1">--</strong></div>
+        </div>
+        <div class="operationDetails">
+          <div><span>Entrada</span><b id="opEntry1">--</b></div>
+          <div><span>Atual</span><b id="opCurrent1">--</b></div>
+          <div><span>Quantidade</span><b id="opQty1">--</b></div>
+          <div><span>Início</span><b id="opTime1">--</b></div>
+        </div>
+      </div>
+
+      <div class="versusCard">
+        <div class="versusCircle">VS</div>
+        <div id="versusText">Comparando</div>
+      </div>
+
+      <div id="opCard2" class="card operationCard">
+        <div class="operationTop">
+          <div><span class="accountPill">CONTA 2</span><h3>SERGIO</h3></div>
+          <div id="opStatus2" class="operationState">SEM OPERAÇÃO</div>
+        </div>
+        <div class="operationCoin" id="opCoin2">--</div>
+        <div class="operationMain">
+          <div><span>RESULTADO</span><strong id="opPnl2">--</strong><small id="opPnlBrl2">--</small></div>
+          <div><span>VARIAÇÃO</span><strong id="opPct2">--</strong></div>
+        </div>
+        <div class="operationDetails">
+          <div><span>Entrada</span><b id="opEntry2">--</b></div>
+          <div><span>Atual</span><b id="opCurrent2">--</b></div>
+          <div><span>Quantidade</span><b id="opQty2">--</b></div>
+          <div><span>Início</span><b id="opTime2">--</b></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE HISTÓRICA -->
   <section class="section">
+
     <div class="analyticsGrid">
       <div class="card analyticsCard">
-        <h3 class="analyticsTitle">🏆 Performance THIAGO × SERGIO</h3>
-        <div class="analyticsSub">Estimativa calculada a partir dos trades retornados pela Binance.</div>
+        <h3 class="analyticsTitle">📚 Performance histórica</h3>
+        <div class="analyticsSub">Histórico separado da operação atual. Pode incluir operações anteriores retornadas pela Binance.</div>
         <table class="perfTable">
           <thead><tr><th>INDICADOR</th><th>THIAGO</th><th>SERGIO</th><th>TOTAL</th></tr></thead>
           <tbody id="performanceTable"></tbody>
@@ -1887,6 +2717,76 @@ select{
     </div>
   </section>
 
+
+
+  <!-- V7: PLACAR / ALERTAS / SAÚDE -->
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🏆 Placar da operação em tempo real</h3>
+        <div class="v7Sub">Comparação somente da operação atual detectada, desde a compra.</div>
+        <div class="v7HeroGrid">
+          <div class="v7BigMetric"><span>Líder</span><b id="v7Leader">--</b></div>
+          <div class="v7BigMetric"><span>Diferença</span><b id="v7Diff">--</b></div>
+          <div class="v7BigMetric"><span>Tempo da operação</span><b id="v7Elapsed">--</b></div>
+        </div>
+        <div class="v7MiniGrid" style="margin-top:12px">
+          <div class="v7Mini"><span>THIAGO</span><b id="v7ThiagoPnl">--</b></div>
+          <div class="v7Mini"><span>SERGIO</span><b id="v7SergioPnl">--</b></div>
+          <div class="v7Mini"><span>THIAGO R$</span><b id="v7ThiagoBrl">--</b></div>
+          <div class="v7Mini"><span>SERGIO R$</span><b id="v7SergioBrl">--</b></div>
+        </div>
+      </div>
+
+      <div class="v7Card">
+        <h3 class="v7Title">🚨 Alertas inteligentes</h3>
+        <div class="v7Sub">Avisos operacionais calculados pelo painel. Não enviam ordens.</div>
+        <div id="v7Alerts"><div class="v7Alert"><div class="v7AlertIcon">⏳</div><div class="v7AlertText">Aguardando dados...</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🤖 Saúde do robô</h3>
+        <div class="v7Sub">Diagnóstico da conexão e da atividade observada pelo painel.</div>
+        <div id="v7Health"></div>
+      </div>
+      <div class="v7Card">
+        <h3 class="v7Title">📈 Curva de patrimônio — sessão</h3>
+        <div class="v7Sub">Evolução observada enquanto esta página permanece aberta. Reiniciar a página reinicia a amostra.</div>
+        <canvas id="v7EquityCanvas" class="v7Canvas"></canvas>
+        <div class="v7Legend"><span><i></i>Patrimônio total das duas contas</span><span id="v7EquityInfo">--</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V7: RAIO-X -->
+  <section class="section">
+    <div class="v7Grid">
+      <div class="v7Card">
+        <h3 class="v7Title">🧪 Raio-X da moeda atual</h3>
+        <div class="v7Sub">Leitura técnica do painel usando os mesmos limites principais configurados no robô. O score interno original não é inventado.</div>
+        <div id="v7Xray"></div>
+      </div>
+      <div class="v7Card">
+        <h3 class="v7Title">🎯 Ranking de oportunidades</h3>
+        <div class="v7Sub">Pré-seleção técnica informativa baseada em mercado USDT com maior volume. Não representa o score interno do robô.</div>
+        <div id="v7Opportunities"><div class="empty">Calculando oportunidades...</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- V7: AUDITORIA / LINHA DO TEMPO -->
+  <section class="section">
+    <div class="v7Card">
+      <h3 class="v7Title">🕵️ Auditoria das operações</h3>
+      <div class="v7Sub">Linha do tempo das compras e vendas que a Binance disponibiliza ao painel.</div>
+      <div id="v7Timeline"></div>
+    </div>
+  </section>
+
   <!-- PNL DETALHADO -->
   <section class="section">
 
@@ -1927,12 +2827,12 @@ select{
 
 
   <div class="note">
-    O P/L histórico é uma estimativa baseada nos trades disponíveis na API da Binance.
-    A conta THIAGO permanece somente leitura. A conta SERGIO possui controle manual protegido por token.
+    A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
+    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é somente leitura e não envia ordens para a Binance.
   </div>
 
   <div class="footer">
-    Binance-Robo • THIAGO / SERGIO • Painel individual • Atualização automática a cada 15 segundos • Controle manual SERGIO protegido
+    Binance-Robo • THIAGO / SERGIO • Central Premium • Atualização automática a cada 15 segundos
   </div>
 
 </div>
@@ -2036,15 +2936,73 @@ function preencherTabs(){
       dinheiro(c.patrimonioUSDT) +
       " USDT";
 
-    pnl.textContent =
-      (Number(c.pnlTotalEstimado || 0) >= 0
-        ? "+"
-        : "") +
-      dinheiro(c.pnlTotalEstimado) +
-      " USDT";
+    const opAtual =
+      c.operacaoAtual &&
+      c.operacaoAtual.ativa
+        ? c.operacaoAtual
+        : null;
 
-    pnl.className =
-      classe(c.pnlTotalEstimado);
+    const pnlAtual =
+      Number(opAtual ? opAtual.pnlUSDT : 0);
+
+    const pctAtual =
+      Number(opAtual ? opAtual.pnlPct : 0);
+
+    if(opAtual){
+
+      pnl.textContent =
+        (pnlAtual >= 0 ? "+" : "") +
+        dinheiro(pnlAtual) +
+        " USDT";
+
+      pnl.className =
+        classe(pnlAtual);
+
+    }else{
+
+      pnl.textContent =
+        "SEM OPERAÇÃO";
+
+      pnl.className =
+        "muted";
+
+    }
+
+    const extra =
+      document.getElementById(
+        "tabPnlExtra" + c.id
+      );
+
+    if(extra){
+
+      if(opAtual){
+
+        const pnlBrl =
+          pnlAtual *
+          Number(c.usdtBrl || 0);
+
+        extra.textContent =
+          "≈ R$ " +
+          dinheiro(pnlBrl) +
+          " • " +
+          (pctAtual >= 0 ? "+" : "") +
+          pctAtual.toFixed(2) +
+          "%";
+
+        extra.className =
+          "tabPnlExtra " +
+          classe(pctAtual);
+
+      }else{
+
+        extra.textContent =
+          "Sem operação atual";
+
+        extra.className =
+          "tabPnlExtra";
+
+      }
+    }
 
     const brl =
       document.getElementById(
@@ -2159,6 +3117,8 @@ function renderConta(){
 
   renderHistorico(c);
 
+  atualizarResumoCompacto();
+
   // Mantém o gráfico na moeda da operação atual.
   const select =
     document.getElementById(
@@ -2194,106 +3154,6 @@ function renderConta(){
 }
 
 
-
-function manualSetPreview(html, good){
-  const el=document.getElementById("manualPreview");
-  if(!el) return;
-  el.innerHTML=html;
-  el.style.borderColor=good ? "#176b4d" : "#713044";
-}
-
-function manualToken(){
-  return String(document.getElementById("manualToken")?.value || "").trim();
-}
-
-function manualSymbolAtual(c,pos){
-  const input=document.getElementById("manualSymbol");
-  if(input && input.value.trim()) return input.value.trim().toUpperCase();
-  if(pos && pos.symbol) return pos.symbol;
-  const a=(c && c.ativos || []).find(function(x){return x.asset!=="USDT" && x.valorUSDT>=3;});
-  return a ? a.asset+"USDT" : "BTCUSDT";
-}
-
-function renderManualSergio(c,pos){
-  const box=document.getElementById("manualSergio");
-  if(!box) return;
-  const ativo=(c && String(c.id)==="2");
-  box.style.display=ativo ? "block" : "none";
-  if(!ativo) return;
-  const input=document.getElementById("manualSymbol");
-  if(input && !input.value && pos && pos.symbol) input.value=pos.symbol;
-  const list=document.getElementById("manualSymbols");
-  if(list){
-    list.innerHTML=(c.ativos || []).filter(function(a){return a.asset!=="USDT";}).slice(0,30).map(function(a){return '<option value="'+a.asset+'USDT"></option>';}).join("");
-  }
-}
-
-async function manualPreviaSergio(){
-  const c=getConta("2");
-  const symbol=manualSymbolAtual(c,c && c.posicoes && c.posicoes[0]);
-  const token=manualToken();
-  if(!token){ manualSetPreview("Informe o TOKEN DO PAINEL para consultar o controle manual.",false); return; }
-  try{
-    const r=await fetch("/api/manual/preview?symbol="+encodeURIComponent(symbol),{headers:{"x-manual-token":token},cache:"no-store"});
-    const d=await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.erro || "Falha na consulta");
-    document.getElementById("manualSymbol").value=d.symbol;
-    manualSetPreview("<b>"+d.symbol+" • SERGIO</b> — preço: <b>"+dinheiro(d.price)+" USDT</b> • saldo livre: <b>"+numero(d.free)+"</b> • SELL abertas: <b>"+d.openSellOrders.length+"</b><br>Entrada da operação atual: <b>"+(d.entry>0?dinheiro(d.entry)+" USDT":"--")+"</b> • P/L aberto: <b class=\""+(d.pnl>=0?"green":"red")+"\">"+(d.pnl>=0?"+":"")+dinheiro(d.pnl)+" USDT ("+d.pnlPct.toFixed(2)+"%)</b> • mínimo: <b>"+(d.minNotional||0)+" USDT</b>",true);
-  }catch(e){ manualSetPreview("❌ "+(e.message || e),false); }
-}
-
-async function manualCancelarSergio(){
-  const c=getConta("2");
-  const symbol=manualSymbolAtual(c,c && c.posicoes && c.posicoes[0]);
-  const token=manualToken();
-  if(!token){manualSetPreview("Informe o token.",false);return;}
-  if(!confirm("Cancelar todas as ordens SELL abertas de "+symbol+" na conta SERGIO?")) return;
-  try{
-    const r=await fetch("/api/manual/cancel-sell",{method:"POST",headers:{"Content-Type":"application/json","x-manual-token":token},body:JSON.stringify({symbol})});
-    const d=await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.erro || "Falha ao cancelar");
-    manualSetPreview("🟡 "+d.canceladas+" ordem(ns) SELL cancelada(s) em "+symbol+". Atualizando dados...",true);
-    carregar();
-  }catch(e){manualSetPreview("❌ "+(e.message||e),false);}
-}
-
-async function manualComprarSergio(){
-  const c=getConta("2");
-  const symbol=manualSymbolAtual(c,c && c.posicoes && c.posicoes[0]);
-  const usdt=Number(document.getElementById("manualBuyUsdt")?.value || 0);
-  const token=manualToken();
-  if(!token){manualSetPreview("Informe o token.",false);return;}
-  if(usdt<=0){manualSetPreview("Informe o valor da compra em USDT.",false);return;}
-  if(!confirm("CONFIRMA COMPRA REAL?\n\nSERGIO\n"+symbol+"\nValor: "+usdt.toFixed(2)+" USDT")) return;
-  try{
-    const r=await fetch("/api/manual/buy",{method:"POST",headers:{"Content-Type":"application/json","x-manual-token":token},body:JSON.stringify({symbol,usdt})});
-    const d=await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.erro || "Falha na compra");
-    manualSetPreview("🟢 COMPRA EXECUTADA • "+d.symbol+" • "+d.executedQty+" unidades • "+dinheiro(d.cummulativeQuoteQty)+" USDT • Order #"+d.orderId,true);
-    carregar();
-  }catch(e){manualSetPreview("❌ "+(e.message||e),false);}
-}
-
-async function manualVenderSergio(){
-  const c=getConta("2");
-  const pos=(c && c.posicoes || [])[0];
-  const symbol=manualSymbolAtual(c,pos);
-  const token=manualToken();
-  if(!token){manualSetPreview("Informe o token.",false);return;}
-  try{
-    const r=await fetch("/api/manual/preview?symbol="+encodeURIComponent(symbol),{headers:{"x-manual-token":token},cache:"no-store"});
-    const d=await r.json();
-    if(!r.ok || !d.ok) throw new Error(d.erro || "Falha na prévia");
-    const estimativa=d.free*d.price;
-    if(!confirm("CONFIRMA VENDA REAL?\n\nSERGIO\n"+symbol+"\nSaldo livre: "+numero(d.free)+"\nValor estimado: "+dinheiro(estimativa)+" USDT\n\nAs ordens SELL abertas serão canceladas antes da venda.")) return;
-    const r2=await fetch("/api/manual/sell",{method:"POST",headers:{"Content-Type":"application/json","x-manual-token":token},body:JSON.stringify({symbol})});
-    const d2=await r2.json();
-    if(!r2.ok || !d2.ok) throw new Error(d2.erro || "Falha na venda");
-    manualSetPreview("🔴 VENDA EXECUTADA • "+d2.symbol+" • "+d2.executedQty+" unidades • "+dinheiro(d2.cummulativeQuoteQty)+" USDT • Order #"+d2.orderId,true);
-    carregar();
-  }catch(e){manualSetPreview("❌ "+(e.message||e),false);}
-}
-
 function renderPosicao(c){
 
   const el =
@@ -2315,9 +3175,9 @@ function renderPosicao(c){
             'Nenhuma posição ativa detectada.' +
           '</div>' +
         '</div>' +
-      '</div>';
+      '</div>' +
+      (c.id === "2" ? renderControleSergio(null) : '');
 
-    renderManualSergio(c, null);
     return;
   }
 
@@ -2423,9 +3283,9 @@ function renderPosicao(c){
         dinheiro(pos.pnlRealizado) +
         " USDT") +
 
-    '</div>';
+    '</div>' +
 
-  renderManualSergio(c, pos);
+    (c.id === "2" ? renderControleSergio(pos) : '');
 }
 
 
@@ -2441,6 +3301,129 @@ function info(titulo, valor){
       '</b>' +
     '</div>'
   );
+}
+
+
+
+function renderControleSergio(pos){
+  const symbol = pos && pos.symbol ? pos.symbol : "";
+  const disabled = symbol ? "" : " disabled";
+  return (
+    '<div class="sergioControl">' +
+      '<div class="sergioControlTitle">' +
+        '<b>🎛️ CONTROLE MANUAL — SERGIO</b>' +
+        '<span>CONTA 2</span>' +
+      '</div>' +
+      '<div class="sergioControlGrid">' +
+        '<input id="sergioSymbol" value="' + symbol + '" placeholder="Ex.: BTCUSDT" spellcheck="false">' +
+        '<input id="sergioToken" type="password" placeholder="Token do controle" autocomplete="off">' +
+      '</div>' +
+      '<div class="sergioControlButtons">' +
+        '<button class="sergioBtn sellBtn" onclick="venderSergio()"'+disabled+'>🔴 VENDER POSIÇÃO</button>' +
+        '<button class="sergioBtn cancelBtn" onclick="cancelarVendaSergio()">🟡 CANCELAR VENDA ATIVA</button>' +
+      '</div>' +
+      '<div id="sergioControlMsg" class="sergioControlMsg">A venda envia uma ordem MARKET na conta SERGIO. O cancelamento atua somente sobre ordens SELL abertas do ativo informado.</div>' +
+    '</div>'
+  );
+}
+
+function lerControleSergio(){
+  const symbolEl=document.getElementById("sergioSymbol");
+  const tokenEl=document.getElementById("sergioToken");
+  return {
+    symbol: symbolEl ? String(symbolEl.value || "").toUpperCase().trim() : "",
+    token: tokenEl ? String(tokenEl.value || "").trim() : ""
+  };
+}
+
+function mensagemControleSergio(msg, erro){
+  const el=document.getElementById("sergioControlMsg");
+  if(!el) return;
+  el.textContent=msg;
+  el.className="sergioControlMsg " + (erro ? "red" : "green");
+}
+
+async function venderSergio(){
+  const d=lerControleSergio();
+
+  if(!d.symbol){
+    mensagemControleSergio("Informe o ativo da posição SERGIO.",true);
+    return;
+  }
+
+  if(!d.token){
+    mensagemControleSergio("Informe o token do controle manual.",true);
+    return;
+  }
+
+  if(!confirm("CONFIRMAR VENDA A MERCADO?\\n\\nConta: SERGIO\\nAtivo: "+d.symbol+"\\n\\nA ordem será enviada para a Binance.")){
+    return;
+  }
+
+  mensagemControleSergio("Enviando venda para a Binance...",false);
+
+  try{
+    const r=await fetch("/api/manual/sell",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({symbol:d.symbol,token:d.token})
+    });
+
+    const x=await r.json();
+
+    if(!r.ok) throw new Error(x.erro || "Falha ao vender.");
+
+    mensagemControleSergio(
+      "✅ "+(x.mensagem || "Venda enviada.")+
+      (x.orderId ? " Ordem: "+x.orderId : ""),
+      false
+    );
+
+    setTimeout(carregar,1500);
+  }catch(e){
+    mensagemControleSergio("❌ "+e.message,true);
+  }
+}
+
+async function cancelarVendaSergio(){
+  const d=lerControleSergio();
+
+  if(!d.symbol){
+    mensagemControleSergio("Informe o ativo para cancelar a ordem SELL.",true);
+    return;
+  }
+
+  if(!d.token){
+    mensagemControleSergio("Informe o token do controle manual.",true);
+    return;
+  }
+
+  if(!confirm("CANCELAR ORDEM DE VENDA ATIVA?\\n\\nConta: SERGIO\\nAtivo: "+d.symbol)){
+    return;
+  }
+
+  mensagemControleSergio("Consultando e cancelando ordens SELL...",false);
+
+  try{
+    const r=await fetch("/api/manual/cancel-sell",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({symbol:d.symbol,token:d.token})
+    });
+
+    const x=await r.json();
+
+    if(!r.ok) throw new Error(x.erro || "Falha ao cancelar.");
+
+    mensagemControleSergio(
+      "🟡 "+(x.mensagem || "Cancelamento concluído."),
+      false
+    );
+
+    setTimeout(carregar,1000);
+  }catch(e){
+    mensagemControleSergio("❌ "+e.message,true);
+  }
 }
 
 
@@ -2675,9 +3658,86 @@ function estatisticasConta(c){
   };
 }
 
+function renderCurrentOperation(){
+  const c1=getConta("1");
+  const c2=getConta("2");
+  const contas=[c1,c2];
+  const ops=contas.map(function(c){ return c && c.operacaoAtual ? c.operacaoAtual : null; });
+
+  contas.forEach(function(c,idx){
+    const n=idx+1;
+    const op=ops[idx];
+    const card=document.getElementById("opCard"+n);
+    const state=document.getElementById("opStatus"+n);
+    if(!op || !op.ativa){
+      state.textContent="SEM OPERAÇÃO";
+      state.className="operationState";
+      document.getElementById("opCoin"+n).textContent="--";
+      document.getElementById("opPnl"+n).textContent="--";
+      document.getElementById("opPnl"+n).className="";
+      document.getElementById("opPnlBrl"+n).textContent="--";
+      document.getElementById("opPct"+n).textContent="--";
+      document.getElementById("opPct"+n).className="";
+      document.getElementById("opEntry"+n).textContent="--";
+      document.getElementById("opCurrent"+n).textContent="--";
+      document.getElementById("opQty"+n).textContent="--";
+      document.getElementById("opTime"+n).textContent="--";
+      return;
+    }
+
+    const pct=Number(op.pnlPct||0);
+    const pnl=Number(op.pnlUSDT||0);
+    const conta=c;
+    state.textContent="OPERAÇÃO ATIVA";
+    state.className="operationState live "+(pct>=0?"win":"loss");
+    document.getElementById("opCoin"+n).textContent=op.symbol || "--";
+    document.getElementById("opPnl"+n).textContent=(pnl>=0?"+":"")+dinheiro(pnl)+" USDT";
+    document.getElementById("opPnl"+n).className=classe(pnl);
+    document.getElementById("opPnlBrl"+n).textContent="≈ R$ "+dinheiro(pnl*Number(conta.usdtBrl||0));
+    document.getElementById("opPct"+n).textContent=(pct>=0?"+":"")+pct.toFixed(2)+"%";
+    document.getElementById("opPct"+n).className=classe(pct);
+    document.getElementById("opEntry"+n).textContent=dinheiro(op.entrada)+" USDT";
+    document.getElementById("opCurrent"+n).textContent=dinheiro(op.precoAtual)+" USDT";
+    document.getElementById("opQty"+n).textContent=numero(op.quantidade);
+    document.getElementById("opTime"+n).textContent=dataHora(op.entradaTime);
+  });
+
+  const a=ops[0], b=ops[1];
+  const leader=document.getElementById("operationLeader");
+  const versus=document.getElementById("versusText");
+  if(a && b && a.ativa && b.ativa){
+    if(a.pnlPct>b.pnlPct){
+      leader.textContent="🥇 THIAGO NA FRENTE";
+      leader.className="leaderBadge good";
+      versus.textContent="THIAGO +"+(Number(a.pnlPct)-Number(b.pnlPct)).toFixed(2)+" p.p.";
+    }else if(b.pnlPct>a.pnlPct){
+      leader.textContent="🥇 SERGIO NA FRENTE";
+      leader.className="leaderBadge good";
+      versus.textContent="SERGIO +"+(Number(b.pnlPct)-Number(a.pnlPct)).toFixed(2)+" p.p.";
+    }else{
+      leader.textContent="⚖️ EMPATE";
+      leader.className="leaderBadge neutral";
+      versus.textContent="Mesma variação";
+    }
+  }else if(a && a.ativa){
+    leader.textContent="THIAGO • ÚNICA OPERAÇÃO";
+    leader.className="leaderBadge neutral";
+    versus.textContent="SERGIO sem posição";
+  }else if(b && b.ativa){
+    leader.textContent="SERGIO • ÚNICA OPERAÇÃO";
+    leader.className="leaderBadge neutral";
+    versus.textContent="THIAGO sem posição";
+  }else{
+    leader.textContent="AGUARDANDO OPERAÇÕES";
+    leader.className="leaderBadge";
+    versus.textContent="Sem posições ativas";
+  }
+}
+
 function renderAnalytics(){
   if(!dados || !dados.contas) return;
   const c1=getConta("1"), c2=getConta("2");
+  renderCurrentOperation();
   const s1=estatisticasConta(c1), s2=estatisticasConta(c2);
 
   const total={
@@ -3303,6 +4363,126 @@ function desenharGrafico(d){
     .fitContent();
 }
 
+
+
+/* =========================================================
+   V7 - FUNÇÕES VISUAIS
+========================================================= */
+let v7EquityHistory=[];
+let v7LastXrayKey="";
+let v7OpportunityBusy=false;
+
+function v7FmtPct(v){v=Number(v||0);return (v>=0?"+":"")+v.toFixed(2)+"%";}
+function v7ClassePct(v){return Number(v||0)>=0?"v7Good":"v7Bad";}
+function v7Elapsed(t){
+  if(!t) return "--";
+  let s=Math.max(0,Math.floor((Date.now()-Number(t))/1000));
+  const d=Math.floor(s/86400); s%=86400; const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60); const sec=s%60;
+  if(d>0) return d+"d "+h+"h";
+  if(h>0) return h+"h "+m+"m";
+  return m+"m "+sec+"s";
+}
+
+function renderV7Score(){
+  const c1=getConta("1"),c2=getConta("2");
+  const a=c1&&c1.operacaoAtual&&c1.operacaoAtual.ativa?c1.operacaoAtual:null;
+  const b=c2&&c2.operacaoAtual&&c2.operacaoAtual.ativa?c2.operacaoAtual:null;
+  const leader=document.getElementById("v7Leader"),diff=document.getElementById("v7Diff"),elapsed=document.getElementById("v7Elapsed");
+  const tp=document.getElementById("v7ThiagoPnl"),sp=document.getElementById("v7SergioPnl"),tb=document.getElementById("v7ThiagoBrl"),sb=document.getElementById("v7SergioBrl");
+  if(a){tp.textContent=v7FmtPct(a.pnlPct);tp.className=v7ClassePct(a.pnlPct);tb.textContent="R$ "+dinheiro(Number(a.pnlBRL||0));}
+  else{tp.textContent="SEM OPERAÇÃO";tp.className="";tb.textContent="--";}
+  if(b){sp.textContent=v7FmtPct(b.pnlPct);sp.className=v7ClassePct(b.pnlPct);sb.textContent="R$ "+dinheiro(Number(b.pnlBRL||0));}
+  else{sp.textContent="SEM OPERAÇÃO";sp.className="";sb.textContent="--";}
+  const nowOp=a||b;
+  elapsed.textContent=nowOp?v7Elapsed(nowOp.entradaTime):"--";
+  if(a&&b){
+    const d=Number(a.pnlPct)-Number(b.pnlPct);
+    if(d>0){leader.textContent="🥇 THIAGO";leader.className="v7Good";diff.textContent="THIAGO +"+d.toFixed(2)+" p.p.";diff.className="v7Good";}
+    else if(d<0){leader.textContent="🥇 SERGIO";leader.className="v7Good";diff.textContent="SERGIO +"+Math.abs(d).toFixed(2)+" p.p.";diff.className="v7Good";}
+    else{leader.textContent="⚖️ EMPATE";leader.className="v7Warn";diff.textContent="0,00 p.p.";diff.className="v7Warn";}
+  }else if(a){leader.textContent="THIAGO";leader.className="v7Blue";diff.textContent="SERGIO sem operação";diff.className="";}
+  else if(b){leader.textContent="SERGIO";leader.className="v7Blue";diff.textContent="THIAGO sem operação";diff.className="";}
+  else{leader.textContent="AGUARDANDO";leader.className="";diff.textContent="--";diff.className="";}
+}
+
+function renderV7Alerts(){
+  const el=document.getElementById("v7Alerts"); const alerts=[];
+  (dados&&dados.contas||[]).forEach(function(c){
+    if(c.erro) alerts.push({i:"🔴",t:"<b>"+c.nome+":</b> API indisponível. "+c.erro});
+    const op=c.operacaoAtual;
+    if(op&&op.ativa){
+      const p=Number(op.pnlPct||0);
+      if(p>=4.5) alerts.push({i:"🎯",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação próxima do alvo de +5%. Variação atual "+v7FmtPct(p)+"."});
+      else if(p<0) alerts.push({i:"🔻",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação atualmente negativa em "+v7FmtPct(p)+"."});
+      else alerts.push({i:"🟢",t:"<b>"+c.nome+" • "+op.symbol+":</b> operação positiva em "+v7FmtPct(p)+"."});
+    }else if(!c.erro){alerts.push({i:"⚪",t:"<b>"+c.nome+":</b> nenhuma operação atual detectada."});}
+  });
+  el.innerHTML=alerts.map(function(a){return '<div class="v7Alert"><div class="v7AlertIcon">'+a.i+'</div><div class="v7AlertText">'+a.t+'</div></div>';}).join("")||'<div class="v7Alert"><div class="v7AlertIcon">ℹ️</div><div class="v7AlertText">Sem alertas.</div></div>';
+}
+
+function renderV7Health(){
+  const el=document.getElementById("v7Health");
+  const now=Date.now();
+  const rows=[];
+  (dados&&dados.contas||[]).forEach(function(c){
+    const ok=!c.erro;
+    const last=(c.historico||[])[0];
+    rows.push('<div class="v7StatusRow"><span><i class="v7Dot '+(ok?'ok':'bad')+'"></i>'+c.nome+' • Binance</span><b class="v7Badge">'+(ok?'ONLINE':'ERRO')+'</b></div>');
+    rows.push('<div class="v7StatusRow"><span>Último trade</span><b class="v7Time">'+(last?dataHora(last.time):"sem dados")+'</b></div>');
+    rows.push('<div class="v7StatusRow"><span>Posições ativas</span><b>'+((c.posicoes||[]).length)+'</b></div>');
+  });
+  const age=dados&&dados.atualizadoEm?Math.max(0,now-Number(dados.atualizadoEm)):999999;
+  rows.push('<div class="v7StatusRow"><span><i class="v7Dot '+(age<30000?'ok':'warn')+'"></i>Atualização do painel</span><b class="v7Badge">'+(age<30000?'ATUALIZADO':'ATENÇÃO')+'</b></div>');
+  rows.push('<div class="v7Note">O painel é somente leitura. Este diagnóstico confirma a leitura da API e da atividade observada; ele não comprova que uma ordem foi enviada pelo robô.</div>');
+  el.innerHTML=rows.join("");
+}
+
+function renderV7Equity(){
+  if(!dados||!dados.contas)return;
+  const total=dados.contas.reduce(function(s,c){return s+Number(c.patrimonioUSDT||0);},0);
+  v7EquityHistory.push({t:Date.now(),v:total});
+  if(v7EquityHistory.length>60)v7EquityHistory.shift();
+  const canvas=document.getElementById("v7EquityCanvas"); if(!canvas)return;
+  const rect=canvas.getBoundingClientRect(); const dpr=window.devicePixelRatio||1; const w=Math.max(300,Math.floor(rect.width)); const h=220;
+  canvas.width=w*dpr; canvas.height=h*dpr; const ctx=canvas.getContext("2d"); ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,w,h);
+  if(v7EquityHistory.length<2){ctx.fillStyle="#71809a";ctx.font="12px sans-serif";ctx.fillText("Coletando pontos...",18,30);document.getElementById("v7EquityInfo").textContent=dinheiro(total)+" USDT agora";return;}
+  const vals=v7EquityHistory.map(function(x){return x.v;}); const min=Math.min.apply(null,vals),max=Math.max.apply(null,vals); const span=Math.max(max-min,0.01); const left=12,top=15,right=w-12,bottom=h-22;
+  ctx.strokeStyle="#17273d";ctx.lineWidth=1;for(let i=0;i<4;i++){const y=top+(bottom-top)*i/3;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(right,y);ctx.stroke();}
+  ctx.strokeStyle="#27b9ff";ctx.lineWidth=2;ctx.beginPath();v7EquityHistory.forEach(function(p,i){const x=left+(right-left)*i/(v7EquityHistory.length-1);const y=bottom-(p.v-min)/span*(bottom-top);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);});ctx.stroke();
+  const last=vals[vals.length-1],first=vals[0],delta=last-first;document.getElementById("v7EquityInfo").textContent=dinheiro(last)+" USDT • sessão "+(delta>=0?"+":"")+dinheiro(delta)+" USDT";
+}
+
+async function renderV7Xray(){
+  const c=getConta(contaSelecionada); if(!c)return;
+  const pos=(c.posicoes||[])[0]; const symbol=pos&&pos.symbol?pos.symbol:"BTCUSDT"; const key=contaSelecionada+"|"+symbol;
+  if(v7LastXrayKey===key && Date.now()-Number(window.v7LastXrayTime||0)<45000)return;
+  v7LastXrayKey=key;window.v7LastXrayTime=Date.now();
+  const el=document.getElementById("v7Xray");el.innerHTML='<div class="empty">Analisando '+symbol+'...</div>';
+  try{
+    const r=await fetch('/api/xray?account='+encodeURIComponent(contaSelecionada)+'&symbol='+encodeURIComponent(symbol),{cache:'no-store'});const x=await r.json();if(!r.ok)throw new Error(x.erro||'Falha');
+    const rows=x.checks.map(function(q){return '<div class="v7Check"><span>'+(q.ok?'🟢':'🔴')+' '+q.nome+'</span><b class="'+(q.ok?'v7Good':'v7Bad')+'">'+q.valor+'</b></div>';}).join('');
+    el.innerHTML='<div class="v7MiniGrid"><div class="v7Mini"><span>MOEDA</span><b>'+x.symbol+'</b></div><div class="v7Mini"><span>COMPATIBILIDADE</span><b>'+x.compatibilidade+'/4</b></div><div class="v7Mini"><span>RSI 14</span><b>'+x.rsi.toFixed(2)+'</b></div><div class="v7Mini"><span>EMA 21</span><b>'+dinheiro(x.ema)+'</b></div></div><div style="margin-top:12px">'+rows+'</div><div class="v7Note">Score interno do robô: <b>não disponível na API do painel</b>. Os 4 testes acima são uma leitura técnica independente, usando os limites conhecidos da configuração do robô.</div>';
+  }catch(e){el.innerHTML='<div class="empty">Raio-X indisponível: '+(e.message||'erro')+'</div>';}
+}
+
+async function renderV7Opportunities(){
+  if(v7OpportunityBusy)return;v7OpportunityBusy=true;const el=document.getElementById("v7Opportunities");
+  try{
+    const r=await fetch('/api/opportunities',{cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.erro||'Falha');
+    el.innerHTML=(d.itens||[]).map(function(x,i){const cls=i===0?'gold':(i===1?'silver':(i===2?'bronze':''));return '<div class="v7Opportunity"><div><div class="v7Rank '+cls+'">#'+(i+1)+'</div><div class="v7Coin">'+x.symbol+'</div></div><div><div class="v7Check"><span>RSI</span><b class="'+(x.checks[0].ok?'v7Good':'v7Bad')+'">'+x.rsi.toFixed(1)+'</b></div><div class="v7Check"><span>EMA</span><b class="'+(x.checks[1].ok?'v7Good':'v7Bad')+'">'+(x.distancia>=0?'+':'')+x.distancia.toFixed(2)+'%</b></div><div class="v7Check"><span>Volume</span><b class="'+(x.volumeRatio>=.8?'v7Good':'v7Bad')+'">'+x.volumeRatio.toFixed(2)+'x</b></div></div><div class="v7ScoreBox"><b>'+x.compatibilidade+'/4</b><small>filtros</small></div></div>';}).join('')||'<div class="empty">Sem oportunidades disponíveis.</div>';
+  }catch(e){el.innerHTML='<div class="empty">Ranking indisponível no momento.</div>';}finally{v7OpportunityBusy=false;}
+}
+
+function renderV7Timeline(){
+  const all=[];(dados&&dados.contas||[]).forEach(function(c){(c.historico||[]).slice(0,20).forEach(function(t){all.push({...t,conta:c.nome});});});
+  all.sort(function(a,b){return Number(b.time)-Number(a.time);});
+  const el=document.getElementById('v7Timeline');
+  el.innerHTML=all.slice(0,16).map(function(t,i){const buy=t.lado==='COMPRA';return '<div class="v7StatusRow"><span><i class="v7Dot '+(buy?'ok':'bad')+'"></i><b>'+t.conta+'</b> • '+t.symbol+' • '+t.lado+'</span><span class="v7Time">'+numero(t.qty)+' @ '+dinheiro(t.price)+' USDT • '+dataHora(t.time)+'</span></div>';}).join('')||'<div class="empty">Nenhum evento encontrado.</div>';
+}
+
+function renderV7(){renderV7Score();renderV7Alerts();renderV7Health();renderV7Equity();renderV7Timeline();renderV7Xray();renderV7Opportunities();}
+
+
 /*
 =========================================================
 CARREGAMENTO
@@ -3344,10 +4524,6 @@ async function carregar(){
     dados =
       await response.json();
 
-    const erros=(dados.contas || []).filter(function(c){return c.erro;});
-    if(erros.length){
-      document.getElementById("updated").textContent = "⚠️ " + erros.map(function(c){return c.nome+": "+c.erro;}).join(" | ");
-    }
 
     preencherTabs();
 
@@ -3357,19 +4533,18 @@ async function carregar(){
 
     renderPnl(contaAtual);
     renderAnalytics();
+    renderV7();
 
 
-    if(!erros.length){
-      document.getElementById(
-        "updated"
-      ).textContent =
-        "Atualizado às " +
-        new Date(
-          dados.atualizadoEm
-        ).toLocaleTimeString(
-          "pt-BR"
-        );
-    }
+    document.getElementById(
+      "updated"
+    ).textContent =
+      "Atualizado às " +
+      new Date(
+        dados.atualizadoEm
+      ).toLocaleTimeString(
+        "pt-BR"
+      );
 
 
     carregarGrafico();
@@ -3463,11 +4638,226 @@ window.addEventListener(
 );
 
 
+/* =========================================================
+   V7 COMPACTA — NAVEGAÇÃO POR SUBMENUS
+   ========================================================= */
+
+function obterSecoesPainel(){
+  return Array.from(
+    document.querySelectorAll("section.section")
+  );
+}
+
+function fecharTodasSecoesPainel(){
+  const secoes = obterSecoesPainel();
+
+  secoes.forEach(function(secao){
+    secao.classList.remove("compactOpen");
+    secao.classList.add("compactHidden");
+  });
+
+  document.querySelectorAll(".menuBtn").forEach(function(btn){
+    btn.classList.remove("active");
+  });
+}
+
+function abrirSecaoPainel(indice){
+  const secoes = obterSecoesPainel();
+  const secao = secoes[indice];
+
+  if(!secao) return;
+
+  const jaAberta =
+    secao.classList.contains("compactOpen");
+
+  fecharTodasSecoesPainel();
+
+  if(jaAberta){
+    return;
+  }
+
+  secao.classList.remove("compactHidden");
+  secao.classList.add("compactOpen");
+
+  const btn =
+    document.querySelector(
+      '.menuBtn[data-panel="' + indice + '"]'
+    );
+
+  if(btn){
+    btn.classList.add("active");
+  }
+
+  setTimeout(function(){
+    secao.scrollIntoView({
+      behavior:"smooth",
+      block:"start"
+    });
+  },30);
+}
+
+function fecharSecaoPainel(botao){
+  const secao = botao.closest("section.section");
+
+  if(!secao) return;
+
+  const secoes = obterSecoesPainel();
+  const indice = secoes.indexOf(secao);
+
+  secao.classList.remove("compactOpen");
+  secao.classList.add("compactHidden");
+
+  const btn =
+    document.querySelector(
+      '.menuBtn[data-panel="' + indice + '"]'
+    );
+
+  if(btn){
+    btn.classList.remove("active");
+  }
+
+  window.scrollTo({
+    top:0,
+    behavior:"smooth"
+  });
+}
+
+function inicializarNavegacaoCompacta(){
+
+  const secoes = obterSecoesPainel();
+
+  secoes.forEach(function(secao){
+
+    secao.classList.add("compactHidden");
+
+    if(
+      secao.querySelector(".sectionClose")
+    ){
+      return;
+    }
+
+    const close =
+      document.createElement("button");
+
+    close.type = "button";
+    close.className = "sectionClose";
+    close.textContent = "FECHAR";
+    close.setAttribute(
+      "onclick",
+      "fecharSecaoPainel(this)"
+    );
+
+    secao.insertBefore(
+      close,
+      secao.firstChild
+    );
+  });
+
+  fecharTodasSecoesPainel();
+}
+
+function atualizarResumoCompacto(){
+
+  if(!dados || !dados.contas) return;
+
+  const c =
+    dados.contas.find(function(x){
+      return x.id === contaSelecionada;
+    });
+
+  if(!c) return;
+
+  const op =
+    c.operacaoAtual &&
+    c.operacaoAtual.ativa
+      ? c.operacaoAtual
+      : null;
+
+  const coin =
+    document.getElementById("quickCoin");
+
+  const status =
+    document.getElementById("quickStatus");
+
+  const pnl =
+    document.getElementById("quickPnl");
+
+  const pct =
+    document.getElementById("quickPct");
+
+  if(!op){
+
+    if(coin) coin.textContent="--";
+
+    if(status){
+      status.textContent="SEM OPERAÇÃO";
+      status.className="quickCurrentStatus";
+    }
+
+    if(pnl){
+      pnl.textContent="--";
+      pnl.className="quickCurrentPnl";
+    }
+
+    if(pct){
+      pct.textContent="--";
+      pct.className="quickCurrentPct";
+    }
+
+    return;
+  }
+
+  const p =
+    Number(op.pnlUSDT || 0);
+
+  const v =
+    Number(op.pnlPct || 0);
+
+  if(coin){
+    coin.textContent =
+      op.symbol || "--";
+  }
+
+  if(status){
+    status.textContent =
+      "OPERAÇÃO ATIVA";
+
+    status.className =
+      "quickCurrentStatus";
+  }
+
+  if(pnl){
+    pnl.textContent =
+      (p>=0 ? "+" : "") +
+      dinheiro(p) +
+      " USDT";
+
+    pnl.className =
+      "quickCurrentPnl " +
+      classe(p);
+  }
+
+  if(pct){
+    pct.textContent =
+      (v>=0 ? "+" : "") +
+      v.toFixed(2) +
+      "%";
+
+    pct.className =
+      "quickCurrentPct " +
+      classe(v);
+  }
+}
+
+
+
 /*
 =========================================================
 INÍCIO
 =========================================================
 */
+
+inicializarNavegacaoCompacta();
 
 carregar();
 
@@ -3489,7 +4879,7 @@ app.listen(
   "0.0.0.0",
   function(){
     console.log(
-      "Binance-Robo Painel Premium V2 rodando na porta " +
+      "Binance-Robo Painel Premium V7.1 — Compacto rodando na porta " +
       PORT
     );
   }

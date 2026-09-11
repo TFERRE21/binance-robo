@@ -148,6 +148,17 @@ const SUFIXOS_ALAVANCADOS = [
   "BEAR"
 ];
 
+/* =========================================================
+   MOEDAS BLOQUEADAS
+   =========================================================
+   TRX fica impedida de ser analisada/comprada pelo robô.
+   O bloqueio NÃO vende uma posição TRX já existente.
+========================================================= */
+
+const MOEDAS_BLOQUEADAS = new Set([
+  "TRX"
+]);
+
 
 /* =========================================================
    FUNÇÕES BÁSICAS
@@ -606,8 +617,15 @@ async function obterTop20MarketCap(
 
       if (
         ehStablecoin(base) ||
-        ehAlavancada(base)
+        ehAlavancada(base) ||
+        MOEDAS_BLOQUEADAS.has(base)
       ) {
+
+        if (MOEDAS_BLOQUEADAS.has(base)) {
+          console.log(
+            `${par.symbol} ⛔ MOEDA BLOQUEADA`
+          );
+        }
 
         continue;
 
@@ -1259,6 +1277,21 @@ async function analisarMoeda(
   symbol,
   mercado
 ) {
+
+  if (
+    MOEDAS_BLOQUEADAS.has(
+      String(symbol || "")
+        .replace(/USDT$/, "")
+        .toUpperCase()
+    )
+  ) {
+
+    return {
+      valido: false,
+      motivo: "Moeda bloqueada pelo robô"
+    };
+
+  }
 
   try {
 
@@ -2485,7 +2518,7 @@ async function iniciarRobo(
   );
 
   console.log(
-    "🔥 ESTRATÉGIA: TOP 20 | BTC 1D+4H | EMA | RSI | PULLBACK/BREAKOUT | SCORE 7/12 | TP +5%"
+    "🔥 ESTRATÉGIA: TOP 20 | BTC 1D+4H | EMA | RSI | PULLBACK/BREAKOUT | SCORE 7/12 | TP +5% | TRX BLOQUEADA"
   );
 
   console.log(
@@ -2655,6 +2688,23 @@ async function iniciarRobo(
       for (
         const par of pares
       ) {
+
+        const basePar =
+          String(
+            par.baseAsset || ""
+          ).toUpperCase();
+
+        if (
+          MOEDAS_BLOQUEADAS.has(basePar)
+        ) {
+
+          console.log(
+            `${par.symbol} ⛔ BLOQUEADA — PULANDO`
+          );
+
+          continue;
+
+        }
 
         if (
           estado.operando

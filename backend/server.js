@@ -711,11 +711,32 @@ app.get("/api/chart", async function (req, res) {
   }
 });
 
+app.get("/api/market", async function(req,res){
+  try{
+    const cliente = clientes[0].client;
+    const candles = await cliente.candles({symbol:"BTCUSDT", interval:"15m", limit:100});
+    const closes = candles.map(function(c){ return num(c.close); });
+    const price = closes[closes.length-1] || 0;
+    const period=21;
+    const slice=closes.slice(-period);
+    const ema = slice.length ? slice.reduce(function(a,b){return a+b;},0)/slice.length : price;
+    let gains=0,losses=0;
+    for(let i=Math.max(1,closes.length-15);i<closes.length;i++){
+      const diff=closes[i]-closes[i-1];
+      if(diff>=0) gains+=diff; else losses+=Math.abs(diff);
+    }
+    const avgGain=gains/14, avgLoss=losses/14;
+    const rsi=avgLoss===0?100:100-(100/(1+(avgGain/avgLoss)));
+    const state = price>ema && rsi<70 ? "ALTA" : (price<ema && rsi>30 ? "BAIXA" : "NEUTRO");
+    res.json({price,ema,rsi,state});
+  }catch(e){ res.status(500).json({erro:e.message}); }
+});
+
 app.get("/api/status", function (req, res) {
   res.json({
     status: "online",
     sistema: "Binance-Robo",
-    painel: "premium-v2",
+    painel: "premium-v5",
     contas: 2
   });
 });
@@ -1267,6 +1288,64 @@ select{
   line-height:1.5;
 }
 
+
+/* =====================================================
+   V5 - ANALYTICS / STATUS / PERFORMANCE
+===================================================== */
+.statusGrid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px;
+}
+.statusCard{padding:16px 18px;}
+.statusTop{display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.statusName{font-size:11px;font-weight:900;}
+.statusBadge{font-size:8px;font-weight:900;padding:5px 8px;border-radius:999px;background:#08291e;color:var(--green);border:1px solid #155b42;}
+.statusBadge.warn{background:#302508;color:var(--yellow);border-color:#68521a;}
+.statusBadge.err{background:#320d16;color:var(--red);border-color:#6d2030;}
+.statusBig{font-size:18px;font-weight:900;margin-top:10px;}
+.statusSub{font-size:9px;color:var(--muted);margin-top:5px;line-height:1.5;}
+.analyticsGrid{display:grid;grid-template-columns:1.15fr .85fr;gap:17px;}
+.analyticsCard{padding:18px;}
+.analyticsTitle{font-size:14px;font-weight:900;margin:0;}
+.analyticsSub{font-size:9px;color:var(--muted);margin-top:4px;}
+.perfTable{width:100%;border-collapse:collapse;margin-top:14px;font-size:10px;}
+.perfTable th{color:var(--muted);font-size:8px;text-align:left;padding:8px;border-bottom:1px solid #1d2a40;}
+.perfTable td{padding:9px 8px;border-bottom:1px solid #172338;}
+.perfTable tr:last-child td{border-bottom:0;}
+.rate{font-weight:900;}
+.barWrap{display:flex;align-items:center;gap:8px;}
+.bar{height:7px;border-radius:99px;background:linear-gradient(90deg,#4aa8ff,#8368ff);min-width:2px;}
+.dailyChart{height:220px;display:flex;align-items:flex-end;gap:8px;padding:20px 4px 6px;border-top:1px solid #172338;margin-top:14px;overflow:hidden;}
+.dayCol{height:100%;min-width:28px;flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px;}
+.dayBar{width:100%;max-width:34px;border-radius:6px 6px 2px 2px;background:linear-gradient(180deg,#20df96,#176d52);min-height:2px;}
+.dayBar.neg{background:linear-gradient(180deg,#ff6177,#7b2030);}
+.dayLabel{font-size:7px;color:#64728a;white-space:nowrap;}
+.dayValue{font-size:7px;color:#aab6c8;white-space:nowrap;}
+.activity{max-height:280px;overflow:auto;margin-top:12px;}
+.activityRow{display:grid;grid-template-columns:72px 78px 1fr auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #172338;font-size:9px;}
+.activityRow:last-child{border-bottom:0;}
+.activityTime{color:#66758d;}
+.activityCoin{font-weight:900;}
+.activityType{font-weight:900;}
+.activityPrice{color:#aeb9ca;text-align:right;}
+.marketGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;}
+.marketMini{padding:12px;border:1px solid #1b2940;border-radius:11px;background:#09111e;}
+.marketMini span{display:block;color:var(--muted);font-size:8px;margin-bottom:5px;}
+.marketMini b{font-size:13px;}
+.signalUnavailable{margin-top:12px;padding:12px;border:1px dashed #33445f;border-radius:10px;color:#8997ac;font-size:9px;line-height:1.5;}
+.metricSub .metricSub{margin-top:2px;}
+@media(max-width:1000px){
+  .statusGrid{grid-template-columns:repeat(2,1fr);}
+  .analyticsGrid{grid-template-columns:1fr;}
+}
+@media(max-width:650px){
+  .statusGrid{grid-template-columns:1fr;}
+  .marketGrid{grid-template-columns:1fr;}
+  .activityRow{grid-template-columns:62px 65px 1fr;}
+  .activityPrice{grid-column:3;text-align:left;}
+}
+
 .footer{
   text-align:center;
   color:#59677d;
@@ -1544,14 +1623,10 @@ select{
         <div id="chart"></div>
 
         <div class="chartLegend">
-          🟢 Entrada &nbsp;&nbsp;
-          🟡 Ponto de venda / Take Profit &nbsp;&nbsp;
-          🔴 Stop Loss &nbsp;&nbsp;
-          📈 % acompanha a variação desde a compra
-        </div>
           🟢 Entrada/compra &nbsp;&nbsp;
           🟡 Take Profit &nbsp;&nbsp;
-          🔴 Stop Loss
+          🔴 Stop Loss &nbsp;&nbsp;
+          📈 % desde a entrada
         </div>
 
       </div>
@@ -1577,6 +1652,93 @@ select{
 
   </section>
 
+
+  <!-- STATUS DO ROBÔ / CONEXÕES -->
+  <section class="section">
+    <div class="sectionHead">
+      <div>
+        <h2 class="sectionTitle">🤖 Status e inteligência</h2>
+        <div class="sectionDesc">Conexão das duas contas e leitura operacional sem enviar ordens.</div>
+      </div>
+    </div>
+
+    <div class="statusGrid">
+      <div class="card statusCard">
+        <div class="statusTop"><div class="statusName">THIAGO • BINANCE</div><div id="statusBadge1" class="statusBadge">VERIFICANDO</div></div>
+        <div id="statusBig1" class="statusBig">--</div>
+        <div id="statusSub1" class="statusSub">Aguardando leitura da API.</div>
+      </div>
+      <div class="card statusCard">
+        <div class="statusTop"><div class="statusName">SERGIO • BINANCE</div><div id="statusBadge2" class="statusBadge">VERIFICANDO</div></div>
+        <div id="statusBig2" class="statusBig">--</div>
+        <div id="statusSub2" class="statusSub">Aguardando leitura da API.</div>
+      </div>
+      <div class="card statusCard">
+        <div class="statusTop"><div class="statusName">ÚLTIMA COMPRA</div><div class="statusBadge">HISTÓRICO</div></div>
+        <div id="statusLastBuy" class="statusBig">--</div>
+        <div id="statusLastBuySub" class="statusSub">--</div>
+      </div>
+      <div class="card statusCard">
+        <div class="statusTop"><div class="statusName">ÚLTIMA VENDA</div><div class="statusBadge">HISTÓRICO</div></div>
+        <div id="statusLastSell" class="statusBig">--</div>
+        <div id="statusLastSellSub" class="statusSub">--</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PERFORMANCE -->
+  <section class="section">
+    <div class="analyticsGrid">
+      <div class="card analyticsCard">
+        <h3 class="analyticsTitle">🏆 Performance THIAGO × SERGIO</h3>
+        <div class="analyticsSub">Estimativa calculada a partir dos trades retornados pela Binance.</div>
+        <table class="perfTable">
+          <thead><tr><th>INDICADOR</th><th>THIAGO</th><th>SERGIO</th><th>TOTAL</th></tr></thead>
+          <tbody id="performanceTable"></tbody>
+        </table>
+      </div>
+
+      <div class="card analyticsCard">
+        <h3 class="analyticsTitle">📈 Lucro / perda por dia</h3>
+        <div class="analyticsSub">Últimos dias com trades disponíveis nas contas.</div>
+        <div id="dailyChart" class="dailyChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MOEDAS + MERCADO + ATIVIDADE -->
+  <section class="section">
+    <div class="analyticsGrid">
+      <div class="card analyticsCard">
+        <h3 class="analyticsTitle">🪙 Ranking das moedas</h3>
+        <div class="analyticsSub">Resultado estimado por ativo nas operações disponíveis.</div>
+        <table class="perfTable">
+          <thead><tr><th>MOEDA</th><th>OP.</th><th>COMPRAS</th><th>VENDAS</th><th>RESULTADO</th></tr></thead>
+          <tbody id="coinRanking"></tbody>
+        </table>
+      </div>
+
+      <div class="card analyticsCard">
+        <h3 class="analyticsTitle">🔥 Temperatura do mercado</h3>
+        <div class="analyticsSub">Leitura técnica simples do BTC, apenas informativa.</div>
+        <div class="marketGrid">
+          <div class="marketMini"><span>BTC</span><b id="marketPrice">--</b></div>
+          <div class="marketMini"><span>RSI 14</span><b id="marketRsi">--</b></div>
+          <div class="marketMini"><span>EMA 21</span><b id="marketEma">--</b></div>
+          <div class="marketMini"><span>LEITURA</span><b id="marketState">--</b></div>
+        </div>
+        <div class="signalUnavailable"><strong>🧠 SCORE DA ENTRADA:</strong> o score interno do robô não é fornecido pela API da Binance. Para mostrar exatamente o score, filtros RSI/EMA/volume e motivo da entrada, o robô precisaria registrar esses dados em uma fonte compartilhada. O painel não altera o robô nesta versão.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="card analyticsCard">
+      <h3 class="analyticsTitle">📜 Atividade recente do robô</h3>
+      <div class="analyticsSub">Eventos de compra/venda identificados no histórico das duas contas.</div>
+      <div id="activity" class="activity"></div>
+    </div>
+  </section>
 
   <!-- PNL DETALHADO -->
   <section class="section">
@@ -2202,6 +2364,236 @@ function renderPnl(c){
 
 /*
 =========================================================
+ANALYTICS V5
+=========================================================
+*/
+
+function getConta(id){
+  if(!dados || !dados.contas) return null;
+  return dados.contas.find(function(c){ return c.id === String(id); }) || null;
+}
+
+function estatisticasConta(c){
+  const h = (c && c.historico) ? c.historico.slice().sort(function(a,b){ return Number(a.time)-Number(b.time); }) : [];
+  let buys=0, sells=0, capitalBuy=0, capitalSell=0;
+  const filas={};
+  let realized=0;
+  const coins={};
+
+  h.forEach(function(t){
+    const symbol=t.symbol;
+    const qty=Number(t.qty||0);
+    const price=Number(t.price||0);
+    if(!symbol || qty<=0 || price<=0) return;
+    if(!coins[symbol]) coins[symbol]={op:0,buy:0,sell:0,result:0};
+    coins[symbol].op++;
+    if(t.lado === "COMPRA"){
+      buys++;
+      capitalBuy += qty*price;
+      coins[symbol].buy++;
+      if(!filas[symbol]) filas[symbol]=[];
+      filas[symbol].push({qty:qty,price:price});
+    }else{
+      sells++;
+      capitalSell += qty*price;
+      coins[symbol].sell++;
+      let rest=qty;
+      if(!filas[symbol]) filas[symbol]=[];
+      while(rest>0.0000000001 && filas[symbol].length){
+        const lote=filas[symbol][0];
+        const used=Math.min(rest,lote.qty);
+        const r=used*(price-lote.price);
+        realized += r;
+        coins[symbol].result += r;
+        lote.qty -= used;
+        rest -= used;
+        if(lote.qty<=0.0000000001) filas[symbol].shift();
+      }
+    }
+  });
+
+  const wins = Object.values(coins).filter(function(x){ return x.sell>0 && x.result>0; }).length;
+  const losses = Object.values(coins).filter(function(x){ return x.sell>0 && x.result<0; }).length;
+  const closed = wins+losses;
+
+  return {
+    buys,sells,total:buys+sells,realized,
+    wins,losses,closed,
+    winRate:closed ? (wins/closed)*100 : 0,
+    coins,
+    roi: capitalBuy>0 ? (realized/capitalBuy)*100 : 0
+  };
+}
+
+function renderAnalytics(){
+  if(!dados || !dados.contas) return;
+  const c1=getConta("1"), c2=getConta("2");
+  const s1=estatisticasConta(c1), s2=estatisticasConta(c2);
+
+  const total={
+    buys:s1.buys+s2.buys,
+    sells:s1.sells+s2.sells,
+    total:s1.total+s2.total,
+    realized:s1.realized+s2.realized,
+    wins:s1.wins+s2.wins,
+    losses:s1.losses+s2.losses,
+    closed:s1.closed+s2.closed
+  };
+  total.winRate=total.closed ? total.wins/total.closed*100 : 0;
+
+  const rows=[
+    ["Operações",s1.total,s2.total,total.total],
+    ["Compras",s1.buys,s2.buys,total.buys],
+    ["Vendas",s1.sells,s2.sells,total.sells],
+    ["Operações positivas",s1.wins,s2.wins,total.wins],
+    ["Operações negativas",s1.losses,s2.losses,total.losses],
+    ["Taxa de acerto",s1.winRate.toFixed(1)+"%",s2.winRate.toFixed(1)+"%",total.winRate.toFixed(1)+"%"],
+    ["Resultado realizado",(s1.realized>=0?"+":"")+dinheiro(s1.realized)+" USDT",(s2.realized>=0?"+":"")+dinheiro(s2.realized)+" USDT",(total.realized>=0?"+":"")+dinheiro(total.realized)+" USDT"],
+    ["ROI estimado",s1.roi.toFixed(2)+"%",s2.roi.toFixed(2)+"%",(s1.roi+s2.roi).toFixed(2)+"%"]
+  ];
+  document.getElementById("performanceTable").innerHTML=rows.map(function(r){
+    return "<tr><td>"+r[0]+"</td><td>"+r[1]+"</td><td>"+r[2]+"</td><td>"+r[3]+"</td></tr>";
+  }).join("");
+
+  renderDaily(c1,c2);
+  renderRanking(c1,c2);
+  renderActivity(c1,c2);
+  renderStatuses(c1,c2);
+  carregarMercado();
+}
+
+function renderDaily(c1,c2){
+  // Calcula o resultado realizado por dia usando FIFO por moeda,
+  // somente com os trades que a Binance devolveu para o painel.
+  const all=[];
+  [c1,c2].forEach(function(c){
+    (c && c.historico || []).forEach(function(t){
+      all.push({...t, conta:c.nome});
+    });
+  });
+  all.sort(function(a,b){return Number(a.time)-Number(b.time);});
+
+  const filas={};
+  const map={};
+  all.forEach(function(t){
+    const symbol=t.symbol, qty=Number(t.qty||0), price=Number(t.price||0);
+    if(!symbol || qty<=0 || price<=0) return;
+    if(!filas[symbol]) filas[symbol]=[];
+    if(t.lado === "COMPRA"){
+      filas[symbol].push({qty:qty,price:price});
+    }else{
+      let rest=qty;
+      let result=0;
+      while(rest>0.0000000001 && filas[symbol].length){
+        const lote=filas[symbol][0];
+        const used=Math.min(rest,lote.qty);
+        result += used*(price-lote.price);
+        lote.qty -= used;
+        rest -= used;
+        if(lote.qty<=0.0000000001) filas[symbol].shift();
+      }
+      const d=new Date(t.time).toLocaleDateString("pt-BR");
+      if(!map[d]) map[d]=0;
+      map[d]+=result;
+    }
+  });
+
+  const keys=Object.keys(map).slice(-14);
+  if(!keys.length){
+    document.getElementById("dailyChart").innerHTML='<div class="empty">Ainda não há vendas suficientes para calcular lucro por dia.</div>';
+    return;
+  }
+
+  const vals=keys.map(function(k){return map[k];});
+  const max=Math.max.apply(null,vals.map(function(v){return Math.abs(v);}).concat([0.01]));
+  const min=Math.min.apply(null,vals);
+  const maxVal=Math.max.apply(null,vals);
+  const scale=Math.max(Math.abs(min),Math.abs(maxVal),0.01);
+
+  document.getElementById("dailyChart").innerHTML=keys.map(function(k){
+    const v=map[k];
+    const h=Math.max(4,Math.round(Math.abs(v)/scale*145));
+    const cls=v<0?' neg':'';
+    return '<div class="dayCol"><div class="dayValue '+classe(v)+'">'+(v>=0?'+':'')+dinheiro(v)+'</div><div class="dayBar'+cls+'" style="height:'+h+'px"></div><div class="dayLabel">'+k.slice(0,5)+'</div></div>';
+  }).join("");
+}
+
+function renderRanking(c1,c2){
+  const map={};
+  [c1,c2].forEach(function(c){
+    const e=estatisticasConta(c);
+    Object.keys(e.coins).forEach(function(symbol){
+      if(!map[symbol]) map[symbol]={op:0,buy:0,sell:0,result:0};
+      map[symbol].op+=e.coins[symbol].op;
+      map[symbol].buy+=e.coins[symbol].buy;
+      map[symbol].sell+=e.coins[symbol].sell;
+      map[symbol].result+=e.coins[symbol].result;
+    });
+  });
+  const arr=Object.keys(map).map(function(symbol){ return {symbol:symbol,...map[symbol]}; }).sort(function(a,b){ return b.op-a.op; }).slice(0,12);
+  document.getElementById("coinRanking").innerHTML=arr.length ? arr.map(function(x){
+    return '<tr><td><b>'+x.symbol+'</b></td><td>'+x.op+'</td><td>'+x.buy+'</td><td>'+x.sell+'</td><td class="'+classe(x.result)+'">'+(x.result>=0?'+':'')+dinheiro(x.result)+' USDT</td></tr>';
+  }).join("") : '<tr><td colspan="5">Sem trades suficientes.</td></tr>';
+}
+
+function renderActivity(c1,c2){
+  const list=[];
+  [c1,c2].forEach(function(c){
+    (c && c.historico || []).slice(0,35).forEach(function(t){ list.push({...t,conta:c.nome}); });
+  });
+  list.sort(function(a,b){ return Number(b.time)-Number(a.time); });
+  document.getElementById("activity").innerHTML=list.slice(0,30).map(function(t){
+    return '<div class="activityRow"><span class="activityTime">'+dataHora(t.time).split(',')[1]+'</span><span class="activityCoin">'+t.conta+'</span><span class="activityType '+(t.lado==="COMPRA"?'buy':'sell')+'">'+t.lado+' • '+t.symbol+'</span><span class="activityPrice">'+dinheiro(t.price)+' • '+numero(t.qty)+'</span></div>';
+  }).join("") || '<div class="empty">Nenhuma atividade encontrada.</div>';
+}
+
+function renderStatuses(c1,c2){
+  [c1,c2].forEach(function(c){
+    if(!c) return;
+    const badge=document.getElementById("statusBadge"+c.id);
+    const big=document.getElementById("statusBig"+c.id);
+    const sub=document.getElementById("statusSub"+c.id);
+    if(c.erro){
+      badge.textContent="ERRO"; badge.className="statusBadge err";
+      big.textContent="API indisponível";
+      sub.textContent=c.erro;
+    }else{
+      badge.textContent="API ONLINE"; badge.className="statusBadge";
+      big.textContent="Conectada";
+      const last=(c.historico||[])[0];
+      sub.textContent=last ? "Último trade: "+last.symbol+" • "+dataHora(last.time) : "Conta consultada com sucesso.";
+    }
+  });
+
+  const all=[];
+  [c1,c2].forEach(function(c){ (c&&c.historico||[]).forEach(function(t){ all.push({...t,conta:c.nome}); }); });
+  all.sort(function(a,b){return Number(b.time)-Number(a.time);});
+  const buy=all.find(function(t){return t.lado==="COMPRA";});
+  const sell=all.find(function(t){return t.lado==="VENDA";});
+  document.getElementById("statusLastBuy").textContent=buy ? buy.conta+" • "+buy.symbol : "--";
+  document.getElementById("statusLastBuySub").textContent=buy ? dinheiro(buy.price)+" USDT • "+dataHora(buy.time) : "--";
+  document.getElementById("statusLastSell").textContent=sell ? sell.conta+" • "+sell.symbol : "--";
+  document.getElementById("statusLastSellSub").textContent=sell ? dinheiro(sell.price)+" USDT • "+dataHora(sell.time) : "--";
+}
+
+async function carregarMercado(){
+  try{
+    const r=await fetch("/api/market",{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    const m=await r.json();
+    document.getElementById("marketPrice").textContent=dinheiro(m.price)+" USDT";
+    document.getElementById("marketRsi").textContent=m.rsi.toFixed(2);
+    document.getElementById("marketEma").textContent=dinheiro(m.ema)+" USDT";
+    const state=document.getElementById("marketState");
+    state.textContent=m.state;
+    state.className=m.state==="ALTA"?"green":(m.state==="BAIXA"?"red":"yellow");
+  }catch(e){
+    document.getElementById("marketState").textContent="INDISPONÍVEL";
+  }
+}
+
+/*
+=========================================================
 GRÁFICO
 =========================================================
 */
@@ -2707,13 +3099,10 @@ async function carregar(){
 
     renderConta();
 
-    renderPnl(
-      dados.contas.find(
-        function(c){
-          return c.id === contaSelecionada;
-        }
-      ) || {}
-    );
+    const contaAtual = dados.contas.find(function(c){ return c.id === contaSelecionada; }) || {};
+
+    renderPnl(contaAtual);
+    renderAnalytics();
 
 
     document.getElementById(

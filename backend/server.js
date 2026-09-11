@@ -860,12 +860,94 @@ function decimalPlacesFromStep(step){
   return Math.max(0, s.split(".")[1].replace(/0+$/,'').length);
 }
 
+/*
+  Ajuste decimal seguro para quantidades Binance.
+  Evita erros de ponto flutuante como 169.83 virar
+  internamente 169.82999999999998.
+*/
 function floorToStep(value, step){
-  const v = Number(value || 0), st = Number(step || 0);
+  const v = Number(value || 0);
+  const st = Number(step || 0);
   if(!Number.isFinite(v) || v <= 0) return 0;
   if(!Number.isFinite(st) || st <= 0) return v;
-  const n = Math.floor((v + 1e-15) / st);
-  return Number((n * st).toFixed(decimalPlacesFromStep(st)));
+
+  const decimals = Math.max(
+    decimalPlacesFromStep(step),
+    8
+  );
+
+  const fator = Math.pow(10, decimals);
+  const vi = Math.floor((v * fator) + 1e-8);
+  const si = Math.max(1, Math.round(st * fator));
+  const qi = Math.floor(vi / si) * si;
+
+  return Number((qi / fator).toFixed(decimals));
+}
+
+function quantidadeValidaFiltro(qty, filtro){
+  if(!filtro) return true;
+  const q = Number(qty || 0);
+  const min = Number(filtro.minQty || 0);
+  const max = Number(filtro.maxQty || 0);
+  const step = Number(filtro.stepSize || 0);
+
+  if(!Number.isFinite(q) || q <= 0) return false;
+  if(min > 0 && q < min - 1e-12) return false;
+  if(max > 0 && q > max + 1e-12) return false;
+  if(step > 0){
+    const base = min > 0 ? min : 0;
+    const casas = Math.max(
+      decimalPlacesFromStep(filtro.stepSize),
+      decimalPlacesFromStep(filtro.minQty || 0),
+      8
+    );
+    const fator = Math.pow(10, casas);
+    const qi = Math.round(q * fator);
+    const bi = Math.round(base * fator);
+    const si = Math.round(step * fator);
+    if(si > 0 && ((qi - bi) % si) !== 0) return false;
+  }
+  return true;
+}
+
+function ajustarQuantidadeVenda(filtros, saldoLivre){
+  const lot = filtros && filtros.LOT_SIZE ? filtros.LOT_SIZE : null;
+  const marketLot = filtros && filtros.MARKET_LOT_SIZE ? filtros.MARKET_LOT_SIZE : null;
+
+  let qty = Number(saldoLivre || 0);
+  if(!Number.isFinite(qty) || qty <= 0) return 0;
+
+  /*
+    A ordem é MARKET, mas a Binance pode exigir simultaneamente
+    LOT_SIZE e MARKET_LOT_SIZE. Primeiro reduzimos pelo LOT_SIZE,
+    depois validamos/reduzimos pelo MARKET_LOT_SIZE.
+  */
+  if(lot && Number(lot.stepSize) > 0){
+    qty = floorToStep(qty, lot.stepSize);
+  }
+
+  if(marketLot && Number(marketLot.stepSize) > 0){
+    qty = floorToStep(qty, marketLot.stepSize);
+  }
+
+  /*
+    Proteção final: se ainda não passar por algum filtro,
+    recua pelo menor passo disponível até encontrar uma quantidade
+    que satisfaça os filtros.
+  */
+  const filtrosQuantidade = [lot, marketLot].filter(Boolean);
+  const passos = filtrosQuantidade
+    .map(function(f){ return Number(f.stepSize || 0); })
+    .filter(function(x){ return x > 0; });
+  const passo = passos.length ? Math.max.apply(null, passos) : 0.00000001;
+
+  let tentativas = 0;
+  while(filtrosQuantidade.some(function(f){ return !quantidadeValidaFiltro(qty, f); }) && tentativas < 20){
+    qty = floorToStep(Math.max(0, qty - passo), passo);
+    tentativas++;
+  }
+
+  return qty > 0 ? qty : 0;
 }
 
 async function obterFiltroSymbolManual(id, symbol){
@@ -929,11 +1011,12 @@ app.get("/api/manual/preview", async function(req,res){
 
     const filtroData = await obterFiltroSymbolManual(id, symbol);
     const f = filtroData.filtros || {};
-    const lot = f.MARKET_LOT_SIZE || f.LOT_SIZE || {};
+    const lot = f.LOT_SIZE || {};
+    const marketLot = f.MARKET_LOT_SIZE || {};
     const minNotional = num((f.NOTIONAL||f.MIN_NOTIONAL||{}).minNotional);
-    const qtyStep = num(lot.stepSize) || 0;
-    const qtyMin = num(lot.minQty) || 0;
-    const qtyAjustada = floorToStep(free, qtyStep);
+    const qtyStep = num(lot.stepSize) || num(marketLot.stepSize) || 0;
+    const qtyMin = num(lot.minQty) || num(marketLot.minQty) || 0;
+    const qtyAjustada = ajustarQuantidadeVenda(f, free);
     const est = estimarVendaLivro(depth, qtyAjustada);
     const brl = await obterUSDTBRL(conta.client);
     const taxa = est.bruto * MANUAL_SELL_FEE_RATE;
@@ -957,7 +1040,11 @@ app.get("/api/manual/preview", async function(req,res){
       custo, pnl, pnlPct,
       brutoBRL:est.bruto*brl, liquidoBRL:liquido*brl, pnlBRL:pnl*brl,
       ordensVenda:sells.map(function(o){return {orderId:o.orderId,type:o.type,status:o.status,price:num(o.price),origQty:num(o.origQty),stopPrice:num(o.stopPrice)};}),
-      temVendaAtiva:sells.length>0, minNotional, qtyMin, qtyStep, usdtBrl:brl,
+      temVendaAtiva:sells.length>0, minNotional, qtyMin, qtyStep,
+      lotSize:{minQty:num(lot.minQty),maxQty:num(lot.maxQty),stepSize:num(lot.stepSize)},
+      marketLotSize:{minQty:num(marketLot.minQty),maxQty:num(marketLot.maxQty),stepSize:num(marketLot.stepSize)},
+      taxaPercentualEstimada:MANUAL_SELL_FEE_RATE*100,
+      usdtBrl:brl,
       atualizadoEm:Date.now()
     });
   }catch(e){ res.status(400).json({erro:e.message}); }
@@ -1008,17 +1095,27 @@ app.post("/api/manual/sell", async function(req,res){
 
     const filtroData=await obterFiltroSymbolManual(id,symbol);
     const f=filtroData.filtros||{};
-    const lot=f.MARKET_LOT_SIZE || f.LOT_SIZE || {};
-    const minQty=num(lot.minQty);
-    const step=num(lot.stepSize);
-    const qty=floorToStep(free,step);
-    if(qty<=0 || (minQty>0 && qty<minQty)) throw new Error("Quantidade disponível abaixo do mínimo permitido para " + symbol + ".");
+    const lot=f.LOT_SIZE || {};
+    const marketLot=f.MARKET_LOT_SIZE || {};
+    const qty=ajustarQuantidadeVenda(f, free);
+    if(qty<=0) throw new Error("Não foi possível encontrar uma quantidade válida para venda de " + symbol + " respeitando LOT_SIZE/MARKET_LOT_SIZE.");
+
+    if(!quantidadeValidaFiltro(qty, lot)){
+      throw new Error("Quantidade " + qty + " não atende ao LOT_SIZE da Binance para " + symbol + ".");
+    }
+    if(marketLot && Number(marketLot.stepSize)>0 && !quantidadeValidaFiltro(qty, marketLot)){
+      throw new Error("Quantidade " + qty + " não atende ao MARKET_LOT_SIZE da Binance para " + symbol + ".");
+    }
 
     const prices=await conta.client.prices({symbol});
     const refPrice=num(prices[symbol]);
     const minNotional=num((f.NOTIONAL||f.MIN_NOTIONAL||{}).minNotional);
     if(minNotional>0 && qty*refPrice<minNotional) throw new Error("Valor da venda abaixo do mínimo da Binance para " + symbol + ".");
 
+    /*
+      Envia a quantidade já normalizada. Nunca tenta vender uma fração
+      maior do que o saldo livre nem uma quantidade fora dos filtros.
+    */
     const ordem=await conta.client.order({symbol,side:"SELL",type:"MARKET",quantity:String(qty),newOrderRespType:"FULL"});
     const fills=ordem.fills||[];
     let execQty=num(ordem.executedQty)||qty;
@@ -1033,6 +1130,12 @@ app.post("/api/manual/sell", async function(req,res){
       if(assetComm==="USDT") taxaUSDT+=comm;
       else if(assetComm===asset) taxaUSDT+=comm*num(f.price);
     });
+    /*
+      A comissão real vem dos fills quando a Binance a informa.
+      Se não vier no retorno, usamos apenas como estimativa o
+      percentual configurado (padrão 0,10%).
+    */
+    const taxaFoiInformada = fills.some(function(f){ return num(f.commission) > 0; });
     if(taxaUSDT<=0) taxaUSDT=bruto*MANUAL_SELL_FEE_RATE;
     const liquido=bruto-taxaUSDT;
     const custoBase=operacaoAntes && operacaoAntes.ativa ? operacaoAntes.quantidade * operacaoAntes.entrada : 0;
@@ -1040,7 +1143,10 @@ app.post("/api/manual/sell", async function(req,res){
     const pnlPct=custoBase>0 ? pnl/custoBase*100 : 0;
     const usdtBrl=await obterUSDTBRL(conta.client);
 
-    res.json({ok:true,account:id,conta:conta.nome,symbol,orderId:ordem.orderId,status:ordem.status,quantidade:execQty,precoMedio:execQty>0?bruto/execQty:refPrice,bruto,taxaUSDT,liquido,custo:custoBase,pnl,pnlPct,brutoBRL:bruto*usdtBrl,taxaBRL:taxaUSDT*usdtBrl,liquidoBRL:liquido*usdtBrl,custoBRL:custoBase*usdtBrl,pnlBRL:pnl*usdtBrl,mensagem:"Venda executada na conta "+conta.nome+"."});
+    res.json({ok:true,account:id,conta:conta.nome,symbol,orderId:ordem.orderId,status:ordem.status,quantidade:execQty,precoMedio:execQty>0?bruto/execQty:refPrice,bruto,taxaUSDT,
+      taxaFoiInformadaPelaBinance:taxaFoiInformada,liquido,custo:custoBase,pnl,pnlPct,
+      brutoBRL:bruto*usdtBrl,taxaBRL:taxaUSDT*usdtBrl,liquidoBRL:liquido*usdtBrl,custoBRL:custoBase*usdtBrl,pnlBRL:pnl*usdtBrl,
+      mensagem:"Venda executada na conta "+conta.nome+"."});
   }catch(e){ res.status(400).json({erro:e.message}); }
 });
 
@@ -3277,7 +3383,7 @@ async function manualAtualizarProjecao(){
     const e4=document.getElementById("manualPrice"); if(e4)e4.innerHTML=dinheiro(d.precoAtual||0)+" USDT<small class='brlLine'>≈ R$ "+dinheiro(Number(d.precoAtual||0)*brl)+"</small>";
     const ep=document.getElementById("manualPnl"); if(ep){ep.className=classe(Number(d.pnl||0));ep.textContent=(d.pnl>=0?"+":"")+dinheiro(d.pnl||0)+" USDT";}
     const epp=document.getElementById("manualPnlPct"); if(epp)epp.textContent=(d.pnl>=0?"+":"")+Number(d.pnlPct||0).toFixed(2)+"% • R$ "+(d.pnlBRL>=0?"+":"")+dinheiro(d.pnlBRL||0);
-    manualMsg((d.temVendaAtiva?"🟡 Existe(m) "+d.ordensVenda.length+" ordem(ns) SELL ativa(s).":"🟢 Nenhuma SELL ativa encontrada.")+"<br>Quantidade: <b>"+numero(d.quantidadeVenda||0)+" "+symbol.replace(/USDT$/,'')+"</b> • Preço médio estimado pelo livro: <b>"+dinheiro(d.precoAtual||0)+" USDT</b> • Taxa estimada: "+dinheiro(taxa)+" USDT.");
+    manualMsg((d.temVendaAtiva?"🟡 Existe(m) "+d.ordensVenda.length+" ordem(ns) SELL ativa(s).":"🟢 Nenhuma SELL ativa encontrada.")+"<br>Quantidade segura para venda: <b>"+numero(d.quantidadeVenda||0)+" "+symbol.replace(/USDT$/,'')+"</b> • Preço médio estimado pelo livro: <b>"+dinheiro(d.precoAtual||0)+" USDT</b> • Taxa estimada: "+dinheiro(taxa)+" USDT ("+Number(d.taxaPercentualEstimada||0).toFixed(3)+"%).");
   }catch(e){manualMsg("❌ "+(e.message||"Não foi possível consultar"),"bad");}
 }
 
@@ -3306,7 +3412,7 @@ async function manualVender(){
     const d=await r.json();if(!r.ok)throw new Error(d.erro||"Falha na venda");
     const classeP=Number(d.pnl||0)>=0?"good":"bad";
     const palavra=Number(d.pnl||0)>=0?"LUCRO":"PERDA";
-    manualMsg("<b>✅ VENDA EXECUTADA</b><br>"+symbol+" • Quantidade: "+numero(d.quantidade)+"<br>Preço médio executado: <b>"+dinheiro(d.precoMedio)+" USDT</b><br>Valor bruto: "+dinheiro(d.bruto)+" USDT • Líquido: <b>"+dinheiro(d.liquido)+" USDT</b><br>Resultado: <b>"+palavra+" "+(d.pnl>=0?"+":"")+dinheiro(d.pnl)+" USDT • "+(d.pnlPct>=0?"+":"")+Number(d.pnlPct||0).toFixed(2)+"% • R$ "+(d.pnlBRL>=0?"+":"")+dinheiro(d.pnlBRL)+"</b>",classeP);
+    manualMsg("<b>✅ VENDA EXECUTADA</b><br>"+symbol+" • Quantidade: "+numero(d.quantidade)+"<br>Preço médio executado: <b>"+dinheiro(d.precoMedio)+" USDT</b><br>Valor bruto: "+dinheiro(d.bruto)+" USDT • Taxa: <b>"+dinheiro(d.taxaUSDT)+" USDT</b> • Líquido: <b>"+dinheiro(d.liquido)+" USDT</b><br>Resultado: <b>"+palavra+" "+(d.pnl>=0?"+":"")+dinheiro(d.pnl)+" USDT • "+(d.pnlPct>=0?"+":"")+Number(d.pnlPct||0).toFixed(2)+"% • R$ "+(d.pnlBRL>=0?"+":"")+dinheiro(d.pnlBRL)+"</b><br><small>"+(d.taxaFoiInformadaPelaBinance?"Taxa retornada pela Binance na execução.":"Taxa estimada por fallback, pois a Binance não retornou a comissão no retorno da ordem.")+"</small>",classeP);
     setTimeout(carregar,1200);
   }catch(e){manualMsg("❌ "+(e.message||"Falha na venda"),"bad");}
 }

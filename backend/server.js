@@ -536,6 +536,289 @@ API DASHBOARD
 =========================================================
 */
 
+
+/* =========================================================
+   CONTROLE MANUAL — THIAGO / SERGIO
+   Venda MARKET e cancelamento de ordens SELL.
+   O preço de venda é estimado automaticamente pelo livro da Binance.
+   ========================================================= */
+
+const MANUAL_FEE_RATE = num(process.env.MANUAL_SELL_FEE_RATE) || 0.001;
+
+function clientePorId(id){
+  return clientes.find(function(c){ return c.id === String(id); }) || null;
+}
+
+function casasDoStep(step){
+  const x = String(step || "");
+  if(!x.includes(".")) return 0;
+  return x.replace(/0+$/,'').split('.')[1].length;
+}
+
+function arredondarAbaixo(valor, step){
+  const v = num(valor);
+  const st = num(step);
+  if(v <= 0 || st <= 0) return 0;
+  const n = Math.floor((v + 1e-12) / st) * st;
+  return Number(n.toFixed(casasDoStep(step)));
+}
+
+async function obterRegrasSimbolo(client, symbol){
+  const info = await client.exchangeInfo({symbol});
+  const item = (info.symbols || []).find(function(x){ return x.symbol === symbol; });
+  if(!item) throw new Error("Par " + symbol + " não encontrada na Binance.");
+
+  const filtros = {};
+  (item.filters || []).forEach(function(f){ filtros[f.filterType] = f; });
+
+  const lot = filtros.LOT_SIZE || {};
+  const marketLot = filtros.MARKET_LOT_SIZE || {};
+  const minNotional = filtros.NOTIONAL || filtros.MIN_NOTIONAL || {};
+
+  return {
+    minQty: Math.max(num(lot.minQty), num(marketLot.minQty)),
+    maxQty: Math.min(
+      num(lot.maxQty) || Number.MAX_SAFE_INTEGER,
+      num(marketLot.maxQty) || Number.MAX_SAFE_INTEGER
+    ),
+    stepSize: num(marketLot.stepSize) || num(lot.stepSize) || 0,
+    minNotional: num(minNotional.minNotional),
+    baseAsset: item.baseAsset,
+    quoteAsset: item.quoteAsset
+  };
+}
+
+async function estimarVendaLivro(client, symbol, quantidade){
+  const qtyTotal = num(quantidade);
+  if(qtyTotal <= 0) throw new Error("Quantidade disponível para venda é zero.");
+
+  const book = await client.book({symbol, limit:100});
+  const bids = (book && book.bids) || [];
+  if(!bids.length) throw new Error("Livro de ofertas sem compradores para " + symbol + ".");
+
+  let restante = qtyTotal;
+  let bruto = 0;
+  let executada = 0;
+  let ultimoPreco = 0;
+
+  for(const bid of bids){
+    if(restante <= 0) break;
+    const preco = num(bid.price);
+    const qtdNivel = num(bid.quantity);
+    if(preco <= 0 || qtdNivel <= 0) continue;
+
+    const usar = Math.min(restante, qtdNivel);
+    bruto += usar * preco;
+    executada += usar;
+    restante -= usar;
+    ultimoPreco = preco;
+  }
+
+  if(executada <= 0) throw new Error("Não foi possível estimar a venda pelo livro da Binance.");
+
+  const cobriuTudo = restante <= 1e-10;
+  const precoMedio = bruto / executada;
+  const taxa = bruto * MANUAL_FEE_RATE;
+  const liquido = bruto - taxa;
+
+  return {
+    quantidade: qtyTotal,
+    quantidadeEstimavel: executada,
+    cobriuTudo,
+    precoMelhorCompra: num(bids[0].price),
+    precoMedioEstimado: precoMedio,
+    ultimoNivel: ultimoPreco,
+    bruto,
+    taxa,
+    liquido,
+    atualizadoEm: Date.now()
+  };
+}
+
+async function obterPreviewManual(conta, symbol){
+  if(!conta || !conta.client) throw new Error("Conta não configurada.");
+
+  const par = String(symbol || "").toUpperCase().trim();
+  if(!/^[A-Z0-9]+USDT$/.test(par)) throw new Error("Informe um ativo no formato MOEDAUSDT.");
+
+  const base = par.slice(0,-4);
+  const resultado = await Promise.all([
+    conta.client.accountInfo(),
+    obterUSDTBRL(conta.client)
+  ]);
+
+  const info = resultado[0];
+  const usdtBrl = resultado[1];
+  const saldo = (info.balances || []).find(function(b){
+    return assetNormalizado(b.asset) === base;
+  });
+  const livre = saldo ? num(saldo.free) : 0;
+  if(livre <= 0) throw new Error("Saldo livre de " + base + " é zero.");
+
+  const estimativa = await estimarVendaLivro(conta.client, par, livre);
+
+  let trades = await obterTrades(conta, par, 1000);
+  const operacao = calcularOperacaoAtual(trades);
+  const quantidadeOperacao = operacao.ativa ? Math.min(livre, operacao.quantidade) : 0;
+  const custoOperacao = quantidadeOperacao * num(operacao.entrada);
+  const pnl = quantidadeOperacao > 0 ? estimativa.liquido - custoOperacao : null;
+  const pnlPct = custoOperacao > 0 ? (pnl / custoOperacao) * 100 : null;
+
+  return {
+    conta: conta.nome,
+    accountId: conta.id,
+    symbol: par,
+    asset: base,
+    quantidadeLivre: livre,
+    precoAtual: estimativa.precoMelhorCompra,
+    precoMedioEstimado: estimativa.precoMedioEstimado,
+    valorBruto: estimativa.bruto,
+    taxaEstimada: estimativa.taxa,
+    valorLiquidoEstimado: estimativa.liquido,
+    usdtBrl,
+    valorBrutoBRL: estimativa.bruto * usdtBrl,
+    valorLiquidoBRL: estimativa.liquido * usdtBrl,
+    operacaoAtiva: operacao.ativa,
+    entrada: num(operacao.entrada),
+    custoOperacao,
+    pnl,
+    pnlPct,
+    pnlBRL: pnl === null ? null : pnl * usdtBrl,
+    livroCobriuTudo: estimativa.cobriuTudo,
+    atualizadoEm: estimativa.atualizadoEm
+  };
+}
+
+app.get("/api/manual/preview", async function(req,res){
+  try{
+    const conta = clientePorId(req.query.account || "1");
+    if(!conta) return res.status(404).json({erro:"Conta não encontrada."});
+    const symbol = String(req.query.symbol || "").toUpperCase();
+    res.json(await obterPreviewManual(conta, symbol));
+  }catch(e){
+    res.status(400).json({erro:e.message});
+  }
+});
+
+app.post("/api/manual/cancel-sell", async function(req,res){
+  try{
+    const conta = clientePorId(req.body && req.body.account || "1");
+    const symbol = String(req.body && req.body.symbol || "").toUpperCase();
+    if(!conta) return res.status(404).json({erro:"Conta não encontrada."});
+    if(!/^[A-Z0-9]+USDT$/.test(symbol)) throw new Error("Símbolo inválido.");
+
+    const abertas = await conta.client.openOrders({symbol});
+    const vendas = (abertas || []).filter(function(o){
+      return String(o.side).toUpperCase() === "SELL";
+    });
+
+    const canceladas = [];
+    for(const ordem of vendas){
+      try{
+        const r = await conta.client.cancelOrder({symbol, orderId: ordem.orderId});
+        canceladas.push(r);
+      }catch(e){
+        canceladas.push({orderId:ordem.orderId, erro:e.message});
+      }
+    }
+
+    res.json({ok:true, account:conta.id, nome:conta.nome, symbol, canceladas:canceladas.length, ordens:canceladas, atualizadoEm:Date.now()});
+  }catch(e){
+    res.status(400).json({erro:e.message});
+  }
+});
+
+app.post("/api/manual/sell", async function(req,res){
+  try{
+    const conta = clientePorId(req.body && req.body.account || "1");
+    const symbol = String(req.body && req.body.symbol || "").toUpperCase();
+    if(!conta) return res.status(404).json({erro:"Conta não encontrada."});
+    if(!/^[A-Z0-9]+USDT$/.test(symbol)) throw new Error("Símbolo inválido.");
+
+    // Cancela SELLs abertas antes da liquidação manual para evitar conflito.
+    const abertas = await conta.client.openOrders({symbol});
+    for(const ordem of (abertas || [])){
+      if(String(ordem.side).toUpperCase() === "SELL"){
+        try{ await conta.client.cancelOrder({symbol, orderId:ordem.orderId}); }catch(e){}
+      }
+    }
+
+    const base = symbol.slice(0,-4);
+    const info = await conta.client.accountInfo();
+    const saldo = (info.balances || []).find(function(b){
+      return assetNormalizado(b.asset) === base;
+    });
+    const livre = saldo ? num(saldo.free) : 0;
+    if(livre <= 0) throw new Error("Saldo livre de " + base + " é zero.");
+
+    const regras = await obterRegrasSimbolo(conta.client, symbol);
+    let quantidade = arredondarAbaixo(livre, regras.stepSize);
+    if(regras.maxQty && quantidade > regras.maxQty) quantidade = arredondarAbaixo(regras.maxQty, regras.stepSize);
+    if(quantidade < regras.minQty) throw new Error("Quantidade abaixo do mínimo permitido pela Binance.");
+
+    const book = await estimarVendaLivro(conta.client, symbol, quantidade);
+    if(regras.minNotional && book.bruto < regras.minNotional){
+      throw new Error("Valor da venda abaixo do mínimo permitido pela Binance: " + regras.minNotional + " " + regras.quoteAsset + ".");
+    }
+
+    const tradesAntes = await obterTrades(conta, symbol, 1000);
+    const operacao = calcularOperacaoAtual(tradesAntes);
+    const quantidadeOperacao = operacao.ativa ? Math.min(quantidade, operacao.quantidade) : 0;
+    const custoOperacao = quantidadeOperacao * num(operacao.entrada);
+
+    const ordem = await conta.client.order({
+      symbol,
+      side:"SELL",
+      type:"MARKET",
+      quantity:String(quantidade),
+      newOrderRespType:"FULL"
+    });
+
+    const executada = num(ordem.executedQty);
+    const bruto = num(ordem.cummulativeQuoteQty);
+    const fills = ordem.fills || [];
+    let taxaUSDT = 0;
+    let taxaBase = 0;
+    fills.forEach(function(f){
+      const commission = num(f.commission);
+      const asset = String(f.commissionAsset || "").toUpperCase();
+      if(asset === "USDT") taxaUSDT += commission;
+      else if(asset === base) taxaBase += commission;
+    });
+
+    const liquido = Math.max(0, bruto - taxaUSDT);
+    const precoMedio = executada > 0 ? bruto / executada : 0;
+    const pnl = quantidadeOperacao > 0 ? liquido - custoOperacao : null;
+    const pnlPct = custoOperacao > 0 ? (pnl / custoOperacao) * 100 : null;
+    const usdtBrl = await obterUSDTBRL(conta.client);
+
+    res.json({
+      ok:true,
+      account:conta.id,
+      nome:conta.nome,
+      symbol,
+      quantidade:executada,
+      precoMedioExecutado:precoMedio,
+      valorBruto:bruto,
+      taxaUSDT,
+      taxaBase,
+      valorLiquido:liquido,
+      usdtBrl,
+      valorLiquidoBRL:liquido * usdtBrl,
+      entrada:operacao.ativa ? operacao.entrada : 0,
+      custoOperacao,
+      pnl,
+      pnlPct,
+      pnlBRL:pnl === null ? null : pnl * usdtBrl,
+      orderId:ordem.orderId,
+      status:ordem.status,
+      time:ordem.transactTime || Date.now()
+    });
+  }catch(e){
+    res.status(400).json({erro:e.message});
+  }
+});
+
 app.get("/api/dashboard", async function (req, res) {
   try {
     const contas = await Promise.all(
@@ -834,193 +1117,6 @@ app.get("/api/opportunities", async function(req,res){
     if(!conta || !conta.client) return res.status(500).json({erro:"Conta principal indisponível."});
     res.json({atualizadoEm:Date.now(),itens:await obterOportunidades(conta)});
   }catch(e){res.status(500).json({erro:e.message});}
-});
-
-
-/* =========================================================
-   CONTROLE MANUAL — SOMENTE SERGIO (CONTA 2)
-   Sem senha por enquanto, conforme solicitado.
-   Não altera o robô nem a lógica de leitura do painel.
-========================================================= */
-
-const MANUAL_SELL_FEE_RATE = Number(process.env.MANUAL_SELL_FEE_RATE || 0.001);
-
-function contaManualSergio(){
-  return clientes.find(function(c){ return c.id === "2"; }) || null;
-}
-
-function validarSymbolManual(symbol){
-  const s = String(symbol || "").trim().toUpperCase();
-  if(!/^[A-Z0-9]+USDT$/.test(s)) throw new Error("Ativo inválido. Use, por exemplo, TRXUSDT.");
-  return s;
-}
-
-function decimalPlacesFromStep(step){
-  const s = String(step || "");
-  if(!s.includes(".")) return 0;
-  return Math.max(0, s.split(".")[1].replace(/0+$/,'').length);
-}
-
-function floorToStep(value, step){
-  const v = Number(value || 0), st = Number(step || 0);
-  if(!Number.isFinite(v) || v <= 0) return 0;
-  if(!Number.isFinite(st) || st <= 0) return v;
-  const n = Math.floor((v + 1e-15) / st);
-  return Number((n * st).toFixed(decimalPlacesFromStep(st)));
-}
-
-async function obterFiltroSymbolSergio(symbol){
-  const conta = contaManualSergio();
-  if(!conta || !conta.client) throw new Error("Conta SERGIO não configurada.");
-  const info = await conta.client.exchangeInfo();
-  const item = (info.symbols || []).find(function(s){ return String(s.symbol).toUpperCase() === symbol; });
-  if(!item) throw new Error("Ativo " + symbol + " não encontrado na Binance.");
-  const filtros = {};
-  (item.filters || []).forEach(function(f){ filtros[f.filterType] = f; });
-  return {conta, item, filtros};
-}
-
-function calcularEstimativaVenda(posicao, usdtBrl){
-  if(!posicao) return null;
-  const qty = Number(posicao.quantidade || 0);
-  const entry = Number(posicao.precoMedio || 0);
-  const current = Number(posicao.precoAtual || 0);
-  if(qty <= 0 || entry <= 0 || current <= 0) return null;
-  const bruto = qty * current;
-  const taxa = bruto * MANUAL_SELL_FEE_RATE;
-  const liquido = bruto - taxa;
-  const custo = qty * entry;
-  const pnl = liquido - custo;
-  const pnlPct = custo > 0 ? (pnl / custo) * 100 : 0;
-  return {
-    quantidade: qty,
-    entrada: entry,
-    precoAtual: current,
-    bruto,
-    taxa,
-    liquido,
-    custo,
-    pnl,
-    pnlPct,
-    brutoBRL: bruto * Number(usdtBrl || 0),
-    taxaBRL: taxa * Number(usdtBrl || 0),
-    liquidoBRL: liquido * Number(usdtBrl || 0),
-    custoBRL: custo * Number(usdtBrl || 0),
-    pnlBRL: pnl * Number(usdtBrl || 0)
-  };
-}
-
-app.get("/api/manual/preview", async function(req,res){
-  try{
-    const symbol = validarSymbolManual(req.query.symbol || "");
-    const conta = contaManualSergio();
-    if(!conta || !conta.client) return res.status(500).json({erro:"Conta SERGIO indisponível."});
-    const account = await conta.client.accountInfo();
-    const asset = symbol.replace(/USDT$/i, "");
-    const bal = (account.balances || []).find(function(b){ return assetNormalizado(b.asset) === asset; });
-    const free = bal ? num(bal.free) : 0;
-    const prices = await conta.client.prices({symbol});
-    const price = num(prices[symbol]);
-    let orders=[];
-    try{ orders = await conta.client.openOrders({symbol}); }catch(e){}
-    const sells = orders.filter(function(o){ return String(o.side).toUpperCase()==="SELL"; });
-    const filtroData = await obterFiltroSymbolSergio(symbol);
-    const f = filtroData.filtros || {};
-    const lot = f.MARKET_LOT_SIZE || f.LOT_SIZE || {};
-    const minNotional = num((f.NOTIONAL||f.MIN_NOTIONAL||{}).minNotional);
-    const qtyStep = num(lot.stepSize) || 0;
-    const qtyMin = num(lot.minQty) || 0;
-    const qtyAjustada = floorToStep(free, qtyStep);
-    const bruto = qtyAjustada * price;
-    res.json({
-      conta:"SERGIO", symbol, free, quantidadeVenda:qtyAjustada, precoAtual:price,
-      valorBruto:bruto, taxaEstimada:bruto*MANUAL_SELL_FEE_RATE,
-      valorLiquido:bruto-(bruto*MANUAL_SELL_FEE_RATE),
-      ordensVenda:sells.map(function(o){return {orderId:o.orderId,type:o.type,status:o.status,price:num(o.price),origQty:num(o.origQty),stopPrice:num(o.stopPrice)};}),
-      temVendaAtiva:sells.length>0,
-      minNotional, qtyMin, qtyStep,
-      usdtBrl:await obterUSDTBRL(conta.client)
-    });
-  }catch(e){ res.status(400).json({erro:e.message}); }
-});
-
-app.post("/api/manual/cancel-sell", async function(req,res){
-  try{
-    const symbol = validarSymbolManual(req.body && req.body.symbol);
-    const conta = contaManualSergio();
-    if(!conta || !conta.client) return res.status(500).json({erro:"Conta SERGIO indisponível."});
-    const orders = await conta.client.openOrders({symbol});
-    const sells = orders.filter(function(o){ return String(o.side).toUpperCase()==="SELL"; });
-    if(!sells.length) return res.json({ok:true,symbol,canceladas:0,mensagem:"Nenhuma ordem de venda ativa encontrada."});
-    const canceladas=[];
-    for(const o of sells){
-      const r=await conta.client.cancelOrder({symbol,orderId:o.orderId});
-      canceladas.push({orderId:o.orderId,status:r.status||"CANCELED"});
-    }
-    res.json({ok:true,symbol,canceladas:canceladas.length,ordens:canceladas,mensagem:canceladas.length+" ordem(ns) de venda cancelada(s)."});
-  }catch(e){ res.status(400).json({erro:e.message}); }
-});
-
-app.post("/api/manual/sell", async function(req,res){
-  try{
-    const symbol = validarSymbolManual(req.body && req.body.symbol);
-    const conta = contaManualSergio();
-    if(!conta || !conta.client) return res.status(500).json({erro:"Conta SERGIO indisponível."});
-
-    // Primeiro cancela SELLs abertas para evitar conflito com a venda manual.
-    try{
-      const abertas=await conta.client.openOrders({symbol});
-      const sells=abertas.filter(function(o){return String(o.side).toUpperCase()==="SELL";});
-      for(const o of sells){ try{await conta.client.cancelOrder({symbol,orderId:o.orderId});}catch(e){} }
-    }catch(e){}
-
-    await new Promise(function(resolve){setTimeout(resolve,700);});
-
-    const account = await conta.client.accountInfo();
-    const asset = symbol.replace(/USDT$/i, "");
-    const bal = (account.balances || []).find(function(b){ return assetNormalizado(b.asset) === asset; });
-    const free = bal ? num(bal.free) : 0;
-    if(free <= 0) throw new Error("Não há saldo livre de " + asset + " para vender.");
-
-    const filtroData=await obterFiltroSymbolSergio(symbol);
-    const f=filtroData.filtros||{};
-    const lot=f.MARKET_LOT_SIZE || f.LOT_SIZE || {};
-    const minQty=num(lot.minQty);
-    const step=num(lot.stepSize);
-    const qty=floorToStep(free,step);
-    if(qty<=0 || (minQty>0 && qty<minQty)) throw new Error("Quantidade disponível abaixo do mínimo permitido para " + symbol + ".");
-
-    const prices=await conta.client.prices({symbol});
-    const refPrice=num(prices[symbol]);
-    const minNotional=num((f.NOTIONAL||f.MIN_NOTIONAL||{}).minNotional);
-    if(minNotional>0 && qty*refPrice<minNotional) throw new Error("Valor da venda abaixo do mínimo da Binance para " + symbol + ".");
-
-    const ordem=await conta.client.order({symbol,side:"SELL",type:"MARKET",quantity:String(qty),newOrderRespType:"FULL"});
-    const fills=ordem.fills||[];
-    let execQty=num(ordem.executedQty)||qty;
-    let bruto=num(ordem.cummulativeQuoteQty);
-    if(!bruto && fills.length) bruto=fills.reduce(function(s,f){return s+num(f.qty)*num(f.price);},0);
-    if(!bruto) bruto=execQty*refPrice;
-    let taxaUSDT=0;
-    fills.forEach(function(f){
-      const comm=num(f.commission);
-      const assetComm=String(f.commissionAsset||"").toUpperCase();
-      if(assetComm==="USDT") taxaUSDT+=comm;
-      else if(assetComm===asset) taxaUSDT+=comm*num(f.price);
-    });
-    if(taxaUSDT<=0) taxaUSDT=bruto*MANUAL_SELL_FEE_RATE;
-    const liquido=bruto-taxaUSDT;
-
-    // Busca a operação atual para mostrar o resultado da venda contra a entrada atual.
-    const trades=await obterTrades(conta,symbol,1000);
-    const operacaoAntes = calcularOperacaoAtual(trades);
-    const custoBase = operacaoAntes && operacaoAntes.ativa ? operacaoAntes.quantidade * operacaoAntes.entrada : 0;
-    const pnl = custoBase>0 ? liquido - custoBase : 0;
-    const pnlPct = custoBase>0 ? (pnl/custoBase)*100 : 0;
-    const usdtBrl=await obterUSDTBRL(conta.client);
-
-    res.json({ok:true,symbol,orderId:ordem.orderId,status:ordem.status,quantidade:execQty,precoMedio:execQty>0?bruto/execQty:refPrice,bruto,taxaUSDT,liquido,custo:custoBase,pnl,pnlPct,brutoBRL:bruto*usdtBrl,taxaBRL:taxaUSDT*usdtBrl,liquidoBRL:liquido*usdtBrl,custoBRL:custoBase*usdtBrl,pnlBRL:pnl*usdtBrl,mensagem:"Venda executada na conta SERGIO."});
-  }catch(e){ res.status(400).json({erro:e.message}); }
 });
 
 app.get("/api/status", function (req, res) {
@@ -1836,39 +1932,6 @@ select{
   .activityPrice{grid-column:3;text-align:left;}
 }
 
-
-/* =========================================================
-   CONTROLE MANUAL SERGIO + PROJEÇÃO DE VENDA
-========================================================= */
-.manualSergio{
-  margin-top:16px;
-  padding:16px;
-  border:1px solid #2b3b55;
-  border-radius:14px;
-  background:linear-gradient(145deg,#0d1829,#09121f);
-}
-.manualHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;}
-.manualTitle{font-size:12px;font-weight:950;}
-.manualBadge{font-size:8px;font-weight:900;padding:5px 8px;border-radius:999px;background:#342808;color:#ffc85a;border:1px solid #6a5215;}
-.manualInputs{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:10px;}
-.manualInput{width:100%;border:1px solid #293951;background:#08111e;color:#f7f9fd;padding:10px 11px;border-radius:9px;font-size:11px;outline:none;}
-.manualInput:focus{border-color:#5d73ff;box-shadow:0 0 0 2px #5d73ff22;}
-.manualButtons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
-.manualBtn{border:0;padding:11px 10px;border-radius:9px;color:#fff;font-size:10px;font-weight:950;cursor:pointer;transition:.18s;}
-.manualBtn:hover{filter:brightness(1.12);transform:translateY(-1px);}
-.manualSell{background:#b5223c;}
-.manualCancel{background:#74570f;}
-.manualRefresh{background:#243753;}
-.manualProjection{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;}
-.manualMetric{padding:9px;border:1px solid #1c2b41;border-radius:9px;background:#08111e;}
-.manualMetric span{display:block;color:#71809a;font-size:8px;margin-bottom:4px;}
-.manualMetric b{font-size:11px;}
-.manualResult{margin-top:10px;padding:10px;border-radius:9px;border:1px solid #263750;background:#08111e;color:#aebbd0;font-size:9px;line-height:1.55;}
-.manualResult.good{border-color:#155b42;background:#08291e;color:#baf3da;}
-.manualResult.bad{border-color:#6d2030;background:#320d16;color:#ffc0c9;}
-.manualNote{margin-top:8px;color:#60718b;font-size:8px;line-height:1.45;}
-@media(max-width:700px){.manualInputs,.manualButtons,.manualProjection{grid-template-columns:1fr 1fr}.manualRefresh{grid-column:1/-1}}
-
 .footer{
   text-align:center;
   color:#59677d;
@@ -1932,6 +1995,37 @@ select{
   }
 }
 
+
+
+
+/* =========================================================
+   CONTROLE MANUAL — VENDA PARA AS DUAS CONTAS
+   ========================================================= */
+.manualControl{
+  margin-top:16px;
+  padding:16px;
+  border:1px solid #263753;
+  border-radius:14px;
+  background:linear-gradient(145deg,#0b1627,#08111e);
+}
+.manualHead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:11px}
+.manualTitle{font-size:13px;font-weight:950}
+.manualBadge{font-size:8px;font-weight:900;padding:6px 9px;border-radius:999px;background:#2b2308;color:#ffc85a;border:1px solid #68521a}
+.manualGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.manualField{padding:10px;border:1px solid #1c2c43;border-radius:10px;background:#091321}
+.manualField span{display:block;color:#71809a;font-size:8px;margin-bottom:5px;text-transform:uppercase;font-weight:800}
+.manualField b{font-size:12px}
+.manualButtons{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px}
+.manualBtn{border:0;border-radius:10px;padding:12px 10px;color:#fff;font-weight:950;font-size:10px;cursor:pointer}
+.manualBtn.sell{background:#b51f3d}
+.manualBtn.cancel{background:#76590a}
+.manualBtn.refresh{background:#243b5f}
+.manualBtn:disabled{opacity:.55;cursor:not-allowed}
+.manualMsg{margin-top:10px;padding:10px;border:1px solid #1e3049;border-radius:10px;color:#9eb0c9;font-size:9px;line-height:1.5;background:#08121f}
+.manualMsg.good{border-color:#155b42;color:#7df0bb;background:#08251c}
+.manualMsg.bad{border-color:#6d2030;color:#ff9bab;background:#2b0d15}
+.manualSub{margin-top:8px;color:#64748b;font-size:8px;line-height:1.5}
+@media(max-width:700px){.manualGrid,.manualButtons{grid-template-columns:1fr}.manualHead{align-items:flex-start;flex-direction:column}}
 
 /* ================= V7 ================= */
 .v7Grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
@@ -2736,7 +2830,7 @@ section.section.compactOpen{
 
   <div class="note">
     A seção “Operação atual” considera somente a posição aberta após a última venda do ativo.
-    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel é de leitura, com controle manual exclusivo da conta SERGIO para venda/cancelamento de SELL.
+    O histórico continua separado para não contaminar a comparação THIAGO × SERGIO. O painel mantém os dados do V7 e agora possui controle manual de VENDA/CANCELAMENTO para as duas contas. As vendas são ordens MARKET reais na Binance.
   </div>
 
   <div class="footer">
@@ -3064,230 +3158,194 @@ function renderConta(){
 
 function renderPosicao(c){
 
-  const el =
-    document.getElementById(
-      "position"
-    );
-
-  const pos =
-    (c.posicoes || [])[0];
-
+  const el = document.getElementById("position");
+  const pos = (c.posicoes || [])[0];
 
   if(!pos){
-
     el.innerHTML =
-      '<div class="empty">' +
-        '<div>' +
-          '<div style="font-size:25px">💤</div>' +
-          '<div style="margin-top:8px">' +
-            'Nenhuma posição ativa detectada.' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-      (String(contaSelecionada) === "2" ? renderManualSergio(c, null) : "");
-
+      '<div class="empty"><div>' +
+        '<div style="font-size:25px">💤</div>' +
+        '<div style="margin-top:8px">Nenhuma posição ativa detectada.</div>' +
+      '</div></div>' +
+      renderControleManual(c, null);
+    iniciarAtualizacaoManual(c, null);
     return;
   }
 
-
-  const pnl =
-    Number(pos.pnlNaoRealizado || 0);
-
+  const pnl = Number(pos.pnlNaoRealizado || 0);
 
   el.innerHTML =
-
     '<div class="positionHeader">' +
-
       '<div>' +
-
-        '<div class="positionLabel">' +
-          'OPERAÇÃO ATIVA DETECTADA' +
-        '</div>' +
-
-        '<div class="coin">' +
-          pos.symbol +
-        '</div>' +
-
+        '<div class="positionLabel">OPERAÇÃO ATIVA DETECTADA</div>' +
+        '<div class="coin">' + pos.symbol + '</div>' +
       '</div>' +
-
-      '<div class="positionStatus">' +
-        '● POSIÇÃO ATIVA' +
-      '</div>' +
-
+      '<div class="positionStatus">● POSIÇÃO ATIVA</div>' +
     '</div>' +
-
-
     '<div class="positionGrid">' +
-
-      info("Entrada",
-        dinheiro(pos.precoMedio) + " USDT" +
-        '<small class="brlLine">≈ R$ ' +
-        dinheiro(pos.precoMedio * c.usdtBrl) +
-        '</small>') +
-
-      info("Preço atual",
-        dinheiro(pos.precoAtual) + " USDT" +
-        '<small class="brlLine">≈ R$ ' +
-        dinheiro(pos.precoAtual * c.usdtBrl) +
-        '</small>') +
-
-      info("P/L",
-        '<span class="' +
-        classe(pnl) +
-        '">' +
-        (pnl >= 0 ? "+" : "") +
-        dinheiro(pnl) +
-        ' (' +
-        Number(
-          pos.pnlNaoRealizadoPct || 0
-        ).toFixed(2) +
-        '%)' +
-        '</span>') +
-
-      info("Quantidade",
-        numero(pos.quantidade)) +
-
-      info("Valor",
-        dinheiro(pos.valorAtual) + " USDT") +
-
+      info("Entrada", dinheiro(pos.precoMedio) + " USDT" + '<small class="brlLine">≈ R$ ' + dinheiro(pos.precoMedio * c.usdtBrl) + '</small>') +
+      info("Preço atual", dinheiro(pos.precoAtual) + " USDT" + '<small class="brlLine">≈ R$ ' + dinheiro(pos.precoAtual * c.usdtBrl) + '</small>') +
+      info("P/L", '<span class="' + classe(pnl) + '">' + (pnl >= 0 ? "+" : "") + dinheiro(pnl) + ' (' + Number(pos.pnlNaoRealizadoPct || 0).toFixed(2) + '%)</span>') +
+      info("Quantidade", numero(pos.quantidade)) +
+      info("Valor", dinheiro(pos.valorAtual) + " USDT") +
     '</div>' +
-
-
     '<div class="positionGrid">' +
-
-      info("Take Profit",
-        pos.tp
-          ? dinheiro(pos.tp.price) +
-            " USDT" +
-            '<small class="brlLine">≈ R$ ' +
-            dinheiro(pos.tp.price * c.usdtBrl) +
-            '</small>'
-          : "--") +
-
-      info("Stop Loss",
-        pos.sl
-          ? dinheiro(pos.sl.stopPrice) +
-            " USDT" +
-            '<small class="brlLine">≈ R$ ' +
-            dinheiro(pos.sl.stopPrice * c.usdtBrl) +
-            '</small>'
-          : "--") +
-
-      info("Ordens abertas",
-        String(pos.ordensAbertas)) +
-
-      info("Último trade",
-        pos.ultimaOperacao
-          ? (
-              pos.ultimaOperacao.lado +
-              " • " +
-              dataHora(
-                pos.ultimaOperacao.time
-              )
-            )
-          : "--") +
-
-      info("Realizado",
-        dinheiro(pos.pnlRealizado) +
-        " USDT") +
-
+      info("Take Profit", pos.tp ? dinheiro(pos.tp.price) + " USDT" + '<small class="brlLine">≈ R$ ' + dinheiro(pos.tp.price * c.usdtBrl) + '</small>' : "--") +
+      info("Stop Loss", pos.sl ? dinheiro(pos.sl.stopPrice) + " USDT" + '<small class="brlLine">≈ R$ ' + dinheiro(pos.sl.stopPrice * c.usdtBrl) + '</small>' : "--") +
+      info("Ordens abertas", String(pos.ordensAbertas)) +
+      info("Último trade", pos.ultimaOperacao ? (pos.ultimaOperacao.lado + " • " + dataHora(pos.ultimaOperacao.time)) : "--") +
+      info("Realizado", dinheiro(pos.pnlRealizado) + " USDT") +
     '</div>' +
+    renderControleManual(c, pos);
 
-    (String(contaSelecionada) === "2" ? renderManualSergio(c, pos) : "");
+  iniciarAtualizacaoManual(c, pos);
 }
 
-function renderManualSergio(c, pos){
-  const symbol = pos && pos.symbol ? pos.symbol : "TRXUSDT";
-  const qty = Number(pos && pos.quantidade || 0);
-  const entry = Number(pos && pos.precoMedio || 0);
-  const current = Number(pos && pos.precoAtual || 0);
-  const brl = Number(c && c.usdtBrl || 0);
-  const bruto = qty * current;
-  const taxa = bruto * 0.001;
-  const liquido = bruto - taxa;
-  const custo = qty * entry;
-  const pnl = custo > 0 ? liquido - custo : 0;
-  const pct = custo > 0 ? pnl / custo * 100 : 0;
-  const ativoLabel = pos ? symbol : "Informe o ativo";
-  return '<div class="manualSergio">' +
-    '<div class="manualHead"><div class="manualTitle">🎛️ CONTROLE MANUAL — SERGIO</div><div class="manualBadge">CONTA 2 • SEM SENHA</div></div>' +
-    '<div class="manualInputs">' +
-      '<input id="manualSymbol" class="manualInput" value="'+ativoLabel+'" placeholder="Ex.: TRXUSDT" oninput="manualAtualizarProjecao()">' +
-      '<input id="manualQtyInfo" class="manualInput" value="'+(pos?numero(qty):"Saldo será lido automaticamente")+'" readonly>' +
+function renderControleManual(c, pos){
+  const symbol = pos && pos.symbol ? pos.symbol : (c && c.operacaoAtual && c.operacaoAtual.symbol ? c.operacaoAtual.symbol : "");
+  const id = String(c && c.id || contaSelecionada || "1");
+  const nome = String(c && c.nome || "CONTA");
+
+  return '' +
+  '<div class="manualControl" id="manualControl">' +
+    '<div class="manualHead">' +
+      '<div class="manualTitle">🎛️ CONTROLE MANUAL — ' + nome + '</div>' +
+      '<div class="manualBadge">CONTA ' + id + ' • SEM SENHA</div>' +
     '</div>' +
-    '<div class="manualProjection">' +
-      '<div class="manualMetric"><span>VALOR BRUTO DA VENDA</span><b id="manualBruto">'+dinheiro(bruto)+' USDT</b><small class="brlLine">≈ R$ '+dinheiro(bruto*brl)+'</small></div>' +
-      '<div class="manualMetric"><span>VALOR LÍQUIDO ESTIMADO</span><b id="manualLiquido">'+dinheiro(liquido)+' USDT</b><small class="brlLine">≈ R$ '+dinheiro(liquido*brl)+'</small></div>' +
-      '<div class="manualMetric"><span>LUCRO / PERDA NA VENDA</span><b id="manualPnl" class="'+classe(pnl)+'">'+(pnl>=0?'+':'')+dinheiro(pnl)+' USDT</b><small id="manualPnlPct" class="brlLine">'+(pnl>=0?'+':'')+pct.toFixed(2)+'% • R$ '+(pnl>=0?'+':'')+dinheiro(pnl*brl)+'</small></div>' +
-      '<div class="manualMetric"><span>PREÇO ATUAL</span><b id="manualPrice">'+dinheiro(current)+' USDT</b><small class="brlLine">≈ R$ '+dinheiro(current*brl)+'</small></div>' +
+    '<div class="manualGrid">' +
+      '<div class="manualField"><span>Ativo</span><b id="manualSymbol">' + (symbol || "--") + '</b></div>' +
+      '<div class="manualField"><span>Quantidade para venda</span><b id="manualQty">--</b></div>' +
+      '<div class="manualField"><span>Melhor preço de compra Binance</span><b id="manualPrice">--</b><small class="brlLine" id="manualPriceBrl">--</small></div>' +
+      '<div class="manualField"><span>Valor líquido estimado</span><b id="manualNet">--</b><small class="brlLine" id="manualNetBrl">--</small></div>' +
+      '<div class="manualField"><span>Lucro / perda estimado</span><b id="manualPnl">--</b><small class="brlLine" id="manualPnlBrl">--</small></div>' +
+      '<div class="manualField"><span>Variação estimada</span><b id="manualPct">--</b></div>' +
     '</div>' +
     '<div class="manualButtons">' +
-      '<button class="manualBtn manualSell" onclick="manualVenderSergio()">🔴 VENDER POSIÇÃO</button>' +
-      '<button class="manualBtn manualCancel" onclick="manualCancelarVendaSergio()">🟡 CANCELAR VENDA ATIVA</button>' +
-      '<button class="manualBtn manualRefresh" onclick="manualAtualizarProjecao()">🔄 ATUALIZAR VALOR</button>' +
+      '<button class="manualBtn sell" onclick="venderManual()">🔴 VENDER POSIÇÃO</button>' +
+      '<button class="manualBtn cancel" onclick="cancelarVendaManual()">🟡 CANCELAR VENDA ATIVA</button>' +
+      '<button class="manualBtn refresh" onclick="atualizarPreviewManual(true)">🔄 ATUALIZAR VALOR</button>' +
     '</div>' +
-    '<div id="manualResult" class="manualResult">A quantidade e o preço são consultados automaticamente na Binance. Antes de vender, confira o valor líquido e o lucro/perda estimados.</div>' +
-    '<div class="manualNote">A venda envia uma ordem MARKET real na conta SERGIO. A estimativa considera taxa de 0,10%; o resultado final usa a execução efetiva retornada pela Binance.</div>' +
+    '<div id="manualMsg" class="manualMsg">O valor é atualizado automaticamente pelo livro de ofertas da Binance. A estimativa usa a melhor liquidez disponível para a quantidade.</div>' +
+    '<div class="manualSub">A venda é MARKET e real. O preço exibido é uma estimativa baseada no livro da Binance; o resultado definitivo depende das execuções efetivas da ordem.</div>' +
   '</div>';
 }
 
-function manualMsg(text, cls){
-  const el=document.getElementById("manualResult");
-  if(!el)return;
-  el.className="manualResult"+(cls?" "+cls:"");
-  el.innerHTML=text;
+let manualRefreshTimer = null;
+let manualSymbolAtual = "";
+
+function iniciarAtualizacaoManual(c, pos){
+  if(manualRefreshTimer){
+    clearInterval(manualRefreshTimer);
+    manualRefreshTimer = null;
+  }
+  manualSymbolAtual = pos && pos.symbol ? pos.symbol : (c && c.operacaoAtual && c.operacaoAtual.symbol ? c.operacaoAtual.symbol : "");
+  if(manualSymbolAtual){
+    atualizarPreviewManual(false);
+    manualRefreshTimer = setInterval(function(){ atualizarPreviewManual(false); }, 3000);
+  }
 }
 
-async function manualAtualizarProjecao(){
-  if(String(contaSelecionada)!=="2")return;
-  const input=document.getElementById("manualSymbol");
-  if(!input)return;
-  const symbol=String(input.value||"").trim().toUpperCase();
-  if(!/^[A-Z0-9]+USDT$/.test(symbol)){ manualMsg("Informe um ativo no formato <b>TRXUSDT</b>."); return; }
-  manualMsg("Consultando saldo, preço e ordens da Binance...");
+async function atualizarPreviewManual(mostrarMsg){
+  const el = document.getElementById("manualControl");
+  if(!el) return;
+
+  const symbol = manualSymbolAtual || (document.getElementById("manualSymbol") && document.getElementById("manualSymbol").textContent) || "";
+  if(!symbol || symbol === "--") return;
+
   try{
-    const r=await fetch("/api/manual/preview?symbol="+encodeURIComponent(symbol),{cache:"no-store"});
-    const d=await r.json(); if(!r.ok)throw new Error(d.erro||"Falha ao consultar");
-    const brl=Number(d.usdtBrl||0), bruto=Number(d.valorBruto||0), taxa=Number(d.taxaEstimada||0), liquido=Number(d.valorLiquido||0);
-    const elQty=document.getElementById("manualQtyInfo"); if(elQty)elQty.value=numero(d.quantidadeVenda||0);
-    const e1=document.getElementById("manualBruto"); if(e1)e1.innerHTML=dinheiro(bruto)+" USDT<small class='brlLine'>≈ R$ "+dinheiro(bruto*brl)+"</small>";
-    const e2=document.getElementById("manualLiquido"); if(e2)e2.innerHTML=dinheiro(liquido)+" USDT<small class='brlLine'>≈ R$ "+dinheiro(liquido*brl)+"</small>";
-    const e4=document.getElementById("manualPrice"); if(e4)e4.innerHTML=dinheiro(d.precoAtual||0)+" USDT<small class='brlLine'>≈ R$ "+dinheiro(Number(d.precoAtual||0)*brl)+"</small>";
-    const c=getConta("2"); const pos=c&&c.posicoes?c.posicoes.find(function(p){return p.symbol===symbol;}):null;
-    const custo=pos?Number(pos.quantidade||0)*Number(pos.precoMedio||0):0;
-    const pnl=custo>0?liquido-custo:0, pct=custo>0?pnl/custo*100:0;
-    const ep=document.getElementById("manualPnl"); if(ep){ep.className=classe(pnl);ep.textContent=(pnl>=0?"+":"")+dinheiro(pnl)+" USDT";}
-    const epp=document.getElementById("manualPnlPct"); if(epp)epp.textContent=(pnl>=0?"+":"")+pct.toFixed(2)+"% • R$ "+(pnl>=0?"+":"")+dinheiro(pnl*brl)+"";
-    manualMsg((d.temVendaAtiva?"🟡 Existe(m) "+d.ordensVenda.length+" ordem(ns) SELL ativa(s).":"🟢 Nenhuma SELL ativa encontrada.")+"<br>Quantidade disponível: <b>"+numero(d.quantidadeVenda||0)+" "+symbol.replace(/USDT$/,'')+"</b> • Taxa estimada: "+dinheiro(taxa)+" USDT.");
-  }catch(e){manualMsg("❌ "+(e.message||"Não foi possível consultar"),"bad");}
+    const r = await fetch('/api/manual/preview?account=' + encodeURIComponent(contaSelecionada) + '&symbol=' + encodeURIComponent(symbol) + '&_=' + Date.now());
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.erro || "Não foi possível consultar a Binance.");
+
+    const set = function(id, value){ const x=document.getElementById(id); if(x) x.textContent=value; };
+    set("manualSymbol", j.symbol);
+    set("manualQty", numero(j.quantidadeLivre));
+    set("manualPrice", dinheiro(j.precoMelhorCompra) + " USDT");
+    set("manualPriceBrl", "≈ R$ " + dinheiro(j.precoMelhorCompra * j.usdtBrl));
+    set("manualNet", dinheiro(j.valorLiquidoEstimado) + " USDT");
+    set("manualNetBrl", "≈ R$ " + dinheiro(j.valorLiquidoBRL));
+
+    const pnlEl=document.getElementById("manualPnl");
+    if(pnlEl){
+      pnlEl.textContent = j.pnl === null ? "--" : ((j.pnl>=0?"+":"") + dinheiro(j.pnl) + " USDT");
+      pnlEl.className = j.pnl === null ? "" : classe(j.pnl);
+    }
+    set("manualPnlBrl", j.pnlBRL === null ? "--" : "≈ R$ " + dinheiro(j.pnlBRL));
+
+    const pctEl=document.getElementById("manualPct");
+    if(pctEl){
+      pctEl.textContent = j.pnlPct === null ? "--" : ((j.pnlPct>=0?"+":"") + Number(j.pnlPct).toFixed(2) + "%");
+      pctEl.className = j.pnlPct === null ? "" : classe(j.pnlPct);
+    }
+
+    if(mostrarMsg){
+      const msg=document.getElementById("manualMsg");
+      if(msg){ msg.className="manualMsg"; msg.textContent="Valor atualizado pela Binance às " + new Date(j.atualizadoEm).toLocaleTimeString("pt-BR") + "."; }
+    }
+  }catch(e){
+    if(mostrarMsg){
+      const msg=document.getElementById("manualMsg");
+      if(msg){ msg.className="manualMsg bad"; msg.textContent="Erro ao atualizar: " + e.message; }
+    }
+  }
 }
 
-async function manualCancelarVendaSergio(){
-  const input=document.getElementById("manualSymbol"); const symbol=String(input&&input.value||"").trim().toUpperCase();
-  if(!/^[A-Z0-9]+USDT$/.test(symbol)){manualMsg("Informe um ativo válido.","bad");return;}
-  if(!confirm("Cancelar todas as ordens SELL ativas de "+symbol+" na conta SERGIO?"))return;
-  manualMsg("Cancelando ordem(ns) SELL...");
+async function cancelarVendaManual(){
+  const symbol = manualSymbolAtual || "";
+  if(!symbol) return alert("Nenhum ativo selecionado.");
+  if(!confirm("Cancelar todas as ordens de VENDA abertas de " + symbol + " na conta " + (contaSelecionada === "1" ? "THIAGO" : "SERGIO") + "?")) return;
+
   try{
-    const r=await fetch("/api/manual/cancel-sell",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol})});
-    const d=await r.json();if(!r.ok)throw new Error(d.erro||"Falha");
-    manualMsg("🟡 "+d.mensagem,"");
-    setTimeout(manualAtualizarProjecao,700);
-  }catch(e){manualMsg("❌ "+(e.message||"Falha ao cancelar"),"bad");}
+    const r=await fetch('/api/manual/cancel-sell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:contaSelecionada,symbol})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.erro || "Falha ao cancelar.");
+    const msg=document.getElementById("manualMsg");
+    if(msg){msg.className="manualMsg good";msg.textContent=j.canceladas+" ordem(ns) de venda cancelada(s) na Binance. O ativo não foi vendido.";}
+    setTimeout(function(){ carregar(); },700);
+  }catch(e){
+    const msg=document.getElementById("manualMsg");
+    if(msg){msg.className="manualMsg bad";msg.textContent="Erro ao cancelar: "+e.message;}
+  }
 }
 
-async function manualVenderSergio(){
-  const input=document.getElementById("manualSymbol"); const symbol=String(input&&input.value||"").trim().toUpperCase();
-  if(!/^[A-Z0-9]+USDT$/.test(symbol)){manualMsg("Informe um ativo válido.","bad");return;}
-  if(!confirm("CONFIRMA A VENDA REAL de toda a quantidade livre de "+symbol+" na conta SERGIO?"))return;
-  manualMsg("🔴 Enviando venda MARKET para a Binance...");
+async function venderManual(){
+  const symbol = manualSymbolAtual || "";
+  if(!symbol) return alert("Nenhum ativo selecionado.");
+
+  await atualizarPreviewManual(false);
+  const net=document.getElementById("manualNet") ? document.getElementById("manualNet").textContent : "--";
+  const pnl=document.getElementById("manualPnl") ? document.getElementById("manualPnl").textContent : "--";
+  const contaNome = contaSelecionada === "1" ? "THIAGO" : "SERGIO";
+
+  if(!confirm("VENDER TODO O SALDO LIVRE DE " + symbol + " na conta " + contaNome + "?\n\nValor líquido estimado: " + net + "\nResultado estimado: " + pnl + "\n\nA ordem será MARKET e real na Binance.")) return;
+
+  const buttons=document.querySelectorAll("#manualControl .manualBtn");
+  buttons.forEach(function(b){b.disabled=true;});
+
   try{
-    const r=await fetch("/api/manual/sell",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({symbol})});
-    const d=await r.json();if(!r.ok)throw new Error(d.erro||"Falha na venda");
-    const classeP=Number(d.pnl||0)>=0?"good":"bad";
-    const palavra=Number(d.pnl||0)>=0?"LUCRO":"PERDA";
-    manualMsg("<b>✅ VENDA EXECUTADA</b><br>"+symbol+" • Quantidade: "+numero(d.quantidade)+"<br>Preço médio executado: <b>"+dinheiro(d.precoMedio)+" USDT</b><br>Valor bruto: "+dinheiro(d.bruto)+" USDT • Líquido: <b>"+dinheiro(d.liquido)+" USDT</b><br>Resultado: <b>"+palavra+" "+(d.pnl>=0?"+":"")+dinheiro(d.pnl)+" USDT • "+(d.pnlPct>=0?"+":"")+Number(d.pnlPct||0).toFixed(2)+"% • R$ "+(d.pnlBRL>=0?"+":"")+dinheiro(d.pnlBRL)+"</b></div>",classeP);
-    setTimeout(carregar,1200);
-  }catch(e){manualMsg("❌ "+(e.message||"Falha na venda"),"bad");}
+    const r=await fetch('/api/manual/sell',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({account:contaSelecionada,symbol})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.erro || "Falha ao vender.");
+
+    const msg=document.getElementById("manualMsg");
+    if(msg){
+      msg.className="manualMsg " + ((j.pnl===null || j.pnl>=0) ? "good" : "bad");
+      msg.innerHTML =
+        "<strong>VENDA EXECUTADA NA BINANCE</strong><br>" +
+        "Quantidade: " + numero(j.quantidade) + " " + j.symbol.replace(/USDT$/,'') + "<br>" +
+        "Preço médio executado: " + dinheiro(j.precoMedioExecutado) + " USDT<br>" +
+        "Valor bruto: " + dinheiro(j.valorBruto) + " USDT<br>" +
+        "Valor líquido: " + dinheiro(j.valorLiquido) + " USDT ≈ R$ " + dinheiro(j.valorLiquidoBRL) + "<br>" +
+        "Resultado: " + (j.pnl===null ? "não calculado" : ((j.pnl>=0?"LUCRO ":"PERDA ") + (j.pnl>=0?"+":"") + dinheiro(j.pnl) + " USDT • " + (j.pnl>=0?"+":"") + Number(j.pnlPct).toFixed(2) + "% • R$ " + (j.pnlBRL>=0?"+":"") + dinheiro(j.pnlBRL))) +
+        "<br>ID da ordem: " + j.orderId;
+    }
+    setTimeout(function(){ carregar(); },1000);
+  }catch(e){
+    const msg=document.getElementById("manualMsg");
+    if(msg){msg.className="manualMsg bad";msg.textContent="Erro na venda: "+e.message;}
+  }finally{
+    buttons.forEach(function(b){b.disabled=false;});
+  }
 }
 
 
@@ -4312,7 +4370,7 @@ function renderV7Health(){
   });
   const age=dados&&dados.atualizadoEm?Math.max(0,now-Number(dados.atualizadoEm)):999999;
   rows.push('<div class="v7StatusRow"><span><i class="v7Dot '+(age<30000?'ok':'warn')+'"></i>Atualização do painel</span><b class="v7Badge">'+(age<30000?'ATUALIZADO':'ATENÇÃO')+'</b></div>');
-  rows.push('<div class="v7Note">O painel mantém a leitura das contas; o controle manual é exclusivo da conta SERGIO e envia ordens reais somente quando acionado pelo usuário.</div>');
+  rows.push('<div class="v7Note">O painel é somente leitura. Este diagnóstico confirma a leitura da API e da atividade observada; ele não comprova que uma ordem foi enviada pelo robô.</div>');
   el.innerHTML=rows.join("");
 }
 

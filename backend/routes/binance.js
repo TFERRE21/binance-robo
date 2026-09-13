@@ -81,4 +81,15 @@ router.post('/accounts', authMiddleware, async (req, res) => {
   }
 });
 
+  }
+});
+
+// =========================================================
+// EXCLUIR CONTA BINANCE
+// =========================================================
+
+router.delete('/accounts/:id', authMiddleware, async (req, res) => {
+  // ...
+});
+
 module.exports = router;

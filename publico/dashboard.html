@@ -5,22 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Binance-Robo | Dashboard</title>
+
+  <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
 
-  <h1>Binance-Robo</h1>
+  <div class="dashboard-container">
 
-  <p id="userInfo">Carregando usuário...</p>
+    <header class="dashboard-header">
 
-  <hr>
+      <div>
+        <h1>Binance-Robo</h1>
+        <p id="userInfo">Carregando usuário...</p>
+      </div>
 
-  <h2>Minhas contas Binance</h2>
+      <button id="logoutButton" class="btn-logout">
+        Sair
+      </button>
 
-  <button id="logoutButton">Sair</button>
+    </header>
 
-  <div id="accounts">
-    Carregando contas...
+    <main>
+
+      <section class="dashboard-card">
+
+        <div class="section-header">
+          <div>
+            <h2>Minhas contas Binance</h2>
+            <p>Contas conectadas ao seu painel</p>
+          </div>
+        </div>
+
+        <div id="accounts">
+          Carregando contas...
+        </div>
+
+      </section>
+
+      <section class="dashboard-card">
+
+        <div class="section-header">
+          <div>
+            <h2>Visão geral</h2>
+            <p>Gerencie seu robô de trading</p>
+          </div>
+        </div>
+
+        <div class="coming-soon">
+          <div class="coming-icon">⚙️</div>
+          <h3>Configurações do robô</h3>
+          <p>
+            Em breve você poderá configurar estratégias,
+            operações e parâmetros diretamente pelo painel.
+          </p>
+        </div>
+
+      </section>
+
+    </main>
+
   </div>
 
   <script src="js/dashboard.js"></script>

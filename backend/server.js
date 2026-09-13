@@ -5,6 +5,8 @@ const authRoutes = require("./routes/auth");
 
 const binanceRoutes = require("./routes/binance");
 
+const panelRoutes = require("./routes/panel");
+
 const Binance = require("binance-api-node").default;
 
 const app = express();
@@ -16,6 +18,8 @@ app.use(express.static(path.join(__dirname, "../publico")));
 app.use("/api/auth", authRoutes);
 
 app.use("/api/binance", binanceRoutes);
+
+app.use("/api/panel", panelRoutes);
 
 const PORT = process.env.PORT || 3000;
 

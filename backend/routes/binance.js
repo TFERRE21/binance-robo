@@ -2,6 +2,7 @@ const express = require('express');
 const db = require('../services/db');
 const authMiddleware = require('../middleware/auth');
 const cryptoService = require('../services/cryptoService');
+const Binance = require('binance-api-node').default;
 
 const router = express.Router();
 
@@ -77,6 +78,82 @@ router.post('/accounts', authMiddleware, async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Erro interno ao cadastrar conta Binance.'
+    });
+  }
+});
+
+// =========================================================
+// TESTAR CONEXÃO COM A BINANCE
+// SOMENTE LEITURA - NÃO EXECUTA ORDENS
+// =========================================================
+
+router.get('/accounts/:id/test', authMiddleware, async (req, res) => {
+  try {
+    const accountId = req.params.id;
+
+    const result = await db.query(
+      `SELECT id, name, api_key_encrypted, api_secret_encrypted, active
+       FROM binance_accounts
+       WHERE id = $1
+       AND user_id = $2`,
+      [accountId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conta Binance não encontrada.'
+      });
+    }
+
+    const account = result.rows[0];
+
+    if (!account.active) {
+      return res.status(400).json({
+        success: false,
+        message: 'Esta conta Binance está inativa.'
+      });
+    }
+
+    const apiKey = cryptoService.decrypt(
+      account.api_key_encrypted
+    );
+
+    const apiSecret = cryptoService.decrypt(
+      account.api_secret_encrypted
+    );
+
+    const client = Binance({
+      apiKey,
+      apiSecret
+    });
+
+    // Consulta somente informações da conta.
+    // Nenhuma ordem é criada, alterada ou cancelada.
+    const accountInfo = await client.accountInfo();
+
+    return res.json({
+      success: true,
+      connected: true,
+      message: 'Conexão com a Binance realizada com sucesso.',
+      account: {
+        id: account.id,
+        name: account.name
+      },
+      permissions: {
+        canTrade: accountInfo.canTrade,
+        canWithdraw: accountInfo.canWithdraw,
+        canDeposit: accountInfo.canDeposit
+      }
+    });
+
+  } catch (error) {
+    console.error('ERRO AO TESTAR CONEXÃO BINANCE:', error);
+
+    return res.status(400).json({
+      success: false,
+      connected: false,
+      message: 'Não foi possível conectar à conta Binance. Verifique as credenciais e as permissões da API.'
     });
   }
 });

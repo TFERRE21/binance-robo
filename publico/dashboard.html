@@ -28,6 +28,8 @@
 
     <main>
 
+      <!-- CONTAS BINANCE -->
+
       <section class="dashboard-card">
 
         <div class="section-header">
@@ -41,7 +43,118 @@
           Carregando contas...
         </div>
 
+        <button
+          id="showAddAccountButton"
+          class="btn-login"
+          type="button"
+          style="margin-top: 20px;"
+        >
+          + Adicionar conta Binance
+        </button>
+
       </section>
+
+
+      <!-- FORMULÁRIO DE NOVA CONTA -->
+
+      <section
+        id="addAccountSection"
+        class="dashboard-card"
+        style="display: none;"
+      >
+
+        <div class="section-header">
+          <div>
+            <h2>Adicionar conta Binance</h2>
+            <p>
+              Informe as credenciais da API da sua conta Binance.
+            </p>
+          </div>
+        </div>
+
+        <form id="addAccountForm">
+
+          <div class="form-group">
+
+            <label for="accountName">
+              Nome da conta
+            </label>
+
+            <input
+              type="text"
+              id="accountName"
+              name="accountName"
+              placeholder="Ex.: Minha Binance"
+              required
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label for="apiKey">
+              API Key
+            </label>
+
+            <input
+              type="password"
+              id="apiKey"
+              name="apiKey"
+              placeholder="Cole sua API Key"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label for="apiSecret">
+              API Secret
+            </label>
+
+            <input
+              type="password"
+              id="apiSecret"
+              name="apiSecret"
+              placeholder="Cole sua API Secret"
+              autocomplete="off"
+              required
+            >
+
+          </div>
+
+
+          <button
+            type="submit"
+            class="btn-login"
+          >
+            Salvar conta
+          </button>
+
+
+          <button
+            type="button"
+            id="cancelAddAccountButton"
+            class="btn-logout"
+            style="margin-top: 10px; width: 100%;"
+          >
+            Cancelar
+          </button>
+
+          <div
+            id="accountMessage"
+            class="message"
+          ></div>
+
+        </form>
+
+      </section>
+
+
+      <!-- VISÃO GERAL -->
 
       <section class="dashboard-card">
 
@@ -53,12 +166,16 @@
         </div>
 
         <div class="coming-soon">
+
           <div class="coming-icon">⚙️</div>
+
           <h3>Configurações do robô</h3>
+
           <p>
             Em breve você poderá configurar estratégias,
             operações e parâmetros diretamente pelo painel.
           </p>
+
         </div>
 
       </section>

@@ -1,47 +1,97 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Binance-Robo | Dashboard</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <link rel="stylesheet" href="css/style.css">
+  <title>Binance-Robo | Minha Conta</title>
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
+
 </head>
+
 
 <body>
 
   <div class="dashboard-container">
 
+
+    <!-- =====================================================
+         CABEÇALHO
+    ====================================================== -->
+
     <header class="dashboard-header">
 
       <div>
+
         <h1>Binance-Robo</h1>
-        <p id="userInfo">Carregando usuário...</p>
+
+        <p id="userInfo">
+          Carregando usuário...
+        </p>
+
       </div>
 
-      <button id="logoutButton" class="btn-logout">
+
+      <button
+        id="logoutButton"
+        class="btn-logout"
+        type="button"
+      >
         Sair
       </button>
 
     </header>
 
+
+
     <main>
 
-      <!-- CONTAS BINANCE -->
+
+      <!-- =====================================================
+           CONTA BINANCE
+      ====================================================== -->
 
       <section class="dashboard-card">
 
         <div class="section-header">
+
           <div>
-            <h2>Minhas contas Binance</h2>
-            <p>Contas conectadas ao seu painel</p>
+
+            <h2>Minha conta Binance</h2>
+
+            <p>
+              Gerencie sua conta conectada ao Binance-Robo.
+            </p>
+
           </div>
+
         </div>
 
+
         <div id="accounts">
-          Carregando contas...
+
+          <div class="account-card">
+
+            <h3>Carregando conta...</h3>
+
+            <p>
+              Aguarde enquanto carregamos suas informações.
+            </p>
+
+          </div>
+
         </div>
+
 
         <button
           id="showAddAccountButton"
@@ -55,7 +105,257 @@
       </section>
 
 
-      <!-- FORMULÁRIO DE NOVA CONTA -->
+
+      <!-- =====================================================
+           SALDO
+      ====================================================== -->
+
+      <section class="dashboard-card">
+
+        <div class="section-header">
+
+          <div>
+
+            <h2>Saldo da conta</h2>
+
+            <p>
+              Informações atualizadas diretamente da Binance.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="balance-grid">
+
+
+          <div class="balance-card">
+
+            <span class="balance-label">
+              Saldo total
+            </span>
+
+            <strong id="totalBalance">
+              Carregando...
+            </strong>
+
+          </div>
+
+
+          <div class="balance-card">
+
+            <span class="balance-label">
+              Disponível
+            </span>
+
+            <strong id="availableBalance">
+              Carregando...
+            </strong>
+
+          </div>
+
+
+          <div class="balance-card">
+
+            <span class="balance-label">
+              Em operações
+            </span>
+
+            <strong id="lockedBalance">
+              Carregando...
+            </strong>
+
+          </div>
+
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================================================
+           SEGURANÇA
+      ====================================================== -->
+
+      <section class="dashboard-card security-card">
+
+        <div class="section-header">
+
+          <div>
+
+            <h2>🔐 Segurança da sua conta</h2>
+
+            <p>
+              Proteção das suas credenciais Binance.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="security-content">
+
+          <div class="security-icon">
+            🛡️
+          </div>
+
+
+          <div>
+
+            <h3>
+              Seus dados são protegidos
+            </h3>
+
+
+            <p>
+              As credenciais da sua API Binance são
+              armazenadas de forma criptografada no sistema.
+            </p>
+
+
+            <p>
+              O Binance-Robo não precisa da sua senha da Binance.
+              O sistema utiliza somente as permissões concedidas
+              à API.
+            </p>
+
+
+            <div class="security-warning">
+
+              <strong>
+                ⚠️ Recomendação de segurança
+              </strong>
+
+              <p>
+                Mantenha a permissão de saque
+                <strong>desativada</strong> na sua API Binance.
+              </p>
+
+            </div>
+
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================================================
+           COMO CONFIGURAR API
+      ====================================================== -->
+
+      <section class="dashboard-card">
+
+        <div class="section-header">
+
+          <div>
+
+            <h2>🎥 Como conectar sua Binance</h2>
+
+            <p>
+              Aprenda passo a passo como criar sua API Key.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="video-container">
+
+          <!--
+            FUTURO VÍDEO
+
+            Aqui colocaremos o vídeo explicativo
+            sobre como criar a API Key na Binance.
+
+            Por enquanto deixamos um espaço preparado.
+          -->
+
+
+          <div class="video-placeholder">
+
+            <div class="video-icon">
+              ▶
+            </div>
+
+            <h3>
+              Como criar sua API Key
+            </h3>
+
+            <p>
+              Vídeo explicativo em breve.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================================================
+           PAINEL
+      ====================================================== -->
+
+      <section class="dashboard-card panel-access-card">
+
+        <div class="section-header">
+
+          <div>
+
+            <h2>🚀 Seu painel de controle</h2>
+
+            <p>
+              Acesse todas as ferramentas do Binance-Robo.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="panel-access-content">
+
+          <div>
+
+            <h3>
+              Painel completo
+            </h3>
+
+            <p>
+              Acompanhe suas operações, gráficos,
+              performance, patrimônio, alertas,
+              oportunidades e todas as ferramentas
+              disponíveis para sua conta.
+            </p>
+
+          </div>
+
+
+          <button
+            id="openPanelButton"
+            class="btn-login"
+            type="button"
+          >
+            ABRIR PAINEL
+          </button>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- =====================================================
+           FORMULÁRIO NOVA CONTA
+      ====================================================== -->
 
       <section
         id="addAccountSection"
@@ -64,15 +364,22 @@
       >
 
         <div class="section-header">
+
           <div>
+
             <h2>Adicionar conta Binance</h2>
+
             <p>
               Informe as credenciais da API da sua conta Binance.
             </p>
+
           </div>
+
         </div>
 
+
         <form id="addAccountForm">
+
 
           <div class="form-group">
 
@@ -144,47 +451,26 @@
             Cancelar
           </button>
 
+
           <div
             id="accountMessage"
             class="message"
           ></div>
+
 
         </form>
 
       </section>
 
 
-      <!-- VISÃO GERAL -->
-
-      <section class="dashboard-card">
-
-        <div class="section-header">
-          <div>
-            <h2>Visão geral</h2>
-            <p>Gerencie seu robô de trading</p>
-          </div>
-        </div>
-
-        <div class="coming-soon">
-
-          <div class="coming-icon">⚙️</div>
-
-          <h3>Configurações do robô</h3>
-
-          <p>
-            Em breve você poderá configurar estratégias,
-            operações e parâmetros diretamente pelo painel.
-          </p>
-
-        </div>
-
-      </section>
-
     </main>
 
+
   </div>
+
 
   <script src="js/dashboard.js"></script>
 
 </body>
+
 </html>

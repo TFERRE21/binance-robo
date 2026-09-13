@@ -81,15 +81,43 @@ router.post('/accounts', authMiddleware, async (req, res) => {
   }
 });
 
-  }
-});
-
 // =========================================================
 // EXCLUIR CONTA BINANCE
 // =========================================================
 
 router.delete('/accounts/:id', authMiddleware, async (req, res) => {
-  // ...
+  try {
+    const accountId = req.params.id;
+
+    const result = await db.query(
+      `DELETE FROM binance_accounts
+       WHERE id = $1
+       AND user_id = $2
+       RETURNING id, name`,
+      [accountId, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conta Binance não encontrada.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Conta Binance excluída com sucesso.',
+      account: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('ERRO AO EXCLUIR CONTA BINANCE:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao excluir conta Binance.'
+    });
+  }
 });
 
 module.exports = router;

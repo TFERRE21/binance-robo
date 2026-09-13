@@ -9,18 +9,25 @@ body {
     background: #0b0f19;
     color: #ffffff;
     min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
+
+/* =========================================================
+   LOGIN
+========================================================= */
 
 .login-container {
     width: 100%;
     max-width: 420px;
     padding: 20px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .login-box {
+    width: 100%;
     background: #151b29;
     border: 1px solid #252d3d;
     border-radius: 16px;
@@ -114,4 +121,156 @@ body {
     display: block;
     background: rgba(40, 167, 69, 0.15);
     color: #5ee27a;
+}
+
+/* =========================================================
+   DASHBOARD
+========================================================= */
+
+.dashboard-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px;
+}
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 30px;
+    padding: 22px 25px;
+    background: #151b29;
+    border: 1px solid #252d3d;
+    border-radius: 14px;
+}
+
+.dashboard-header h1 {
+    margin: 0 0 8px;
+    color: #f0b90b;
+    font-size: 28px;
+}
+
+.dashboard-header p {
+    margin: 0;
+    color: #9aa4b5;
+    font-size: 14px;
+}
+
+.btn-logout {
+    border: 1px solid #3a4355;
+    border-radius: 8px;
+    padding: 10px 18px;
+    background: #0d1320;
+    color: #ffffff;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.btn-logout:hover {
+    border-color: #f0b90b;
+    color: #f0b90b;
+}
+
+.dashboard-card {
+    background: #151b29;
+    border: 1px solid #252d3d;
+    border-radius: 14px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.25);
+}
+
+.section-header {
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    margin: 0 0 7px;
+    font-size: 20px;
+}
+
+.section-header p {
+    margin: 0;
+    color: #8d96a8;
+    font-size: 14px;
+}
+
+#accounts {
+    display: grid;
+    gap: 12px;
+}
+
+#accounts > div {
+    background: #0d1320;
+    border: 1px solid #30394c;
+    border-radius: 10px;
+    padding: 17px;
+    color: #c7cedb;
+}
+
+#accounts strong {
+    display: block;
+    color: #ffffff;
+    font-size: 16px;
+    margin-bottom: 7px;
+}
+
+#accounts hr {
+    display: none;
+}
+
+.coming-soon {
+    text-align: center;
+    padding: 35px 20px;
+    border: 1px dashed #30394c;
+    border-radius: 10px;
+    background: #0d1320;
+}
+
+.coming-icon {
+    font-size: 35px;
+    margin-bottom: 12px;
+}
+
+.coming-soon h3 {
+    margin: 0 0 10px;
+    font-size: 18px;
+}
+
+.coming-soon p {
+    max-width: 600px;
+    margin: 0 auto;
+    color: #8d96a8;
+    line-height: 1.6;
+}
+
+/* =========================================================
+   RESPONSIVO
+========================================================= */
+
+@media (max-width: 700px) {
+
+    .dashboard-container {
+        padding: 15px;
+    }
+
+    .dashboard-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .btn-logout {
+        width: 100%;
+    }
+
+    .dashboard-card {
+        padding: 18px;
+    }
+
+    .login-box {
+        padding: 25px;
+    }
 }

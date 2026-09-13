@@ -1,1421 +1,370 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-
-  <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
-
-  <title>Binance-Robo | Painel</title>
-
-  <link
-    rel="stylesheet"
-    href="css/style.css"
-  >
-
-  <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
-
-  <style>
-
-    body {
-      margin: 0;
-      background: #050812;
-      color: #f7f9fd;
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    .panel-container {
-      max-width: 1500px;
-      margin: auto;
-      padding: 20px;
-    }
-
-    .panel-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-
-    .panel-title h1 {
-      margin: 0;
-      font-size: 28px;
-    }
-
-    .panel-title p {
-      margin: 6px 0 0;
-      color: #8290a8;
-    }
-
-    .panel-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    .panel-button {
-      border: 1px solid #263650;
-      background: #101a2b;
-      color: #fff;
-      padding: 10px 16px;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-
-    .panel-button:hover {
-      background: #17243a;
-    }
-
-    .account-banner {
-      background: #0d1626;
-      border: 1px solid #21304a;
-      border-radius: 12px;
-      padding: 18px;
-      margin-bottom: 18px;
-    }
-
-    .account-name {
-      font-size: 22px;
-      font-weight: bold;
-    }
-
-    .account-status {
-      margin-top: 5px;
-      color: #20df96;
-    }
-
-    .security-warning {
-      background: #211b08;
-      border: 1px solid #6b5417;
-      border-radius: 10px;
-      padding: 14px;
-      margin-bottom: 20px;
-      color: #ffd76a;
-    }
-
-    .dashboardMenu {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .menuBtn {
-      border: 1px solid #21304a;
-      background: #0d1626;
-      color: #fff;
-      padding: 14px;
-      border-radius: 9px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .menuBtn:hover {
-      background: #162238;
-      border-color: #4aa8ff;
-    }
-
-    .section {
-      display: none;
-      margin-bottom: 20px;
-    }
-
-    .section.active {
-      display: block;
-    }
-
-    .card {
-      background: #0d1626;
-      border: 1px solid #21304a;
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 15px;
-    }
-
-    .metric-label {
-      color: #8290a8;
-      font-size: 13px;
-      margin-bottom: 8px;
-    }
-
-    .metric-value {
-      font-size: 28px;
-      font-weight: bold;
-    }
-
-    .metric-sub {
-      margin-top: 7px;
-      color: #8290a8;
-    }
-
-    .positive {
-      color: #20df96;
-    }
-
-    .negative {
-      color: #ff6177;
-    }
-
-    .chart-box {
-      background: #0d1626;
-      border: 1px solid #21304a;
-      border-radius: 12px;
-      padding: 15px;
-    }
-
-    #chart {
-      width: 100%;
-      height: 450px;
-    }
-
-    .chart-controls {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-      flex-wrap: wrap;
-    }
-
-    .chart-controls button {
-      background: #111c2e;
-      border: 1px solid #263650;
-      color: #fff;
-      padding: 8px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .empty {
-      padding: 30px;
-      text-align: center;
-      color: #8290a8;
-    }
-
-    .video-box {
-      background: #0d1626;
-      border: 1px solid #21304a;
-      border-radius: 12px;
-      padding: 20px;
-    }
-
-    .video-box iframe {
-      width: 100%;
-      max-width: 900px;
-      height: 500px;
-      border: 0;
-      border-radius: 10px;
-    }
-
-    .footer {
-      text-align: center;
-      color: #64728a;
-      padding: 30px 0;
-    }
-
-    @media (max-width: 900px) {
-
-      .dashboardMenu {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .grid {
-        grid-template-columns: 1fr;
-      }
-
-      .panel-header {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      #chart {
-        height: 350px;
-      }
-
-    }
-
-    @media (max-width: 600px) {
-
-      .dashboardMenu {
-        grid-template-columns: 1fr;
-      }
-
-      .panel-container {
-        padding: 10px;
-      }
-
-    }
-
-  </style>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Binance-Robo | Central de Operações</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#050812;--bg2:#09101d;--panel:#0d1626;--panel2:#111c2e;--line:#21304a;--text:#f7f9fd;--muted:#8290a8;--blue:#4aa8ff;--green:#20df96;--red:#ff6177;--yellow:#ffc85a;--purple:#8368ff}
+*{box-sizing:border-box}body{margin:0;color:var(--text);background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),radial-gradient(circle at 100% 20%,#111b37 0%,transparent 28%),var(--bg);font-family:Inter,Arial,sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}.header{height:78px;border-bottom:1px solid #1a2639;background:#04070eee;display:flex;align-items:center;justify-content:space-between;padding:0 42px;position:sticky;top:0;z-index:20;backdrop-filter:blur(15px)}
+.brand{display:flex;align-items:center;gap:13px}.logo{width:43px;height:43px;display:grid;place-items:center;border-radius:13px;background:linear-gradient(135deg,#ffae00,#ffd55b);font-size:23px;box-shadow:0 8px 25px #0007}.brandTitle{font-size:17px;font-weight:900}.brandSub{color:var(--muted);font-size:10px;margin-top:2px}
+.headerRight{display:flex;align-items:center;gap:8px}.status{display:flex;align-items:center;gap:7px;padding:9px 13px;border:1px solid #17573f;background:#082319;border-radius:999px;color:var(--green);font-size:11px;font-weight:800}.statusDot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+.lang{display:flex;gap:3px;padding:4px;border:1px solid var(--line);border-radius:10px;background:#0b1423}.lang button{border:0;background:transparent;color:#8997ad;padding:7px 9px;border-radius:7px;font-size:10px;font-weight:900}.lang button.active{background:#263c63;color:#fff}
+.container{max-width:1450px;margin:auto;padding:30px 38px 55px}.hero{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:18px}.hero h1{margin:0;font-size:34px}.hero p{margin:7px 0 0;color:var(--muted);font-size:13px}.update{color:var(--muted);font-size:10px}
+.card{background:linear-gradient(180deg,rgba(16,28,48,.96),rgba(9,18,32,.96));border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 15px 45px #0003}.accountGrid{display:grid;grid-template-columns:1.3fr repeat(4,1fr);gap:10px}.accountMain{display:flex;align-items:center;gap:12px}.accountIcon{width:45px;height:45px;border-radius:12px;display:grid;place-items:center;background:#182b49;font-size:22px}.accountName{font-size:18px;font-weight:900}.accountSub{font-size:10px;color:var(--muted);margin-top:4px}
+.label{font-size:9px;color:#70809a;font-weight:900;text-transform:uppercase}.value{font-size:20px;font-weight:900;margin-top:6px}.sub{font-size:9px;color:#66758e;margin-top:5px}.green{color:var(--green)!important}.red{color:var(--red)!important}.yellow{color:var(--yellow)!important}.blue{color:var(--blue)!important}
+.security{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:10px;padding:12px;font-size:9px;line-height:1.5}
+.dashboardMenu{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:14px 0}.menuBtn{border:1px solid #263650;background:#0d1626;color:#aab7ce;border-radius:10px;padding:11px 10px;font-size:10px;font-weight:900}.menuBtn:hover,.menuBtn.active{background:#182b4b;border-color:#4b7cc1;color:#fff}
+.quick{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:8px}.quickBox{border:1px solid #20314b;background:#091321;border-radius:10px;padding:12px}.quickBox b{display:block;font-size:14px;margin-top:5px}.quickBox small{display:block;color:#66758e;font-size:9px;margin-top:4px}
+.section{display:none;margin-top:12px}.section.compactOpen{display:block}.sectionClose{float:right;border:1px solid #2a3c57;background:#0a1422;color:#8290a8;border-radius:7px;padding:6px 9px;font-size:9px;font-weight:900}.sectionTitle{margin:0 0 5px;font-size:18px}.sectionSub{color:var(--muted);font-size:10px;margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.info{border:1px solid #20314b;background:#091321;border-radius:10px;padding:12px}.info b{display:block;margin-top:6px;font-size:13px}
+.operation{display:grid;grid-template-columns:1.2fr repeat(4,1fr);gap:9px}.position{border:1px solid #2b4264;background:#091525;border-radius:12px;padding:14px}.symbol{font-size:25px;font-weight:900}.badge{display:inline-block;margin-top:7px;padding:5px 8px;border-radius:7px;background:#173e31;color:var(--green);font-size:9px;font-weight:900}
+.manual{margin-top:12px;border:1px solid #3a4961;background:#0a1423;border-radius:12px;padding:14px}.warning{border:1px solid #806c13;background:#201a05;color:#ffd84d;padding:10px;border-radius:8px;font-size:9px;margin:10px 0}.controls{display:grid;grid-template-columns:1fr 1fr;gap:8px}.input,.select{background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:9px;font-size:10px;width:100%}.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.btn{border:1px solid #30435f;background:#0d1a2c;color:#fff;border-radius:8px;padding:9px;font-size:10px;font-weight:900}.danger{background:#5e1825;border-color:#923046}.warn{background:#604c08;border-color:#8f7616}.blueBtn{background:#17395f;border-color:#2f6195}
+.chartBox{height:440px;border:1px solid #1e304a;border-radius:12px;background:#050b15;overflow:hidden}.chart{width:100%;height:100%}.intervals{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}.interval{border:1px solid #243753;background:#0a1422;color:#8290a8;border-radius:7px;padding:7px 10px;font-size:9px;font-weight:900}.interval.active{background:#19385d;color:#fff;border-color:#386796}
+.tableWrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:10px}th,td{padding:10px 8px;border-bottom:1px solid #1d2a40;text-align:right}th:first-child,td:first-child{text-align:left}th{font-size:9px;color:#687790;text-transform:uppercase}.empty{text-align:center;color:#6d7b91;padding:25px 10px;font-size:10px}
+.v7Grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.v7Card{background:linear-gradient(180deg,#101c30,#0a1423);border:1px solid #213452;border-radius:14px;padding:16px}.v7Title{margin:0 0 5px;font-size:14px;font-weight:900}.v7Sub{color:#71809a;font-size:9px;line-height:1.5;margin-bottom:12px}.heroMetrics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.miniMetrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}.metric{background:#091321;border:1px solid #20314b;border-radius:10px;padding:12px}.metric span{display:block;color:#71809a;font-size:8px;font-weight:900}.metric b{display:block;margin-top:6px;font-size:13px}.alertRow{display:flex;gap:9px;border:1px solid #243650;background:#091321;padding:10px;border-radius:9px;margin-bottom:7px;font-size:10px}.canvasBox{height:250px}.canvasBox canvas{width:100%;height:100%}.timelineRow{display:flex;justify-content:space-between;gap:15px;border-bottom:1px solid #1b2940;padding:10px 0;font-size:10px}.timelineRow small{color:#687790}.xrayGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.videoGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.videoGrid iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:10px}.footer{text-align:center;color:#52627a;font-size:9px;margin-top:22px}
+@media(max-width:900px){.accountGrid{grid-template-columns:1fr 1fr}.dashboardMenu{grid-template-columns:repeat(2,1fr)}.quick,.operation,.grid4{grid-template-columns:1fr 1fr}.v7Grid,.grid2,.videoGrid{grid-template-columns:1fr}}@media(max-width:560px){.header{padding:12px 15px;height:auto}.container{padding:20px 12px}.accountGrid,.quick,.operation,.grid3,.grid4,.xrayGrid,.controls{grid-template-columns:1fr}.dashboardMenu{grid-template-columns:1fr 1fr}.hero{align-items:flex-start;flex-direction:column}.actions{grid-template-columns:1fr}}
+</style>
 </head>
-
-
 <body>
 
+<header class="header">
+  <div class="brand"><div class="logo">🤖</div><div><div class="brandTitle">Binance-Robo</div><div class="brandSub" data-t="brandSub">Central de Controle Premium • Conta individual</div></div></div>
+  <div class="headerRight">
+    <div class="lang"><button id="pt" class="active">🇧🇷 PT</button><button id="en">🇺🇸 EN</button></div>
+    <div class="status"><span class="statusDot"></span><span data-t="online">ONLINE</span></div>
+  </div>
+</header>
 
-<div class="panel-container">
+<main class="container">
 
-
-  <!-- CABEÇALHO -->
-
-  <header class="panel-header">
-
-    <div class="panel-title">
-
-      <h1>
-        Binance-Robo
-      </h1>
-
-      <p>
-        Painel individual da conta Binance
-      </p>
-
-    </div>
-
-
-    <div class="panel-actions">
-
-      <button
-        class="panel-button"
-        onclick="voltarDashboard()"
-      >
-        ← Voltar
-      </button>
-
-
-      <button
-        class="panel-button"
-        onclick="logout()"
-      >
-        Sair
-      </button>
-
-    </div>
-
-  </header>
-
-
-  <!-- CONTA -->
-
-  <section class="account-banner">
-
-    <div
-      id="accountName"
-      class="account-name"
-    >
-      Carregando conta...
-    </div>
-
-
-    <div
-      id="accountStatus"
-      class="account-status"
-    >
-      Conectando...
-    </div>
-
-  </section>
-
-
-  <!-- SEGURANÇA -->
-
-  <div class="security-warning">
-
-    ⚠️ <strong>SEGURANÇA DA API BINANCE</strong>
-
-    <br><br>
-
-    Mantenha a permissão de
-    <strong>saques/withdrawal DESATIVADA</strong>.
-
-    <br><br>
-
-    O painel deve utilizar somente as permissões necessárias
-    para leitura e negociação.
-
-    <br><br>
-
-    Nunca compartilhe sua API Key ou API Secret.
-
+  <div class="hero">
+    <div><h1 id="title">Carregando...</h1><p data-t="subtitle">Painel individual da conta Binance.</p></div>
+    <div id="updated" class="update">--</div>
   </div>
 
-
-  <!-- MENU -->
-
-  <div
-    class="dashboardMenu"
-    id="dashboardMenu"
-  >
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(0)"
-    >
-      🎯 Operação
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(1)"
-    >
-      📊 Gráfico
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(2)"
-    >
-      🤖 Robô
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(3)"
-    >
-      🏆 Comparação
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(4)"
-    >
-      📚 Performance
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(5)"
-    >
-      🪙 Moedas
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(6)"
-    >
-      📜 Atividade
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(7)"
-    >
-      🚨 Alertas
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(8)"
-    >
-      📈 Patrimônio
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(9)"
-    >
-      🧪 Raio-X
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(10)"
-    >
-      🕵️ Auditoria
-    </button>
-
-
-    <button
-      class="menuBtn"
-      onclick="abrirSecao(11)"
-    >
-      💰 P/L
-    </button>
-
+  <div class="card accountGrid">
+    <div class="accountMain"><div class="accountIcon">👤</div><div><div id="accountName" class="accountName">--</div><div class="accountSub" data-t="connected">Conta Binance conectada</div></div></div>
+    <div><div class="label" data-t="equity">PATRIMÔNIO</div><div id="equity" class="value">--</div><div class="sub">USDT</div></div>
+    <div><div class="label" data-t="available">SALDO DISPONÍVEL</div><div id="available" class="value">--</div><div class="sub">USDT</div></div>
+    <div><div class="label" data-t="locked">BLOQUEADO</div><div id="locked" class="value">--</div><div class="sub">USDT</div></div>
+    <div><div class="label" data-t="assets">ATIVOS</div><div id="assetsCount" class="value">--</div><div class="sub" data-t="assetsSub">Com saldo</div></div>
   </div>
 
+  <div class="security" data-t="security">⚠️ <b>SEGURANÇA DA API BINANCE</b> — Mantenha saques/withdrawal desativados. Use somente permissões necessárias para leitura e negociação. Nunca compartilhe sua API Secret.</div>
 
-  <!-- OPERAÇÃO -->
-
-  <section
-    class="section active"
-    id="section-0"
-  >
-
-    <div class="grid">
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          OPERAÇÃO ATUAL
-        </div>
-
-        <div
-          id="currentSymbol"
-          class="metric-value"
-        >
-          --
-        </div>
-
-        <div
-          id="currentStatus"
-          class="metric-sub"
-        >
-          Aguardando dados...
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          PATRIMÔNIO
-        </div>
-
-        <div
-          id="patrimonio"
-          class="metric-value"
-        >
-          --
-        </div>
-
-        <div
-          id="patrimonioSub"
-          class="metric-sub"
-        >
-          --
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          SALDO USDT
-        </div>
-
-        <div
-          id="saldoUsdt"
-          class="metric-value"
-        >
-          --
-        </div>
-
-        <div class="metric-sub">
-          Saldo disponível
-        </div>
-
-      </div>
-
-
+  <div class="card" style="margin-top:12px">
+    <div class="quick">
+      <div class="quickBox"><div class="label" data-t="currentOp">OPERAÇÃO ATUAL</div><b id="quickSymbol">--</b><small id="quickStatus">Aguardando dados...</small></div>
+      <div class="quickBox"><div class="label" data-t="currentPrice">PREÇO ATUAL</div><b id="quickPrice">--</b><small>USDT</small></div>
+      <div class="quickBox"><div class="label">P/L</div><b id="quickPnl">--</b><small id="quickPct">--</small></div>
+      <div class="quickBox"><div class="label" data-t="positionValue">VALOR DA POSIÇÃO</div><b id="quickValue">--</b><small>USDT</small></div>
     </div>
-
-  </section>
-
-
-  <!-- GRÁFICO -->
-
-  <section
-    class="section"
-    id="section-1"
-  >
-
-    <div class="chart-box">
-
-      <h2>
-        📊 Gráfico
-      </h2>
-
-
-      <div class="chart-controls">
-
-        <button onclick="carregarGrafico('5m')">
-          5m
-        </button>
-
-        <button onclick="carregarGrafico('15m')">
-          15m
-        </button>
-
-        <button onclick="carregarGrafico('1h')">
-          1h
-        </button>
-
-        <button onclick="carregarGrafico('4h')">
-          4h
-        </button>
-
-        <button onclick="carregarGrafico('1d')">
-          1D
-        </button>
-
-      </div>
-
-
-      <div id="chart"></div>
-
-    </div>
-
-  </section>
-
-
-  <!-- ROBÔ -->
-
-  <section
-    class="section"
-    id="section-2"
-  >
-
-    <div class="card">
-
-      <h2>
-        🤖 Robô
-      </h2>
-
-      <p class="empty">
-        As configurações e o estado do robô
-        serão vinculados à conta do usuário.
-      </p>
-
-    </div>
-
-  </section>
-
-
-  <!-- COMPARAÇÃO -->
-
-  <section
-    class="section"
-    id="section-3"
-  >
-
-    <div class="card">
-
-      <h2>
-        🏆 Comparação
-      </h2>
-
-      <p class="empty">
-        O painel individual não exibirá dados
-        de outros usuários.
-      </p>
-
-    </div>
-
-  </section>
-
-
-  <!-- PERFORMANCE -->
-
-  <section
-    class="section"
-    id="section-4"
-  >
-
-    <div class="card">
-
-      <h2>
-        📚 Performance
-      </h2>
-
-      <p class="empty">
-        Histórico de desempenho da conta.
-      </p>
-
-    </div>
-
-  </section>
-
-
-  <!-- MOEDAS -->
-
-  <section
-    class="section"
-    id="section-5"
-  >
-
-    <div class="card">
-
-      <h2>
-        🪙 Moedas
-      </h2>
-
-      <div
-        id="assets"
-        class="empty"
-      >
-        Carregando moedas...
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- ATIVIDADE -->
-
-  <section
-    class="section"
-    id="section-6"
-  >
-
-    <div class="card">
-
-      <h2>
-        📜 Atividade
-      </h2>
-
-      <div class="empty">
-        Atividade da conta será exibida aqui.
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- ALERTAS -->
-
-  <section
-    class="section"
-    id="section-7"
-  >
-
-    <div class="card">
-
-      <h2>
-        🚨 Alertas
-      </h2>
-
-      <div
-        id="alerts"
-        class="empty"
-      >
-        Nenhum alerta carregado.
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- PATRIMÔNIO -->
-
-  <section
-    class="section"
-    id="section-8"
-  >
-
-    <div class="grid">
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          PATRIMÔNIO TOTAL
-        </div>
-
-        <div
-          id="patrimonio2"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          USDT DISPONÍVEL
-        </div>
-
-        <div
-          id="usdt2"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          ATUALIZAÇÃO
-        </div>
-
-        <div
-          id="updated"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-    </div>
-
-  </section>
-
-
-  <!-- RAIO X -->
-
-  <section
-    class="section"
-    id="section-9"
-  >
-
-    <div class="card">
-
-      <h2>
-        🧪 Raio-X
-      </h2>
-
-      <div class="empty">
-        Análise técnica da moeda atual.
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- AUDITORIA -->
-
-  <section
-    class="section"
-    id="section-10"
-  >
-
-    <div class="card">
-
-      <h2>
-        🕵️ Auditoria
-      </h2>
-
-      <div class="empty">
-        Linha do tempo das operações da conta.
-      </div>
-
-    </div>
-
-  </section>
-
-
-  <!-- P/L -->
-
-  <section
-    class="section"
-    id="section-11"
-  >
-
-    <div class="grid">
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          💵 P/L REALIZADO
-        </div>
-
-        <div
-          id="pnlRealizado"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          📊 P/L EM ABERTO
-        </div>
-
-        <div
-          id="pnlAberto"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-      <div class="card">
-
-        <div class="metric-label">
-          RESULTADO
-        </div>
-
-        <div
-          id="pnlTotal"
-          class="metric-value"
-        >
-          --
-        </div>
-
-      </div>
-
-
-    </div>
-
-  </section>
-
-
-  <!-- VÍDEO -->
-
-  <section class="video-box">
-
-    <h2>
-      🎥 Como criar sua API Binance
-    </h2>
-
-    <p>
-      Tutorial para criar a API da Binance corretamente.
-    </p>
-
-    <iframe
-      src="https://www.youtube.com/embed/zP3PgzGdA9M"
-      title="Como criar API Key na Binance"
-      allowfullscreen
-    ></iframe>
-
-  </section>
-
-
-  <div class="footer">
-
-    Binance-Robo • Painel individual
-
   </div>
 
+  <div class="dashboardMenu">
+    <button class="menuBtn" data-panel="0">🎯 <span data-t="operation">Operação</span></button>
+    <button class="menuBtn" data-panel="1">📊 <span data-t="chart">Gráfico</span></button>
+    <button class="menuBtn" data-panel="2">🤖 <span data-t="bot">Robô</span></button>
+    <button class="menuBtn" data-panel="3">🏆 <span data-t="comparison">Comparação</span></button>
+    <button class="menuBtn" data-panel="4">📚 <span data-t="performance">Performance</span></button>
+    <button class="menuBtn" data-panel="5">🪙 <span data-t="coins">Moedas</span></button>
+    <button class="menuBtn" data-panel="6">📜 <span data-t="activity">Atividade</span></button>
+    <button class="menuBtn" data-panel="7">🚨 <span data-t="alerts">Alertas</span></button>
+    <button class="menuBtn" data-panel="8">📈 <span data-t="wealth">Patrimônio</span></button>
+    <button class="menuBtn" data-panel="9">🧪 <span data-t="xray">Raio-X</span></button>
+    <button class="menuBtn" data-panel="10">🕵️ <span data-t="audit">Auditoria</span></button>
+    <button class="menuBtn" data-panel="11">💰 <span data-t="pnl">P/L</span></button>
+  </div>
 
-</div>
+  <!-- 0 OPERAÇÃO -->
+  <section class="section" id="s0">
+    <div class="card">
+      <button class="sectionClose" data-close>FECHAR</button>
+      <h2 class="sectionTitle">🎯 <span data-t="operationTitle">Operação atual</span></h2>
+      <div class="sectionSub" data-t="operationSub">Dados reais da posição selecionada nesta conta.</div>
+      <div class="operation">
+        <div class="position"><div class="label" data-t="asset">MOEDA</div><div id="opSymbol" class="symbol">--</div><span id="opBadge" class="badge">AGUARDANDO</span></div>
+        <div class="info"><div class="label" data-t="entry">ENTRADA</div><b id="opEntry">--</b></div>
+        <div class="info"><div class="label" data-t="currentPrice">PREÇO ATUAL</div><b id="opCurrent">--</b></div>
+        <div class="info"><div class="label" data-t="quantity">QUANTIDADE</div><b id="opQty">--</b></div>
+        <div class="info"><div class="label">P/L</div><b id="opPnl">--</b></div>
+      </div>
+      <div style="height:10px"></div>
+      <div class="grid4">
+        <div class="info"><div class="label" data-t="positionValue">VALOR ATUAL</div><b id="opValue">--</b></div>
+        <div class="info"><div class="label" data-t="locked">BLOQUEADO</div><b id="opLocked">--</b></div>
+        <div class="info"><div class="label" data-t="openSell">SELL ABERTA</div><b id="opSellOrders">--</b></div>
+        <div class="info"><div class="label" data-t="minOrder">MÍNIMO DA ORDEM</div><b id="opMin">--</b></div>
+      </div>
 
+      <div class="manual">
+        <h3 class="v7Title">🎛️ <span data-t="manual">Controle manual</span></h3>
+        <div class="warning" data-t="manualWarning">⚠️ A venda envia uma ordem REAL à Binance. Não execute durante os testes.</div>
+        <div class="controls">
+          <div><div class="label" data-t="sellQty">QUANTIDADE PARA VENDA</div><input id="sellQty" class="input" type="number" step="any"></div>
+          <div><div class="label" data-t="estimated">VALOR ESTIMADO</div><div id="estimated" class="value">0.00 USDT</div></div>
+        </div>
+        <div class="actions">
+          <button id="sellBtn" class="btn danger" data-t="sell">🔴 VENDER POSIÇÃO</button>
+          <button id="cancelBtn" class="btn warn" data-t="cancel">🟠 CANCELAR VENDA ATIVA</button>
+          <button id="refreshBtn" class="btn blueBtn" data-t="refresh">🔄 ATUALIZAR VALOR</button>
+        </div>
+        <div id="manualMsg" class="sub"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1 GRÁFICO -->
+  <section class="section" id="s1">
+    <div class="card">
+      <button class="sectionClose" data-close>FECHAR</button>
+      <h2 class="sectionTitle">📊 <span data-t="chartTitle">Gráfico</span></h2>
+      <div class="sectionSub" data-t="chartSub">Gráfico da moeda da conta.</div>
+      <select id="symbolSelect" class="select"></select>
+      <div class="intervals"><button class="interval" data-i="5m">5m</button><button class="interval active" data-i="15m">15m</button><button class="interval" data-i="1h">1H</button><button class="interval" data-i="4h">4H</button><button class="interval" data-i="1d">1D</button></div>
+      <div class="chartBox"><div id="chart" class="chart"></div></div>
+    </div>
+  </section>
+
+  <!-- 2 ROBÔ -->
+  <section class="section" id="s2">
+    <div class="v7Grid">
+      <div class="v7Card"><button class="sectionClose" data-close>FECHAR</button><h3 class="v7Title">🤖 <span data-t="health">Saúde do robô</span></h3><div class="v7Sub" data-t="healthSub">Diagnóstico da conta e conexão observada pelo painel.</div><div id="health"></div></div>
+      <div class="v7Card"><h3 class="v7Title">⚙️ <span data-t="botConfig">Configuração do robô</span></h3><div class="v7Sub" data-t="botConfigSub">Área preparada para configuração individual do robô.</div><div class="alertRow">🤖 <span data-t="botInfo">A integração da configuração multiusuário será feita sem alterar o robô antigo.</span></div></div>
+    </div>
+  </section>
+
+  <!-- 3 COMPARAÇÃO -->
+  <section class="section" id="s3">
+    <div class="card"><button class="sectionClose" data-close>FECHAR</button><h2 class="sectionTitle">🏆 <span data-t="comparisonTitle">Comparação</span></h2><div class="sectionSub" data-t="comparisonSub">No modo individual não há dados de outros usuários.</div><div class="grid3"><div class="info"><div class="label" data-t="entry">ENTRADA</div><b id="cmpEntry">--</b></div><div class="info"><div class="label" data-t="currentPrice">ATUAL</div><b id="cmpCurrent">--</b></div><div class="info"><div class="label">P/L</div><b id="cmpPnl">--</b></div></div><div class="security" data-t="comparisonInfo">A comparação será usada para evolução da própria conta, sem expor dados de outro usuário.</div></div>
+  </section>
+
+  <!-- 4 PERFORMANCE -->
+  <section class="section" id="s4">
+    <div class="v7Grid">
+      <div class="v7Card"><button class="sectionClose" data-close>FECHAR</button><h3 class="v7Title">📚 <span data-t="performanceTitle">Performance</span></h3><div class="v7Sub" data-t="performanceSub">Indicadores da conta individual.</div><div class="grid3"><div class="metric"><span>P/L ABERTO</span><b id="perfOpen">--</b></div><div class="metric"><span>ATIVOS</span><b id="perfAssets">--</b></div><div class="metric"><span>VALOR DA CONTA</span><b id="perfEquity">--</b></div></div></div>
+      <div class="v7Card"><h3 class="v7Title">📈 <span data-t="sessionCurve">Curva de patrimônio — sessão</span></h3><div class="v7Sub" data-t="sessionCurveSub">Amostras enquanto o painel estiver aberto.</div><div class="canvasBox"><canvas id="equityCanvas" width="900" height="250"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- 5 MOEDAS -->
+  <section class="section" id="s5">
+    <div class="card"><button class="sectionClose" data-close>FECHAR</button><h2 class="sectionTitle">🪙 <span data-t="coinsTitle">Moedas</span></h2><div class="sectionSub" data-t="coinsSub">Todos os ativos com saldo nesta conta.</div><div class="tableWrap"><table><thead><tr><th>Ativo</th><th>Disponível</th><th>Bloqueado</th><th>Preço USDT</th><th>Valor USDT</th></tr></thead><tbody id="assetsTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 6 ATIVIDADE -->
+  <section class="section" id="s6">
+    <div class="card"><button class="sectionClose" data-close>FECHAR</button><h2 class="sectionTitle">📜 <span data-t="activityTitle">Atividade</span></h2><div class="sectionSub" data-t="activitySub">Atividade observada pelo painel.</div><div id="activity" class="timelineRow"><span>Aguardando integração do histórico detalhado.</span></div></div>
+  </section>
+
+  <!-- 7 ALERTAS -->
+  <section class="section" id="s7">
+    <div class="v7Grid">
+      <div class="v7Card"><button class="sectionClose" data-close>FECHAR</button><h3 class="v7Title">🚨 <span data-t="alertsTitle">Alertas inteligentes</span></h3><div class="v7Sub" data-t="alertsSub">Avisos informativos. Não enviam ordens.</div><div id="alerts"></div></div>
+      <div class="v7Card"><h3 class="v7Title">🔐 <span data-t="securityTitle">Segurança</span></h3><div class="alertRow">🔐 <span data-t="security2">Saques devem permanecer desativados na API.</span></div></div>
+    </div>
+  </section>
+
+  <!-- 8 PATRIMÔNIO -->
+  <section class="section" id="s8">
+    <div class="card"><button class="sectionClose" data-close>FECHAR</button><h2 class="sectionTitle">📈 <span data-t="wealthTitle">Patrimônio</span></h2><div class="grid4"><div class="info"><div class="label">TOTAL</div><b id="wTotal">--</b></div><div class="info"><div class="label">DISPONÍVEL</div><b id="wAvailable">--</b></div><div class="info"><div class="label">BLOQUEADO</div><b id="wLocked">--</b></div><div class="info"><div class="label">ATIVOS</div><b id="wAssets">--</b></div></div><div style="height:12px"></div><div class="tableWrap"><table><thead><tr><th>Ativo</th><th>Valor USDT</th><th>% Carteira</th></tr></thead><tbody id="portfolioTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 9 RAIO X -->
+  <section class="section" id="s9">
+    <div class="v7Grid">
+      <div class="v7Card"><button class="sectionClose" data-close>FECHAR</button><h3 class="v7Title">🧪 <span data-t="xrayTitle">Raio-X da moeda atual</span></h3><div class="v7Sub" data-t="xraySub">Leitura técnica sem inventar o score interno do robô.</div><div id="xray"></div></div>
+      <div class="v7Card"><h3 class="v7Title">🎯 <span data-t="opportunities">Ranking de oportunidades</span></h3><div class="v7Sub" data-t="opportunitiesSub">Área preparada para os filtros técnicos do robô.</div><div class="empty" data-t="opportunitiesInfo">O ranking técnico completo será ligado ao serviço do robô.</div></div>
+    </div>
+  </section>
+
+  <!-- 10 AUDITORIA -->
+  <section class="section" id="s10">
+    <div class="card"><button class="sectionClose" data-close>FECHAR</button><h2 class="sectionTitle">🕵️ <span data-t="auditTitle">Auditoria das operações</span></h2><div class="sectionSub" data-t="auditSub">Linha do tempo da conta individual.</div><div id="audit" class="empty">Aguardando histórico detalhado.</div></div>
+  </section>
+
+  <!-- 11 P/L -->
+  <section class="section" id="s11">
+    <div class="grid3">
+      <div class="card"><div class="label">💵 <span data-t="realized">P/L REALIZADO</span></div><div id="realized" class="value">--</div><div class="sub">USDT</div></div>
+      <div class="card"><div class="label">📊 <span data-t="openPnl">P/L EM ABERTO</span></div><div id="openPnl" class="value">--</div><div class="sub">USDT</div></div>
+      <div class="card"><div class="label">💰 RESULTADO</div><div id="totalPnl" class="value">--</div><div class="sub">USDT</div></div>
+    </div>
+  </section>
+
+  <div class="card" style="margin-top:14px">
+    <h2 class="sectionTitle">🎬 <span data-t="tutorial">Como criar sua API Binance</span></h2>
+    <div class="sectionSub" data-t="tutorialSub">Tutoriais em português e inglês.</div>
+    <div class="videoGrid">
+      <div><div class="label">🇧🇷 PORTUGUÊS</div><iframe src="https://www.youtube.com/embed/BlKB44v_dE0" title="Como Criar e Gerar suas Chaves API na Binance" allowfullscreen></iframe></div>
+      <div><div class="label">🇺🇸 ENGLISH</div><iframe src="https://www.youtube.com/embed/zP3PgzGdA9M" title="How to SET UP API KEY on Binance" allowfullscreen></iframe></div>
+    </div>
+  </div>
+
+  <div class="footer">Binance-Robo • Central Premium • Conta individual</div>
+</main>
 
 <script>
+const token=localStorage.getItem("token");
+const params=new URLSearchParams(location.search);
+const accountId=params.get("account");
+let lang=localStorage.getItem("painelLanguage")||"pt";
+let accountData=null, operation=null, selectedInterval="15m", chart=null, candleSeries=null, equitySamples=[];
 
+const TX={
+pt:{
+brandSub:"Central de Controle Premium • Conta individual",online:"ONLINE",subtitle:"Painel individual da conta Binance.",
+connected:"Conta Binance conectada",equity:"PATRIMÔNIO",available:"SALDO DISPONÍVEL",locked:"BLOQUEADO",assets:"ATIVOS",assetsSub:"Com saldo",
+security:"⚠️ SEGURANÇA DA API BINANCE — Mantenha saques/withdrawal desativados. Use somente permissões necessárias para leitura e negociação. Nunca compartilhe sua API Secret.",
+currentOp:"OPERAÇÃO ATUAL",currentPrice:"PREÇO ATUAL",positionValue:"VALOR DA POSIÇÃO",
+operation:"Operação",chart:"Gráfico",bot:"Robô",comparison:"Comparação",performance:"Performance",coins:"Moedas",activity:"Atividade",alerts:"Alertas",wealth:"Patrimônio",xray:"Raio-X",audit:"Auditoria",pnl:"P/L",
+operationTitle:"Operação atual",operationSub:"Dados reais da posição selecionada nesta conta.",asset:"MOEDA",entry:"ENTRADA",quantity:"QUANTIDADE",openSell:"SELL ABERTA",minOrder:"MÍNIMO DA ORDEM",manual:"Controle manual",manualWarning:"⚠️ A venda envia uma ordem REAL à Binance. Não execute durante os testes.",sellQty:"QUANTIDADE PARA VENDA",estimated:"VALOR ESTIMADO",sell:"🔴 VENDER POSIÇÃO",cancel:"🟠 CANCELAR VENDA ATIVA",refresh:"🔄 ATUALIZAR VALOR",
+chartTitle:"Gráfico",chartSub:"Gráfico da moeda da conta.",health:"Saúde do robô",healthSub:"Diagnóstico da conta e conexão observada pelo painel.",botConfig:"Configuração do robô",botConfigSub:"Área preparada para configuração individual do robô.",botInfo:"A integração da configuração multiusuário será feita sem alterar o robô antigo.",
+comparisonTitle:"Comparação",comparisonSub:"No modo individual não há dados de outros usuários.",comparisonInfo:"A comparação será usada para evolução da própria conta, sem expor dados de outro usuário.",
+performanceTitle:"Performance",performanceSub:"Indicadores da conta individual.",sessionCurve:"Curva de patrimônio — sessão",sessionCurveSub:"Amostras enquanto o painel estiver aberto.",
+coinsTitle:"Moedas",coinsSub:"Todos os ativos com saldo nesta conta.",activityTitle:"Atividade",activitySub:"Atividade observada pelo painel.",alertsTitle:"Alertas inteligentes",alertsSub:"Avisos informativos. Não enviam ordens.",securityTitle:"Segurança",security2:"Saques devem permanecer desativados na API.",wealthTitle:"Patrimônio",xrayTitle:"Raio-X da moeda atual",xraySub:"Leitura técnica sem inventar o score interno do robô.",opportunities:"Ranking de oportunidades",opportunitiesSub:"Área preparada para os filtros técnicos do robô.",opportunitiesInfo:"O ranking técnico completo será ligado ao serviço do robô.",auditTitle:"Auditoria das operações",auditSub:"Linha do tempo da conta individual.",realized:"P/L REALIZADO",openPnl:"P/L EM ABERTO",tutorial:"Como criar sua API Binance",tutorialSub:"Tutoriais em português e inglês."
+},
+en:{
+brandSub:"Premium Control Center • Individual account",online:"ONLINE",subtitle:"Individual Binance account dashboard.",connected:"Connected Binance account",equity:"EQUITY",available:"AVAILABLE BALANCE",locked:"LOCKED",assets:"ASSETS",assetsSub:"With balance",
+security:"⚠️ BINANCE API SECURITY — Keep withdrawals disabled. Use only permissions required for reading and trading. Never share your API Secret.",
+currentOp:"CURRENT OPERATION",currentPrice:"CURRENT PRICE",positionValue:"POSITION VALUE",operation:"Operation",chart:"Chart",bot:"Bot",comparison:"Comparison",performance:"Performance",coins:"Assets",activity:"Activity",alerts:"Alerts",wealth:"Equity",xray:"X-Ray",audit:"Audit",pnl:"P/L",
+operationTitle:"Current operation",operationSub:"Real position data from this account.",asset:"ASSET",entry:"ENTRY",quantity:"QUANTITY",openSell:"OPEN SELL",minOrder:"ORDER MINIMUM",manual:"Manual control",manualWarning:"⚠️ Selling sends a REAL Binance order. Do not execute during testing.",sellQty:"QUANTITY TO SELL",estimated:"ESTIMATED VALUE",sell:"🔴 SELL POSITION",cancel:"🟠 CANCEL ACTIVE SELL",refresh:"🔄 REFRESH VALUE",
+chartTitle:"Chart",chartSub:"Chart for this account asset.",health:"Bot health",healthSub:"Account and connection diagnosis observed by the panel.",botConfig:"Bot configuration",botConfigSub:"Area prepared for individual bot configuration.",botInfo:"Multi-user bot configuration will be connected without changing the old bot.",
+comparisonTitle:"Comparison",comparisonSub:"Individual mode does not show other users' data.",comparisonInfo:"Comparison will be used for the account's own evolution without exposing another user's data.",
+performanceTitle:"Performance",performanceSub:"Individual account indicators.",sessionCurve:"Equity curve — session",sessionCurveSub:"Samples while the panel remains open.",coinsTitle:"Assets",coinsSub:"All assets with balance in this account.",activityTitle:"Activity",activitySub:"Activity observed by the panel.",alertsTitle:"Smart alerts",alertsSub:"Informational notices. They do not place orders.",securityTitle:"Security",security2:"API withdrawals should remain disabled.",wealthTitle:"Equity",xrayTitle:"Current asset X-Ray",xraySub:"Technical reading without inventing the bot's internal score.",opportunities:"Opportunity ranking",opportunitiesSub:"Area prepared for the bot's technical filters.",opportunitiesInfo:"The full technical ranking will be connected to the bot service.",auditTitle:"Operation audit",auditSub:"Individual account timeline.",realized:"REALIZED P/L",openPnl:"OPEN P/L",tutorial:"How to create your Binance API",tutorialSub:"Portuguese and English tutorials."
+}};
 
-const token =
-  localStorage.getItem("token");
+function t(k){return TX[lang][k]||k}
+function applyLang(){document.documentElement.lang=lang==="pt"?"pt-BR":"en";document.querySelectorAll("[data-t]").forEach(e=>e.textContent=t(e.dataset.t));document.getElementById("pt").classList.toggle("active",lang==="pt");document.getElementById("en").classList.toggle("active",lang==="en")}
+document.getElementById("pt").onclick=()=>{lang="pt";localStorage.setItem("painelLanguage",lang);applyLang();renderAlerts();};
+document.getElementById("en").onclick=()=>{lang="en";localStorage.setItem("painelLanguage",lang);applyLang();renderAlerts();};
 
+function money(v,d=2){return Number(v||0).toLocaleString(lang==="pt"?"pt-BR":"en-US",{minimumFractionDigits:d,maximumFractionDigits:d})}
+function qty(v){return Number(v||0).toLocaleString(lang==="pt"?"pt-BR":"en-US",{minimumFractionDigits:0,maximumFractionDigits:8})}
+function signed(v){const n=Number(v||0);return (n>=0?"+":"")+money(n)}
+function cls(v){return Number(v||0)>=0?"green":"red"}
 
-const params =
-  new URLSearchParams(
-    window.location.search
-  );
-
-
-const accountId =
-  params.get("account");
-
-
-let chart = null;
-
-let candleSeries = null;
-
-
-// =====================================================
-// AUTENTICAÇÃO
-// =====================================================
-
-if (!token) {
-
-  window.location.href =
-    "login.html";
-
+async function api(url,opt={}){
+ const r=await fetch(url,{...opt,cache:"no-store",headers:{...(opt.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
+ if(r.status===401){localStorage.removeItem("token");location.href="login.html";return null}
+ const d=await r.json();if(!r.ok)throw new Error(d.message||"Erro na requisição.");return d;
 }
 
+function closeAll(){document.querySelectorAll(".section").forEach(s=>s.classList.remove("compactOpen"));document.querySelectorAll(".menuBtn").forEach(b=>b.classList.remove("active"))}
+function openSection(i){const s=document.getElementById("s"+i);const was=s.classList.contains("compactOpen");closeAll();if(was)return;s.classList.add("compactOpen");document.querySelector('.menuBtn[data-panel="'+i+'"]').classList.add("active");setTimeout(()=>s.scrollIntoView({behavior:"smooth",block:"start"}),30)}
+document.querySelectorAll(".menuBtn").forEach(b=>b.onclick=()=>openSection(Number(b.dataset.panel)));
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeAll);
 
-// =====================================================
-// ABRIR SEÇÃO
-// =====================================================
-
-function abrirSecao(indice) {
-
-  document
-    .querySelectorAll(".section")
-    .forEach(function(section) {
-
-      section.classList.remove("active");
-
-    });
-
-
-  const section =
-    document.getElementById(
-      "section-" + indice
-    );
-
-
-  if (section) {
-
-    section.classList.add("active");
-
-  }
-
+async function loadAccount(){
+ try{
+  const d=await api("/api/panel/account/"+accountId);if(!d)return;accountData=d;
+  const s=d.summary||{};
+  document.getElementById("title").textContent=d.account.name;
+  document.getElementById("accountName").textContent=d.account.name;
+  document.getElementById("equity").textContent=money(s.patrimonioUSDT)+" USDT";
+  document.getElementById("available").textContent=money(s.disponivelUSDT)+" USDT";
+  document.getElementById("locked").textContent=money(s.bloqueadoUSDT)+" USDT";
+  document.getElementById("assetsCount").textContent=s.totalAtivos||0;
+  document.getElementById("wTotal").textContent=money(s.patrimonioUSDT)+" USDT";
+  document.getElementById("wAvailable").textContent=money(s.disponivelUSDT)+" USDT";
+  document.getElementById("wLocked").textContent=money(s.bloqueadoUSDT)+" USDT";
+  document.getElementById("wAssets").textContent=s.totalAtivos||0;
+  document.getElementById("perfAssets").textContent=s.totalAtivos||0;
+  document.getElementById("perfEquity").textContent=money(s.patrimonioUSDT)+" USDT";
+  equitySamples.push(Number(s.patrimonioUSDT||0));if(equitySamples.length>60)equitySamples.shift();drawEquity();
+  renderAssets(d.ativos||[]);renderPortfolio(d.ativos||[]);renderHealth();renderAlerts();
+  document.getElementById("updated").textContent=(lang==="pt"?"Atualizado às ":"Updated at ")+new Date().toLocaleTimeString();
+  if(!operation){const first=(d.ativos||[]).find(a=>a.asset!=="USDT"&&Number(a.total)>0);loadOperation(first?first.asset+"USDT":"BTCUSDT")}else loadOperation(operation.symbol);
+ }catch(e){const accountStatus = document.getElementById("accountStatus");
+    if (accountStatus) {
+      accountStatus.textContent = e.message;
+    }
+    document.getElementById("title").textContent = "Erro: " + e.message;
+    console.error(e)}
 }
 
-
-// =====================================================
-// VOLTAR
-// =====================================================
-
-function voltarDashboard() {
-
-  window.location.href =
-    "dashboard.html";
-
+function renderAssets(a){
+ const el=document.getElementById("assetsTable");el.innerHTML="";
+ if(!a.length){el.innerHTML='<tr><td colspan="5" class="empty">Nenhum ativo.</td></tr>';return}
+ a.forEach(x=>{const r=document.createElement("tr");r.innerHTML=`<td><b>${x.asset}</b></td><td>${qty(x.free)}</td><td>${qty(x.locked)}</td><td>${x.priceUnavailable?"--":money(x.precoUSDT,6)}</td><td>${x.priceUnavailable?"--":money(x.valorUSDT)} USDT</td>`;el.appendChild(r)})
+}
+function renderPortfolio(a){
+ const total=Number(accountData?.summary?.patrimonioUSDT||0),el=document.getElementById("portfolioTable");el.innerHTML="";
+ a.filter(x=>Number(x.valorUSDT)>0).forEach(x=>{const p=total>0?Number(x.valorUSDT)/total*100:0;const r=document.createElement("tr");r.innerHTML=`<td><b>${x.asset}</b></td><td>${money(x.valorUSDT)} USDT</td><td>${money(p)}%</td>`;el.appendChild(r)})
 }
 
-
-// =====================================================
-// LOGOUT
-// =====================================================
-
-function logout() {
-
-  localStorage.removeItem("token");
-
-  window.location.href =
-    "login.html";
-
+async function loadOperation(symbol){
+ try{
+  const d=await api("/api/panel/operation/"+accountId+"?symbol="+encodeURIComponent(symbol));operation=d.operation;const o=operation;
+  const p=Number(o.pnlUSDT||0),active=Number(o.totalQuantity||0)>0;
+  document.getElementById("opSymbol").textContent=o.symbol;document.getElementById("quickSymbol").textContent=o.symbol;
+  document.getElementById("opEntry").textContent=o.averageEntry?money(o.averageEntry,6):"--";document.getElementById("opCurrent").textContent=money(o.currentPrice,6);
+  document.getElementById("quickPrice").textContent=money(o.currentPrice,6);document.getElementById("opQty").textContent=qty(o.quantity);document.getElementById("opLocked").textContent=qty(o.lockedQuantity);
+  document.getElementById("opValue").textContent=money(o.currentValue)+" USDT";document.getElementById("quickValue").textContent=money(o.currentValue)+" USDT";
+  document.getElementById("opPnl").textContent=signed(p)+" USDT";document.getElementById("quickPnl").textContent=signed(p)+" USDT";document.getElementById("quickPct").textContent=Number.isFinite(Number(o.pnlPercentual))?signed(o.pnlPercentual)+"%":"--";
+  ["opPnl","quickPnl"].forEach(id=>document.getElementById(id).className="value "+cls(p));
+  document.getElementById("cmpEntry").textContent=o.averageEntry?money(o.averageEntry,6):"--";document.getElementById("cmpCurrent").textContent=money(o.currentPrice,6);document.getElementById("cmpPnl").textContent=signed(p)+" USDT";
+  document.getElementById("perfOpen").textContent=signed(p)+" USDT";document.getElementById("openPnl").textContent=signed(p)+" USDT";document.getElementById("totalPnl").textContent=signed(p)+" USDT";document.getElementById("realized").textContent="--";
+  document.getElementById("opSellOrders").textContent=(o.sellOrders||[]).length;document.getElementById("opMin").textContent=money(o.minNotional)+" USDT";
+  document.getElementById("opBadge").textContent=active?(lang==="pt"?"🟢 POSIÇÃO ATIVA":"🟢 ACTIVE POSITION"):(lang==="pt"?"⚪ SEM POSIÇÃO":"⚪ NO POSITION");
+  document.getElementById("quickStatus").textContent=active?(lang==="pt"?"OPERAÇÃO ATIVA":"ACTIVE OPERATION"):(lang==="pt"?"SEM OPERAÇÃO":"NO OPERATION");
+  document.getElementById("sellQty").value=active?o.quantity:"";updateEstimate();renderXray(o);fillSymbols();
+ }catch(e){console.error(e)}
 }
 
-
-// =====================================================
-// CARREGAR CONTA
-// =====================================================
-
-async function carregarConta() {
-
-
-  if (!accountId) {
-
-    document.getElementById(
-      "accountName"
-    ).textContent =
-      "Conta não selecionada.";
-
-    return;
-
-  }
-
-
-  try {
-
-
-    const response =
-      await fetch(
-        `/api/panel/account/${accountId}`,
-        {
-          headers: {
-            "Authorization":
-              `Bearer ${token}`
-          },
-
-          cache: "no-store"
-        }
-      );
-
-
-    const data =
-      await response.json();
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        data.message ||
-        "Erro ao carregar conta."
-      );
-
-    }
-
-
-    document.getElementById(
-      "accountName"
-    ).textContent =
-      data.account?.name ||
-      "Conta Binance";
-
-
-    document.getElementById(
-      "accountStatus"
-    ).textContent =
-      "● Conta conectada";
-
-
-    const patrimonio =
-      Number(
-        data.patrimonioUSDT ||
-        data.account?.patrimonioUSDT ||
-        0
-      );
-
-
-    const saldo =
-      Number(
-        data.saldoUSDT ||
-        data.account?.saldoUSDT ||
-        0
-      );
-
-
-    document.getElementById(
-      "patrimonio"
-    ).textContent =
-      patrimonio.toFixed(2) +
-      " USDT";
-
-
-    document.getElementById(
-      "patrimonio2"
-    ).textContent =
-      patrimonio.toFixed(2) +
-      " USDT";
-
-
-    document.getElementById(
-      "saldoUsdt"
-    ).textContent =
-      saldo.toFixed(2) +
-      " USDT";
-
-
-    document.getElementById(
-      "usdt2"
-    ).textContent =
-      saldo.toFixed(2) +
-      " USDT";
-
-
-    document.getElementById(
-      "updated"
-    ).textContent =
-      new Date().toLocaleTimeString(
-        "pt-BR"
-      );
-
-
-    if (data.assets) {
-
-
-      const ativos =
-        data.assets.filter(
-          function(asset) {
-
-            return (
-              Number(asset.free || 0) +
-              Number(asset.locked || 0)
-            ) > 0;
-
-          }
-        );
-
-
-      document.getElementById(
-        "assets"
-      ).innerHTML =
-        ativos.length
-
-          ? ativos.map(
-              function(asset) {
-
-                return `
-
-                  <div
-                    style="
-                      padding:12px;
-                      border-bottom:1px solid #21304a;
-                    "
-                  >
-
-                    <strong>
-                      ${asset.asset}
-                    </strong>
-
-                    <br>
-
-                    Disponível:
-                    ${Number(
-                      asset.free || 0
-                    ).toFixed(8)}
-
-                    <br>
-
-                    Bloqueado:
-                    ${Number(
-                      asset.locked || 0
-                    ).toFixed(8)}
-
-                  </div>
-
-                `;
-
-              }
-            ).join("")
-
-          : "Nenhuma moeda encontrada.";
-
-    }
-
-
-  } catch (error) {
-
-
-    console.error(error);
-
-
-    document.getElementById(
-      "accountName"
-    ).textContent =
-      "Erro ao carregar conta.";
-
-
-    document.getElementById(
-      "accountStatus"
-    ).textContent =
-      error.message;
-
-  }
-
+function fillSymbols(){
+ const sel=document.getElementById("symbolSelect");const arr=(accountData?.ativos||[]).filter(x=>x.asset!=="USDT"&&Number(x.total)>0);sel.innerHTML="";
+ arr.forEach(x=>{const o=document.createElement("option");o.value=x.asset+"USDT";o.textContent=x.asset+"USDT";sel.appendChild(o)});
+ if(operation){sel.value=operation.symbol}
 }
 
-
-// =====================================================
-// GRÁFICO
-// =====================================================
-
-async function carregarGrafico(
-  intervalo = "15m"
-) {
-
-
-  if (!accountId) {
-
-    return;
-
-  }
-
-
-  try {
-
-
-    const response =
-      await fetch(
-        `/api/panel/chart?account=${accountId}&symbol=BTCUSDT&interval=${intervalo}`,
-        {
-          headers: {
-            "Authorization":
-              `Bearer ${token}`
-          },
-
-          cache: "no-store"
-        }
-      );
-
-
-    const data =
-      await response.json();
-
-
-    if (!response.ok) {
-
-      throw new Error(
-        data.message ||
-        "Erro ao carregar gráfico."
-      );
-
-    }
-
-
-    const chartContainer =
-      document.getElementById(
-        "chart"
-      );
-
-
-    if (!chart) {
-
-
-      chart =
-        LightweightCharts.createChart(
-          chartContainer,
-          {
-
-            width:
-              chartContainer.clientWidth,
-
-            height: 450,
-
-            layout: {
-
-              background: {
-                color: "#0d1626"
-              },
-
-              textColor: "#8290a8"
-
-            },
-
-            grid: {
-
-              vertLines: {
-                color: "#17243a"
-              },
-
-              horzLines: {
-                color: "#17243a"
-              }
-
-            },
-
-            timeScale: {
-
-              borderColor:
-                "#21304a"
-
-            }
-
-          }
-        );
-
-
-      candleSeries =
-        chart.addCandlestickSeries();
-
-    }
-
-
-    const candles =
-      data.candles ||
-      data;
-
-
-    if (Array.isArray(candles)) {
-
-
-      candleSeries.setData(
-
-        candles.map(
-          function(c) {
-
-            return {
-
-              time:
-                Number(c.time),
-
-              open:
-                Number(c.open),
-
-              high:
-                Number(c.high),
-
-              low:
-                Number(c.low),
-
-              close:
-                Number(c.close)
-
-            };
-
-          }
-        )
-
-      );
-
-
-      chart
-        .timeScale()
-        .fitContent();
-
-    }
-
-
-  } catch (error) {
-
-    console.error(
-      "GRÁFICO:",
-      error
-    );
-
-  }
-
+function updateEstimate(){const q=Number(document.getElementById("sellQty").value||0),p=Number(operation?.currentPrice||0);document.getElementById("estimated").textContent=money(q*p)+" USDT"}
+document.getElementById("sellQty").oninput=updateEstimate;
+document.getElementById("symbolSelect").onchange=()=>{loadOperation(document.getElementById("symbolSelect").value);loadChart()};
+document.getElementById("refreshBtn").onclick=()=>loadAccount();
+
+document.getElementById("cancelBtn").onclick=async()=>{
+ if(!operation)return;if(!confirm(lang==="pt"?"Cancelar todas as ordens SELL ativas deste ativo?":"Cancel all active SELL orders for this asset?"))return;
+ try{const d=await api("/api/panel/manual/cancel-sell",{method:"POST",body:JSON.stringify({accountId,symbol:operation.symbol})});document.getElementById("manualMsg").textContent=d.message;await loadOperation(operation.symbol)}catch(e){document.getElementById("manualMsg").textContent=e.message}
+};
+
+document.getElementById("sellBtn").onclick=async()=>{
+ if(!operation)return;const q=Number(document.getElementById("sellQty").value||0);if(q<=0)return alert(lang==="pt"?"Informe uma quantidade válida.":"Enter a valid quantity.");
+ const c=prompt(lang==="pt"?"Digite CONFIRMAR VENDA para executar a venda REAL:":"Type CONFIRMAR VENDA to execute the REAL sale:");
+ if(c!=="CONFIRMAR VENDA")return;
+ try{const d=await api("/api/panel/manual/sell",{method:"POST",body:JSON.stringify({accountId,symbol:operation.symbol,quantity:q,confirmation:"CONFIRMAR VENDA"})});document.getElementById("manualMsg").textContent=d.message;await loadAccount()}catch(e){document.getElementById("manualMsg").textContent=e.message}
+};
+
+async function loadChart(){
+ if(!operation)return;const symbol=document.getElementById("symbolSelect").value||operation.symbol;
+ try{
+  const d=await api(`/api/panel/chart?account=${accountId}&symbol=${encodeURIComponent(symbol)}&interval=${selectedInterval}`);
+  const candles=d.candles||[];const el=document.getElementById("chart");
+  if(!chart){chart=LightweightCharts.createChart(el,{width:el.clientWidth,height:440,layout:{background:{color:"#050b15"},textColor:"#8290a8"},grid:{vertLines:{color:"#17243a"},horzLines:{color:"#17243a"}},timeScale:{borderColor:"#21304a"}});candleSeries=chart.addCandlestickSeries()}
+  candleSeries.setData(candles.map(c=>({time:Number(c.time),open:Number(c.open),high:Number(c.high),low:Number(c.low),close:Number(c.close)})));chart.timeScale().fitContent();
+ }catch(e){console.error(e)}
 }
+document.querySelectorAll(".interval").forEach(b=>b.onclick=()=>{selectedInterval=b.dataset.i;document.querySelectorAll(".interval").forEach(x=>x.classList.remove("active"));b.classList.add("active");loadChart()});
 
+function renderHealth(){document.getElementById("health").innerHTML=`<div class="grid3"><div class="info"><div class="label">API</div><b class="green">ONLINE</b></div><div class="info"><div class="label">CONTA</div><b>${accountData?.account?.name||"--"}</b></div><div class="info"><div class="label">PAINEL</div><b class="green">CONECTADO</b></div></div>`}
+function renderAlerts(){
+ const p=Number(operation?.pnlUSDT||0);const items=[];
+ if(!operation||Number(operation.totalQuantity||0)<=0)items.push("⏳ "+(lang==="pt"?"Nenhuma posição ativa detectada.":"No active position detected."));
+ else items.push((p>=0?"🟢 ":"🔴 ")+(lang==="pt"?"P/L atual: ":"Current P/L: ")+signed(p)+" USDT");
+ items.push("🔐 "+(lang==="pt"?"Mantenha saques da API desativados.":"Keep API withdrawals disabled."));
+ document.getElementById("alerts").innerHTML=items.map(x=>`<div class="alertRow">${x}</div>`).join("");
+}
+function renderXray(o){document.getElementById("xray").innerHTML=`<div class="xrayGrid"><div class="info"><div class="label">ATIVO</div><b>${o.symbol}</b></div><div class="info"><div class="label">RSI</div><b>--</b></div><div class="info"><div class="label">EMA</div><b>--</b></div><div class="info"><div class="label">P/L</div><b class="${cls(o.pnlUSDT)}">${signed(o.pnlUSDT)} USDT</b></div></div><div class="security">${lang==="pt"?"O Raio-X não inventa RSI/EMA/score. Esses dados serão ligados ao serviço do robô.":"X-Ray does not invent RSI/EMA/score. These values will be connected to the bot service."}</div>`}
+function drawEquity(){const c=document.getElementById("equityCanvas"),x=c.getContext("2d"),w=c.width,h=c.height;x.clearRect(0,0,w,h);if(equitySamples.length<2)return;const min=Math.min(...equitySamples),max=Math.max(...equitySamples);x.beginPath();equitySamples.forEach((v,i)=>{const px=20+(w-40)*i/(equitySamples.length-1),py=h-20-((v-min)/(max-min||1))*(h-40);i?x.lineTo(px,py):x.moveTo(px,py)});x.strokeStyle="#4aa8ff";x.lineWidth=2;x.stroke()}
 
-// =====================================================
-// INICIAR
-// =====================================================
+window.addEventListener("resize",()=>{if(chart)chart.applyOptions({width:document.getElementById("chart").clientWidth})});
+applyLang();closeAll();
 
-carregarConta();
-
-carregarGrafico();
-
-
-setInterval(
-  carregarConta,
-  15000
-);
-
-
-window.addEventListener(
-  "resize",
-  function() {
-
-    if (chart) {
-
-      const container =
-        document.getElementById(
-          "chart"
-        );
-
-
-      chart.applyOptions({
-
-        width:
-          container.clientWidth
-
-      });
-
-    }
-
-  }
-);
-
-
+if(!accountId){document.getElementById("title").textContent=lang==="pt"?"Conta não informada":"Account not specified"}
+else{loadAccount();setTimeout(loadChart,1000);setInterval(loadAccount,15000)}
 </script>
-
-
 </body>
-
 </html>

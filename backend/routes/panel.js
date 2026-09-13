@@ -10,7 +10,40 @@ const router = express.Router();
 
 
 // =========================================================
-// OBTER CONTA DO USUÁRIO
+// FUNÇÕES GERAIS
+// =========================================================
+
+function numero(value) {
+
+  const n = Number(value);
+
+  return Number.isFinite(n)
+    ? n
+    : 0;
+}
+
+
+function criarCliente(account) {
+
+  const apiKey =
+    cryptoService.decrypt(
+      account.api_key_encrypted
+    );
+
+  const apiSecret =
+    cryptoService.decrypt(
+      account.api_secret_encrypted
+    );
+
+  return Binance({
+    apiKey,
+    apiSecret
+  });
+}
+
+
+// =========================================================
+// BUSCAR CONTA DO USUÁRIO
 // =========================================================
 
 async function obterContaUsuario(
@@ -39,8 +72,12 @@ async function obterContaUsuario(
     ]
   );
 
-  if (result.rows.length === 0) {
+  if (
+    result.rows.length === 0
+  ) {
+
     return null;
+
   }
 
   return result.rows[0];
@@ -48,44 +85,7 @@ async function obterContaUsuario(
 
 
 // =========================================================
-// CRIAR CLIENT BINANCE
-// =========================================================
-
-function criarCliente(account) {
-
-  const apiKey =
-    cryptoService.decrypt(
-      account.api_key_encrypted
-    );
-
-  const apiSecret =
-    cryptoService.decrypt(
-      account.api_secret_encrypted
-    );
-
-  return Binance({
-    apiKey,
-    apiSecret
-  });
-}
-
-
-// =========================================================
-// CONVERTER QUANTIDADE
-// =========================================================
-
-function numero(value) {
-
-  const n = Number(value);
-
-  return Number.isFinite(n)
-    ? n
-    : 0;
-}
-
-
-// =========================================================
-// ARREDONDAR PARA STEP SIZE
+// AJUSTAR QUANTIDADE
 // =========================================================
 
 function ajustarQuantidade(
@@ -100,7 +100,14 @@ function ajustarQuantidade(
     numero(stepSize);
 
   if (
-    quantidade <= 0 ||
+    quantidade <= 0
+  ) {
+
+    return 0;
+
+  }
+
+  if (
     stepSize <= 0
   ) {
 
@@ -117,19 +124,22 @@ function ajustarQuantidade(
       ).length
     );
 
-  const ajustada =
+
+  const resultado =
     Math.floor(
       quantidade / stepSize
     ) * stepSize;
 
+
   return Number(
-    ajustada.toFixed(casas)
+    resultado.toFixed(casas)
   );
+
 }
 
 
 // =========================================================
-// OBTER FILTROS DO SÍMBOLO
+// FILTROS DO SÍMBOLO
 // =========================================================
 
 async function obterFiltros(
@@ -140,39 +150,65 @@ async function obterFiltros(
   const info =
     await client.exchangeInfo();
 
+
   const mercado =
-    info.symbols.find(
+    (
+      info.symbols || []
+    ).find(
       (item) =>
         item.symbol === symbol
     );
 
-  if (!mercado) {
+
+  if (
+    !mercado
+  ) {
+
     return null;
+
   }
 
+
   const lotSize =
-    mercado.filters.find(
+    (
+      mercado.filters || []
+    ).find(
       (filter) =>
         filter.filterType === "LOT_SIZE"
     );
 
-  const minNotional =
-    mercado.filters.find(
+
+  const minNotionalFilter =
+    (
+      mercado.filters || []
+    ).find(
       (filter) =>
         filter.filterType === "MIN_NOTIONAL"
     );
 
+
+  const notionalFilter =
+    (
+      mercado.filters || []
+    ).find(
+      (filter) =>
+        filter.filterType === "NOTIONAL"
+    );
+
+
   return {
 
-    symbol: mercado.symbol,
-
-    status: mercado.status,
+    symbol:
+      mercado.symbol,
 
     baseAsset:
       mercado.baseAsset,
 
     quoteAsset:
       mercado.quoteAsset,
+
+    status:
+      mercado.status,
 
     stepSize:
       numero(
@@ -186,21 +222,122 @@ async function obterFiltros(
 
     minNotional:
       numero(
-        minNotional?.minNotional
+        minNotionalFilter?.minNotional
+      ) ||
+      numero(
+        notionalFilter?.minNotional
       )
 
   };
+
 }
 
 
 // =========================================================
-// CALCULAR PREÇO MÉDIO ESTIMADO
+// SALDO DO ATIVO
 // =========================================================
 
-async function calcularPrecoMedio(
+function encontrarSaldo(
+  balances,
+  asset
+) {
+
+  return (
+    balances || []
+  ).find(
+    (item) =>
+      String(
+        item.asset || ""
+      ).replace(
+        /^LD/,
+        ""
+      ) === asset
+  );
+
+}
+
+
+// =========================================================
+// PREÇO USDT
+// =========================================================
+
+function obterPrecoUSDT(
+  prices,
+  asset
+) {
+
+  if (
+    asset === "USDT"
+  ) {
+
+    return 1;
+
+  }
+
+
+  const direto =
+    numero(
+      prices[
+        `${asset}USDT`
+      ]
+    );
+
+
+  if (
+    direto > 0
+  ) {
+
+    return direto;
+
+  }
+
+
+  const btc =
+    numero(
+      prices[
+        `${asset}BTC`
+      ]
+    );
+
+
+  const btcUSDT =
+    numero(
+      prices.BTCUSDT
+    );
+
+
+  if (
+    btc > 0 &&
+    btcUSDT > 0
+  ) {
+
+    return btc * btcUSDT;
+
+  }
+
+
+  return 0;
+
+}
+
+
+// =========================================================
+// IDENTIFICAR OPERAÇÃO PELOS TRADES
+//
+// Regra:
+// - compra aumenta posição
+// - venda diminui posição
+// - calculamos a posição líquida
+// - calculamos custo líquido
+//
+// Isso permite reconstruir a operação da conta
+// sem alterar o robo.js antigo.
+// =========================================================
+
+async function obterPosicaoPorTrades(
   client,
   symbol,
-  quantidadeAtual
+  quantidadeSaldo
 ) {
 
   try {
@@ -208,23 +345,62 @@ async function calcularPrecoMedio(
     const trades =
       await client.myTrades({
         symbol,
-        limit: 500
+        limit: 1000
       });
+
 
     if (
       !Array.isArray(trades) ||
       trades.length === 0
     ) {
 
-      return null;
+      return {
+
+        quantidade:
+          quantidadeSaldo,
+
+        precoMedio:
+          null,
+
+        custo:
+          null,
+
+        pnlRealizado:
+          0,
+
+        encontrouTrades:
+          false
+
+      };
 
     }
 
-    let custoTotal = 0;
-    let quantidadeLiquida = 0;
+
+    /*
+     * Ordenar do mais antigo para
+     * o mais recente.
+     */
+
+    trades.sort(
+      (a, b) =>
+        Number(a.time || 0) -
+        Number(b.time || 0)
+    );
+
+
+    let quantidade =
+      0;
+
+    let custo =
+      0;
+
+    let pnlRealizado =
+      0;
+
 
     for (
-      const trade of trades
+      const trade
+      of trades
     ) {
 
       const qty =
@@ -232,61 +408,189 @@ async function calcularPrecoMedio(
           trade.qty
         );
 
+
       const quoteQty =
         numero(
           trade.quoteQty
         );
 
+
+      const price =
+        numero(
+          trade.price
+        );
+
+
+      if (
+        qty <= 0
+      ) {
+
+        continue;
+
+      }
+
+
+      /*
+       * COMPRA
+       */
+
       if (
         trade.isBuyer
       ) {
 
-        custoTotal +=
-          quoteQty;
-
-        quantidadeLiquida +=
+        quantidade +=
           qty;
 
-      } else {
-
-        custoTotal -=
+        custo +=
           quoteQty;
 
-        quantidadeLiquida -=
+        continue;
+
+      }
+
+
+      /*
+       * VENDA
+       *
+       * Calculamos o custo médio
+       * da posição antes da venda.
+       */
+
+      if (
+        quantidade > 0
+      ) {
+
+        const custoMedio =
+          custo /
+          quantidade;
+
+
+        const custoVenda =
+          custoMedio *
           qty;
+
+
+        pnlRealizado +=
+          quoteQty -
+          custoVenda;
+
+
+        custo -=
+          custoVenda;
+
+      }
+
+
+      quantidade -=
+        qty;
+
+
+      if (
+        quantidade < 0
+      ) {
+
+        quantidade = 0;
+
+      }
+
+
+      if (
+        custo < 0
+      ) {
+
+        custo = 0;
 
       }
 
     }
 
+
+    /*
+     * O saldo atual da Binance é a
+     * fonte final da quantidade real.
+     *
+     * Ajustamos o custo usando a
+     * quantidade efetivamente existente.
+     */
+
+    const quantidadeFinal =
+      numero(
+        quantidadeSaldo
+      );
+
+
+    let precoMedio =
+      null;
+
+
     if (
-      quantidadeLiquida <= 0 ||
-      quantidadeAtual <= 0
+      quantidadeFinal > 0 &&
+      custo > 0
     ) {
 
-      return null;
+      precoMedio =
+        custo /
+        quantidadeFinal;
 
     }
 
-    return (
-      custoTotal /
-      quantidadeAtual
-    );
+
+    return {
+
+      quantidade:
+        quantidadeFinal,
+
+      precoMedio,
+
+      custo:
+
+        precoMedio !== null
+          ? precoMedio *
+            quantidadeFinal
+          : null,
+
+      pnlRealizado,
+
+      encontrouTrades:
+        true
+
+    };
+
 
   } catch (error) {
 
     console.error(
-      "ERRO AO CALCULAR PREÇO MÉDIO:",
+      "ERRO AO RECONSTRUIR POSIÇÃO:",
       error
     );
 
-    return null;
+
+    return {
+
+      quantidade:
+        quantidadeSaldo,
+
+      precoMedio:
+        null,
+
+      custo:
+        null,
+
+      pnlRealizado:
+        0,
+
+      encontrouTrades:
+        false
+
+    };
+
   }
+
 }
 
 
 // =========================================================
-// CONTA — DADOS PRINCIPAIS
+// CONTA / MOEDAS / PATRIMÔNIO
 // =========================================================
 
 router.get(
@@ -302,6 +606,7 @@ router.get(
           req.params.id
         );
 
+
       if (!account) {
 
         return res.status(404).json({
@@ -315,7 +620,10 @@ router.get(
 
       }
 
-      if (!account.active) {
+
+      if (
+        !account.active
+      ) {
 
         return res.status(400).json({
 
@@ -328,20 +636,28 @@ router.get(
 
       }
 
+
       const client =
         criarCliente(account);
+
 
       const info =
         await client.accountInfo();
 
+
       const prices =
         await client.prices();
 
-      let patrimonioUSDT = 0;
 
-      let disponivelUSDT = 0;
+      let patrimonioUSDT =
+        0;
 
-      let bloqueadoUSDT = 0;
+      let disponivelUSDT =
+        0;
+
+      let bloqueadoUSDT =
+        0;
+
 
       const ativos = [];
 
@@ -352,13 +668,21 @@ router.get(
       ) {
 
         const free =
-          numero(balance.free);
+          numero(
+            balance.free
+          );
+
 
         const locked =
-          numero(balance.locked);
+          numero(
+            balance.locked
+          );
+
 
         const total =
-          free + locked;
+          free +
+          locked;
+
 
         if (
           total <= 0
@@ -367,6 +691,7 @@ router.get(
           continue;
 
         }
+
 
         const asset =
           String(
@@ -377,96 +702,22 @@ router.get(
           );
 
 
-        let precoUSDT = 0;
+        const precoUSDT =
+          obterPrecoUSDT(
+            prices,
+            asset
+          );
 
 
-        if (
-          asset === "USDT"
-        ) {
-
-          precoUSDT = 1;
-
-        } else {
-
-          precoUSDT =
-            numero(
-              prices[
-                `${asset}USDT`
-              ]
-            );
-
-        }
-
-
-        /*
-         * Alguns ativos não possuem
-         * par direto com USDT.
-         */
-
-        if (
-          precoUSDT <= 0
-        ) {
-
-          const btcPrice =
-            numero(
-              prices[
-                `${asset}BTC`
-              ]
-            );
-
-          const btcUSDT =
-            numero(
-              prices.BTCUSDT
-            );
-
-          if (
-            btcPrice > 0 &&
-            btcUSDT > 0
-          ) {
-
-            precoUSDT =
-              btcPrice *
-              btcUSDT;
-
-          }
-
-        }
-
-
-        if (
-          precoUSDT <= 0
-        ) {
-
-          ativos.push({
-
-            asset,
-
-            free,
-
-            locked,
-
-            total,
-
-            precoUSDT: 0,
-
-            valorUSDT: 0,
-
-            priceUnavailable: true
-
-          });
-
-          continue;
-
-        }
-
-
-        const valorTotal =
+        const valorUSDT =
           total *
           precoUSDT;
+
 
         const valorFree =
           free *
           precoUSDT;
+
 
         const valorLocked =
           locked *
@@ -474,10 +725,12 @@ router.get(
 
 
         patrimonioUSDT +=
-          valorTotal;
+          valorUSDT;
+
 
         disponivelUSDT +=
           valorFree;
+
 
         bloqueadoUSDT +=
           valorLocked;
@@ -495,10 +748,10 @@ router.get(
 
           precoUSDT,
 
-          valorUSDT:
-            valorTotal,
+          valorUSDT,
 
-          priceUnavailable: false
+          priceUnavailable:
+            precoUSDT <= 0
 
         });
 
@@ -529,6 +782,7 @@ router.get(
 
         },
 
+
         summary: {
 
           patrimonioUSDT,
@@ -542,6 +796,7 @@ router.get(
 
         },
 
+
         ativos
 
       });
@@ -550,16 +805,17 @@ router.get(
     } catch (error) {
 
       console.error(
-        "ERRO AO CARREGAR PAINEL:",
+        "ERRO AO CARREGAR CONTA:",
         error
       );
+
 
       return res.status(500).json({
 
         success: false,
 
         message:
-          "Não foi possível carregar os dados do painel."
+          "Não foi possível carregar os dados da conta."
 
       });
 
@@ -586,6 +842,7 @@ router.get(
           req.params.id
         );
 
+
       if (!account) {
 
         return res.status(404).json({
@@ -598,6 +855,7 @@ router.get(
         });
 
       }
+
 
       const symbol =
         String(
@@ -631,12 +889,6 @@ router.get(
         await client.prices();
 
 
-      const ticker =
-        numero(
-          prices[symbol]
-        );
-
-
       const filtros =
         await obterFiltros(
           client,
@@ -658,56 +910,63 @@ router.get(
       }
 
 
-      const baseAsset =
-        filtros.baseAsset;
-
-
-      const balance =
-        (
-          info.balances || []
-        ).find(
-          (item) =>
-            String(
-              item.asset
-            ).replace(
-              /^LD/,
-              ""
-            ) === baseAsset
+      const ticker =
+        numero(
+          prices[symbol]
         );
 
 
-      const quantidade =
-        numero(
-          balance?.free
+      const saldo =
+        encontrarSaldo(
+          info.balances,
+          filtros.baseAsset
         );
 
 
-      const bloqueada =
+      const quantidadeLivre =
         numero(
-          balance?.locked
+          saldo?.free
+        );
+
+
+      const quantidadeBloqueada =
+        numero(
+          saldo?.locked
         );
 
 
       const quantidadeTotal =
-        quantidade +
-        bloqueada;
+        quantidadeLivre +
+        quantidadeBloqueada;
 
 
-      const precoMedio =
-        await calcularPrecoMedio(
+      /*
+       * Reconstruir posição através
+       * do histórico de trades.
+       */
+
+      const posicao =
+        await obterPosicaoPorTrades(
           client,
           symbol,
           quantidadeTotal
         );
 
 
-      let pnlUSDT = null;
+      const precoMedio =
+        posicao.precoMedio;
 
-      let pnlPercentual = null;
+
+      let pnlUSDT =
+        null;
+
+
+      let pnlPercentual =
+        null;
 
 
       if (
-        precoMedio &&
+        precoMedio !== null &&
         quantidadeTotal > 0 &&
         ticker > 0
       ) {
@@ -716,13 +975,16 @@ router.get(
           precoMedio *
           quantidadeTotal;
 
+
         const valorAtual =
           ticker *
           quantidadeTotal;
 
+
         pnlUSDT =
           valorAtual -
           custo;
+
 
         if (
           custo > 0
@@ -732,12 +994,17 @@ router.get(
             (
               pnlUSDT /
               custo
-            ) * 100;
+            ) *
+            100;
 
         }
 
       }
 
+
+      /*
+       * Ordens abertas.
+       */
 
       const ordens =
         await client.openOrders({
@@ -763,13 +1030,19 @@ router.get(
               order.symbol,
 
             price:
-              numero(order.price),
+              numero(
+                order.price
+              ),
 
             origQty:
-              numero(order.origQty),
+              numero(
+                order.origQty
+              ),
 
             executedQty:
-              numero(order.executedQty),
+              numero(
+                order.executedQty
+              ),
 
             status:
               order.status,
@@ -784,15 +1057,22 @@ router.get(
         );
 
 
+      const valorAtual =
+        quantidadeTotal *
+        ticker;
+
+
       return res.json({
 
         success: true,
+
 
         operation: {
 
           symbol,
 
-          baseAsset,
+          baseAsset:
+            filtros.baseAsset,
 
           quoteAsset:
             filtros.quoteAsset,
@@ -801,10 +1081,10 @@ router.get(
             ticker,
 
           quantity:
-            quantidade,
+            quantidadeLivre,
 
           lockedQuantity:
-            bloqueada,
+            quantidadeBloqueada,
 
           totalQuantity:
             quantidadeTotal,
@@ -812,9 +1092,18 @@ router.get(
           averageEntry:
             precoMedio,
 
+          currentValue:
+            valorAtual,
+
           pnlUSDT,
 
           pnlPercentual,
+
+          pnlRealized:
+            posicao.pnlRealizado,
+
+          foundTrades:
+            posicao.encontrouTrades,
 
           minQty:
             filtros.minQty,
@@ -838,6 +1127,7 @@ router.get(
         "ERRO AO CARREGAR OPERAÇÃO:",
         error
       );
+
 
       return res.status(500).json({
 
@@ -939,23 +1229,22 @@ router.get(
       }
 
 
-      const balance =
-        (
-          info.balances || []
-        ).find(
-          (item) =>
-            String(
-              item.asset
-            ).replace(
-              /^LD/,
-              ""
-            ) === filtros.baseAsset
+      const saldo =
+        encontrarSaldo(
+          info.balances,
+          filtros.baseAsset
+        );
+
+
+      const saldoDisponivel =
+        numero(
+          saldo?.free
         );
 
 
       const quantidade =
         ajustarQuantidade(
-          balance?.free,
+          saldoDisponivel,
           filtros.stepSize
         );
 
@@ -971,6 +1260,13 @@ router.get(
         precoAtual;
 
 
+      const valido =
+        quantidade >=
+          filtros.minQty &&
+        valorEstimado >=
+          filtros.minNotional;
+
+
       return res.json({
 
         success: true,
@@ -982,8 +1278,7 @@ router.get(
           asset:
             filtros.baseAsset,
 
-          quantity:
-            quantidade,
+          quantity,
 
           price:
             precoAtual,
@@ -991,18 +1286,20 @@ router.get(
           estimatedValue:
             valorEstimado,
 
+          availableBalance:
+            saldoDisponivel,
+
           minQty:
             filtros.minQty,
-
-          minNotional:
-            filtros.minNotional,
 
           stepSize:
             filtros.stepSize,
 
+          minNotional:
+            filtros.minNotional,
+
           valid:
-            quantidade >= filtros.minQty &&
-            valorEstimado >= filtros.minNotional
+            valido
 
         }
 
@@ -1015,6 +1312,7 @@ router.get(
         "ERRO NA PRÉVIA DE VENDA:",
         error
       );
+
 
       return res.status(500).json({
 
@@ -1069,16 +1367,36 @@ router.post(
       }
 
 
+      const symbolUpper =
+        String(
+          symbol || ""
+        ).toUpperCase();
+
+
+      if (!symbolUpper) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Informe o símbolo."
+
+        });
+
+      }
+
+
       const client =
         criarCliente(account);
 
 
       const abertas =
         await client.openOrders({
+
           symbol:
-            String(
-              symbol || ""
-            ).toUpperCase()
+            symbolUpper
+
         });
 
 
@@ -1159,11 +1477,13 @@ router.post(
         error
       );
 
+
       return res.status(500).json({
 
         success: false,
 
         message:
+          error?.message ||
           "Não foi possível cancelar as ordens SELL."
 
       });
@@ -1192,6 +1512,10 @@ router.post(
         confirmation
       } = req.body;
 
+
+      /*
+       * CONFIRMAÇÃO OBRIGATÓRIA
+       */
 
       if (
         confirmation !==
@@ -1231,14 +1555,14 @@ router.post(
       }
 
 
-      const client =
-        criarCliente(account);
-
-
       const symbolUpper =
         String(
           symbol || ""
         ).toUpperCase();
+
+
+      const client =
+        criarCliente(account);
 
 
       const filtros =
@@ -1266,37 +1590,35 @@ router.post(
         await client.accountInfo();
 
 
-      const balance =
-        (
-          info.balances || []
-        ).find(
-          (item) =>
-            String(
-              item.asset
-            ).replace(
-              /^LD/,
-              ""
-            ) === filtros.baseAsset
+      const saldo =
+        encontrarSaldo(
+          info.balances,
+          filtros.baseAsset
         );
 
 
       const saldoDisponivel =
         numero(
-          balance?.free
+          saldo?.free
         );
 
 
-      const requestedQuantity =
-        numero(quantity);
+      const quantidadeSolicitada =
+        numero(
+          quantity
+        );
 
 
       const quantidade =
         ajustarQuantidade(
+
           Math.min(
-            requestedQuantity,
+            quantidadeSolicitada,
             saldoDisponivel
           ),
+
           filtros.stepSize
+
         );
 
 
@@ -1343,6 +1665,22 @@ router.post(
         );
 
 
+      if (
+        preco <= 0
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Não foi possível obter o preço atual."
+
+        });
+
+      }
+
+
       const valor =
         quantidade *
         preco;
@@ -1366,16 +1704,12 @@ router.post(
 
 
       /*
-       * VENDA REAL
+       * IMPORTANTE:
        *
-       * Só chega aqui após:
+       * ESTA É UMA ORDEM REAL.
        *
-       * 1. usuário autenticado
-       * 2. conta pertencente ao usuário
-       * 3. confirmação explícita
-       * 4. saldo validado
-       * 5. quantidade ajustada
-       * 6. filtros da Binance validados
+       * Não executar sem confirmação
+       * explícita do usuário.
        */
 
       const order =
@@ -1414,6 +1748,7 @@ router.post(
         "ERRO NA VENDA MANUAL:",
         error
       );
+
 
       return res.status(500).json({
 
@@ -1462,6 +1797,40 @@ router.get(
         );
 
 
+      const intervalosPermitidos = [
+        "1m",
+        "3m",
+        "5m",
+        "15m",
+        "30m",
+        "1h",
+        "2h",
+        "4h",
+        "6h",
+        "8h",
+        "12h",
+        "1d"
+      ];
+
+
+      if (
+        !intervalosPermitidos.includes(
+          interval
+        )
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Intervalo de gráfico inválido."
+
+        });
+
+      }
+
+
       const account =
         await obterContaUsuario(
           req.user.id,
@@ -1508,7 +1877,9 @@ router.get(
         interval,
 
         candles:
-          candles.map(
+          (
+            candles || []
+          ).map(
             (candle) => ({
 
               time:
@@ -1519,16 +1890,24 @@ router.get(
                 ),
 
               open:
-                numero(candle.open),
+                numero(
+                  candle.open
+                ),
 
               high:
-                numero(candle.high),
+                numero(
+                  candle.high
+                ),
 
               low:
-                numero(candle.low),
+                numero(
+                  candle.low
+                ),
 
               close:
-                numero(candle.close)
+                numero(
+                  candle.close
+                )
 
             })
           )
@@ -1542,6 +1921,7 @@ router.get(
         "ERRO AO CARREGAR GRÁFICO:",
         error
       );
+
 
       return res.status(500).json({
 
@@ -1620,6 +2000,7 @@ router.get(
         error
       );
 
+
       return res.status(500).json({
 
         success: false,
@@ -1634,5 +2015,9 @@ router.get(
   }
 );
 
+
+// =========================================================
+// EXPORTAR
+// =========================================================
 
 module.exports = router;

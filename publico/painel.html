@@ -69,8 +69,8 @@
       <div class="sub" data-t="videoSub">Assista antes de preencher os campos. O tutorial ficará nesta etapa do cadastro.</div>
 
       <div class="video">
-        <iframe id="videoFrame" src="https://www.youtube-nocookie.com/embed/BlKB44v_dE0" title="Como Criar e Gerar suas Chaves API na Binance" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
-        <div class="videoFallback"><span data-t="videoFallback">Se o vídeo não carregar dentro do painel,</span> <a id="videoLink" href="https://www.youtube.com/watch?v=BlKB44v_dE0" target="_blank" rel="noopener" data-t="openVideo">abrir no YouTube</a>.</div>
+        <iframe id="videoFrame" src="https://www.youtube-nocookie.com/embed/TLHp8MebnFE" title="Como Criar e Gerar suas Chaves API na Binance" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+        <div class="videoFallback"><span data-t="videoFallback">Se o vídeo não carregar dentro do painel,</span> <a id="videoLink" href="https://www.youtube.com/watch?v=TLHp8MebnFE" target="_blank" rel="noopener" data-t="openVideo">abrir no YouTube</a>.</div>
       </div>
 
       <div class="warning" data-t="videoTip">💡 Crie a API na sua própria conta Binance e não envie a Secret para ninguém além deste formulário.</div>
@@ -108,7 +108,7 @@ function applyLang(){
  document.getElementById("en").classList.toggle("active",lang==="en");
  document.getElementById("toggleSecret").textContent=document.getElementById("apiSecret").type==="password"?t("show"):t("hide");
  const frame=document.getElementById("videoFrame"),link=document.getElementById("videoLink");
- const id=lang==="pt"?"BlKB44v_dE0":"zP3PgzGdA9M";
+ const id=lang==="pt"?"TLHp8MebnFE":"zP3PgzGdA9M";
  frame.src="https://www.youtube-nocookie.com/embed/"+id;
  frame.title=lang==="pt"?"Como Criar e Gerar suas Chaves API na Binance":"How to SET UP API KEY on Binance";
  link.href="https://www.youtube.com/watch?v="+id;

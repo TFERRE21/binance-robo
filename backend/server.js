@@ -1,4 +1,5 @@
 const express = require("express");
+const authRoutes = require("./routes/auth");
 const Binance = require("binance-api-node").default;
 
 const app = express();

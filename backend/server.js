@@ -1,4 +1,5 @@
 const express = require("express");
+const path = require("path");
 
 const authRoutes = require("./routes/auth");
 
@@ -9,6 +10,8 @@ const Binance = require("binance-api-node").default;
 const app = express();
 
 app.use(express.json());
+
+app.use(express.static(path.join(__dirname, "../publico")));
 
 app.use("/api/auth", authRoutes);
 

@@ -27,6 +27,15 @@ const accountMessage =
 const openPanelButton =
   document.getElementById("openPanelButton");
 
+const totalBalance =
+  document.getElementById("totalBalance");
+
+const availableBalance =
+  document.getElementById("availableBalance");
+
+const lockedBalance =
+  document.getElementById("lockedBalance");
+
 
 // =========================================================
 // VERIFICAR LOGIN
@@ -60,8 +69,7 @@ async function loadUser() {
 
       localStorage.removeItem("token");
 
-      window.location.href =
-        "login.html";
+      window.location.href = "login.html";
 
       return;
     }
@@ -80,6 +88,120 @@ async function loadUser() {
 
 
 // =========================================================
+// FORMATAR USDT
+// =========================================================
+
+function formatUSDT(value) {
+
+  return Number(value).toLocaleString(
+    "pt-BR",
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 8
+    }
+  ) + " USDT";
+}
+
+
+// =========================================================
+// CARREGAR SALDO
+// =========================================================
+
+async function loadBalance(accountId) {
+
+  if (!totalBalance ||
+      !availableBalance ||
+      !lockedBalance) {
+
+    return;
+  }
+
+  totalBalance.textContent =
+    "Carregando...";
+
+  availableBalance.textContent =
+    "Carregando...";
+
+  lockedBalance.textContent =
+    "Carregando...";
+
+
+  try {
+
+    const response = await fetch(
+      `/api/binance/accounts/${accountId}/balance`,
+      {
+        headers: {
+          "Authorization":
+            `Bearer ${token}`
+        }
+      }
+    );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok || !data.success) {
+
+      totalBalance.textContent =
+        "Indisponível";
+
+      availableBalance.textContent =
+        "Indisponível";
+
+      lockedBalance.textContent =
+        "Indisponível";
+
+      console.error(
+        "ERRO AO CARREGAR SALDO:",
+        data.message
+      );
+
+      return;
+    }
+
+
+    totalBalance.textContent =
+      formatUSDT(
+        data.balance.total
+      );
+
+
+    availableBalance.textContent =
+      formatUSDT(
+        data.balance.available
+      );
+
+
+    lockedBalance.textContent =
+      formatUSDT(
+        data.balance.locked
+      );
+
+
+  } catch (error) {
+
+    console.error(
+      "ERRO AO CONSULTAR SALDO:",
+      error
+    );
+
+
+    totalBalance.textContent =
+      "Indisponível";
+
+    availableBalance.textContent =
+      "Indisponível";
+
+    lockedBalance.textContent =
+      "Indisponível";
+  }
+}
+
+
+// =========================================================
 // CARREGAR CONTAS
 // =========================================================
 
@@ -91,12 +213,16 @@ async function loadAccounts() {
       "/api/binance/accounts",
       {
         headers: {
-          "Authorization": `Bearer ${token}`
+          "Authorization":
+            `Bearer ${token}`
         }
       }
     );
 
-    const data = await response.json();
+
+    const data =
+      await response.json();
+
 
     if (!response.ok || !data.success) {
 
@@ -108,9 +234,13 @@ async function loadAccounts() {
     }
 
 
-    if (data.accounts.length === 0) {
+    if (
+      !data.accounts ||
+      data.accounts.length === 0
+    ) {
 
       accountsContainer.innerHTML = `
+
         <div class="account-card">
 
           <h3>
@@ -122,6 +252,7 @@ async function loadAccounts() {
           </p>
 
         </div>
+
       `;
 
       return;
@@ -131,132 +262,158 @@ async function loadAccounts() {
     accountsContainer.innerHTML = "";
 
 
-    data.accounts.forEach((account) => {
+    data.accounts.forEach(
+      (account) => {
 
-      const div =
-        document.createElement("div");
-
-      div.className =
-        "account-card";
+        const div =
+          document.createElement("div");
 
 
-      div.innerHTML = `
+        div.className =
+          "account-card";
 
-        <h3>
-          ${account.name}
-        </h3>
 
-        <p>
-          Status:
-          <strong>
-            ${account.active ? "🟢 Ativa" : "🔴 Inativa"}
-          </strong>
-        </p>
+        div.innerHTML = `
 
-        <div
-          id="connection-message-${account.id}"
-          class="message"
-          style="display:none;"
-        ></div>
+          <h3>
+            ${account.name}
+          </h3>
 
-        <div
-          style="
-            display:flex;
-            gap:10px;
-            flex-wrap:wrap;
-            margin-top:16px;
-          "
-        >
+          <p>
+            Status:
+            <strong>
+              ${
+                account.active
+                  ? "🟢 Ativa"
+                  : "🔴 Inativa"
+              }
+            </strong>
+          </p>
 
-          <button
-            type="button"
-            class="btn-logout test-binance-button"
-            data-account-id="${account.id}"
+          <div
+            id="connection-message-${account.id}"
+            class="message"
+            style="display:none;"
+          ></div>
+
+          <div
+            style="
+              display:flex;
+              gap:10px;
+              flex-wrap:wrap;
+              margin-top:16px;
+            "
           >
-            Testar conexão
-          </button>
 
-          <button
-            type="button"
-            class="btn-login open-account-panel-button"
-            data-account-id="${account.id}"
-          >
-            ABRIR PAINEL
-          </button>
+            <button
+              type="button"
+              class="btn-logout test-binance-button"
+              data-account-id="${account.id}"
+            >
+              Testar conexão
+            </button>
 
-        </div>
+            <button
+              type="button"
+              class="btn-login open-account-panel-button"
+              data-account-id="${account.id}"
+            >
+              ABRIR PAINEL
+            </button>
 
-      `;
+          </div>
+
+        `;
 
 
-      accountsContainer.appendChild(div);
+        accountsContainer.appendChild(div);
 
-    });
+      }
+    );
 
 
     // =====================================================
-    // BOTÕES TESTAR CONEXÃO
+    // TESTAR CONEXÃO
     // =====================================================
 
     document
-      .querySelectorAll(".test-binance-button")
-      .forEach((button) => {
+      .querySelectorAll(
+        ".test-binance-button"
+      )
+      .forEach(
+        (button) => {
 
-        button.addEventListener(
-          "click",
-          () => {
+          button.addEventListener(
+            "click",
+            () => {
 
-            const accountId =
-              button.getAttribute(
-                "data-account-id"
+              const accountId =
+                button.getAttribute(
+                  "data-account-id"
+                );
+
+
+              const messageElement =
+                document.getElementById(
+                  `connection-message-${accountId}`
+                );
+
+
+              testBinanceConnection(
+                accountId,
+                messageElement
               );
 
+            }
+          );
 
-            const messageElement =
-              document.getElementById(
-                `connection-message-${accountId}`
-              );
-
-
-            testBinanceConnection(
-              accountId,
-              messageElement
-            );
-
-          }
-        );
-
-      });
+        }
+      );
 
 
     // =====================================================
-    // BOTÕES ABRIR PAINEL
+    // ABRIR PAINEL
     // =====================================================
 
     document
       .querySelectorAll(
         ".open-account-panel-button"
       )
-      .forEach((button) => {
+      .forEach(
+        (button) => {
 
-        button.addEventListener(
-          "click",
-          () => {
+          button.addEventListener(
+            "click",
+            () => {
 
-            const accountId =
-              button.getAttribute(
-                "data-account-id"
+              const accountId =
+                button.getAttribute(
+                  "data-account-id"
+                );
+
+
+              openAccountPanel(
+                accountId
               );
 
+            }
+          );
 
-            openAccountPanel(
-              accountId
-            );
+        }
+      );
 
-          }
-        );
 
-      });
+    // =====================================================
+    // USAR A PRIMEIRA CONTA PARA O SALDO
+    // =====================================================
+
+    const primeiraConta =
+      data.accounts[0];
+
+
+    await loadBalance(
+      primeiraConta.id
+    );
 
   } catch (error) {
 
@@ -329,8 +486,8 @@ async function testBinanceConnection(
 
     const trading =
       permissions.spotAndMarginTrading
-        ? "permitido"
-        : "desativado";
+        ? "permitida"
+        : "desativada";
 
 
     messageElement.innerHTML = `
@@ -344,7 +501,9 @@ async function testBinanceConnection(
     `;
 
 
-    if (permissions.withdrawals) {
+    if (
+      permissions.withdrawals
+    ) {
 
       messageElement.className =
         "message error";
@@ -354,6 +513,7 @@ async function testBinanceConnection(
       messageElement.className =
         "message success";
     }
+
 
   } catch (error) {
 
@@ -374,15 +534,6 @@ async function testBinanceConnection(
 
 function openAccountPanel(accountId) {
 
-  /*
-    Por enquanto enviamos o ID da conta.
-
-    Na próxima etapa vamos conectar esta rota
-    ao painel completo existente, garantindo que
-    cada usuário veja somente os dados da própria
-    conta Binance.
-  */
-
   window.location.href =
     `/painel?account=${encodeURIComponent(accountId)}`;
 }
@@ -400,15 +551,16 @@ if (openPanelButton) {
 
       try {
 
-        const response = await fetch(
-          "/api/binance/accounts",
-          {
-            headers: {
-              "Authorization":
-                `Bearer ${token}`
+        const response =
+          await fetch(
+            "/api/binance/accounts",
+            {
+              headers: {
+                "Authorization":
+                  `Bearer ${token}`
+              }
             }
-          }
-        );
+          );
 
 
         const data =
@@ -442,12 +594,10 @@ if (openPanelButton) {
         }
 
 
-        // Primeira conta do usuário
-        // será usada no botão principal.
-
         openAccountPanel(
           data.accounts[0].id
         );
+
 
       } catch (error) {
 
@@ -550,26 +700,27 @@ addAccountForm.addEventListener(
 
     try {
 
-      const response = await fetch(
-        "/api/binance/accounts",
-        {
-          method: "POST",
+      const response =
+        await fetch(
+          "/api/binance/accounts",
+          {
+            method: "POST",
 
-          headers: {
-            "Content-Type":
-              "application/json",
+            headers: {
+              "Content-Type":
+                "application/json",
 
-            "Authorization":
-              `Bearer ${token}`
-          },
+              "Authorization":
+                `Bearer ${token}`
+            },
 
-          body: JSON.stringify({
-            name,
-            apiKey,
-            apiSecret
-          })
-        }
-      );
+            body: JSON.stringify({
+              name,
+              apiKey,
+              apiSecret
+            })
+          }
+        );
 
 
       const data =

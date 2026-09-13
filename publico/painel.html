@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Binance-Robo | Painel</title>
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
+
+  <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+
+    body {
+      margin: 0;
+      background: #050812;
+      color: #f7f9fd;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .panel-container {
+      max-width: 1500px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel-title h1 {
+      margin: 0;
+      font-size: 28px;
+    }
+
+    .panel-title p {
+      margin: 6px 0 0;
+      color: #8290a8;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .panel-button {
+      border: 1px solid #263650;
+      background: #101a2b;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .panel-button:hover {
+      background: #17243a;
+    }
+
+    .account-banner {
+      background: #0d1626;
+      border: 1px solid #21304a;
+      border-radius: 12px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .account-name {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    .account-status {
+      margin-top: 5px;
+      color: #20df96;
+    }
+
+    .security-warning {
+      background: #211b08;
+      border: 1px solid #6b5417;
+      border-radius: 10px;
+      padding: 14px;
+      margin-bottom: 20px;
+      color: #ffd76a;
+    }
+
+    .dashboardMenu {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .menuBtn {
+      border: 1px solid #21304a;
+      background: #0d1626;
+      color: #fff;
+      padding: 14px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .menuBtn:hover {
+      background: #162238;
+      border-color: #4aa8ff;
+    }
+
+    .section {
+      display: none;
+      margin-bottom: 20px;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .card {
+      background: #0d1626;
+      border: 1px solid #21304a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+    }
+
+    .metric-label {
+      color: #8290a8;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+
+    .metric-value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .metric-sub {
+      margin-top: 7px;
+      color: #8290a8;
+    }
+
+    .positive {
+      color: #20df96;
+    }
+
+    .negative {
+      color: #ff6177;
+    }
+
+    .chart-box {
+      background: #0d1626;
+      border: 1px solid #21304a;
+      border-radius: 12px;
+      padding: 15px;
+    }
+
+    #chart {
+      width: 100%;
+      height: 450px;
+    }
+
+    .chart-controls {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .chart-controls button {
+      background: #111c2e;
+      border: 1px solid #263650;
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .empty {
+      padding: 30px;
+      text-align: center;
+      color: #8290a8;
+    }
+
+    .video-box {
+      background: #0d1626;
+      border: 1px solid #21304a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .video-box iframe {
+      width: 100%;
+      max-width: 900px;
+      height: 500px;
+      border: 0;
+      border-radius: 10px;
+    }
+
+    .footer {
+      text-align: center;
+      color: #64728a;
+      padding: 30px 0;
+    }
+
+    @media (max-width: 900px) {
+
+      .dashboardMenu {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      #chart {
+        height: 350px;
+      }
+
+    }
+
+    @media (max-width: 600px) {
+
+      .dashboardMenu {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-container {
+        padding: 10px;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<div class="panel-container">
+
+
+  <!-- CABEÇALHO -->
+
+  <header class="panel-header">
+
+    <div class="panel-title">
+
+      <h1>
+        Binance-Robo
+      </h1>
+
+      <p>
+        Painel individual da conta Binance
+      </p>
+
+    </div>
+
+
+    <div class="panel-actions">
+
+      <button
+        class="panel-button"
+        onclick="voltarDashboard()"
+      >
+        ← Voltar
+      </button>
+
+
+      <button
+        class="panel-button"
+        onclick="logout()"
+      >
+        Sair
+      </button>
+
+    </div>
+
+  </header>
+
+
+  <!-- CONTA -->
+
+  <section class="account-banner">
+
+    <div
+      id="accountName"
+      class="account-name"
+    >
+      Carregando conta...
+    </div>
+
+
+    <div
+      id="accountStatus"
+      class="account-status"
+    >
+      Conectando...
+    </div>
+
+  </section>
+
+
+  <!-- SEGURANÇA -->
+
+  <div class="security-warning">
+
+    ⚠️ <strong>SEGURANÇA DA API BINANCE</strong>
+
+    <br><br>
+
+    Mantenha a permissão de
+    <strong>saques/withdrawal DESATIVADA</strong>.
+
+    <br><br>
+
+    O painel deve utilizar somente as permissões necessárias
+    para leitura e negociação.
+
+    <br><br>
+
+    Nunca compartilhe sua API Key ou API Secret.
+
+  </div>
+
+
+  <!-- MENU -->
+
+  <div
+    class="dashboardMenu"
+    id="dashboardMenu"
+  >
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(0)"
+    >
+      🎯 Operação
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(1)"
+    >
+      📊 Gráfico
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(2)"
+    >
+      🤖 Robô
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(3)"
+    >
+      🏆 Comparação
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(4)"
+    >
+      📚 Performance
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(5)"
+    >
+      🪙 Moedas
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(6)"
+    >
+      📜 Atividade
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(7)"
+    >
+      🚨 Alertas
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(8)"
+    >
+      📈 Patrimônio
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(9)"
+    >
+      🧪 Raio-X
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(10)"
+    >
+      🕵️ Auditoria
+    </button>
+
+
+    <button
+      class="menuBtn"
+      onclick="abrirSecao(11)"
+    >
+      💰 P/L
+    </button>
+
+  </div>
+
+
+  <!-- OPERAÇÃO -->
+
+  <section
+    class="section active"
+    id="section-0"
+  >
+
+    <div class="grid">
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          OPERAÇÃO ATUAL
+        </div>
+
+        <div
+          id="currentSymbol"
+          class="metric-value"
+        >
+          --
+        </div>
+
+        <div
+          id="currentStatus"
+          class="metric-sub"
+        >
+          Aguardando dados...
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          PATRIMÔNIO
+        </div>
+
+        <div
+          id="patrimonio"
+          class="metric-value"
+        >
+          --
+        </div>
+
+        <div
+          id="patrimonioSub"
+          class="metric-sub"
+        >
+          --
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          SALDO USDT
+        </div>
+
+        <div
+          id="saldoUsdt"
+          class="metric-value"
+        >
+          --
+        </div>
+
+        <div class="metric-sub">
+          Saldo disponível
+        </div>
+
+      </div>
+
+
+    </div>
+
+  </section>
+
+
+  <!-- GRÁFICO -->
+
+  <section
+    class="section"
+    id="section-1"
+  >
+
+    <div class="chart-box">
+
+      <h2>
+        📊 Gráfico
+      </h2>
+
+
+      <div class="chart-controls">
+
+        <button onclick="carregarGrafico('5m')">
+          5m
+        </button>
+
+        <button onclick="carregarGrafico('15m')">
+          15m
+        </button>
+
+        <button onclick="carregarGrafico('1h')">
+          1h
+        </button>
+
+        <button onclick="carregarGrafico('4h')">
+          4h
+        </button>
+
+        <button onclick="carregarGrafico('1d')">
+          1D
+        </button>
+
+      </div>
+
+
+      <div id="chart"></div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ROBÔ -->
+
+  <section
+    class="section"
+    id="section-2"
+  >
+
+    <div class="card">
+
+      <h2>
+        🤖 Robô
+      </h2>
+
+      <p class="empty">
+        As configurações e o estado do robô
+        serão vinculados à conta do usuário.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- COMPARAÇÃO -->
+
+  <section
+    class="section"
+    id="section-3"
+  >
+
+    <div class="card">
+
+      <h2>
+        🏆 Comparação
+      </h2>
+
+      <p class="empty">
+        O painel individual não exibirá dados
+        de outros usuários.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- PERFORMANCE -->
+
+  <section
+    class="section"
+    id="section-4"
+  >
+
+    <div class="card">
+
+      <h2>
+        📚 Performance
+      </h2>
+
+      <p class="empty">
+        Histórico de desempenho da conta.
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- MOEDAS -->
+
+  <section
+    class="section"
+    id="section-5"
+  >
+
+    <div class="card">
+
+      <h2>
+        🪙 Moedas
+      </h2>
+
+      <div
+        id="assets"
+        class="empty"
+      >
+        Carregando moedas...
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ATIVIDADE -->
+
+  <section
+    class="section"
+    id="section-6"
+  >
+
+    <div class="card">
+
+      <h2>
+        📜 Atividade
+      </h2>
+
+      <div class="empty">
+        Atividade da conta será exibida aqui.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ALERTAS -->
+
+  <section
+    class="section"
+    id="section-7"
+  >
+
+    <div class="card">
+
+      <h2>
+        🚨 Alertas
+      </h2>
+
+      <div
+        id="alerts"
+        class="empty"
+      >
+        Nenhum alerta carregado.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- PATRIMÔNIO -->
+
+  <section
+    class="section"
+    id="section-8"
+  >
+
+    <div class="grid">
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          PATRIMÔNIO TOTAL
+        </div>
+
+        <div
+          id="patrimonio2"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          USDT DISPONÍVEL
+        </div>
+
+        <div
+          id="usdt2"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          ATUALIZAÇÃO
+        </div>
+
+        <div
+          id="updated"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+    </div>
+
+  </section>
+
+
+  <!-- RAIO X -->
+
+  <section
+    class="section"
+    id="section-9"
+  >
+
+    <div class="card">
+
+      <h2>
+        🧪 Raio-X
+      </h2>
+
+      <div class="empty">
+        Análise técnica da moeda atual.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- AUDITORIA -->
+
+  <section
+    class="section"
+    id="section-10"
+  >
+
+    <div class="card">
+
+      <h2>
+        🕵️ Auditoria
+      </h2>
+
+      <div class="empty">
+        Linha do tempo das operações da conta.
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- P/L -->
+
+  <section
+    class="section"
+    id="section-11"
+  >
+
+    <div class="grid">
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          💵 P/L REALIZADO
+        </div>
+
+        <div
+          id="pnlRealizado"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          📊 P/L EM ABERTO
+        </div>
+
+        <div
+          id="pnlAberto"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+      <div class="card">
+
+        <div class="metric-label">
+          RESULTADO
+        </div>
+
+        <div
+          id="pnlTotal"
+          class="metric-value"
+        >
+          --
+        </div>
+
+      </div>
+
+
+    </div>
+
+  </section>
+
+
+  <!-- VÍDEO -->
+
+  <section class="video-box">
+
+    <h2>
+      🎥 Como criar sua API Binance
+    </h2>
+
+    <p>
+      Tutorial para criar a API da Binance corretamente.
+    </p>
+
+    <iframe
+      src="https://www.youtube.com/embed/zP3PgzGdA9M"
+      title="Como criar API Key na Binance"
+      allowfullscreen
+    ></iframe>
+
+  </section>
+
+
+  <div class="footer">
+
+    Binance-Robo • Painel individual
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+const token =
+  localStorage.getItem("token");
+
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+
+const accountId =
+  params.get("account");
+
+
+let chart = null;
+
+let candleSeries = null;
+
+
+// =====================================================
+// AUTENTICAÇÃO
+// =====================================================
+
+if (!token) {
+
+  window.location.href =
+    "login.html";
+
+}
+
+
+// =====================================================
+// ABRIR SEÇÃO
+// =====================================================
+
+function abrirSecao(indice) {
+
+  document
+    .querySelectorAll(".section")
+    .forEach(function(section) {
+
+      section.classList.remove("active");
+
+    });
+
+
+  const section =
+    document.getElementById(
+      "section-" + indice
+    );
+
+
+  if (section) {
+
+    section.classList.add("active");
+
+  }
+
+}
+
+
+// =====================================================
+// VOLTAR
+// =====================================================
+
+function voltarDashboard() {
+
+  window.location.href =
+    "dashboard.html";
+
+}
+
+
+// =====================================================
+// LOGOUT
+// =====================================================
+
+function logout() {
+
+  localStorage.removeItem("token");
+
+  window.location.href =
+    "login.html";
+
+}
+
+
+// =====================================================
+// CARREGAR CONTA
+// =====================================================
+
+async function carregarConta() {
+
+
+  if (!accountId) {
+
+    document.getElementById(
+      "accountName"
+    ).textContent =
+      "Conta não selecionada.";
+
+    return;
+
+  }
+
+
+  try {
+
+
+    const response =
+      await fetch(
+        `/api/panel/account/${accountId}`,
+        {
+          headers: {
+            "Authorization":
+              `Bearer ${token}`
+          },
+
+          cache: "no-store"
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.message ||
+        "Erro ao carregar conta."
+      );
+
+    }
+
+
+    document.getElementById(
+      "accountName"
+    ).textContent =
+      data.account?.name ||
+      "Conta Binance";
+
+
+    document.getElementById(
+      "accountStatus"
+    ).textContent =
+      "● Conta conectada";
+
+
+    const patrimonio =
+      Number(
+        data.patrimonioUSDT ||
+        data.account?.patrimonioUSDT ||
+        0
+      );
+
+
+    const saldo =
+      Number(
+        data.saldoUSDT ||
+        data.account?.saldoUSDT ||
+        0
+      );
+
+
+    document.getElementById(
+      "patrimonio"
+    ).textContent =
+      patrimonio.toFixed(2) +
+      " USDT";
+
+
+    document.getElementById(
+      "patrimonio2"
+    ).textContent =
+      patrimonio.toFixed(2) +
+      " USDT";
+
+
+    document.getElementById(
+      "saldoUsdt"
+    ).textContent =
+      saldo.toFixed(2) +
+      " USDT";
+
+
+    document.getElementById(
+      "usdt2"
+    ).textContent =
+      saldo.toFixed(2) +
+      " USDT";
+
+
+    document.getElementById(
+      "updated"
+    ).textContent =
+      new Date().toLocaleTimeString(
+        "pt-BR"
+      );
+
+
+    if (data.assets) {
+
+
+      const ativos =
+        data.assets.filter(
+          function(asset) {
+
+            return (
+              Number(asset.free || 0) +
+              Number(asset.locked || 0)
+            ) > 0;
+
+          }
+        );
+
+
+      document.getElementById(
+        "assets"
+      ).innerHTML =
+        ativos.length
+
+          ? ativos.map(
+              function(asset) {
+
+                return `
+
+                  <div
+                    style="
+                      padding:12px;
+                      border-bottom:1px solid #21304a;
+                    "
+                  >
+
+                    <strong>
+                      ${asset.asset}
+                    </strong>
+
+                    <br>
+
+                    Disponível:
+                    ${Number(
+                      asset.free || 0
+                    ).toFixed(8)}
+
+                    <br>
+
+                    Bloqueado:
+                    ${Number(
+                      asset.locked || 0
+                    ).toFixed(8)}
+
+                  </div>
+
+                `;
+
+              }
+            ).join("")
+
+          : "Nenhuma moeda encontrada.";
+
+    }
+
+
+  } catch (error) {
+
+
+    console.error(error);
+
+
+    document.getElementById(
+      "accountName"
+    ).textContent =
+      "Erro ao carregar conta.";
+
+
+    document.getElementById(
+      "accountStatus"
+    ).textContent =
+      error.message;
+
+  }
+
+}
+
+
+// =====================================================
+// GRÁFICO
+// =====================================================
+
+async function carregarGrafico(
+  intervalo = "15m"
+) {
+
+
+  if (!accountId) {
+
+    return;
+
+  }
+
+
+  try {
+
+
+    const response =
+      await fetch(
+        `/api/panel/chart?account=${accountId}&symbol=BTCUSDT&interval=${intervalo}`,
+        {
+          headers: {
+            "Authorization":
+              `Bearer ${token}`
+          },
+
+          cache: "no-store"
+        }
+      );
+
+
+    const data =
+      await response.json();
+
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.message ||
+        "Erro ao carregar gráfico."
+      );
+
+    }
+
+
+    const chartContainer =
+      document.getElementById(
+        "chart"
+      );
+
+
+    if (!chart) {
+
+
+      chart =
+        LightweightCharts.createChart(
+          chartContainer,
+          {
+
+            width:
+              chartContainer.clientWidth,
+
+            height: 450,
+
+            layout: {
+
+              background: {
+                color: "#0d1626"
+              },
+
+              textColor: "#8290a8"
+
+            },
+
+            grid: {
+
+              vertLines: {
+                color: "#17243a"
+              },
+
+              horzLines: {
+                color: "#17243a"
+              }
+
+            },
+
+            timeScale: {
+
+              borderColor:
+                "#21304a"
+
+            }
+
+          }
+        );
+
+
+      candleSeries =
+        chart.addCandlestickSeries();
+
+    }
+
+
+    const candles =
+      data.candles ||
+      data;
+
+
+    if (Array.isArray(candles)) {
+
+
+      candleSeries.setData(
+
+        candles.map(
+          function(c) {
+
+            return {
+
+              time:
+                Number(c.time),
+
+              open:
+                Number(c.open),
+
+              high:
+                Number(c.high),
+
+              low:
+                Number(c.low),
+
+              close:
+                Number(c.close)
+
+            };
+
+          }
+        )
+
+      );
+
+
+      chart
+        .timeScale()
+        .fitContent();
+
+    }
+
+
+  } catch (error) {
+
+    console.error(
+      "GRÁFICO:",
+      error
+    );
+
+  }
+
+}
+
+
+// =====================================================
+// INICIAR
+// =====================================================
+
+carregarConta();
+
+carregarGrafico();
+
+
+setInterval(
+  carregarConta,
+  15000
+);
+
+
+window.addEventListener(
+  "resize",
+  function() {
+
+    if (chart) {
+
+      const container =
+        document.getElementById(
+          "chart"
+        );
+
+
+      chart.applyOptions({
+
+        width:
+          container.clientWidth
+
+      });
+
+    }
+
+  }
+);
+
+
+</script>
+
+
+</body>
+
+</html>

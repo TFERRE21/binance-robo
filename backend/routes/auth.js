@@ -155,4 +155,36 @@ router.post('/login', async (req, res) => {
   }
 });
 
+const authMiddleware = require('../middleware/auth');
+
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const result = await db.query(
+      `SELECT id, name, email, active, created_at, updated_at
+       FROM users
+       WHERE id = $1`,
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário não encontrado.'
+      });
+    }
+
+    return res.json({
+      success: true,
+      user: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('ERRO AO BUSCAR USUARIO:', error);
+
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao buscar usuário.'
+    });
+  }
+});
 module.exports = router;

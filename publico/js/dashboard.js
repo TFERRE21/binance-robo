@@ -109,9 +109,11 @@ function formatUSDT(value) {
 
 async function loadBalance(accountId) {
 
-  if (!totalBalance ||
-      !availableBalance ||
-      !lockedBalance) {
+  if (
+    !totalBalance ||
+    !availableBalance ||
+    !lockedBalance
+  ) {
 
     return;
   }
@@ -307,18 +309,18 @@ async function loadAccounts() {
 
             <button
               type="button"
-              class="btn-logout test-binance-button"
-              data-account-id="${account.id}"
-            >
-              Testar conexão
-            </button>
-
-            <button
-              type="button"
               class="btn-login open-account-panel-button"
               data-account-id="${account.id}"
             >
               ABRIR PAINEL
+            </button>
+
+            <button
+              type="button"
+              class="btn-logout test-binance-button"
+              data-account-id="${account.id}"
+            >
+              Testar conexão
             </button>
 
           </div>
@@ -372,7 +374,7 @@ async function loadAccounts() {
 
 
     // =====================================================
-    // ABRIR PAINEL
+    // ABRIR PAINEL INDIVIDUAL
     // =====================================================
 
     document
@@ -534,8 +536,18 @@ async function testBinanceConnection(
 
 function openAccountPanel(accountId) {
 
+  if (!accountId) {
+
+    alert(
+      "Conta Binance não identificada."
+    );
+
+    return;
+  }
+
+
   window.location.href =
-    `/painel?account=${encodeURIComponent(accountId)}`;
+    `/painel.html?account=${encodeURIComponent(accountId)}`;
 }
 
 
@@ -618,199 +630,215 @@ if (openPanelButton) {
 // MOSTRAR FORMULÁRIO
 // =========================================================
 
-showAddAccountButton.addEventListener(
-  "click",
-  () => {
+if (showAddAccountButton) {
 
-    addAccountSection.style.display =
-      "block";
+  showAddAccountButton.addEventListener(
+    "click",
+    () => {
 
-    showAddAccountButton.style.display =
-      "none";
-  }
-);
+      addAccountSection.style.display =
+        "block";
+
+      showAddAccountButton.style.display =
+        "none";
+    }
+  );
+
+}
 
 
 // =========================================================
 // CANCELAR CADASTRO
 // =========================================================
 
-cancelAddAccountButton.addEventListener(
-  "click",
-  () => {
+if (cancelAddAccountButton) {
 
-    addAccountForm.reset();
+  cancelAddAccountButton.addEventListener(
+    "click",
+    () => {
 
-    accountMessage.textContent =
-      "";
+      addAccountForm.reset();
 
-    accountMessage.className =
-      "message";
+      accountMessage.textContent =
+        "";
 
-    addAccountSection.style.display =
-      "none";
+      accountMessage.className =
+        "message";
 
-    showAddAccountButton.style.display =
-      "block";
-  }
-);
+      addAccountSection.style.display =
+        "none";
+
+      showAddAccountButton.style.display =
+        "block";
+    }
+  );
+
+}
 
 
 // =========================================================
 // CADASTRAR CONTA
 // =========================================================
 
-addAccountForm.addEventListener(
-  "submit",
-  async (event) => {
+if (addAccountForm) {
 
-    event.preventDefault();
+  addAccountForm.addEventListener(
+    "submit",
+    async (event) => {
 
-
-    const name =
-      document
-        .getElementById("accountName")
-        .value
-        .trim();
+      event.preventDefault();
 
 
-    const apiKey =
-      document
-        .getElementById("apiKey")
-        .value
-        .trim();
+      const name =
+        document
+          .getElementById("accountName")
+          .value
+          .trim();
 
 
-    const apiSecret =
-      document
-        .getElementById("apiSecret")
-        .value
-        .trim();
+      const apiKey =
+        document
+          .getElementById("apiKey")
+          .value
+          .trim();
 
 
-    accountMessage.textContent =
-      "Salvando conta...";
-
-    accountMessage.className =
-      "message success";
-
-    accountMessage.style.display =
-      "block";
-
-
-    try {
-
-      const response =
-        await fetch(
-          "/api/binance/accounts",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              "Authorization":
-                `Bearer ${token}`
-            },
-
-            body: JSON.stringify({
-              name,
-              apiKey,
-              apiSecret
-            })
-          }
-        );
-
-
-      const data =
-        await response.json();
-
-
-      if (
-        !response.ok ||
-        !data.success
-      ) {
-
-        accountMessage.textContent =
-          data.message ||
-          "Não foi possível cadastrar a conta.";
-
-        accountMessage.className =
-          "message error";
-
-        return;
-      }
+      const apiSecret =
+        document
+          .getElementById("apiSecret")
+          .value
+          .trim();
 
 
       accountMessage.textContent =
-        "Conta Binance cadastrada com sucesso.";
+        "Salvando conta...";
 
       accountMessage.className =
         "message success";
 
-
-      addAccountForm.reset();
-
-
-      await loadAccounts();
-
-
-      setTimeout(
-        () => {
-
-          addAccountSection.style.display =
-            "none";
-
-          showAddAccountButton.style.display =
-            "block";
-
-          accountMessage.textContent =
-            "";
-
-          accountMessage.className =
-            "message";
-
-          accountMessage.style.display =
-            "none";
-
-        },
-        1500
-      );
-
-
-    } catch (error) {
-
-      console.error(error);
-
-      accountMessage.textContent =
-        "Erro de conexão com o servidor.";
-
-      accountMessage.className =
-        "message error";
-
       accountMessage.style.display =
         "block";
-    }
 
-  }
-);
+
+      try {
+
+        const response =
+          await fetch(
+            "/api/binance/accounts",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                "Authorization":
+                  `Bearer ${token}`
+              },
+
+              body: JSON.stringify({
+                name,
+                apiKey,
+                apiSecret
+              })
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          !response.ok ||
+          !data.success
+        ) {
+
+          accountMessage.textContent =
+            data.message ||
+            "Não foi possível cadastrar a conta.";
+
+          accountMessage.className =
+            "message error";
+
+          return;
+        }
+
+
+        accountMessage.textContent =
+          "Conta Binance cadastrada com sucesso.";
+
+        accountMessage.className =
+          "message success";
+
+
+        addAccountForm.reset();
+
+
+        await loadAccounts();
+
+
+        setTimeout(
+          () => {
+
+            addAccountSection.style.display =
+              "none";
+
+            showAddAccountButton.style.display =
+              "block";
+
+            accountMessage.textContent =
+              "";
+
+            accountMessage.className =
+              "message";
+
+            accountMessage.style.display =
+              "none";
+
+          },
+          1500
+        );
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        accountMessage.textContent =
+          "Erro de conexão com o servidor.";
+
+        accountMessage.className =
+          "message error";
+
+        accountMessage.style.display =
+          "block";
+      }
+
+    }
+  );
+
+}
 
 
 // =========================================================
 // LOGOUT
 // =========================================================
 
-logoutButton.addEventListener(
-  "click",
-  () => {
+if (logoutButton) {
 
-    localStorage.removeItem("token");
+  logoutButton.addEventListener(
+    "click",
+    () => {
 
-    window.location.href =
-      "login.html";
-  }
-);
+      localStorage.removeItem("token");
+
+      window.location.href =
+        "login.html";
+    }
+  );
+
+}
 
 
 // =========================================================

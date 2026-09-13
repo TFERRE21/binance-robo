@@ -11,6 +11,25 @@ const router = express.Router();
 
 
 // =========================================================
+// FUNÇÕES AUXILIARES
+// =========================================================
+
+function num(value) {
+  const n = Number(value);
+
+  return Number.isFinite(n)
+    ? n
+    : 0;
+}
+
+
+function assetNormalizado(asset) {
+  return String(asset || '')
+    .replace(/^LD/, '');
+}
+
+
+// =========================================================
 // CONSULTAR PERMISSÕES REAIS DA API KEY BINANCE
 // =========================================================
 
@@ -76,6 +95,7 @@ function getApiRestrictions(apiKey, apiSecret) {
                       'Erro ao consultar permissões da API Key.'
                     )
                   );
+
                 }
 
                 resolve(data);
@@ -107,7 +127,79 @@ function getApiRestrictions(apiKey, apiSecret) {
 
 
 // =========================================================
-// LISTAR CONTAS BINANCE DO USUARIO LOGADO
+// BUSCAR CONTA DO BANCO
+// =========================================================
+
+async function obterContaBanco(
+  accountId,
+  userId
+) {
+
+  const result =
+    await db.query(
+      `SELECT
+         id,
+         name,
+         api_key_encrypted,
+         api_secret_encrypted,
+         active
+       FROM binance_accounts
+       WHERE id = $1
+       AND user_id = $2`,
+      [
+        accountId,
+        userId
+      ]
+    );
+
+
+  if (
+    result.rows.length === 0
+  ) {
+
+    return null;
+
+  }
+
+
+  return result.rows[0];
+
+}
+
+
+// =========================================================
+// CRIAR CLIENT BINANCE
+// =========================================================
+
+function criarClienteBinance(account) {
+
+  const apiKey =
+    cryptoService.decrypt(
+      account.api_key_encrypted
+    );
+
+  const apiSecret =
+    cryptoService.decrypt(
+      account.api_secret_encrypted
+    );
+
+
+  return {
+    apiKey,
+    apiSecret,
+
+    client:
+      Binance({
+        apiKey,
+        apiSecret
+      })
+  };
+
+}
+
+
+// =========================================================
+// LISTAR CONTAS BINANCE DO USUÁRIO
 // =========================================================
 
 router.get(
@@ -128,7 +220,9 @@ router.get(
            FROM binance_accounts
            WHERE user_id = $1
            ORDER BY id`,
-          [req.user.id]
+          [
+            req.user.id
+          ]
         );
 
 
@@ -280,8 +374,16 @@ router.post(
 
 
 // =========================================================
-// CONSULTAR SALDO DA CONTA BINANCE
-// SOMENTE LEITURA
+// CONSULTAR SALDO / PATRIMÔNIO COMPLETO
+// =========================================================
+//
+// Calcula o patrimônio da mesma forma que o painel antigo:
+//
+// 1. Busca todos os balances.
+// 2. Soma FREE + LOCKED.
+// 3. Converte cada ativo para USDT.
+// 4. Soma todos os ativos.
+// 5. Separa disponível e bloqueado.
 // =========================================================
 
 router.get(
@@ -296,30 +398,17 @@ router.get(
 
 
       // =====================================================
-      // BUSCAR CONTA DO USUÁRIO LOGADO
+      // BUSCAR CONTA
       // =====================================================
 
-      const result =
-        await db.query(
-          `SELECT
-             id,
-             name,
-             api_key_encrypted,
-             api_secret_encrypted,
-             active
-           FROM binance_accounts
-           WHERE id = $1
-           AND user_id = $2`,
-          [
-            accountId,
-            req.user.id
-          ]
+      const account =
+        await obterContaBanco(
+          accountId,
+          req.user.id
         );
 
 
-      if (
-        result.rows.length === 0
-      ) {
+      if (!account) {
 
         return res.status(404).json({
 
@@ -331,10 +420,6 @@ router.get(
         });
 
       }
-
-
-      const account =
-        result.rows[0];
 
 
       if (!account.active) {
@@ -352,70 +437,303 @@ router.get(
 
 
       // =====================================================
-      // DESCRIPTOGRAFAR SOMENTE EM MEMÓRIA
+      // CLIENT BINANCE
       // =====================================================
 
-      const apiKey =
-        cryptoService.decrypt(
-          account.api_key_encrypted
-        );
-
-
-      const apiSecret =
-        cryptoService.decrypt(
-          account.api_secret_encrypted
+      const {
+        client
+      } =
+        criarClienteBinance(
+          account
         );
 
 
       // =====================================================
-      // CONECTAR À BINANCE
-      // SOMENTE LEITURA
+      // BUSCAR DADOS DA BINANCE
       // =====================================================
 
-      const client =
-        Binance({
-
-          apiKey,
-
-          apiSecret
-
-        });
+      const resultado =
+        await Promise.all([
+          client.accountInfo(),
+          client.prices()
+        ]);
 
 
-      const accountInfo =
-        await client.accountInfo();
+      const info =
+        resultado[0];
+
+      const prices =
+        resultado[1];
 
 
       // =====================================================
-      // LOCALIZAR SALDO USDT
+      // CALCULAR PATRIMÔNIO
       // =====================================================
 
-      const usdtBalance =
-        accountInfo.balances.find(
-          (asset) =>
-            asset.asset === 'USDT'
-        );
+      const ativos = [];
+
+      let patrimonioUSDT = 0;
+
+      let disponivelUSDT = 0;
+
+      let bloqueadoUSDT = 0;
 
 
-      const available =
-        usdtBalance
-          ? parseFloat(
-              usdtBalance.free
-            )
-          : 0;
+      for (
+        const balance
+        of info.balances || []
+      ) {
+
+        const free =
+          num(
+            balance.free
+          );
 
 
-      const locked =
-        usdtBalance
-          ? parseFloat(
-              usdtBalance.locked
-            )
-          : 0;
+        const locked =
+          num(
+            balance.locked
+          );
 
 
-      const total =
-        available + locked;
+        const total =
+          free + locked;
 
+
+        if (
+          total <= 0
+        ) {
+
+          continue;
+
+        }
+
+
+        const asset =
+          assetNormalizado(
+            balance.asset
+          );
+
+
+        let precoUSDT = 0;
+
+        let valorUSDT = 0;
+
+        let valorFreeUSDT = 0;
+
+        let valorLockedUSDT = 0;
+
+
+        // ===================================================
+        // USDT
+        // ===================================================
+
+        if (
+          asset === 'USDT'
+        ) {
+
+          precoUSDT = 1;
+
+        }
+
+
+        // ===================================================
+        // OUTROS ATIVOS
+        // ===================================================
+
+        else {
+
+          precoUSDT =
+            num(
+              prices[
+                asset + 'USDT'
+              ] ||
+              prices[
+                'LD' +
+                asset +
+                'USDT'
+              ]
+            );
+
+
+          // =================================================
+          // CASO NÃO EXISTA PAR DIRETO ASSET/USDT
+          // TENTA O CAMINHO ASSET/BNB + BNB/USDT
+          // =================================================
+
+          if (
+            precoUSDT <= 0
+          ) {
+
+            const assetBNB =
+              num(
+                prices[
+                  asset + 'BNB'
+                ] ||
+                prices[
+                  'LD' +
+                  asset +
+                  'BNB'
+                ]
+              );
+
+
+            const bnbUSDT =
+              num(
+                prices.BNBUSDT
+              );
+
+
+            if (
+              assetBNB > 0 &&
+              bnbUSDT > 0
+            ) {
+
+              precoUSDT =
+                assetBNB *
+                bnbUSDT;
+
+            }
+
+          }
+
+
+          // =================================================
+          // CASO NÃO EXISTA BNB
+          // TENTA ASSET/BTC + BTC/USDT
+          // =================================================
+
+          if (
+            precoUSDT <= 0
+          ) {
+
+            const assetBTC =
+              num(
+                prices[
+                  asset + 'BTC'
+                ] ||
+                prices[
+                  'LD' +
+                  asset +
+                  'BTC'
+                ]
+              );
+
+
+            const btcUSDT =
+              num(
+                prices.BTCUSDT
+              );
+
+
+            if (
+              assetBTC > 0 &&
+              btcUSDT > 0
+            ) {
+
+              precoUSDT =
+                assetBTC *
+                btcUSDT;
+
+            }
+
+          }
+
+        }
+
+
+        // ===================================================
+        // CALCULAR VALORES
+        // ===================================================
+
+        if (
+          precoUSDT > 0
+        ) {
+
+          valorUSDT =
+            total *
+            precoUSDT;
+
+
+          valorFreeUSDT =
+            free *
+            precoUSDT;
+
+
+          valorLockedUSDT =
+            locked *
+            precoUSDT;
+
+        }
+
+
+        // ===================================================
+        // SOMAR PATRIMÔNIO
+        // ===================================================
+
+        if (
+          valorUSDT > 0
+        ) {
+
+          patrimonioUSDT +=
+            valorUSDT;
+
+          disponivelUSDT +=
+            valorFreeUSDT;
+
+          bloqueadoUSDT +=
+            valorLockedUSDT;
+
+
+          // =================================================
+          // GUARDAR ATIVO
+          // =================================================
+
+          if (
+            valorUSDT > 0.01
+          ) {
+
+            ativos.push({
+
+              asset,
+
+              free,
+
+              locked,
+
+              total,
+
+              precoUSDT,
+
+              valorUSDT,
+
+              valorFreeUSDT,
+
+              valorLockedUSDT
+
+            });
+
+          }
+
+        }
+
+      }
+
+
+      // =====================================================
+      // ORDENAR ATIVOS POR VALOR
+      // =====================================================
+
+      ativos.sort(
+        (a, b) =>
+          b.valorUSDT -
+          a.valorUSDT
+      );
+
+
+      // =====================================================
+      // RETORNO
+      // =====================================================
 
       return res.json({
 
@@ -433,13 +751,23 @@ router.get(
 
         balance: {
 
-          asset: 'USDT',
+          asset:
+            'USDT',
 
-          available,
+          total:
+            patrimonioUSDT,
 
-          locked,
+          available:
+            disponivelUSDT,
 
-          total
+          locked:
+            bloqueadoUSDT,
+
+          totalAssets:
+            ativos.length,
+
+          assets:
+            ativos
 
         }
 
@@ -449,7 +777,7 @@ router.get(
     } catch (error) {
 
       console.error(
-        'ERRO AO CONSULTAR SALDO BINANCE:',
+        'ERRO AO CONSULTAR SALDO/PATRIMÔNIO BINANCE:',
         error
       );
 
@@ -459,7 +787,7 @@ router.get(
         success: false,
 
         message:
-          'Não foi possível consultar o saldo da conta Binance.'
+          'Não foi possível consultar o patrimônio da conta Binance.'
 
       });
 
@@ -470,7 +798,7 @@ router.get(
 
 
 // =========================================================
-// TESTAR CONEXÃO E PERMISSÕES DA API BINANCE
+// TESTAR CONEXÃO E PERMISSÕES
 // =========================================================
 
 router.get(
@@ -484,27 +812,14 @@ router.get(
         req.params.id;
 
 
-      const result =
-        await db.query(
-          `SELECT
-             id,
-             name,
-             api_key_encrypted,
-             api_secret_encrypted,
-             active
-           FROM binance_accounts
-           WHERE id = $1
-           AND user_id = $2`,
-          [
-            accountId,
-            req.user.id
-          ]
+      const account =
+        await obterContaBanco(
+          accountId,
+          req.user.id
         );
 
 
-      if (
-        result.rows.length === 0
-      ) {
+      if (!account) {
 
         return res.status(404).json({
 
@@ -516,10 +831,6 @@ router.get(
         });
 
       }
-
-
-      const account =
-        result.rows[0];
 
 
       if (!account.active) {
@@ -537,18 +848,16 @@ router.get(
 
 
       // =====================================================
-      // DESCRIPTOGRAFAR SOMENTE EM MEMÓRIA
+      // CREDENCIAIS SOMENTE EM MEMÓRIA
       // =====================================================
 
-      const apiKey =
-        cryptoService.decrypt(
-          account.api_key_encrypted
-        );
-
-
-      const apiSecret =
-        cryptoService.decrypt(
-          account.api_secret_encrypted
+      const {
+        apiKey,
+        apiSecret,
+        client
+      } =
+        criarClienteBinance(
+          account
         );
 
 
@@ -557,21 +866,11 @@ router.get(
       // SOMENTE LEITURA
       // =====================================================
 
-      const client =
-        Binance({
-
-          apiKey,
-
-          apiSecret
-
-        });
-
-
       await client.accountInfo();
 
 
       // =====================================================
-      // CONSULTAR PERMISSÕES REAIS DA API KEY
+      // CONSULTAR PERMISSÕES REAIS
       // =====================================================
 
       const permissions =
@@ -734,7 +1033,7 @@ router.delete(
 
 
 // =========================================================
-// EXPORTAR ROTAS
+// EXPORTAR
 // =========================================================
 
 module.exports = router;

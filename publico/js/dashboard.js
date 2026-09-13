@@ -4,6 +4,21 @@ const userInfo = document.getElementById("userInfo");
 const accountsContainer = document.getElementById("accounts");
 const logoutButton = document.getElementById("logoutButton");
 
+const showAddAccountButton =
+  document.getElementById("showAddAccountButton");
+
+const addAccountSection =
+  document.getElementById("addAccountSection");
+
+const addAccountForm =
+  document.getElementById("addAccountForm");
+
+const cancelAddAccountButton =
+  document.getElementById("cancelAddAccountButton");
+
+const accountMessage =
+  document.getElementById("accountMessage");
+
 // Se não estiver logado, volta para o login
 if (!token) {
   window.location.href = "login.html";
@@ -85,6 +100,99 @@ async function loadAccounts() {
       "Erro de conexão com o servidor.";
   }
 }
+
+// =========================================================
+// MOSTRAR FORMULÁRIO
+// =========================================================
+
+showAddAccountButton.addEventListener("click", () => {
+  addAccountSection.style.display = "block";
+  showAddAccountButton.style.display = "none";
+});
+
+// =========================================================
+// CANCELAR CADASTRO
+// =========================================================
+
+cancelAddAccountButton.addEventListener("click", () => {
+  addAccountForm.reset();
+  accountMessage.textContent = "";
+  accountMessage.className = "message";
+
+  addAccountSection.style.display = "none";
+  showAddAccountButton.style.display = "block";
+});
+
+// =========================================================
+// CADASTRAR CONTA BINANCE
+// =========================================================
+
+addAccountForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const name =
+    document.getElementById("accountName").value.trim();
+
+  const apiKey =
+    document.getElementById("apiKey").value.trim();
+
+  const apiSecret =
+    document.getElementById("apiSecret").value.trim();
+
+  accountMessage.textContent = "Salvando conta...";
+  accountMessage.className = "message success";
+
+  try {
+    const response = await fetch("/api/binance/accounts", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+
+      body: JSON.stringify({
+        name,
+        apiKey,
+        apiSecret
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      accountMessage.textContent =
+        data.message || "Não foi possível cadastrar a conta.";
+
+      accountMessage.className = "message error";
+      return;
+    }
+
+    accountMessage.textContent =
+      "Conta Binance cadastrada com sucesso.";
+
+    accountMessage.className = "message success";
+
+    addAccountForm.reset();
+
+    await loadAccounts();
+
+    setTimeout(() => {
+      addAccountSection.style.display = "none";
+      showAddAccountButton.style.display = "block";
+      accountMessage.textContent = "";
+      accountMessage.className = "message";
+    }, 1500);
+
+  } catch (error) {
+    console.error(error);
+
+    accountMessage.textContent =
+      "Erro de conexão com o servidor.";
+
+    accountMessage.className = "message error";
+  }
+});
 
 // =========================================================
 // LOGOUT

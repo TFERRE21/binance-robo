@@ -18,6 +18,32 @@ const mpClient = new MercadoPagoConfig({
 
 const preApprovalClient = new PreApproval(mpClient);
 
+async function testarMercadoPago() {
+  try {
+    const resultado = await preApprovalClient.search({
+      options: {
+        limit: 1
+      }
+    });
+
+    return {
+      success: true,
+      total: resultado.total ?? 0
+    };
+
+  } catch (error) {
+
+    console.error(
+      "ERRO AO TESTAR MERCADO PAGO:",
+      error
+    );
+
+    return {
+      success: false,
+      message: error.message
+    };
+  }
+}
 
 // ============================================================
 // CONFIGURAÇÃO DOS PLANOS

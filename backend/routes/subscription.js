@@ -19,12 +19,15 @@ const mpClient = new MercadoPagoConfig({
 const preApprovalClient = new PreApproval(mpClient);
 
 async function testarMercadoPago() {
+
   try {
-    const resultado = await preApprovalClient.search({
-      options: {
-        limit: 1
-      }
-    });
+
+    const resultado =
+      await preApprovalClient.search({
+        options: {
+          limit: 1
+        }
+      });
 
     return {
       success: true,
@@ -42,8 +45,20 @@ async function testarMercadoPago() {
       success: false,
       message: error.message
     };
+
   }
+
 }
+
+
+router.get("/teste-mercadopago", async (req, res) => {
+
+  const resultado =
+    await testarMercadoPago();
+
+  return res.json(resultado);
+
+});
 
 // ============================================================
 // CONFIGURAÇÃO DOS PLANOS

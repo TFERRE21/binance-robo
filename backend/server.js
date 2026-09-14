@@ -7,6 +7,8 @@ const binanceRoutes = require("./routes/binance");
 
 const panelRoutes = require("./routes/panel");
 
+const subscriptionRoutes = require("./routes/subscription");
+
 const Binance = require("binance-api-node").default;
 
 const app = express();
@@ -20,6 +22,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/binance", binanceRoutes);
 
 app.use("/api/panel", panelRoutes);
+
+app.use("/api/subscription", subscriptionRoutes);
 
 const PORT = process.env.PORT || 3000;
 

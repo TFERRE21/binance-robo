@@ -7,6 +7,11 @@ loginForm.addEventListener("submit", async (event) => {
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value;
 
+  if (!email || !password) {
+    message.textContent = "Informe seu e-mail e sua senha.";
+    return;
+  }
+
   message.textContent = "Entrando...";
 
   try {
@@ -29,13 +34,48 @@ loginForm.addEventListener("submit", async (event) => {
       return;
     }
 
+    // ======================================================
+    // SALVAR AUTENTICAÇÃO
+    // ======================================================
+
     localStorage.setItem("token", data.token);
 
-    window.location.href = "dashboard.html";
+    // Salvar também os dados básicos do usuário
+    if (data.user) {
+      localStorage.setItem(
+        "criptopro_user",
+        JSON.stringify(data.user)
+      );
+    }
+
+    // ======================================================
+    // APÓS O LOGIN
+    // ======================================================
+    //
+    // O usuário NÃO vai mais diretamente para o dashboard.
+    //
+    // Primeiro ele deverá escolher um plano.
+    //
+    // Depois vamos conectar:
+    //
+    // PLANO
+    //   ↓
+    // PAGAMENTO
+    //   ↓
+    // CONFIRMAÇÃO
+    //   ↓
+    // LIBERAÇÃO DO DASHBOARD
+    //
+    // ======================================================
+
+    window.location.href = "/planos.html";
 
   } catch (error) {
-    console.error(error);
+
+    console.error("ERRO NO LOGIN:", error);
+
     message.textContent =
       "Erro de conexão com o servidor.";
+
   }
 });

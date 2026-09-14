@@ -18,6 +18,18 @@ const mpClient = new MercadoPagoConfig({
 
 const preApprovalClient = new PreApproval(mpClient);
 
+
+// ============================================================
+// CRIAR ROUTER
+// ============================================================
+
+const router = express.Router();
+
+
+// ============================================================
+// TESTE DO MERCADO PAGO
+// ============================================================
+
 async function testarMercadoPago() {
 
   try {
@@ -60,31 +72,49 @@ router.get("/teste-mercadopago", async (req, res) => {
 
 });
 
+
 // ============================================================
 // CONFIGURAÇÃO DOS PLANOS
 // ============================================================
 
 const PLANOS = {
+
   basico: {
+
     nome: "Básico",
+
     valor: 49.90,
+
     operacoesSimultaneas: 1,
+
     contasBinance: 1
+
   },
 
   profissional: {
+
     nome: "Profissional",
+
     valor: 99.90,
+
     operacoesSimultaneas: 2,
+
     contasBinance: 2
+
   },
 
   premium: {
+
     nome: "Premium",
+
     valor: 199.90,
+
     operacoesSimultaneas: 3,
+
     contasBinance: 3
+
   }
+
 };
 
 
@@ -95,8 +125,12 @@ const PLANOS = {
 router.get("/teste", (req, res) => {
 
   return res.json({
+
     success: true,
-    message: "Rota de assinatura funcionando."
+
+    message:
+      "Rota de assinatura funcionando."
+
   });
 
 });
@@ -113,13 +147,17 @@ router.get("/plans", (req, res) => {
     success: true,
 
     plans: Object.entries(PLANOS).map(
+
       ([codigo, plano]) => ({
 
-        code: codigo,
+        code:
+          codigo,
 
-        name: plano.nome,
+        name:
+          plano.nome,
 
-        price: plano.valor,
+        price:
+          plano.valor,
 
         simultaneousOperations:
           plano.operacoesSimultaneas,
@@ -128,6 +166,7 @@ router.get("/plans", (req, res) => {
           plano.contasBinance
 
       })
+
     )
 
   });
@@ -154,13 +193,17 @@ router.post("/select", authMiddleware, async (req, res) => {
 
   try {
 
-    const userId = req.user.id;
+    const userId =
+      req.user.id;
+
 
     const planCode =
       String(
+
         req.body && req.body.plan
           ? req.body.plan
           : ""
+
       )
       .trim()
       .toLowerCase();
@@ -184,32 +227,36 @@ router.post("/select", authMiddleware, async (req, res) => {
     }
 
 
-    const plano = PLANOS[planCode];
+    const plano =
+      PLANOS[planCode];
 
 
     // --------------------------------------------------------
     // VERIFICAR USUÁRIO
     // --------------------------------------------------------
 
-    const userResult = await db.query(
+    const userResult =
+      await db.query(
 
-      `
-      SELECT
-        id,
-        name,
-        email,
-        active
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
+        `
+        SELECT
+          id,
+          name,
+          email,
+          active
+        FROM users
+        WHERE id = $1
+        LIMIT 1
+        `,
 
-      [userId]
+        [userId]
 
-    );
+      );
 
 
-    if (userResult.rows.length === 0) {
+    if (
+      userResult.rows.length === 0
+    ) {
 
       return res.status(404).json({
 
@@ -223,7 +270,8 @@ router.post("/select", authMiddleware, async (req, res) => {
     }
 
 
-    const user = userResult.rows[0];
+    const user =
+      userResult.rows[0];
 
 
     if (!user.active) {
@@ -244,28 +292,31 @@ router.post("/select", authMiddleware, async (req, res) => {
     // VERIFICAR ASSINATURA ATIVA
     // --------------------------------------------------------
 
-    const activeResult = await db.query(
+    const activeResult =
+      await db.query(
 
-      `
-      SELECT
-        id,
-        plan,
-        status,
-        amount,
-        expires_at
-      FROM subscriptions
-      WHERE user_id = $1
-        AND status = 'ACTIVE'
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
+        `
+        SELECT
+          id,
+          plan,
+          status,
+          amount,
+          expires_at
+        FROM subscriptions
+        WHERE user_id = $1
+          AND status = 'ACTIVE'
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
 
-      [userId]
+        [userId]
 
-    );
+      );
 
 
-    if (activeResult.rows.length > 0) {
+    if (
+      activeResult.rows.length > 0
+    ) {
 
       const activeSubscription =
         activeResult.rows[0];
@@ -338,42 +389,45 @@ router.post("/select", authMiddleware, async (req, res) => {
     //
     // --------------------------------------------------------
 
-    const pendingResult = await db.query(
+    const pendingResult =
+      await db.query(
 
-      `
-      SELECT
-        id,
-        plan,
-        status,
-        amount,
-        payment_provider,
-        external_payment_id,
-        external_subscription_id,
-        payment_method,
-        started_at,
-        expires_at,
-        created_at
-      FROM subscriptions
-      WHERE user_id = $1
-        AND plan = $2
-        AND status = 'PENDING'
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
+        `
+        SELECT
+          id,
+          plan,
+          status,
+          amount,
+          payment_provider,
+          external_payment_id,
+          external_subscription_id,
+          payment_method,
+          started_at,
+          expires_at,
+          created_at
+        FROM subscriptions
+        WHERE user_id = $1
+          AND plan = $2
+          AND status = 'PENDING'
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
 
-      [
-        userId,
-        planCode
-      ]
+        [
+          userId,
+          planCode
+        ]
 
-    );
+      );
 
 
     // --------------------------------------------------------
     // JÁ EXISTE PENDING
     // --------------------------------------------------------
 
-    if (pendingResult.rows.length > 0) {
+    if (
+      pendingResult.rows.length > 0
+    ) {
 
       const pending =
         pendingResult.rows[0];
@@ -438,70 +492,71 @@ router.post("/select", authMiddleware, async (req, res) => {
     // CRIAR NOVA ASSINATURA PENDING
     // --------------------------------------------------------
 
-    const result = await db.query(
+    const result =
+      await db.query(
 
-      `
-      INSERT INTO subscriptions (
+        `
+        INSERT INTO subscriptions (
 
-        user_id,
+          user_id,
 
-        plan,
+          plan,
 
-        status,
+          status,
 
-        amount
+          amount
 
-      )
+        )
 
-      VALUES (
+        VALUES (
 
-        $1,
+          $1,
 
-        $2,
+          $2,
 
-        'PENDING',
+          'PENDING',
 
-        $3
+          $3
 
-      )
+        )
 
-      RETURNING
+        RETURNING
 
-        id,
+          id,
 
-        user_id,
+          user_id,
 
-        plan,
+          plan,
 
-        status,
+          status,
 
-        amount,
+          amount,
 
-        payment_provider,
+          payment_provider,
 
-        external_payment_id,
+          external_payment_id,
 
-        external_subscription_id,
+          external_subscription_id,
 
-        payment_method,
+          payment_method,
 
-        started_at,
+          started_at,
 
-        expires_at,
+          expires_at,
 
-        created_at,
+          created_at,
 
-        updated_at
+          updated_at
 
-      `,
+        `,
 
-      [
-        userId,
-        planCode,
-        plano.valor
-      ]
+        [
+          userId,
+          planCode,
+          plano.valor
+        ]
 
-    );
+      );
 
 
     const subscription =
@@ -567,8 +622,11 @@ router.post("/select", authMiddleware, async (req, res) => {
   } catch (error) {
 
     console.error(
+
       "ERRO AO SELECIONAR PLANO:",
+
       error
+
     );
 
 
@@ -594,46 +652,50 @@ router.get("/status", authMiddleware, async (req, res) => {
 
   try {
 
-    const userId = req.user.id;
+    const userId =
+      req.user.id;
 
 
     // --------------------------------------------------------
     // BUSCAR ASSINATURA
     // --------------------------------------------------------
 
-    const result = await db.query(
+    const result =
+      await db.query(
 
-      `
-      SELECT
-        id,
-        user_id,
-        plan,
-        status,
-        amount,
-        payment_provider,
-        external_payment_id,
-        external_subscription_id,
-        payment_method,
-        started_at,
-        expires_at,
-        created_at,
-        updated_at
-      FROM subscriptions
-      WHERE user_id = $1
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
+        `
+        SELECT
+          id,
+          user_id,
+          plan,
+          status,
+          amount,
+          payment_provider,
+          external_payment_id,
+          external_subscription_id,
+          payment_method,
+          started_at,
+          expires_at,
+          created_at,
+          updated_at
+        FROM subscriptions
+        WHERE user_id = $1
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
 
-      [userId]
+        [userId]
 
-    );
+      );
 
 
     // --------------------------------------------------------
     // USUÁRIO AINDA NÃO POSSUI ASSINATURA
     // --------------------------------------------------------
 
-    if (result.rows.length === 0) {
+    if (
+      result.rows.length === 0
+    ) {
 
       return res.json({
 
@@ -680,12 +742,16 @@ router.get("/status", authMiddleware, async (req, res) => {
     // --------------------------------------------------------
 
     if (
+
       active &&
+
       subscription.expires_at
+
     ) {
 
       const agora =
         new Date();
+
 
       const vencimento =
         new Date(
@@ -750,50 +816,41 @@ router.get("/status", authMiddleware, async (req, res) => {
       hasSubscription: true,
 
       active:
-
         active,
 
       subscriptionId:
-
         subscription.id,
 
       plan:
-
         subscription.plan,
 
       planName:
-
         plano
           ? plano.nome
           : subscription.plan,
 
       status:
-
         subscription.status,
 
       amount:
-
         subscription.amount,
 
       paymentProvider:
-
         subscription.payment_provider,
 
       paymentMethod:
-
         subscription.payment_method,
 
       startedAt:
-
         subscription.started_at,
 
       expiresAt:
-
         subscription.expires_at,
 
       limits:
 
         plano
+
           ? {
 
               simultaneousOperations:
@@ -811,8 +868,11 @@ router.get("/status", authMiddleware, async (req, res) => {
   } catch (error) {
 
     console.error(
+
       "ERRO AO CONSULTAR ASSINATURA:",
+
       error
+
     );
 
 

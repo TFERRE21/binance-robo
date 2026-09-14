@@ -1,66 +1,2497 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
+
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Binance-Robo | Login</title>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-  <link rel="stylesheet" href="css/style.css">
+  <title>CriptoPro | Automação Inteligente</title>
+
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+    }
+
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+
+    body {
+      margin: 0;
+
+      min-height: 100vh;
+
+      font-family:
+        Inter,
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      color: #f4f7fb;
+
+      background:
+        radial-gradient(
+          circle at 75% 20%,
+          rgba(240, 185, 11, .10),
+          transparent 30%
+        ),
+        radial-gradient(
+          circle at 20% 70%,
+          rgba(20, 110, 180, .12),
+          transparent 32%
+        ),
+        #050a11;
+
+      overflow-x: hidden;
+    }
+
+
+    body::before {
+      content: "";
+
+      position: fixed;
+
+      inset: 0;
+
+      pointer-events: none;
+
+      background-image:
+        linear-gradient(
+          rgba(255,255,255,.025) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,.025) 1px,
+          transparent 1px
+        );
+
+      background-size: 55px 55px;
+
+      mask-image:
+        linear-gradient(
+          to bottom,
+          black,
+          transparent
+        );
+
+      opacity: .45;
+    }
+
+
+    .page {
+      width: 100%;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+
+
+    /* =====================================================
+       HEADER
+    ===================================================== */
+
+    header {
+
+      width: 100%;
+
+      height: 76px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      padding:
+        0 5%;
+
+      border-bottom:
+        1px solid
+        rgba(255,255,255,.08);
+
+      background:
+        rgba(5,10,17,.82);
+
+      backdrop-filter:
+        blur(14px);
+
+      position: relative;
+
+      z-index: 10;
+    }
+
+
+    .brand {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 12px;
+
+      text-decoration: none;
+
+      color: white;
+    }
+
+
+    .brand-logo {
+
+      width: 43px;
+
+      height: 43px;
+
+      border-radius: 12px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          145deg,
+          #ffd84a,
+          #f0a900
+        );
+
+      box-shadow:
+        0 8px 30px
+        rgba(240,185,11,.20);
+    }
+
+
+    .brand-logo svg {
+      width: 29px;
+      height: 29px;
+    }
+
+
+    .brand-text strong {
+
+      display: block;
+
+      font-size: 21px;
+
+      line-height: 1;
+
+      letter-spacing: -.5px;
+    }
+
+
+    .brand-text strong span {
+      color: #f0b90b;
+    }
+
+
+    .brand-text small {
+
+      display: block;
+
+      margin-top: 5px;
+
+      color: #8291a5;
+
+      font-size: 9px;
+
+      letter-spacing: 1.8px;
+
+      text-transform: uppercase;
+    }
+
+
+    nav {
+
+      display: flex;
+
+      gap: 30px;
+
+      align-items: center;
+    }
+
+
+    nav a {
+
+      color: #9eacbd;
+
+      text-decoration: none;
+
+      font-size: 13px;
+
+      transition: .2s;
+    }
+
+
+    nav a:hover {
+      color: #fff;
+    }
+
+
+    .online {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      padding:
+        9px 14px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.12);
+
+      border-radius: 20px;
+
+      color: #dbe4ef;
+
+      font-size: 12px;
+
+      background:
+        rgba(255,255,255,.025);
+    }
+
+
+    .online-dot {
+
+      width: 8px;
+
+      height: 8px;
+
+      border-radius: 50%;
+
+      background: #37d98b;
+
+      box-shadow:
+        0 0 12px
+        rgba(55,217,139,.8);
+    }
+
+
+    /* =====================================================
+       MAIN
+    ===================================================== */
+
+    .main {
+
+      width:
+        min(
+          1450px,
+          92%
+        );
+
+      margin:
+        0 auto;
+
+      padding:
+        45px 0 35px;
+
+      display: grid;
+
+      grid-template-columns:
+        minmax(0, 1.55fr)
+        minmax(390px, .85fr);
+
+      gap: 55px;
+
+      align-items: start;
+    }
+
+
+    /* =====================================================
+       LEFT
+    ===================================================== */
+
+    .hero {
+
+      position: relative;
+
+      min-height: 780px;
+    }
+
+
+    .eyebrow {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      color: #b8c7d9;
+
+      font-size: 12px;
+
+      text-transform: uppercase;
+
+      letter-spacing: 1.8px;
+
+      margin-bottom: 18px;
+    }
+
+
+    .eyebrow-line {
+
+      width: 25px;
+
+      height: 2px;
+
+      background: #f0b90b;
+
+      border-radius: 5px;
+    }
+
+
+    h1 {
+
+      margin: 0;
+
+      max-width: 780px;
+
+      font-size:
+        clamp(
+          43px,
+          5vw,
+          72px
+        );
+
+      line-height: .98;
+
+      letter-spacing: -3px;
+
+      font-weight: 850;
+    }
+
+
+    h1 span {
+      color: #f0b90b;
+    }
+
+
+    .hero-description {
+
+      max-width: 670px;
+
+      margin:
+        25px 0 30px;
+
+      color: #aab8c9;
+
+      font-size: 17px;
+
+      line-height: 1.6;
+    }
+
+
+    /* =====================================================
+       BENEFITS
+    ===================================================== */
+
+    .benefits {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(4,1fr);
+
+      gap: 12px;
+
+      margin-bottom: 30px;
+    }
+
+
+    .benefit {
+
+      min-height: 145px;
+
+      padding: 19px 15px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.09);
+
+      border-radius: 13px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.015)
+        );
+
+      text-align: center;
+    }
+
+
+    .benefit-icon {
+
+      width: 43px;
+
+      height: 43px;
+
+      margin:
+        0 auto 11px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border-radius: 11px;
+
+      color: #f0b90b;
+
+      background:
+        rgba(240,185,11,.08);
+
+      border:
+        1px solid
+        rgba(240,185,11,.18);
+    }
+
+
+    .benefit-icon svg {
+      width: 23px;
+      height: 23px;
+    }
+
+
+    .benefit strong {
+
+      display: block;
+
+      font-size: 13px;
+
+      margin-bottom: 7px;
+    }
+
+
+    .benefit p {
+
+      margin: 0;
+
+      color: #7f90a5;
+
+      font-size: 11px;
+
+      line-height: 1.45;
+    }
+
+
+    /* =====================================================
+       GRAPHIC
+    ===================================================== */
+
+    .visual {
+
+      position: relative;
+
+      min-height: 315px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.09);
+
+      border-radius: 18px;
+
+      overflow: hidden;
+
+      background:
+        linear-gradient(
+          145deg,
+          #0b1521,
+          #071018
+        );
+
+      box-shadow:
+        0 30px 80px
+        rgba(0,0,0,.22);
+    }
+
+
+    .visual-grid {
+
+      position: absolute;
+
+      inset: 0;
+
+      background-image:
+        linear-gradient(
+          rgba(255,255,255,.035) 1px,
+          transparent 1px
+        ),
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,.035) 1px,
+          transparent 1px
+        );
+
+      background-size:
+        58px 58px;
+    }
+
+
+    .chart {
+
+      position: absolute;
+
+      inset:
+        25px 25px 35px 25px;
+    }
+
+
+    .chart svg {
+
+      width: 100%;
+
+      height: 100%;
+    }
+
+
+    .chart-label {
+
+      position: absolute;
+
+      top: 22px;
+
+      right: 25px;
+
+      padding:
+        7px 11px;
+
+      border:
+        1px solid
+        rgba(55,217,139,.35);
+
+      border-radius: 7px;
+
+      color: #43df91;
+
+      font-size: 12px;
+
+      background:
+        rgba(15,40,31,.65);
+    }
+
+
+    .chart-title {
+
+      position: absolute;
+
+      top: 22px;
+
+      left: 25px;
+
+      color: #9eacbd;
+
+      font-size: 12px;
+    }
+
+
+    /* =====================================================
+       TRUST
+    ===================================================== */
+
+    .trust-row {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3,1fr);
+
+      gap: 12px;
+
+      margin-top: 14px;
+    }
+
+
+    .trust {
+
+      padding:
+        16px 18px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      border-radius: 12px;
+
+      background:
+        rgba(255,255,255,.025);
+    }
+
+
+    .trust strong {
+
+      display: block;
+
+      font-size: 13px;
+
+      margin-bottom: 6px;
+    }
+
+
+    .trust span {
+
+      color: #7f90a5;
+
+      font-size: 11px;
+    }
+
+
+    /* =====================================================
+       PLANOS
+    ===================================================== */
+
+    .plans-title {
+
+      margin:
+        38px 0 16px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+    }
+
+
+    .plans-title h2 {
+
+      margin: 0;
+
+      font-size: 21px;
+    }
+
+
+    .plans-title span {
+
+      color: #75869a;
+
+      font-size: 11px;
+    }
+
+
+    .plans {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3,1fr);
+
+      gap: 12px;
+    }
+
+
+    .plan {
+
+      position: relative;
+
+      padding:
+        21px 19px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.09);
+
+      border-radius: 14px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.012)
+        );
+    }
+
+
+    .plan.featured {
+
+      border-color:
+        rgba(240,185,11,.65);
+
+      box-shadow:
+        0 0 35px
+        rgba(240,185,11,.07);
+    }
+
+
+    .popular {
+
+      position: absolute;
+
+      top: -11px;
+
+      left: 50%;
+
+      transform:
+        translateX(-50%);
+
+      padding:
+        4px 12px;
+
+      border-radius: 20px;
+
+      color: #111;
+
+      background: #f0b90b;
+
+      font-size: 9px;
+
+      font-weight: 900;
+
+      white-space: nowrap;
+    }
+
+
+    .plan-name {
+
+      color: #c5d1df;
+
+      font-size: 13px;
+
+      font-weight: 700;
+    }
+
+
+    .plan-price {
+
+      margin:
+        11px 0 5px;
+
+      font-size: 25px;
+
+      font-weight: 850;
+    }
+
+
+    .plan-price small {
+
+      color: #75869a;
+
+      font-size: 11px;
+
+      font-weight: 400;
+    }
+
+
+    .plan-description {
+
+      min-height: 31px;
+
+      color: #788a9e;
+
+      font-size: 10px;
+
+      line-height: 1.4;
+    }
+
+
+    .plan ul {
+
+      padding: 0;
+
+      margin:
+        16px 0 0;
+
+      list-style: none;
+    }
+
+
+    .plan li {
+
+      margin:
+        9px 0;
+
+      color: #a9b8c9;
+
+      font-size: 10px;
+    }
+
+
+    .plan li::before {
+
+      content: "✓";
+
+      margin-right: 7px;
+
+      color: #39d98b;
+
+      font-weight: 900;
+    }
+
+
+    /* =====================================================
+       LOGIN
+    ===================================================== */
+
+    .login-side {
+
+      position: sticky;
+
+      top: 25px;
+    }
+
+
+    .login-card {
+
+      padding:
+        31px;
+
+      border:
+        1px solid
+        rgba(240,185,11,.25);
+
+      border-radius: 19px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(12,25,38,.97),
+          rgba(5,13,21,.98)
+        );
+
+      box-shadow:
+        0 35px 100px
+        rgba(0,0,0,.45);
+    }
+
+
+    .login-brand {
+
+      text-align: center;
+
+      margin-bottom: 25px;
+    }
+
+
+    .login-logo {
+
+      width: 55px;
+
+      height: 55px;
+
+      margin:
+        0 auto 11px;
+
+      border-radius: 15px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background:
+        linear-gradient(
+          145deg,
+          #ffd84a,
+          #f0a900
+        );
+    }
+
+
+    .login-logo svg {
+
+      width: 37px;
+
+      height: 37px;
+    }
+
+
+    .login-brand h2 {
+
+      margin: 0;
+
+      font-size: 25px;
+
+      letter-spacing: -.7px;
+    }
+
+
+    .login-brand h2 span {
+      color: #f0b90b;
+    }
+
+
+    .login-brand p {
+
+      margin:
+        7px 0 0;
+
+      color: #74869a;
+
+      font-size: 11px;
+    }
+
+
+    .divider {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 12px;
+
+      margin:
+        20px 0;
+
+      color: #66778c;
+
+      font-size: 10px;
+    }
+
+
+    .divider::before,
+    .divider::after {
+
+      content: "";
+
+      flex: 1;
+
+      height: 1px;
+
+      background:
+        rgba(255,255,255,.08);
+    }
+
+
+    .form-group {
+
+      margin-bottom: 17px;
+    }
+
+
+    label {
+
+      display: block;
+
+      margin-bottom: 7px;
+
+      color: #d7e0eb;
+
+      font-size: 12px;
+
+      font-weight: 700;
+    }
+
+
+    input {
+
+      width: 100%;
+
+      height: 50px;
+
+      border:
+        1px solid
+        #29394a;
+
+      border-radius: 9px;
+
+      outline: none;
+
+      padding:
+        0 14px;
+
+      color: #17212c;
+
+      background:
+        #eef4fb;
+
+      font-size: 13px;
+
+      transition: .2s;
+    }
+
+
+    input:focus {
+
+      border-color:
+        #f0b90b;
+
+      box-shadow:
+        0 0 0 3px
+        rgba(240,185,11,.09);
+    }
+
+
+    .password-wrap {
+      position: relative;
+    }
+
+
+    .password-wrap input {
+      padding-right: 45px;
+    }
+
+
+    .toggle-password {
+
+      position: absolute;
+
+      right: 9px;
+
+      top: 9px;
+
+      width: 32px;
+
+      height: 32px;
+
+      border: 0;
+
+      background: transparent;
+
+      color: #64778c;
+
+      cursor: pointer;
+    }
+
+
+    .login-options {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      margin:
+        3px 0 18px;
+
+      font-size: 10px;
+    }
+
+
+    .remember {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 7px;
+
+      color: #8090a2;
+    }
+
+
+    .remember input {
+
+      width: 14px;
+
+      height: 14px;
+
+      accent-color: #f0b90b;
+    }
+
+
+    .forgot {
+
+      color: #f0b90b;
+
+      text-decoration: none;
+
+      font-weight: 700;
+    }
+
+
+    .btn-login {
+
+      width: 100%;
+
+      height: 51px;
+
+      border: 0;
+
+      border-radius: 9px;
+
+      cursor: pointer;
+
+      color: #101318;
+
+      background:
+        linear-gradient(
+          135deg,
+          #ffd23f,
+          #f0ad08
+        );
+
+      font-size: 14px;
+
+      font-weight: 850;
+
+      box-shadow:
+        0 12px 30px
+        rgba(240,185,11,.15);
+
+      transition: .2s;
+    }
+
+
+    .btn-login:hover {
+
+      transform:
+        translateY(-1px);
+
+      box-shadow:
+        0 15px 35px
+        rgba(240,185,11,.23);
+    }
+
+
+    .message {
+
+      min-height: 20px;
+
+      margin-top: 13px;
+
+      text-align: center;
+
+      color: #ff7474;
+
+      font-size: 11px;
+
+      line-height: 1.4;
+    }
+
+
+    .create {
+
+      width: 100%;
+
+      height: 48px;
+
+      margin-top: 7px;
+
+      border:
+        1px solid
+        #f0b90b;
+
+      border-radius: 9px;
+
+      color: #f4f7fb;
+
+      background:
+        transparent;
+
+      cursor: pointer;
+
+      font-size: 13px;
+
+      font-weight: 750;
+    }
+
+
+    .create:hover {
+
+      background:
+        rgba(240,185,11,.07);
+    }
+
+
+    .create a {
+
+      color: inherit;
+
+      text-decoration: none;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      width: 100%;
+
+      height: 100%;
+    }
+
+
+    /* =====================================================
+       SECURITY
+    ===================================================== */
+
+    .security-grid {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3,1fr);
+
+      gap: 7px;
+
+      margin-top: 24px;
+
+      padding-top: 22px;
+
+      border-top:
+        1px solid
+        rgba(255,255,255,.07);
+    }
+
+
+    .security-item {
+
+      text-align: center;
+
+      color: #9aabba;
+
+      font-size: 9px;
+
+      line-height: 1.35;
+    }
+
+
+    .security-icon {
+
+      margin-bottom: 7px;
+
+      color: #d9e4f0;
+    }
+
+
+    .security-icon svg {
+
+      width: 22px;
+
+      height: 22px;
+    }
+
+
+    .binance-note {
+
+      margin-top: 19px;
+
+      padding:
+        12px;
+
+      border-radius: 9px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.07);
+
+      background:
+        rgba(255,255,255,.025);
+
+      text-align: center;
+
+      color: #718397;
+
+      font-size: 9px;
+
+      line-height: 1.45;
+    }
+
+
+    .binance-note strong {
+      color: #c8d4e1;
+    }
+
+
+    .footer {
+
+      width:
+        min(
+          1450px,
+          92%
+        );
+
+      margin:
+        0 auto;
+
+      padding:
+        0 0 28px;
+
+      color: #56677b;
+
+      font-size: 10px;
+
+      display: flex;
+
+      justify-content: space-between;
+    }
+
+
+    /* =====================================================
+       RESPONSIVO
+    ===================================================== */
+
+    @media (max-width: 1100px) {
+
+      .main {
+
+        grid-template-columns:
+          1fr;
+
+        width: 92%;
+      }
+
+
+      .login-side {
+
+        position: relative;
+
+        top: auto;
+
+        max-width: 620px;
+
+        width: 100%;
+
+        margin: 0 auto;
+      }
+
+
+      .hero {
+
+        min-height: auto;
+      }
+
+    }
+
+
+    @media (max-width: 750px) {
+
+      header {
+
+        padding: 0 18px;
+      }
+
+
+      nav {
+
+        display: none;
+      }
+
+
+      .main {
+
+        padding-top: 30px;
+
+        gap: 30px;
+      }
+
+
+      .benefits {
+
+        grid-template-columns:
+          repeat(2,1fr);
+      }
+
+
+      .plans {
+
+        grid-template-columns:
+          1fr;
+      }
+
+
+      .trust-row {
+
+        grid-template-columns:
+          1fr;
+      }
+
+
+      h1 {
+
+        font-size: 44px;
+
+        letter-spacing: -2px;
+      }
+
+
+      .login-card {
+
+        padding: 23px;
+      }
+
+
+      .footer {
+
+        flex-direction: column;
+
+        gap: 8px;
+      }
+
+    }
+
+  </style>
+
 </head>
+
 
 <body>
 
-  <div class="login-container">
+<div class="page">
 
-    <div class="login-box">
 
-      <div class="logo">
-        <h1>Binance-Robo</h1>
-        <p>Painel de controle</p>
+  <!-- =====================================================
+       HEADER
+  ====================================================== -->
+
+  <header>
+
+    <a
+      href="login.html"
+      class="brand"
+    >
+
+      <div class="brand-logo">
+
+        <svg
+          viewBox="0 0 100 100"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+
+          <path
+            d="M18 68L31 55L43 65L65 37"
+            stroke="#101318"
+            stroke-width="9"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+
+          <path
+            d="M58 37H72V51"
+            stroke="#101318"
+            stroke-width="9"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+
+          <rect
+            x="16"
+            y="73"
+            width="11"
+            height="10"
+            rx="2"
+            fill="#101318"
+          />
+
+          <rect
+            x="34"
+            y="67"
+            width="11"
+            height="16"
+            rx="2"
+            fill="#101318"
+          />
+
+          <rect
+            x="52"
+            y="59"
+            width="11"
+            height="24"
+            rx="2"
+            fill="#101318"
+          />
+
+        </svg>
+
       </div>
 
-      <h2>Entrar no painel</h2>
 
-      <form id="loginForm">
+      <div class="brand-text">
 
-        <div class="form-group">
-          <label for="email">E-mail</label>
+        <strong>
+          Cripto<span>Pro</span>
+        </strong>
 
-          <input
-            type="email"
-            id="email"
-            name="email"
-            placeholder="Digite seu e-mail"
-            required
-          >
-        </div>
+        <small>
+          Automação inteligente
+        </small>
 
-        <div class="form-group">
-          <label for="password">Senha</label>
+      </div>
 
-          <input
-            type="password"
-            id="password"
-            name="password"
-            placeholder="Digite sua senha"
-            required
-          >
-        </div>
+    </a>
 
-        <button type="submit" class="btn-login">
-          Entrar
-        </button>
 
-      </form>
+    <nav>
 
-      <div id="message" class="message"></div>
+      <a href="#vantagens">
+        Vantagens
+      </a>
+
+      <a href="#planos">
+        Planos
+      </a>
+
+      <a href="#seguranca">
+        Segurança
+      </a>
+
+      <a href="#como-funciona">
+        Como funciona
+      </a>
+
+    </nav>
+
+
+    <div class="online">
+
+      <span class="online-dot"></span>
+
+      Sistema Online
 
     </div>
 
-  </div>
+  </header>
 
-  <script src="js/login.js"></script>
+
+  <!-- =====================================================
+       MAIN
+  ====================================================== -->
+
+  <main class="main">
+
+
+    <!-- ===================================================
+         MARKETING
+    ==================================================== -->
+
+    <section class="hero">
+
+
+      <div class="eyebrow">
+
+        <span class="eyebrow-line"></span>
+
+        Automação para seus investimentos
+
+      </div>
+
+
+      <h1>
+
+        Mais estratégia
+        <br>
+
+        <span>
+          para o seu futuro.
+        </span>
+
+      </h1>
+
+
+      <p class="hero-description">
+
+        Automatize suas operações na Binance com
+        segurança, controle e dados em tempo real.
+        Mais tempo para você, mais organização para
+        suas decisões.
+
+      </p>
+
+
+      <!-- BENEFÍCIOS -->
+
+      <div
+        class="benefits"
+        id="vantagens"
+      >
+
+
+        <div class="benefit">
+
+          <div class="benefit-icon">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <rect
+                x="5"
+                y="7"
+                width="14"
+                height="12"
+                rx="3"
+              />
+
+              <path d="M9 7V5a3 3 0 0 1 6 0v2" />
+
+              <path d="M9 12h.01M15 12h.01" />
+
+              <path d="M9 16h6" />
+
+            </svg>
+
+          </div>
+
+          <strong>
+            Operações Automatizadas
+          </strong>
+
+          <p>
+            Estratégias executadas
+            de forma automática.
+          </p>
+
+        </div>
+
+
+        <div class="benefit">
+
+          <div class="benefit-icon">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <path
+                d="M12 3l7 3v5c0 4.7-3 8.3-7 10-4-1.7-7-5.3-7-10V6l7-3z"
+              />
+
+              <path
+                d="M9 12l2 2 4-4"
+              />
+
+            </svg>
+
+          </div>
+
+          <strong>
+            Segurança em Primeiro Lugar
+          </strong>
+
+          <p>
+            Dados protegidos e
+            credenciais criptografadas.
+          </p>
+
+        </div>
+
+
+        <div class="benefit">
+
+          <div class="benefit-icon">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <path d="M4 19V9" />
+
+              <path d="M10 19V5" />
+
+              <path d="M16 19v-7" />
+
+              <path d="M22 19V3" />
+
+            </svg>
+
+          </div>
+
+          <strong>
+            Dados em Tempo Real
+          </strong>
+
+          <p>
+            Acompanhe sua conta,
+            operações e patrimônio.
+          </p>
+
+        </div>
+
+
+        <div class="benefit">
+
+          <div class="benefit-icon">
+
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+
+              <path
+                d="M12 2v5"
+              />
+
+              <path
+                d="M12 17v5"
+              />
+
+              <path
+                d="M4.93 4.93l3.54 3.54"
+              />
+
+              <path
+                d="M15.53 15.53l3.54 3.54"
+              />
+
+              <path
+                d="M2 12h5"
+              />
+
+              <path
+                d="M17 12h5"
+              />
+
+              <circle
+                cx="12"
+                cy="12"
+                r="4"
+              />
+
+            </svg>
+
+          </div>
+
+          <strong>
+            Mais Controle
+          </strong>
+
+          <p>
+            Informações organizadas
+            em um único lugar.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- GRÁFICO -->
+
+      <div
+        class="visual"
+        id="como-funciona"
+      >
+
+        <div class="visual-grid"></div>
+
+        <div class="chart-title">
+          ACOMPANHAMENTO DE MERCADO
+        </div>
+
+        <div class="chart-label">
+          Dados em tempo real
+        </div>
+
+
+        <div class="chart">
+
+          <svg
+            viewBox="0 0 900 280"
+            preserveAspectRatio="none"
+          >
+
+            <defs>
+
+              <linearGradient
+                id="area"
+                x1="0"
+                y1="0"
+                x2="0"
+                y2="1"
+              >
+
+                <stop
+                  offset="0%"
+                  stop-color="#f0b90b"
+                  stop-opacity=".22"
+                />
+
+                <stop
+                  offset="100%"
+                  stop-color="#f0b90b"
+                  stop-opacity="0"
+                />
+
+              </linearGradient>
+
+            </defs>
+
+
+            <path
+              d="
+                M0 230
+                C50 215 65 225 110 190
+                C150 160 170 180 215 165
+                C255 150 275 180 315 135
+                C350 95 390 135 430 112
+                C470 90 495 125 535 90
+                C575 55 600 85 635 70
+                C675 52 690 65 725 45
+                C765 20 790 55 820 30
+                C850 10 870 28 900 8
+                L900 280
+                L0 280
+                Z
+              "
+              fill="url(#area)"
+            />
+
+
+            <path
+              d="
+                M0 230
+                C50 215 65 225 110 190
+                C150 160 170 180 215 165
+                C255 150 275 180 315 135
+                C350 95 390 135 430 112
+                C470 90 495 125 535 90
+                C575 55 600 85 635 70
+                C675 52 690 65 725 45
+                C765 20 790 55 820 30
+                C850 10 870 28 900 8
+              "
+              fill="none"
+              stroke="#f0b90b"
+              stroke-width="3"
+              vector-effect="non-scaling-stroke"
+            />
+
+          </svg>
+
+        </div>
+
+      </div>
+
+
+      <!-- CONFIANÇA -->
+
+      <div
+        class="trust-row"
+        id="seguranca"
+      >
+
+        <div class="trust">
+
+          <strong>
+            🔐 Dados protegidos
+          </strong>
+
+          <span>
+            Credenciais armazenadas
+            com proteção criptográfica.
+          </span>
+
+        </div>
+
+
+        <div class="trust">
+
+          <strong>
+            🛡️ Saques protegidos
+          </strong>
+
+          <span>
+            Recomendamos API sem
+            permissão para saques.
+          </span>
+
+        </div>
+
+
+        <div class="trust">
+
+          <strong>
+            🔗 Conexão via API
+          </strong>
+
+          <span>
+            Integração direta com
+            sua conta Binance.
+          </span>
+
+        </div>
+
+      </div>
+
+
+      <!-- PLANOS -->
+
+      <div
+        class="plans-title"
+        id="planos"
+      >
+
+        <h2>
+          Nossos planos
+        </h2>
+
+        <span>
+          Escolha o plano ideal para seu momento
+        </span>
+
+      </div>
+
+
+      <div class="plans">
+
+
+        <div class="plan">
+
+          <div class="plan-name">
+            Básico
+          </div>
+
+          <div class="plan-price">
+            R$ 49,90
+            <small>/mês</small>
+          </div>
+
+          <div class="plan-description">
+            Ideal para começar.
+          </div>
+
+          <ul>
+
+            <li>
+              Operações automatizadas
+            </li>
+
+            <li>
+              Painel de acompanhamento
+            </li>
+
+            <li>
+              Relatórios básicos
+            </li>
+
+            <li>
+              Suporte por e-mail
+            </li>
+
+          </ul>
+
+        </div>
+
+
+        <div class="plan featured">
+
+          <div class="popular">
+            MAIS ESCOLHIDO
+          </div>
+
+          <div class="plan-name">
+            Profissional
+          </div>
+
+          <div class="plan-price">
+            R$ 99,90
+            <small>/mês</small>
+          </div>
+
+          <div class="plan-description">
+            Mais recursos e controle.
+          </div>
+
+          <ul>
+
+            <li>
+              Todos os recursos Básicos
+            </li>
+
+            <li>
+              Estratégias avançadas
+            </li>
+
+            <li>
+              Relatórios detalhados
+            </li>
+
+            <li>
+              Acompanhamento de performance
+            </li>
+
+          </ul>
+
+        </div>
+
+
+        <div class="plan">
+
+          <div class="plan-name">
+            Premium
+          </div>
+
+          <div class="plan-price">
+            R$ 199,90
+            <small>/mês</small>
+          </div>
+
+          <div class="plan-description">
+            Máximo controle e personalização.
+          </div>
+
+          <ul>
+
+            <li>
+              Todos os recursos
+            </li>
+
+            <li>
+              Personalização avançada
+            </li>
+
+            <li>
+              Suporte prioritário
+            </li>
+
+            <li>
+              Recursos premium
+            </li>
+
+          </ul>
+
+        </div>
+
+
+      </div>
+
+
+    </section>
+
+
+    <!-- ===================================================
+         LOGIN
+    ==================================================== -->
+
+    <aside class="login-side">
+
+
+      <div class="login-card">
+
+
+        <div class="login-brand">
+
+
+          <div class="login-logo">
+
+            <svg
+              viewBox="0 0 100 100"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+
+              <path
+                d="M18 68L31 55L43 65L65 37"
+                stroke="#101318"
+                stroke-width="9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+
+              <path
+                d="M58 37H72V51"
+                stroke="#101318"
+                stroke-width="9"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+
+              <rect
+                x="16"
+                y="73"
+                width="11"
+                height="10"
+                rx="2"
+                fill="#101318"
+              />
+
+              <rect
+                x="34"
+                y="67"
+                width="11"
+                height="16"
+                rx="2"
+                fill="#101318"
+              />
+
+              <rect
+                x="52"
+                y="59"
+                width="11"
+                height="24"
+                rx="2"
+                fill="#101318"
+              />
+
+            </svg>
+
+          </div>
+
+
+          <h2>
+            Cripto<span>Pro</span>
+          </h2>
+
+
+          <p>
+            Acesse sua conta e acompanhe
+            suas operações em tempo real.
+          </p>
+
+
+        </div>
+
+
+        <div class="divider">
+          Acesse sua conta
+        </div>
+
+
+        <!-- LOGIN ORIGINAL -->
+
+        <form id="loginForm">
+
+
+          <div class="form-group">
+
+            <label for="email">
+              E-mail
+            </label>
+
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="seu@email.com"
+              autocomplete="email"
+              required
+            >
+
+          </div>
+
+
+          <div class="form-group">
+
+            <label for="password">
+              Senha
+            </label>
+
+
+            <div class="password-wrap">
+
+              <input
+                type="password"
+                id="password"
+                name="password"
+                placeholder="Sua senha"
+                autocomplete="current-password"
+                required
+              >
+
+
+              <button
+                type="button"
+                class="toggle-password"
+                id="togglePassword"
+                aria-label="Mostrar senha"
+              >
+
+                👁
+
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <div class="login-options">
+
+            <label class="remember">
+
+              <input
+                type="checkbox"
+                id="remember"
+              >
+
+              Lembrar de mim
+
+            </label>
+
+
+            <a
+              href="#"
+              class="forgot"
+              id="forgotPassword"
+            >
+              Esqueci minha senha
+            </a>
+
+          </div>
+
+
+          <button
+            type="submit"
+            class="btn-login"
+          >
+
+            → &nbsp; Entrar no sistema
+
+          </button>
+
+
+        </form>
+
+
+        <div
+          id="message"
+          class="message"
+        ></div>
+
+
+        <div class="divider">
+          Ainda não tem uma conta?
+        </div>
+
+
+        <button
+          type="button"
+          class="create"
+          id="createAccountButton"
+        >
+
+          <a href="#">
+            ＋ &nbsp; Criar nova conta
+          </a>
+
+        </button>
+
+
+        <!-- SEGURANÇA -->
+
+        <div class="security-grid">
+
+
+          <div class="security-item">
+
+            <div class="security-icon">
+
+              🔐
+
+            </div>
+
+            Dados protegidos
+
+          </div>
+
+
+          <div class="security-item">
+
+            <div class="security-icon">
+
+              🛡️
+
+            </div>
+
+            Conexão segura
+
+          </div>
+
+
+          <div class="security-item">
+
+            <div class="security-icon">
+
+              🌐
+
+            </div>
+
+            Acesso online
+
+          </div>
+
+
+        </div>
+
+
+        <div class="binance-note">
+
+          <strong>
+            Integração com Binance
+          </strong>
+
+          <br>
+
+          Conecte sua conta através da API.
+          Nunca compartilhe suas chaves com terceiros.
+
+        </div>
+
+
+      </div>
+
+
+    </aside>
+
+
+  </main>
+
+
+  <footer class="footer">
+
+    <span>
+      CriptoPro — Automação inteligente.
+    </span>
+
+    <span>
+      Segurança • Controle • Transparência
+    </span>
+
+  </footer>
+
+
+</div>
+
+
+<!-- =======================================================
+     LOGIN JS ORIGINAL
+======================================================= -->
+
+<script src="js/login.js"></script>
+
+
+<script>
+
+  /* =====================================================
+     MOSTRAR / OCULTAR SENHA
+  ===================================================== */
+
+  const togglePassword =
+    document.getElementById(
+      "togglePassword"
+    );
+
+
+  const passwordInput =
+    document.getElementById(
+      "password"
+    );
+
+
+  if (
+    togglePassword &&
+    passwordInput
+  ) {
+
+    togglePassword.addEventListener(
+      "click",
+      () => {
+
+        if (
+          passwordInput.type ===
+          "password"
+        ) {
+
+          passwordInput.type =
+            "text";
+
+          togglePassword.textContent =
+            "🙈";
+
+        }
+
+        else {
+
+          passwordInput.type =
+            "password";
+
+          togglePassword.textContent =
+            "👁";
+
+        }
+
+      }
+    );
+
+  }
+
+
+  /* =====================================================
+     CRIAR CONTA
+  ===================================================== */
+
+  const createAccountButton =
+    document.getElementById(
+      "createAccountButton"
+    );
+
+
+  if (createAccountButton) {
+
+    createAccountButton.addEventListener(
+      "click",
+      () => {
+
+        /*
+          A página de cadastro será criada
+          na próxima etapa.
+        */
+
+        alert(
+          "A criação de conta será disponibilizada nesta próxima etapa."
+        );
+
+      }
+    );
+
+  }
+
+
+  /* =====================================================
+     RECUPERAR SENHA
+  ===================================================== */
+
+  const forgotPassword =
+    document.getElementById(
+      "forgotPassword"
+    );
+
+
+  if (forgotPassword) {
+
+    forgotPassword.addEventListener(
+      "click",
+      (event) => {
+
+        event.preventDefault();
+
+        /*
+          A recuperação por e-mail será
+          conectada ao backend na próxima etapa.
+        */
+
+        alert(
+          "A recuperação de senha será disponibilizada nesta próxima etapa."
+        );
+
+      }
+    );
+
+  }
+
+</script>
+
 
 </body>
+
 </html>

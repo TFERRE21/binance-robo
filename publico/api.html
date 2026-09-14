@@ -1,0 +1,1283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Conectar Binance — Binance-Robo</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top right, #20252d 0%, #111318 45%, #0b0d10 100%);
+      color: #f5f5f5;
+    }
+
+    .topbar {
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      border-bottom: 1px solid #252a31;
+      background: rgba(12, 14, 18, 0.96);
+    }
+
+    .logo {
+      font-size: 21px;
+      font-weight: 800;
+      letter-spacing: .3px;
+    }
+
+    .logo span {
+      color: #f0b90b;
+    }
+
+    .lang {
+      display: flex;
+      gap: 6px;
+    }
+
+    .lang button {
+      border: 1px solid #303640;
+      background: #171a20;
+      color: #aaa;
+      padding: 7px 11px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    .lang button.active {
+      background: #f0b90b;
+      color: #111;
+      border-color: #f0b90b;
+    }
+
+    .container {
+      width: min(1000px, calc(100% - 30px));
+      margin: 40px auto;
+    }
+
+    .back {
+      display: inline-block;
+      margin-bottom: 20px;
+      color: #aaa;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back:hover {
+      color: #fff;
+    }
+
+    .card {
+      background: rgba(19, 22, 27, .97);
+      border: 1px solid #2b3038;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 29px;
+    }
+
+    .subtitle {
+      color: #969da7;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #c7cbd1;
+      font-weight: 700;
+    }
+
+    input {
+      width: 100%;
+      height: 48px;
+      border-radius: 9px;
+      border: 1px solid #353b45;
+      background: #0e1115;
+      color: #fff;
+      padding: 0 14px;
+      outline: none;
+      font-size: 14px;
+    }
+
+    input:focus {
+      border-color: #f0b90b;
+      box-shadow: 0 0 0 2px rgba(240,185,11,.10);
+    }
+
+    .secret-wrap {
+      position: relative;
+    }
+
+    .secret-wrap input {
+      padding-right: 80px;
+    }
+
+    .show-secret {
+      position: absolute;
+      right: 8px;
+      top: 8px;
+      height: 32px;
+      border: 0;
+      border-radius: 6px;
+      background: #252a31;
+      color: #ccc;
+      cursor: pointer;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .warning {
+      margin-top: 24px;
+      padding: 16px;
+      border-radius: 10px;
+      background: rgba(240,185,11,.08);
+      border: 1px solid rgba(240,185,11,.25);
+      color: #d7d9dc;
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .warning strong {
+      color: #f0b90b;
+    }
+
+    .buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+
+    button.main {
+      border: 0;
+      border-radius: 9px;
+      padding: 13px 20px;
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    #testBtn {
+      background: #f0b90b;
+      color: #111;
+    }
+
+    #saveBtn {
+      background: #238636;
+      color: #fff;
+    }
+
+    button.main:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
+    .status {
+      margin-top: 18px;
+      padding: 13px 15px;
+      border-radius: 9px;
+      display: none;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .status.ok {
+      display: block;
+      background: rgba(35,134,54,.13);
+      border: 1px solid rgba(35,134,54,.4);
+      color: #63d471;
+    }
+
+    .status.error {
+      display: block;
+      background: rgba(218,54,51,.12);
+      border: 1px solid rgba(218,54,51,.4);
+      color: #ff7b72;
+    }
+
+    .permissions {
+      display: none;
+      margin-top: 25px;
+      border: 1px solid #2d333b;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .permissions-title {
+      padding: 15px 18px;
+      background: #171a20;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .permission-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 18px;
+      border-top: 1px solid #252a31;
+    }
+
+    .permission-name {
+      color: #c9cdd2;
+    }
+
+    .enabled {
+      color: #4ade80;
+      font-weight: 800;
+    }
+
+    .disabled {
+      color: #ff6b6b;
+      font-weight: 800;
+    }
+
+    .security {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: rgba(35,134,54,.08);
+      border: 1px solid rgba(35,134,54,.25);
+      color: #b8e6bf;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .help {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid #292e36;
+    }
+
+    .help h2 {
+      font-size: 18px;
+      margin: 0 0 8px;
+    }
+
+    .help p {
+      color: #969da7;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .binance-guide {
+      display: inline-block;
+      margin-top: 10px;
+      color: #f0b90b;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .binance-guide:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 700px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .full {
+        grid-column: auto;
+      }
+
+      .card {
+        padding: 22px;
+      }
+
+      .topbar {
+        padding: 0 16px;
+      }
+
+      h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="topbar">
+
+    <div class="logo">
+      BINANCE<span>-ROBO</span>
+    </div>
+
+    <div class="lang">
+      <button id="ptBtn" class="active">PT</button>
+      <button id="enBtn">EN</button>
+    </div>
+
+  </header>
+
+
+  <main class="container">
+
+    <a href="dashboard.html" class="back" id="backBtn">
+      ← Voltar ao dashboard
+    </a>
+
+
+    <section class="card">
+
+      <h1 id="title">
+        Conectar sua Binance
+      </h1>
+
+      <div class="subtitle" id="subtitle">
+        Conecte sua conta Binance ao Binance-Robo de forma segura.
+        Primeiro teste as credenciais e as permissões da API.
+      </div>
+
+
+      <div class="form-grid">
+
+        <div class="full">
+
+          <label for="accountName" id="nameLabel">
+            Nome da conta
+          </label>
+
+          <input
+            type="text"
+            id="accountName"
+            placeholder="Ex.: Minha Binance"
+            autocomplete="off"
+          >
+
+        </div>
+
+
+        <div>
+
+          <label for="apiKey">
+            API Key
+          </label>
+
+          <input
+            type="text"
+            id="apiKey"
+            placeholder="Digite sua API Key"
+            autocomplete="off"
+          >
+
+        </div>
+
+
+        <div>
+
+          <label for="apiSecret">
+            API Secret
+          </label>
+
+          <div class="secret-wrap">
+
+            <input
+              type="password"
+              id="apiSecret"
+              placeholder="Digite sua API Secret"
+              autocomplete="off"
+            >
+
+            <button
+              type="button"
+              class="show-secret"
+              id="showSecret"
+            >
+              Mostrar
+            </button>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="warning">
+
+        <strong>⚠ Segurança:</strong>
+
+        <span id="warningText">
+          Nunca compartilhe sua API Secret. Recomendamos criar
+          uma chave exclusivamente para o Binance-Robo e manter
+          os saques desativados.
+        </span>
+
+      </div>
+
+
+      <div class="buttons">
+
+        <button
+          type="button"
+          class="main"
+          id="testBtn"
+        >
+          TESTAR CONEXÃO
+        </button>
+
+
+        <button
+          type="button"
+          class="main"
+          id="saveBtn"
+          disabled
+        >
+          SALVAR E CONTINUAR
+        </button>
+
+      </div>
+
+
+      <div id="status" class="status"></div>
+
+
+      <div id="permissions" class="permissions">
+
+        <div class="permissions-title" id="permissionsTitle">
+          Permissões da API
+        </div>
+
+
+        <div class="permission-row">
+
+          <span class="permission-name" id="readName">
+            📖 Leitura
+          </span>
+
+          <span id="readValue">
+            —
+          </span>
+
+        </div>
+
+
+        <div class="permission-row">
+
+          <span class="permission-name" id="tradeName">
+            📈 Trading Spot / Margin
+          </span>
+
+          <span id="tradeValue">
+            —
+          </span>
+
+        </div>
+
+
+        <div class="permission-row">
+
+          <span class="permission-name" id="withdrawName">
+            💸 Saques
+          </span>
+
+          <span id="withdrawValue">
+            —
+          </span>
+
+        </div>
+
+
+        <div class="permission-row">
+
+          <span class="permission-name" id="depositName">
+            🔄 Transferência interna
+          </span>
+
+          <span id="depositValue">
+            —
+          </span>
+
+        </div>
+
+
+        <div class="permission-row">
+
+          <span class="permission-name">
+            ⚡ Futures
+          </span>
+
+          <span id="futuresValue">
+            —
+          </span>
+
+        </div>
+
+
+        <div class="security" id="security">
+          🛡️ Saques desativados — configuração recomendada.
+        </div>
+
+      </div>
+
+
+      <div class="help">
+
+        <h2 id="helpTitle">
+          Como criar sua API Key?
+        </h2>
+
+        <p id="helpText">
+          Na Binance, acesse o gerenciamento de API e crie uma
+          nova chave. Para o Binance-Robo, recomendamos não
+          habilitar permissão de saque.
+        </p>
+
+        <a
+          class="binance-guide"
+          href="https://www.binance.com/pt-BR/support/faq/detail/360002502072"
+          target="_blank"
+          rel="noopener noreferrer"
+          id="guideLink"
+        >
+          Ver guia oficial da Binance →
+        </a>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+  <script>
+
+    const token =
+      localStorage.getItem("token");
+
+
+    if (!token) {
+
+      window.location.href =
+        "login.html";
+
+    }
+
+
+    let testSuccessful = false;
+
+
+    const status =
+      document.getElementById("status");
+
+
+    const permissionsBox =
+      document.getElementById("permissions");
+
+
+    const testBtn =
+      document.getElementById("testBtn");
+
+
+    const saveBtn =
+      document.getElementById("saveBtn");
+
+
+    const apiSecret =
+      document.getElementById("apiSecret");
+
+
+    const accountName =
+      document.getElementById("accountName");
+
+
+    const apiKey =
+      document.getElementById("apiKey");
+
+
+    function showStatus(
+      message,
+      type
+    ) {
+
+      status.textContent =
+        message;
+
+      status.className =
+        "status " + type;
+
+    }
+
+
+    function getPayload() {
+
+      return {
+
+        name:
+          accountName.value.trim(),
+
+        apiKey:
+          apiKey.value.trim(),
+
+        apiSecret:
+          apiSecret.value.trim()
+
+      };
+
+    }
+
+
+    function validate() {
+
+      const data =
+        getPayload();
+
+
+      if (!data.name) {
+
+        showStatus(
+          "Informe o nome da conta.",
+          "error"
+        );
+
+        accountName.focus();
+
+        return false;
+
+      }
+
+
+      if (!data.apiKey) {
+
+        showStatus(
+          "Informe a API Key.",
+          "error"
+        );
+
+        apiKey.focus();
+
+        return false;
+
+      }
+
+
+      if (!data.apiSecret) {
+
+        showStatus(
+          "Informe a API Secret.",
+          "error"
+        );
+
+        apiSecret.focus();
+
+        return false;
+
+      }
+
+
+      return true;
+
+    }
+
+
+    async function api(
+      url,
+      options = {}
+    ) {
+
+      const response =
+        await fetch(
+          url,
+          {
+
+            ...options,
+
+            cache:
+              "no-store",
+
+            headers:
+              {
+
+                ...(options.headers || {}),
+
+                "Authorization":
+                  "Bearer " + token,
+
+                "Content-Type":
+                  "application/json"
+
+              }
+
+          }
+        );
+
+
+      const data =
+        await response
+          .json()
+          .catch(
+            () => ({})
+          );
+
+
+      if (
+        response.status === 401
+      ) {
+
+        localStorage.removeItem(
+          "token"
+        );
+
+        window.location.href =
+          "login.html";
+
+        return null;
+
+      }
+
+
+      if (!response.ok) {
+
+        throw new Error(
+          data.message ||
+          "Erro na comunicação com o servidor."
+        );
+
+      }
+
+
+      return data;
+
+    }
+
+
+    function setPermission(
+      elementId,
+      value
+    ) {
+
+      const element =
+        document.getElementById(
+          elementId
+        );
+
+
+      if (value === true) {
+
+        element.textContent =
+          "ATIVADA";
+
+        element.className =
+          "enabled";
+
+      }
+
+      else {
+
+        element.textContent =
+          "DESATIVADA";
+
+        element.className =
+          "disabled";
+
+      }
+
+    }
+
+
+    testBtn.addEventListener(
+      "click",
+      async () => {
+
+        if (!validate()) {
+          return;
+        }
+
+
+        testSuccessful =
+          false;
+
+        saveBtn.disabled =
+          true;
+
+
+        testBtn.disabled =
+          true;
+
+
+        permissionsBox.style.display =
+          "none";
+
+
+        showStatus(
+          "Verificando conexão e permissões na Binance...",
+          ""
+        );
+
+
+        try {
+
+          const data =
+            await api(
+              "/api/binance/test-credentials",
+              {
+
+                method:
+                  "POST",
+
+                body:
+                  JSON.stringify(
+                    {
+                      apiKey:
+                        apiKey.value.trim(),
+
+                      apiSecret:
+                        apiSecret.value.trim()
+                    }
+                  )
+
+              }
+            );
+
+
+          if (!data) {
+            return;
+          }
+
+
+          if (
+            !data.success ||
+            !data.connected
+          ) {
+
+            throw new Error(
+              data.message ||
+              "Não foi possível conectar à Binance."
+            );
+
+          }
+
+
+          testSuccessful =
+            true;
+
+
+          const permissions =
+            data.permissions || {};
+
+
+          const binancePermissions =
+            data.binancePermissions || {};
+
+
+          setPermission(
+            "readValue",
+            binancePermissions.enableReading === true
+          );
+
+
+          setPermission(
+            "tradeValue",
+            binancePermissions.enableSpotAndMarginTrading === true
+          );
+
+
+          setPermission(
+            "withdrawValue",
+            binancePermissions.enableWithdrawals === true
+          );
+
+
+          setPermission(
+            "depositValue",
+            binancePermissions.enableInternalTransfer === true
+          );
+
+
+          setPermission(
+            "futuresValue",
+            binancePermissions.enableFutures === true
+          );
+
+
+          if (
+            binancePermissions.enableWithdrawals === true
+          ) {
+
+            document.getElementById(
+              "security"
+            ).textContent =
+              "⚠️ ATENÇÃO: a chave possui permissão de saque. Recomendamos desativá-la na Binance.";
+
+            document.getElementById(
+              "security"
+            ).style.background =
+              "rgba(218,54,51,.08)";
+
+            document.getElementById(
+              "security"
+            ).style.borderColor =
+              "rgba(218,54,51,.35)";
+
+            document.getElementById(
+              "security"
+            ).style.color =
+              "#ff7b72";
+
+          }
+
+          else {
+
+            document.getElementById(
+              "security"
+            ).textContent =
+              "🛡️ Saques desativados — configuração recomendada.";
+
+          }
+
+
+          permissionsBox.style.display =
+            "block";
+
+
+          showStatus(
+            "🟢 Conexão com a Binance realizada com sucesso.",
+            "ok"
+          );
+
+
+          saveBtn.disabled =
+            false;
+
+
+        } catch (error) {
+
+          console.error(
+            "ERRO NO TESTE DA BINANCE:",
+            error
+          );
+
+
+          showStatus(
+            "🔴 " + error.message,
+            "error"
+          );
+
+        } finally {
+
+          testBtn.disabled =
+            false;
+
+        }
+
+      }
+    );
+
+
+    saveBtn.addEventListener(
+      "click",
+      async () => {
+
+        if (!testSuccessful) {
+
+          showStatus(
+            "Teste a conexão antes de salvar.",
+            "error"
+          );
+
+          return;
+
+        }
+
+
+        const data =
+          getPayload();
+
+
+        saveBtn.disabled =
+          true;
+
+
+        showStatus(
+          "Salvando conta Binance...",
+          ""
+        );
+
+
+        try {
+
+          const result =
+            await api(
+              "/api/binance/accounts",
+              {
+
+                method:
+                  "POST",
+
+                body:
+                  JSON.stringify(
+                    data
+                  )
+
+              }
+            );
+
+
+          if (!result) {
+            return;
+          }
+
+
+          if (!result.success) {
+
+            throw new Error(
+              result.message ||
+              "Não foi possível salvar a conta."
+            );
+
+          }
+
+
+          showStatus(
+            "🟢 Conta Binance salva com sucesso. Redirecionando...",
+            "ok"
+          );
+
+
+          setTimeout(
+            () => {
+
+              window.location.href =
+                "dashboard.html";
+
+            },
+            1000
+          );
+
+
+        } catch (error) {
+
+          console.error(
+            "ERRO AO SALVAR BINANCE:",
+            error
+          );
+
+
+          showStatus(
+            "🔴 " + error.message,
+            "error"
+          );
+
+
+          saveBtn.disabled =
+            false;
+
+        }
+
+      }
+    );
+
+
+    document
+      .getElementById("showSecret")
+      .addEventListener(
+        "click",
+        () => {
+
+          if (
+            apiSecret.type ===
+            "password"
+          ) {
+
+            apiSecret.type =
+              "text";
+
+            document.getElementById(
+              "showSecret"
+            ).textContent =
+              "Ocultar";
+
+          }
+
+          else {
+
+            apiSecret.type =
+              "password";
+
+            document.getElementById(
+              "showSecret"
+            ).textContent =
+              "Mostrar";
+
+          }
+
+        }
+      );
+
+
+    document
+      .getElementById("ptBtn")
+      .addEventListener(
+        "click",
+        () => {
+
+          document.documentElement.lang =
+            "pt-BR";
+
+          document.getElementById(
+            "ptBtn"
+          ).classList.add("active");
+
+          document.getElementById(
+            "enBtn"
+          ).classList.remove("active");
+
+          document.getElementById(
+            "title"
+          ).textContent =
+            "Conectar sua Binance";
+
+          document.getElementById(
+            "subtitle"
+          ).textContent =
+            "Conecte sua conta Binance ao Binance-Robo de forma segura. Primeiro teste as credenciais e as permissões da API.";
+
+          document.getElementById(
+            "nameLabel"
+          ).textContent =
+            "Nome da conta";
+
+          document.getElementById(
+            "backBtn"
+          ).textContent =
+            "← Voltar ao dashboard";
+
+          document.getElementById(
+            "warningText"
+          ).textContent =
+            "Nunca compartilhe sua API Secret. Recomendamos criar uma chave exclusivamente para o Binance-Robo e manter os saques desativados.";
+
+          testBtn.textContent =
+            "TESTAR CONEXÃO";
+
+          saveBtn.textContent =
+            "SALVAR E CONTINUAR";
+
+          document.getElementById(
+            "permissionsTitle"
+          ).textContent =
+            "Permissões da API";
+
+          document.getElementById(
+            "helpTitle"
+          ).textContent =
+            "Como criar sua API Key?";
+
+          document.getElementById(
+            "helpText"
+          ).textContent =
+            "Na Binance, acesse o gerenciamento de API e crie uma nova chave. Para o Binance-Robo, recomendamos não habilitar permissão de saque.";
+
+          document.getElementById(
+            "guideLink"
+          ).textContent =
+            "Ver guia oficial da Binance →";
+
+        }
+      );
+
+
+    document
+      .getElementById("enBtn")
+      .addEventListener(
+        "click",
+        () => {
+
+          document.documentElement.lang =
+            "en";
+
+          document.getElementById(
+            "ptBtn"
+          ).classList.remove("active");
+
+          document.getElementById(
+            "enBtn"
+          ).classList.add("active");
+
+          document.getElementById(
+            "title"
+          ).textContent =
+            "Connect your Binance";
+
+          document.getElementById(
+            "subtitle"
+          ).textContent =
+            "Connect your Binance account to Binance-Robo securely. First test the credentials and API permissions.";
+
+          document.getElementById(
+            "nameLabel"
+          ).textContent =
+            "Account name";
+
+          document.getElementById(
+            "backBtn"
+          ).textContent =
+            "← Back to dashboard";
+
+          document.getElementById(
+            "warningText"
+          ).textContent =
+            "Never share your API Secret. We recommend creating a key exclusively for Binance-Robo and keeping withdrawals disabled.";
+
+          testBtn.textContent =
+            "TEST CONNECTION";
+
+          saveBtn.textContent =
+            "SAVE AND CONTINUE";
+
+          document.getElementById(
+            "permissionsTitle"
+          ).textContent =
+            "API Permissions";
+
+          document.getElementById(
+            "helpTitle"
+          ).textContent =
+            "How to create your API Key?";
+
+          document.getElementById(
+            "helpText"
+          ).textContent =
+            "In Binance, open API Management and create a new key. For Binance-Robo, we recommend not enabling withdrawal permission.";
+
+          document.getElementById(
+            "guideLink"
+          ).textContent =
+            "View Binance official guide →";
+
+        }
+      );
+
+  </script>
+
+</body>
+</html>

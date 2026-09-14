@@ -20,6 +20,65 @@ const preApprovalClient = new PreApproval(mpClient);
 
 const router = express.Router();
 
+
+// ============================================================
+// CRIAR ASSINATURA NO MERCADO PAGO
+// ============================================================
+
+async function criarAssinaturaMercadoPago({
+  email,
+  plano,
+  valor,
+  subscriptionId
+}) {
+
+  const baseUrl =
+    "https://site--painel-binance--clbfrw28wczh.code.run";
+
+  const resultado =
+    await preApprovalClient.create({
+
+      body: {
+
+        reason:
+          `CriptoPro - Plano ${plano}`,
+
+        external_reference:
+          String(subscriptionId),
+
+        payer_email:
+          email,
+
+        auto_recurring: {
+
+          frequency:
+            1,
+
+          frequency_type:
+            "months",
+
+          transaction_amount:
+            Number(valor),
+
+          currency_id:
+            "BRL"
+
+        },
+
+        back_url:
+          `${baseUrl}/pagamento-sucesso.html`,
+
+        status:
+          "pending"
+
+      }
+
+    });
+
+  return resultado;
+}
+
+
 async function testarMercadoPago() {
 
   try {
@@ -511,6 +570,187 @@ router.post("/select", authMiddleware, async (req, res) => {
 
 
     // --------------------------------------------------------
+    // CRIAR ASSINATURA NO MERCADO PAGO
+    // --------------------------------------------------------
+
+    let mercadoPagoSubscription;
+
+    try {
+
+      mercadoPagoSubscription =
+        await criarAssinaturaMercadoPago({
+
+          email:
+            user.email,
+
+          plano:
+            plano.nome,
+
+          valor:
+            plano.valor,
+
+          subscriptionId:
+            subscription.id
+
+        });
+
+    } catch (mercadoPagoError) {
+
+      console.error(
+        "ERRO AO CRIAR ASSINATURA NO MERCADO PAGO:",
+        mercadoPagoError
+      );
+
+
+      await db.query(
+
+        `
+        DELETE FROM subscriptions
+        WHERE id = $1
+        `,
+
+        [subscription.id]
+
+      );
+
+
+      return res.status(502).json({
+
+        success: false,
+
+        message:
+          "Não foi possível iniciar a contratação no Mercado Pago."
+
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // SALVAR ID DA ASSINATURA DO MERCADO PAGO
+    // --------------------------------------------------------
+
+    const mercadoPagoId =
+      mercadoPagoSubscription.id
+        ? String(mercadoPagoSubscription.id)
+        : null;
+
+
+    if (!mercadoPagoId) {
+
+      console.error(
+        "MERCADO PAGO NÃO RETORNOU ID DE ASSINATURA:",
+        mercadoPagoSubscription
+      );
+
+
+      await db.query(
+
+        `
+        DELETE FROM subscriptions
+        WHERE id = $1
+        `,
+
+        [subscription.id]
+
+      );
+
+
+      return res.status(502).json({
+
+        success: false,
+
+        message:
+          "O Mercado Pago não retornou o identificador da assinatura."
+
+      });
+
+    }
+
+
+    const updatedSubscription =
+      await db.query(
+
+        `
+        UPDATE subscriptions
+
+        SET
+
+          payment_provider =
+            'MERCADO_PAGO',
+
+          external_subscription_id =
+            $1,
+
+          payment_method =
+            'MERCADO_PAGO',
+
+          updated_at =
+            NOW()
+
+        WHERE id = $2
+
+        RETURNING
+
+          id,
+          user_id,
+          plan,
+          status,
+          amount,
+          payment_provider,
+          external_payment_id,
+          external_subscription_id,
+          payment_method,
+          started_at,
+          expires_at,
+          created_at,
+          updated_at
+
+        `,
+
+        [
+          mercadoPagoId,
+          subscription.id
+        ]
+
+      );
+
+
+    const subscriptionAtualizada =
+      updatedSubscription.rows[0];
+
+
+    // --------------------------------------------------------
+    // LINK DE PAGAMENTO
+    // --------------------------------------------------------
+
+    const paymentUrl =
+      mercadoPagoSubscription.init_point ||
+      mercadoPagoSubscription.sandbox_init_point ||
+      null;
+
+
+    if (!paymentUrl) {
+
+      console.error(
+        "MERCADO PAGO NÃO RETORNOU LINK DE PAGAMENTO:",
+        mercadoPagoSubscription
+      );
+
+
+      return res.status(502).json({
+
+        success: false,
+
+        message:
+          "A assinatura foi criada, mas o Mercado Pago não retornou o link de pagamento."
+
+      });
+
+    }
+
+
+    // --------------------------------------------------------
     // RESPOSTA
     // --------------------------------------------------------
 
@@ -519,27 +759,30 @@ router.post("/select", authMiddleware, async (req, res) => {
       success: true,
 
       message:
-        "Plano selecionado. A contratação está aguardando pagamento.",
+        "Contratação criada. Prossiga para o pagamento.",
 
       requiresPayment:
         true,
 
+      paymentUrl:
+        paymentUrl,
+
       subscription: {
 
         id:
-          subscription.id,
+          subscriptionAtualizada.id,
 
         plan:
-          subscription.plan,
+          subscriptionAtualizada.plan,
 
         planName:
           plano.nome,
 
         status:
-          subscription.status,
+          subscriptionAtualizada.status,
 
         amount:
-          subscription.amount,
+          subscriptionAtualizada.amount,
 
         simultaneousOperations:
           plano.operacoesSimultaneas,
@@ -548,19 +791,22 @@ router.post("/select", authMiddleware, async (req, res) => {
           plano.contasBinance,
 
         paymentProvider:
-          subscription.payment_provider,
+          subscriptionAtualizada.payment_provider,
 
         paymentMethod:
-          subscription.payment_method,
+          subscriptionAtualizada.payment_method,
+
+        externalSubscriptionId:
+          subscriptionAtualizada.external_subscription_id,
 
         startedAt:
-          subscription.started_at,
+          subscriptionAtualizada.started_at,
 
         expiresAt:
-          subscription.expires_at,
+          subscriptionAtualizada.expires_at,
 
         createdAt:
-          subscription.created_at
+          subscriptionAtualizada.created_at
 
       }
 

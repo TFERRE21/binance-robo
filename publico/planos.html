@@ -2435,7 +2435,7 @@
 
       <button
         class="modal-button"
-        onclick="fecharModal()"
+        onclick="iniciarPagamento()"
       >
 
         CONTINUAR
@@ -2715,6 +2715,124 @@
 
       document.getElementById("modalOverlay").style.display = "flex";
     }
+
+    // ========================================================
+    // INICIAR PAGAMENTO
+    // ========================================================
+
+    async function iniciarPagamento() {
+
+      const plano =
+        localStorage.getItem("criptopro_selected_plan");
+
+      const token =
+        localStorage.getItem("token");
+
+      if (!plano) {
+
+        alert("Nenhum plano foi selecionado.");
+
+        return;
+
+      }
+
+      if (!token) {
+
+        alert(
+          "Você precisa estar logado para continuar."
+        );
+
+        window.location.href =
+          "/login.html";
+
+        return;
+
+      }
+
+      const botao =
+        document.querySelector(
+          "#modalOverlay .modal-button"
+        );
+
+      if (botao) {
+
+        botao.disabled = true;
+
+        botao.textContent =
+          "PROCESSANDO...";
+
+      }
+
+      try {
+
+        const response =
+          await fetch(
+            "/api/subscription/select",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                "Authorization":
+                  `Bearer ${token}`
+              },
+
+              body: JSON.stringify({
+                plan: plano
+              })
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok || !data.success) {
+
+          throw new Error(
+            data.message ||
+            "Não foi possível iniciar a contratação."
+          );
+
+        }
+
+        if (!data.paymentUrl) {
+
+          throw new Error(
+            "O Mercado Pago não retornou o link de pagamento."
+          );
+
+        }
+
+        window.location.href =
+          data.paymentUrl;
+
+      } catch (error) {
+
+        console.error(
+          "ERRO AO INICIAR PAGAMENTO:",
+          error
+        );
+
+        alert(
+          error.message ||
+          "Ocorreu um erro ao iniciar o pagamento."
+        );
+
+        if (botao) {
+
+          botao.disabled = false;
+
+          botao.textContent =
+            "CONTINUAR";
+
+        }
+
+      }
+
+    }
+
 
     // ========================================================
     // FECHAR MODAL

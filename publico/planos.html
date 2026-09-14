@@ -1127,6 +1127,37 @@
     }
 
 
+
+    /* ========================================================
+       IDIOMA
+       ======================================================== */
+
+    .language-selector {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 4px;
+    }
+
+    .language-selector button {
+      border: 1px solid #374151;
+      background: #111827;
+      color: #cbd5e1;
+      padding: 7px 9px;
+      border-radius: 7px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      transition: .2s;
+    }
+
+    .language-selector button:hover,
+    .language-selector button.active {
+      border-color: #d4af37;
+      color: #d4af37;
+      background: rgba(212,175,55,.08);
+    }
+
     /* ========================================================
        RESPONSIVO
        ======================================================== */
@@ -1252,6 +1283,19 @@
       <div class="logo">
 
         CRIPTO<span>PRO</span>
+
+      </div>
+
+
+      <div class="language-selector" aria-label="Seleção de idioma">
+
+        <button type="button" id="languagePT" onclick="setCriptoProLanguage('pt')">
+          🇧🇷 PT
+        </button>
+
+        <button type="button" id="languageEN" onclick="setCriptoProLanguage('en')">
+          🇺🇸 EN
+        </button>
 
       </div>
 
@@ -2409,179 +2453,310 @@
 
   <script>
 
+    // ========================================================
+    // CRIPTOPRO - IDIOMA PT / EN
+    // ========================================================
+
+    const translations = {
+      "Olá!": "Hello!",
+      "← Voltar": "← Back",
+      "PLANOS CRIPTOPRO": "CRYPTOPRO PLANS",
+      "Escolha o plano ideal para sua": "Choose the ideal plan for your",
+      "automação": "automation",
+      "Escolha o nível de automação e controle que melhor combina com você. Quanto maior o plano, maiores os recursos disponíveis para configurar e acompanhar o robô.": "Choose the level of automation and control that best suits you. The higher the plan, the more features available to configure and monitor the bot.",
+      "BÁSICO": "BASIC",
+      "PROFISSIONAL": "PROFESSIONAL",
+      "PREMIUM": "PREMIUM",
+      "Para quem quer começar com automação simples.": "For those who want to start with simple automation.",
+      "Mais controle sobre suas configurações e operações.": "More control over your settings and operations.",
+      "O plano completo para quem quer o máximo de recursos.": "The complete plan for those who want the maximum features.",
+      "por mês": "per month",
+      "ESCOLHER PLANO": "CHOOSE PLAN",
+      "O que está incluído:": "What's included:",
+      "Tudo do Básico +:": "Everything in Basic +:",
+      "Tudo do Profissional +:": "Everything in Professional +:",
+
+      "Dashboard da conta": "Account dashboard",
+      "Conexão com a Binance": "Binance connection",
+      "1 conta Binance": "1 Binance account",
+      "Até 2 contas Binance": "Up to 2 Binance accounts",
+      "Maior quantidade de contas Binance": "Higher Binance account limit",
+      "Automação básica": "Basic automation",
+      "Automação avançada": "Advanced automation",
+      "Automação completa": "Full automation",
+      "Configuração básica do robô": "Basic bot configuration",
+      "Configuração avançada do robô": "Advanced bot configuration",
+      "Todos os parâmetros disponíveis": "All available parameters",
+      "Configuração de % de entrada": "Entry percentage configuration",
+      "Configuração de % de lucro": "Profit percentage configuration",
+      "% de entrada personalizada": "Custom entry percentage",
+      "% de lucro personalizada": "Custom profit percentage",
+      "Limite de moedas operadas": "Coin operation limit",
+      "Maior quantidade de moedas": "Higher coin limit",
+      "Histórico básico das operações": "Basic operation history",
+      "Histórico detalhado": "Detailed history",
+      "Resultado das operações": "Operation results",
+      "Alertas dentro da plataforma": "In-platform alerts",
+      "Alertas avançados": "Advanced alerts",
+      "Alertas de operações": "Operation alerts",
+      "Alertas de erros do robô": "Bot error alerts",
+      "Relatórios de performance": "Performance reports",
+      "Relatórios completos": "Complete reports",
+      "Acompanhamento de performance": "Performance tracking",
+      "Configuração de Stop Loss": "Stop Loss configuration",
+      "Limite de operações configurável": "Configurable operation limit",
+      "Limite de exposição": "Exposure limit",
+      "Configurações avançadas por moeda": "Advanced per-coin settings",
+      "Configurações completas por moeda": "Complete per-coin settings",
+      "Suporte padrão": "Standard support",
+      "Suporte prioritário": "Priority support",
+      "Suporte premium": "Premium support",
+      "Notificações via WhatsApp": "WhatsApp notifications",
+      "Resumo de performance via WhatsApp": "Performance summary via WhatsApp",
+
+      "Ideal para começar a conhecer a automação e utilizar os recursos essenciais do CriptoPro.": "Ideal for getting started with automation and using the essential CriptoPro features.",
+      "Para usuários que desejam maior controle sobre os parâmetros da automação.": "For users who want greater control over automation parameters.",
+      "Plano completo para quem deseja utilizar o maior conjunto de recursos disponibilizados pelo CriptoPro.": "The complete plan for users who want the largest set of features available from CriptoPro.",
+      "⭐ MAIS ESCOLHIDO": "⭐ MOST POPULAR",
+
+      "Compare os planos": "Compare the plans",
+      "Veja exatamente o que muda de um plano para o outro.": "See exactly what changes from one plan to another.",
+      "Recurso": "Feature",
+      "Dashboard": "Dashboard",
+      "Contas Binance": "Binance accounts",
+      "Operações simultâneas": "Simultaneous operations",
+      "Automação": "Automation",
+      "Configuração do robô": "Bot configuration",
+      "% de entrada": "Entry percentage",
+      "% de lucro": "Profit percentage",
+      "Configuração avançada": "Advanced configuration",
+      "Relatórios": "Reports",
+      "Alertas": "Alerts",
+      "WhatsApp": "WhatsApp",
+      "Suporte": "Support",
+      "Maior limite*": "Higher limit*",
+      "Básica": "Basic",
+      "Avançada": "Advanced",
+      "Completa": "Complete",
+      "Básicos": "Basic",
+      "Detalhados": "Detailed",
+      "Completos": "Complete",
+      "Padrão": "Standard",
+      "Prioritário": "Priority",
+
+      "🤖 Como funciona a automação?": "🤖 How does the automation work?",
+      "O CriptoPro foi pensado para simplificar o gerenciamento da automação.": "CriptoPro was designed to simplify automation management.",
+      "Conecte sua Binance": "Connect your Binance",
+      "Configure o robô": "Configure the bot",
+      "Ative a automação": "Activate the automation",
+      "Acompanhe": "Monitor",
+      "Você conecta sua conta através das credenciais de API da Binance, utilizando as permissões necessárias para o funcionamento da automação.": "You connect your account using Binance API credentials and the permissions required for the automation to work.",
+      "Conforme o seu plano, você poderá configurar parâmetros como entrada, lucro, stop, moedas e limites de operações.": "Depending on your plan, you can configure parameters such as entry, profit, stop loss, coins and operation limits.",
+      "Com a conta configurada e o plano ativo, o robô poderá executar as operações de acordo com os parâmetros permitidos.": "With your account configured and your plan active, the bot can execute operations according to the allowed parameters.",
+      "Consulte operações, resultados, histórico, relatórios e alertas diretamente pelo seu painel.": "View operations, results, history, reports and alerts directly from your dashboard.",
+
+      "⚙️ Controle do seu robô": "⚙️ Control your bot",
+      "Os recursos disponíveis dependerão do plano contratado.": "Available features depend on your subscribed plan.",
+      "Dentro do painel, o usuário terá acesso às configurações liberadas pelo seu plano. O CriptoPro poderá controlar os limites diretamente no servidor, garantindo que uma configuração acima do permitido pelo plano não seja executada.": "Inside the dashboard, users will have access to the settings available for their plan. CriptoPro can enforce limits directly on the server, ensuring that settings above the plan limits cannot be executed.",
+      "💰 % de entrada": "💰 Entry percentage",
+      "📈 % de lucro": "📈 Profit percentage",
+      "🛡️ Stop Loss": "🛡️ Stop Loss",
+      "🪙 Quantidade de moedas": "🪙 Number of coins",
+      "🔄 Operações simultâneas": "🔄 Simultaneous operations",
+      "📊 Relatórios": "📊 Reports",
+      "Defina o percentual destinado à entrada de cada operação, conforme os recursos liberados pelo plano.": "Set the percentage allocated to each operation, according to the features available in your plan.",
+      "Configure o objetivo de lucro utilizado pelo robô.": "Configure the profit target used by the bot.",
+      "Recurso de proteção disponível nos planos que oferecerem essa configuração.": "Protection feature available on plans that include this setting.",
+      "Defina a quantidade de moedas que poderão participar da automação dentro do limite do plano.": "Set how many coins can participate in the automation within your plan limit.",
+      "Básico: 1 operação. Profissional: 2. Premium: 3.": "Basic: 1 operation. Professional: 2. Premium: 3.",
+      "Acompanhe as operações e os resultados através do painel, conforme o nível do plano.": "Track operations and results through the dashboard according to your plan level.",
+
+      "🔒 Segurança e controle": "🔒 Security and control",
+      "A seleção de um plano não libera automaticamente o painel operacional. A liberação será realizada pelo sistema somente após a confirmação do pagamento e da assinatura ativa.": "Selecting a plan does not automatically unlock the operational dashboard. The system will unlock it only after payment confirmation and an active subscription.",
+
+      "Plano selecionado": "Plan selected",
+      "Você selecionou o plano abaixo.": "You selected the plan below.",
+      "Na próxima etapa vamos conectar este plano ao sistema de pagamento.": "In the next step, we will connect this plan to the payment system.",
+      "CONTINUAR": "CONTINUE",
+      "© CriptoPro - Todos os direitos reservados.": "© CriptoPro - All rights reserved."
+    };
+
+    function normalizeText(value) {
+      return value.replace(/\s+/g, " ").trim();
+    }
+
+    function translatePage(language) {
+      document.documentElement.lang = language === "en" ? "en" : "pt-BR";
+
+      const walker = document.createTreeWalker(
+        document.body,
+        NodeFilter.SHOW_TEXT,
+        {
+          acceptNode(node) {
+            if (
+              !node.parentElement ||
+              ["SCRIPT", "STYLE"].includes(node.parentElement.tagName)
+            ) {
+              return NodeFilter.FILTER_REJECT;
+            }
+            return NodeFilter.FILTER_ACCEPT;
+          }
+        }
+      );
+
+      const nodes = [];
+      while (walker.nextNode()) nodes.push(walker.currentNode);
+
+      nodes.forEach(node => {
+        if (!node.__originalText) {
+          node.__originalText = node.nodeValue;
+        }
+
+        const original = normalizeText(node.__originalText);
+        if (!original) return;
+
+        if (language === "en" && translations[original]) {
+          const leading = node.__originalText.match(/^\s*/)?.[0] || "";
+          const trailing = node.__originalText.match(/\s*$/)?.[0] || "";
+          node.nodeValue = leading + translations[original] + trailing;
+        } else {
+          node.nodeValue = node.__originalText;
+        }
+      });
+
+      updateLanguageButtons(language);
+    }
+
+    function updateLanguageButtons(language) {
+      const pt = document.getElementById("languagePT");
+      const en = document.getElementById("languageEN");
+
+      if (pt) pt.classList.toggle("active", language === "pt");
+      if (en) en.classList.toggle("active", language === "en");
+    }
+
+    function setCriptoProLanguage(language) {
+      if (language !== "pt" && language !== "en") return;
+
+      localStorage.setItem("criptopro_language", language);
+      translatePage(language);
+
+      // Atualiza saudação do usuário sem recarregar a página.
+      const savedUser = localStorage.getItem("criptopro_user");
+      const userNameElement = document.getElementById("userName");
+
+      if (savedUser && userNameElement) {
+        try {
+          const user = JSON.parse(savedUser);
+          userNameElement.textContent =
+            language === "en"
+              ? `Hello, ${user.name}`
+              : `Olá, ${user.name}`;
+        } catch (error) {
+          console.error("ERRO AO LER USUARIO SALVO:", error);
+        }
+      }
+    }
+
+    window.setCriptoProLanguage = setCriptoProLanguage;
 
     // ========================================================
     // USUÁRIO
     // ========================================================
 
-    const token =
-      localStorage.getItem('token');
-
-
-    const userNameElement =
-      document.getElementById(
-        'userName'
-      );
-
+    const token = localStorage.getItem("token");
+    const userNameElement = document.getElementById("userName");
 
     async function carregarUsuario() {
-
       if (!token) {
-
-        userNameElement.textContent =
-          'Olá!';
-
+        userNameElement.textContent = "Olá!";
         return;
-
       }
-
 
       try {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
-        const response =
-          await fetch(
-            '/api/auth/me',
-            {
-              headers: {
-                'Authorization':
-                  `Bearer ${token}`
-              }
-            }
+        const data = await response.json();
+
+        if (response.ok && data.success && data.user) {
+          localStorage.setItem(
+            "criptopro_user",
+            JSON.stringify(data.user)
           );
 
-
-        const data =
-          await response.json();
-
-
-        if (
-          response.ok &&
-          data.success &&
-          data.user
-        ) {
+          const language =
+            localStorage.getItem("criptopro_language") || "pt";
 
           userNameElement.textContent =
-            `Olá, ${data.user.name}`;
-
+            language === "en"
+              ? `Hello, ${data.user.name}`
+              : `Olá, ${data.user.name}`;
         }
-
       } catch (error) {
-
-        console.error(
-          'ERRO AO CARREGAR USUARIO:',
-          error
-        );
-
+        console.error("ERRO AO CARREGAR USUARIO:", error);
       }
-
     }
-
-
-    carregarUsuario();
-
 
     // ========================================================
     // SELECIONAR PLANO
     // ========================================================
 
-    function selecionarPlano(
-      codigo,
-      nome,
-      preco
-    ) {
+    function selecionarPlano(codigo, nome, preco) {
+      localStorage.setItem("criptopro_selected_plan", codigo);
+      localStorage.setItem("criptopro_selected_plan_name", nome);
+      localStorage.setItem("criptopro_selected_plan_price", preco);
 
+      const selectedPlan = document.getElementById("selectedPlan");
+      selectedPlan.textContent = `${nome} — ${preco}`;
 
-      // ------------------------------------------------------
-      // SALVAR SELEÇÃO
-      // ------------------------------------------------------
-
-      localStorage.setItem(
-        'criptopro_selected_plan',
-        codigo
-      );
-
-
-      localStorage.setItem(
-        'criptopro_selected_plan_name',
-        nome
-      );
-
-
-      localStorage.setItem(
-        'criptopro_selected_plan_price',
-        preco
-      );
-
-
-      // ------------------------------------------------------
-      // MOSTRAR MODAL
-      // ------------------------------------------------------
-
-      const selectedPlan =
-        document.getElementById(
-          'selectedPlan'
-        );
-
-
-      selectedPlan.textContent =
-        `${nome} — ${preco}`;
-
-
-      document.getElementById(
-        'modalOverlay'
-      ).style.display =
-        'flex';
-
+      document.getElementById("modalOverlay").style.display = "flex";
     }
-
 
     // ========================================================
     // FECHAR MODAL
     // ========================================================
 
     function fecharModal() {
-
-      document.getElementById(
-        'modalOverlay'
-      ).style.display =
-        'none';
-
+      document.getElementById("modalOverlay").style.display = "none";
     }
-
 
     // ========================================================
     // VOLTAR
     // ========================================================
 
     function voltarDashboard() {
-
-      window.location.href =
-        '/dashboard.html';
-
+      window.location.href = "/dashboard.html";
     }
-
 
     // ========================================================
     // FECHAR MODAL CLICANDO FORA
     // ========================================================
 
-    document
-      .getElementById('modalOverlay')
-      .addEventListener(
-        'click',
-        function(event) {
-
-          if (
-            event.target ===
-            this
-          ) {
-
-            fecharModal();
-
-          }
-
+    document.getElementById("modalOverlay").addEventListener(
+      "click",
+      function(event) {
+        if (event.target === this) {
+          fecharModal();
         }
-      );
+      }
+    );
+
+    // ========================================================
+    // INICIALIZAÇÃO
+    // ========================================================
+
+    document.addEventListener("DOMContentLoaded", async function() {
+      const language =
+        localStorage.getItem("criptopro_language") || "pt";
+
+      translatePage(language);
+      await carregarUsuario();
+      translatePage(language);
+    });
 
   </script>
 

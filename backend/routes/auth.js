@@ -1,11 +1,15 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const db = require('../services/db');
 
 const router = express.Router();
 
+// ============================================================
 // TESTE DA ROTA
+// ============================================================
+
 router.get('/teste', (req, res) => {
   res.json({
     success: true,
@@ -13,7 +17,11 @@ router.get('/teste', (req, res) => {
   });
 });
 
+
+// ============================================================
 // CADASTRO
+// ============================================================
+
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -73,7 +81,11 @@ router.post('/register', async (req, res) => {
   }
 });
 
+
+// ============================================================
 // LOGIN
+// ============================================================
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -155,6 +167,11 @@ router.post('/login', async (req, res) => {
   }
 });
 
+
+// ============================================================
+// USUÁRIO LOGADO
+// ============================================================
+
 const authMiddleware = require('../middleware/auth');
 
 router.get('/me', authMiddleware, async (req, res) => {
@@ -187,4 +204,201 @@ router.get('/me', authMiddleware, async (req, res) => {
     });
   }
 });
+
+
+// ============================================================
+// RECUPERAÇÃO DE SENHA
+// ============================================================
+
+router.post('/forgot-password', async (req, res) => {
+  try {
+
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Informe o e-mail.'
+      });
+    }
+
+    const emailNormalizado =
+      String(email)
+        .trim()
+        .toLowerCase();
+
+
+    // --------------------------------------------------------
+    // BUSCAR USUÁRIO
+    // --------------------------------------------------------
+
+    const result = await db.query(
+      `
+      SELECT id, name, email, active
+      FROM users
+      WHERE LOWER(email) = $1
+      LIMIT 1
+      `,
+      [emailNormalizado]
+    );
+
+
+    /*
+      Por segurança, não informamos ao usuário
+      se o e-mail existe ou não.
+    */
+
+    if (result.rows.length === 0) {
+
+      return res.json({
+        success: true,
+        message:
+          'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+      });
+
+    }
+
+
+    const user = result.rows[0];
+
+
+    // --------------------------------------------------------
+    // USUÁRIO INATIVO
+    // --------------------------------------------------------
+
+    if (user.active === false) {
+
+      return res.json({
+        success: true,
+        message:
+          'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+      });
+
+    }
+
+
+    // --------------------------------------------------------
+    // GERAR TOKEN SEGURO
+    // --------------------------------------------------------
+
+    const resetToken =
+      crypto.randomBytes(32).toString('hex');
+
+
+    // --------------------------------------------------------
+    // GERAR HASH DO TOKEN
+    // --------------------------------------------------------
+
+    const tokenHash =
+      crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+
+
+    // --------------------------------------------------------
+    // TOKEN VÁLIDO POR 30 MINUTOS
+    // --------------------------------------------------------
+
+    const expiresAt =
+      new Date(
+        Date.now() +
+        30 * 60 * 1000
+      );
+
+
+    // --------------------------------------------------------
+    // INVALIDAR TOKENS ANTERIORES
+    // --------------------------------------------------------
+
+    await db.query(
+      `
+      UPDATE password_resets
+      SET used = TRUE
+      WHERE user_id = $1
+      AND used = FALSE
+      `,
+      [user.id]
+    );
+
+
+    // --------------------------------------------------------
+    // SALVAR NOVO TOKEN
+    // --------------------------------------------------------
+
+    await db.query(
+      `
+      INSERT INTO password_resets
+      (
+        user_id,
+        token_hash,
+        expires_at,
+        used
+      )
+      VALUES
+      (
+        $1,
+        $2,
+        $3,
+        FALSE
+      )
+      `,
+      [
+        user.id,
+        tokenHash,
+        expiresAt
+      ]
+    );
+
+
+    // --------------------------------------------------------
+    // LOG TEMPORÁRIO
+    // --------------------------------------------------------
+
+    console.log(
+      `RECUPERAÇÃO DE SENHA SOLICITADA: ${user.email}`
+    );
+
+
+    /*
+      IMPORTANTE:
+
+      Ainda NÃO enviamos o e-mail nesta etapa.
+
+      O token já está sendo criado e armazenado
+      com segurança no banco.
+
+      Na próxima etapa vamos configurar o envio
+      real do e-mail e montar o link de recuperação.
+    */
+
+
+    return res.json({
+      success: true,
+      message:
+        'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+    });
+
+
+  } catch (error) {
+
+    console.error(
+      'ERRO NA RECUPERAÇÃO DE SENHA:',
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        'Não foi possível iniciar a recuperação de senha.'
+    });
+
+  }
+});
+
+
+// ============================================================
+// EXPORTAR ROTAS
+// ============================================================
+
 module.exports = router;

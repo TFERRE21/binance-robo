@@ -836,4 +836,21 @@ router.get("/status", authMiddleware, async (req, res) => {
 // EXPORTAR
 // ============================================================
 
+
+// ============================================================
+// WEBHOOK MERCADO PAGO
+// ============================================================
+// Recebe notificacoes do Mercado Pago.
+// A confirmacao definitiva do pagamento sera implementada aqui.
+// ============================================================
+router.post("/webhook", async (req, res) => {
+  try {
+    console.log("WEBHOOK MERCADO PAGO RECEBIDO:", JSON.stringify(req.body));
+    return res.sendStatus(200);
+  } catch (error) {
+    console.error("ERRO NO WEBHOOK MERCADO PAGO:", error);
+    return res.sendStatus(500);
+  }
+});
+
 module.exports = router;

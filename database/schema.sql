@@ -1,8 +1,9 @@
 -- ============================================================
--- BINANCE-ROBO
+-- BINANCE-ROBO / CRIPTOPRO
 -- Banco de dados do painel multiusuário
 -- PostgreSQL
 -- ============================================================
+
 
 -- ============================================================
 -- 1. USUÁRIOS
@@ -153,28 +154,143 @@ CREATE TABLE IF NOT EXISTS bot_logs (
 
 
 -- ============================================================
--- 6. ÍNDICES
+-- 6. ÍNDICES EXISTENTES
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_binance_accounts_user_id
     ON binance_accounts(user_id);
 
+
 CREATE INDEX IF NOT EXISTS idx_trades_user_id
     ON trades(user_id);
+
 
 CREATE INDEX IF NOT EXISTS idx_trades_symbol
     ON trades(symbol);
 
+
 CREATE INDEX IF NOT EXISTS idx_trades_created_at
     ON trades(created_at);
 
+
 CREATE INDEX IF NOT EXISTS idx_bot_logs_user_id
     ON bot_logs(user_id);
+
 
 CREATE INDEX IF NOT EXISTS idx_bot_logs_created_at
     ON bot_logs(created_at);
 
 
 -- ============================================================
--- FIM
+-- 7. ASSINATURAS / PLANOS DO CRIPTOPRO
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+
+    id BIGSERIAL PRIMARY KEY,
+
+    user_id BIGINT NOT NULL,
+
+    plan VARCHAR(30) NOT NULL,
+
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+
+    amount NUMERIC(10,2) NOT NULL,
+
+    payment_provider VARCHAR(50),
+
+    external_payment_id VARCHAR(255),
+
+    external_subscription_id VARCHAR(255),
+
+    payment_method VARCHAR(50),
+
+    started_at TIMESTAMPTZ,
+
+    expires_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT fk_subscriptions_user
+
+        FOREIGN KEY (user_id)
+
+        REFERENCES users(id)
+
+        ON DELETE CASCADE,
+
+    CONSTRAINT chk_subscription_plan
+
+        CHECK (
+            plan IN (
+                'basico',
+                'profissional',
+                'premium'
+            )
+        ),
+
+    CONSTRAINT chk_subscription_status
+
+        CHECK (
+            status IN (
+                'PENDING',
+                'ACTIVE',
+                'EXPIRED',
+                'CANCELLED'
+            )
+        )
+
+);
+
+
+-- ============================================================
+-- 8. ÍNDICES DAS ASSINATURAS
+-- ============================================================
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id
+
+    ON subscriptions(user_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_status
+
+    ON subscriptions(status);
+
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_plan
+
+    ON subscriptions(plan);
+
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_external_payment
+
+    ON subscriptions(external_payment_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_external_subscription
+
+    ON subscriptions(external_subscription_id);
+
+
+CREATE INDEX IF NOT EXISTS idx_subscriptions_expires_at
+
+    ON subscriptions(expires_at);
+
+
+-- ============================================================
+-- 9. UMA ASSINATURA ATIVA POR USUÁRIO
+-- ============================================================
+
+CREATE UNIQUE INDEX IF NOT EXISTS
+idx_one_active_subscription_per_user
+
+ON subscriptions(user_id)
+
+WHERE status = 'ACTIVE';
+
+
+-- ============================================================
+-- 10. FIM
 -- ============================================================

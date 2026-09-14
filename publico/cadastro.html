@@ -1,0 +1,2376 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
+<title>CriptoPro — Criar conta</title>
+
+<style>
+
+/* =========================================================
+   RESET
+========================================================= */
+
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+
+  min-height:100vh;
+
+  font-family:
+    Inter,
+    Arial,
+    Helvetica,
+    sans-serif;
+
+  color:#fff;
+
+  background:#02060a;
+
+  overflow-x:hidden;
+}
+
+
+/* =========================================================
+   FUNDO
+========================================================= */
+
+body::before{
+
+  content:"";
+
+  position:fixed;
+
+  inset:0;
+
+  z-index:-10;
+
+  background:
+
+    radial-gradient(
+      circle at 50% 15%,
+      rgba(240,185,11,.14),
+      transparent 27%
+    ),
+
+    radial-gradient(
+      circle at 85% 75%,
+      rgba(0,220,150,.06),
+      transparent 25%
+    ),
+
+    linear-gradient(
+      120deg,
+      #02060a 0%,
+      #061019 48%,
+      #03070b 100%
+    );
+}
+
+
+body::after{
+
+  content:"";
+
+  position:fixed;
+
+  inset:0;
+
+  z-index:-9;
+
+  opacity:.3;
+
+  background-image:
+
+    linear-gradient(
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    ),
+
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    );
+
+  background-size:55px 55px;
+
+  mask-image:
+    linear-gradient(
+      to bottom,
+      black,
+      transparent
+    );
+}
+
+
+/* =========================================================
+   GLOW
+========================================================= */
+
+.glow{
+
+  position:fixed;
+
+  width:500px;
+  height:500px;
+
+  border-radius:50%;
+
+  filter:blur(120px);
+
+  pointer-events:none;
+
+  z-index:-8;
+}
+
+
+.glow.gold{
+
+  top:-250px;
+  left:15%;
+
+  background:#f0b90b;
+
+  opacity:.09;
+}
+
+
+.glow.green{
+
+  right:-250px;
+  bottom:-250px;
+
+  background:#00d995;
+
+  opacity:.05;
+}
+
+
+/* =========================================================
+   HEADER
+========================================================= */
+
+.header{
+
+  height:72px;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:space-between;
+
+  padding:0 4%;
+
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.08);
+
+  background:
+    rgba(2,6,10,.82);
+
+  backdrop-filter:blur(18px);
+}
+
+
+.brand{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+
+  color:#fff;
+
+  text-decoration:none;
+}
+
+
+.logo{
+
+  width:42px;
+  height:42px;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  border-radius:11px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffe36a,
+      #e9a700
+    );
+
+  box-shadow:
+    0 0 28px
+    rgba(240,185,11,.25);
+}
+
+
+.logo svg{
+
+  width:28px;
+  height:28px;
+}
+
+
+.brand-title{
+
+  font-size:20px;
+
+  font-weight:900;
+
+  letter-spacing:-1px;
+}
+
+
+.brand-title span{
+
+  color:#f0b90b;
+}
+
+
+.brand-subtitle{
+
+  margin-top:4px;
+
+  color:#738498;
+
+  font-size:7px;
+
+  letter-spacing:1.8px;
+
+  text-transform:uppercase;
+}
+
+
+/* =========================================================
+   HEADER DIREITA
+========================================================= */
+
+.header-right{
+
+  display:flex;
+
+  align-items:center;
+
+  gap:10px;
+}
+
+
+.language-select{
+
+  height:35px;
+
+  padding:0 10px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.15);
+
+  border-radius:8px;
+
+  color:#dbe4ed;
+
+  background:
+    rgba(255,255,255,.035);
+
+  outline:none;
+
+  cursor:pointer;
+
+  font-size:9px;
+
+  font-weight:800;
+}
+
+
+.language-select option{
+
+  color:#111;
+
+  background:#fff;
+}
+
+
+.back-login{
+
+  height:35px;
+
+  display:flex;
+
+  align-items:center;
+
+  padding:0 14px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.14);
+
+  border-radius:8px;
+
+  color:#aebdcc;
+
+  text-decoration:none;
+
+  font-size:9px;
+
+  font-weight:800;
+
+  transition:.2s;
+}
+
+
+.back-login:hover{
+
+  color:#fff;
+
+  border-color:#f0b90b;
+}
+
+
+/* =========================================================
+   MAIN
+========================================================= */
+
+.main{
+
+  width:94%;
+
+  max-width:1150px;
+
+  margin:auto;
+
+  padding:45px 0 60px;
+}
+
+
+.page-grid{
+
+  display:grid;
+
+  grid-template-columns:
+    1fr
+    470px;
+
+  gap:55px;
+
+  align-items:center;
+}
+
+
+/* =========================================================
+   LEFT
+========================================================= */
+
+.intro{
+
+  padding-right:20px;
+}
+
+
+.badge{
+
+  display:inline-flex;
+
+  align-items:center;
+
+  gap:7px;
+
+  padding:7px 11px;
+
+  margin-bottom:18px;
+
+  border:
+    1px solid
+    rgba(240,185,11,.25);
+
+  border-radius:20px;
+
+  color:#d5c177;
+
+  background:
+    rgba(240,185,11,.05);
+
+  font-size:8px;
+
+  font-weight:800;
+
+  letter-spacing:1px;
+
+  text-transform:uppercase;
+}
+
+
+.badge span{
+
+  color:#24df91;
+}
+
+
+.intro h1{
+
+  max-width:580px;
+
+  font-size:
+    clamp(
+      45px,
+      5vw,
+      70px
+    );
+
+  line-height:.95;
+
+  letter-spacing:-3px;
+
+  font-weight:950;
+}
+
+
+.intro h1 span{
+
+  color:#f0b90b;
+}
+
+
+.intro-description{
+
+  max-width:560px;
+
+  margin-top:20px;
+
+  color:#899bad;
+
+  font-size:13px;
+
+  line-height:1.7;
+}
+
+
+/* =========================================================
+   BENEFÍCIOS
+========================================================= */
+
+.benefits{
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(2,1fr);
+
+  gap:10px;
+
+  margin-top:28px;
+}
+
+
+.benefit{
+
+  padding:15px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.08);
+
+  border-radius:10px;
+
+  background:
+    rgba(255,255,255,.025);
+}
+
+
+.benefit-icon{
+
+  margin-bottom:7px;
+
+  font-size:18px;
+}
+
+
+.benefit strong{
+
+  display:block;
+
+  color:#dce5ee;
+
+  font-size:10px;
+}
+
+
+.benefit p{
+
+  margin-top:4px;
+
+  color:#6f8296;
+
+  font-size:8px;
+
+  line-height:1.5;
+}
+
+
+/* =========================================================
+   SECURITY
+========================================================= */
+
+.security-note{
+
+  margin-top:18px;
+
+  padding:13px;
+
+  border:
+    1px solid
+    rgba(34,223,145,.15);
+
+  border-radius:9px;
+
+  background:
+    rgba(0,80,50,.08);
+
+  color:#74899b;
+
+  font-size:8px;
+
+  line-height:1.6;
+}
+
+
+.security-note strong{
+
+  color:#24df91;
+}
+
+
+/* =========================================================
+   CARD
+========================================================= */
+
+.register-card{
+
+  padding:30px;
+
+  border:
+    1px solid
+    rgba(240,185,11,.42);
+
+  border-radius:18px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(9,22,34,.98),
+      rgba(3,9,14,.99)
+    );
+
+  box-shadow:
+    0 35px 100px
+    rgba(0,0,0,.65),
+
+    inset
+    0 1px 0
+    rgba(255,255,255,.04);
+}
+
+
+.card-title{
+
+  text-align:center;
+
+  margin-bottom:22px;
+}
+
+
+.card-title h2{
+
+  font-size:25px;
+
+  font-weight:900;
+
+  letter-spacing:-1px;
+}
+
+
+.card-title h2 span{
+
+  color:#f0b90b;
+}
+
+
+.card-title p{
+
+  margin-top:6px;
+
+  color:#718397;
+
+  font-size:9px;
+}
+
+
+/* =========================================================
+   FORM
+========================================================= */
+
+.form-group{
+
+  margin-bottom:14px;
+}
+
+
+.form-group label{
+
+  display:block;
+
+  margin-bottom:6px;
+
+  color:#cbd6e1;
+
+  font-size:9px;
+
+  font-weight:800;
+}
+
+
+.form-group input{
+
+  width:100%;
+
+  height:45px;
+
+  padding:
+    0 12px;
+
+  border:
+    1px solid
+    #2a3a4c;
+
+  border-radius:7px;
+
+  outline:none;
+
+  background:#eef4fa;
+
+  color:#16202a;
+
+  font-size:11px;
+
+  transition:.2s;
+}
+
+
+.form-group input:focus{
+
+  border-color:#f0b90b;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(240,185,11,.08);
+}
+
+
+.password-wrap{
+
+  position:relative;
+}
+
+
+.password-wrap input{
+
+  padding-right:42px;
+}
+
+
+.password-toggle{
+
+  position:absolute;
+
+  right:7px;
+
+  top:6px;
+
+  width:32px;
+
+  height:32px;
+
+  border:0;
+
+  background:transparent;
+
+  cursor:pointer;
+}
+
+
+/* =========================================================
+   PLANOS
+========================================================= */
+
+.plan-label{
+
+  display:block;
+
+  margin-bottom:8px;
+
+  color:#cbd6e1;
+
+  font-size:9px;
+
+  font-weight:800;
+}
+
+
+.plan-options{
+
+  display:grid;
+
+  grid-template-columns:
+    repeat(3,1fr);
+
+  gap:7px;
+
+  margin-bottom:15px;
+}
+
+
+.plan-option{
+
+  position:relative;
+}
+
+
+.plan-option input{
+
+  position:absolute;
+
+  opacity:0;
+
+  pointer-events:none;
+}
+
+
+.plan-option label{
+
+  min-height:90px;
+
+  display:flex;
+
+  flex-direction:column;
+
+  justify-content:center;
+
+  align-items:center;
+
+  padding:8px;
+
+  border:
+    1px solid
+    #29394b;
+
+  border-radius:8px;
+
+  color:#91a2b5;
+
+  background:
+    rgba(255,255,255,.025);
+
+  cursor:pointer;
+
+  text-align:center;
+
+  transition:.2s;
+}
+
+
+.plan-option label:hover{
+
+  border-color:
+    rgba(240,185,11,.5);
+}
+
+
+.plan-option input:checked + label{
+
+  color:#fff;
+
+  border-color:#f0b90b;
+
+  background:
+    rgba(240,185,11,.08);
+
+  box-shadow:
+    0 0 20px
+    rgba(240,185,11,.06);
+}
+
+
+.plan-name{
+
+  color:#e4ebf3;
+
+  font-size:10px;
+
+  font-weight:900;
+}
+
+
+.plan-price{
+
+  margin-top:6px;
+
+  color:#f0b90b;
+
+  font-size:13px;
+
+  font-weight:900;
+}
+
+
+.plan-period{
+
+  margin-top:2px;
+
+  color:#718397;
+
+  font-size:7px;
+}
+
+
+.most-popular{
+
+  position:absolute;
+
+  top:-6px;
+
+  left:50%;
+
+  transform:
+    translateX(-50%);
+
+  padding:3px 7px;
+
+  border-radius:10px;
+
+  color:#111;
+
+  background:#f0b90b;
+
+  font-size:6px;
+
+  font-weight:900;
+
+  white-space:nowrap;
+}
+
+
+/* =========================================================
+   TERMOS
+========================================================= */
+
+.terms{
+
+  display:flex;
+
+  align-items:flex-start;
+
+  gap:7px;
+
+  margin:14px 0;
+
+  color:#718397;
+
+  font-size:8px;
+
+  line-height:1.5;
+}
+
+
+.terms input{
+
+  width:13px;
+
+  height:13px;
+
+  margin-top:1px;
+
+  accent-color:#f0b90b;
+}
+
+
+.terms a{
+
+  color:#f0b90b;
+
+  text-decoration:none;
+}
+
+
+/* =========================================================
+   BOTÃO
+========================================================= */
+
+.submit-button{
+
+  width:100%;
+
+  height:48px;
+
+  border:0;
+
+  border-radius:7px;
+
+  color:#111;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffd83e,
+      #efa900
+    );
+
+  cursor:pointer;
+
+  font-size:10px;
+
+  font-weight:900;
+
+  transition:.2s;
+}
+
+
+.submit-button:hover{
+
+  transform:
+    translateY(-2px);
+
+  box-shadow:
+    0 14px 30px
+    rgba(240,185,11,.18);
+}
+
+
+.submit-button:disabled{
+
+  cursor:not-allowed;
+
+  opacity:.55;
+
+  transform:none;
+
+  box-shadow:none;
+}
+
+
+/* =========================================================
+   MENSAGEM
+========================================================= */
+
+.message{
+
+  min-height:22px;
+
+  margin-top:10px;
+
+  text-align:center;
+
+  font-size:9px;
+
+  line-height:1.5;
+}
+
+
+.message.error{
+
+  color:#ff6670;
+}
+
+
+.message.success{
+
+  color:#24df91;
+}
+
+
+/* =========================================================
+   LOGIN
+========================================================= */
+
+.already-account{
+
+  margin-top:18px;
+
+  padding-top:16px;
+
+  border-top:
+    1px solid
+    rgba(255,255,255,.07);
+
+  text-align:center;
+
+  color:#718397;
+
+  font-size:8px;
+}
+
+
+.already-account a{
+
+  color:#f0b90b;
+
+  font-weight:800;
+
+  text-decoration:none;
+}
+
+
+/* =========================================================
+   FOOTER
+========================================================= */
+
+.footer{
+
+  margin-top:35px;
+
+  padding-top:18px;
+
+  border-top:
+    1px solid
+    rgba(255,255,255,.07);
+
+  display:flex;
+
+  justify-content:space-between;
+
+  color:#4e6073;
+
+  font-size:8px;
+}
+
+
+/* =========================================================
+   RESPONSIVO
+========================================================= */
+
+@media(max-width:900px){
+
+  .page-grid{
+
+    grid-template-columns:1fr;
+
+    max-width:560px;
+
+    margin:auto;
+
+  }
+
+  .intro{
+
+    padding-right:0;
+
+    text-align:center;
+  }
+
+  .intro-description{
+
+    margin-left:auto;
+    margin-right:auto;
+  }
+
+  .benefits{
+
+    text-align:left;
+  }
+
+}
+
+
+@media(max-width:600px){
+
+  .header{
+
+    padding:0 15px;
+  }
+
+  .back-login{
+
+    display:none;
+  }
+
+  .main{
+
+    width:92%;
+
+    padding-top:30px;
+  }
+
+  .intro h1{
+
+    font-size:44px;
+
+    letter-spacing:-2px;
+  }
+
+  .benefits{
+
+    grid-template-columns:1fr;
+  }
+
+  .register-card{
+
+    padding:22px;
+  }
+
+  .plan-options{
+
+    grid-template-columns:1fr;
+  }
+
+  .plan-option label{
+
+    min-height:70px;
+  }
+
+  .footer{
+
+    flex-direction:column;
+
+    gap:8px;
+
+    text-align:center;
+  }
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="glow gold"></div>
+<div class="glow green"></div>
+
+
+<!-- =======================================================
+     HEADER
+======================================================= -->
+
+<header class="header">
+
+
+  <a
+    href="login.html"
+    class="brand"
+  >
+
+
+    <div class="logo">
+
+      <svg
+        viewBox="0 0 100 100"
+        fill="none"
+      >
+
+        <path
+          d="M14 72L30 56L44 65L74 30"
+          stroke="#111"
+          stroke-width="10"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+
+        <path
+          d="M61 30H74V43"
+          stroke="#111"
+          stroke-width="10"
+          stroke-linecap="round"
+        />
+
+        <rect
+          x="14"
+          y="77"
+          width="11"
+          height="8"
+          rx="2"
+          fill="#111"
+        />
+
+        <rect
+          x="33"
+          y="69"
+          width="11"
+          height="16"
+          rx="2"
+          fill="#111"
+        />
+
+        <rect
+          x="52"
+          y="58"
+          width="11"
+          height="27"
+          rx="2"
+          fill="#111"
+        />
+
+      </svg>
+
+    </div>
+
+
+    <div>
+
+      <div class="brand-title">
+        Cripto<span>Pro</span>
+      </div>
+
+      <div
+        class="brand-subtitle"
+        data-pt="Automação inteligente"
+        data-en="Intelligent automation"
+      >
+        Automação inteligente
+      </div>
+
+    </div>
+
+
+  </a>
+
+
+  <div class="header-right">
+
+
+    <select
+      id="languageSelect"
+      class="language-select"
+    >
+
+      <option value="pt">
+        🇧🇷 PT
+      </option>
+
+      <option value="en">
+        🇺🇸 EN
+      </option>
+
+    </select>
+
+
+    <a
+      href="login.html"
+      class="back-login"
+      data-pt="← Voltar para o login"
+      data-en="← Back to login"
+    >
+      ← Voltar para o login
+    </a>
+
+
+  </div>
+
+
+</header>
+
+
+<!-- =======================================================
+     MAIN
+======================================================= -->
+
+<main class="main">
+
+
+<div class="page-grid">
+
+
+<!-- =====================================================
+     INTRO
+===================================================== -->
+
+<section class="intro">
+
+
+  <div class="badge">
+
+    <span>●</span>
+
+    <span
+      data-pt="COMECE SUA JORNADA"
+      data-en="START YOUR JOURNEY"
+    >
+      COMECE SUA JORNADA
+    </span>
+
+  </div>
+
+
+  <h1>
+
+    <span
+      data-pt="Sua conta."
+      data-en="Your account."
+      style="color:#fff;"
+    >
+      Sua conta.
+    </span>
+
+    <br>
+
+    <span
+      data-pt="Seu controle."
+      data-en="Your control."
+    >
+      Seu controle.
+    </span>
+
+  </h1>
+
+
+  <p
+    class="intro-description"
+    data-pt="Crie sua conta CriptoPro e tenha acesso ao seu ambiente de automação, acompanhamento e controle das suas operações."
+    data-en="Create your CriptoPro account and access your automation, monitoring and operations control environment."
+  >
+
+    Crie sua conta CriptoPro e tenha acesso
+    ao seu ambiente de automação,
+    acompanhamento e controle das suas operações.
+
+  </p>
+
+
+  <div class="benefits">
+
+
+    <div class="benefit">
+
+      <div class="benefit-icon">
+        🤖
+      </div>
+
+      <strong
+        data-pt="Automação"
+        data-en="Automation"
+      >
+        Automação
+      </strong>
+
+      <p
+        data-pt="Configure estratégias para executar suas operações automaticamente."
+        data-en="Configure strategies to execute your operations automatically."
+      >
+        Configure estratégias para executar
+        suas operações automaticamente.
+      </p>
+
+    </div>
+
+
+    <div class="benefit">
+
+      <div class="benefit-icon">
+        📊
+      </div>
+
+      <strong
+        data-pt="Acompanhamento"
+        data-en="Monitoring"
+      >
+        Acompanhamento
+      </strong>
+
+      <p
+        data-pt="Visualize informações e acompanhe suas operações pelo painel."
+        data-en="View information and monitor your operations from the dashboard."
+      >
+        Visualize informações e acompanhe
+        suas operações pelo painel.
+      </p>
+
+    </div>
+
+
+    <div class="benefit">
+
+      <div class="benefit-icon">
+        🛡
+      </div>
+
+      <strong
+        data-pt="Segurança"
+        data-en="Security"
+      >
+        Segurança
+      </strong>
+
+      <p
+        data-pt="Credenciais da Binance protegidas e controle das permissões."
+        data-en="Protected Binance credentials and permission control."
+      >
+        Credenciais da Binance protegidas
+        e controle das permissões.
+      </p>
+
+    </div>
+
+
+    <div class="benefit">
+
+      <div class="benefit-icon">
+        ⚡
+      </div>
+
+      <strong
+        data-pt="Controle"
+        data-en="Control"
+      >
+        Controle
+      </strong>
+
+      <p
+        data-pt="Escolha o plano que melhor atende às suas necessidades."
+        data-en="Choose the plan that best fits your needs."
+      >
+        Escolha o plano que melhor atende
+        às suas necessidades.
+      </p>
+
+    </div>
+
+
+  </div>
+
+
+  <div class="security-note">
+
+    <strong
+      data-pt="🔐 Segurança desde o primeiro acesso"
+      data-en="🔐 Security from the first access"
+    >
+      🔐 Segurança desde o primeiro acesso
+    </strong>
+
+    <br>
+
+    <span
+      data-pt="A CriptoPro recomenda manter as permissões de saque da API desativadas."
+      data-en="CriptoPro recommends keeping API withdrawal permissions disabled."
+    >
+      A CriptoPro recomenda manter as
+      permissões de saque da API desativadas.
+    </span>
+
+  </div>
+
+
+</section>
+
+
+<!-- =====================================================
+     CADASTRO
+===================================================== -->
+
+<section class="register-card">
+
+
+  <div class="card-title">
+
+    <h2>
+
+      <span
+        data-pt="Criar"
+        data-en="Create"
+        style="color:#fff;"
+      >
+        Criar
+      </span>
+
+      <span
+        data-pt="sua conta"
+        data-en="your account"
+      >
+        sua conta
+      </span>
+
+    </h2>
+
+
+    <p
+      data-pt="Preencha seus dados para começar."
+      data-en="Enter your information to get started."
+    >
+      Preencha seus dados para começar.
+    </p>
+
+  </div>
+
+
+  <form id="registerForm">
+
+
+    <!-- NOME -->
+
+    <div class="form-group">
+
+      <label
+        for="name"
+        data-pt="Nome"
+        data-en="Name"
+      >
+        Nome
+      </label>
+
+
+      <input
+        type="text"
+        id="name"
+        name="name"
+        placeholder="Seu nome"
+        autocomplete="name"
+        required
+      >
+
+    </div>
+
+
+    <!-- EMAIL -->
+
+    <div class="form-group">
+
+      <label
+        for="email"
+        data-pt="E-mail"
+        data-en="Email"
+      >
+        E-mail
+      </label>
+
+
+      <input
+        type="email"
+        id="email"
+        name="email"
+        placeholder="seu@email.com"
+        autocomplete="email"
+        required
+      >
+
+    </div>
+
+
+    <!-- SENHA -->
+
+    <div class="form-group">
+
+      <label
+        for="password"
+        data-pt="Senha"
+        data-en="Password"
+      >
+        Senha
+      </label>
+
+
+      <div class="password-wrap">
+
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Crie uma senha"
+          autocomplete="new-password"
+          minlength="8"
+          required
+        >
+
+
+        <button
+          type="button"
+          class="password-toggle"
+          id="togglePassword"
+        >
+          👁
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- CONFIRMAR SENHA -->
+
+    <div class="form-group">
+
+      <label
+        for="confirmPassword"
+        data-pt="Confirmar senha"
+        data-en="Confirm password"
+      >
+        Confirmar senha
+      </label>
+
+
+      <div class="password-wrap">
+
+        <input
+          type="password"
+          id="confirmPassword"
+          placeholder="Digite a senha novamente"
+          autocomplete="new-password"
+          minlength="8"
+          required
+        >
+
+
+        <button
+          type="button"
+          class="password-toggle"
+          id="toggleConfirmPassword"
+        >
+          👁
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <!-- PLANOS -->
+
+    <label
+      class="plan-label"
+      data-pt="Escolha seu plano"
+      data-en="Choose your plan"
+    >
+      Escolha seu plano
+    </label>
+
+
+    <div class="plan-options">
+
+
+      <!-- BÁSICO -->
+
+      <div class="plan-option">
+
+        <input
+          type="radio"
+          id="planBasic"
+          name="plan"
+          value="basico"
+        >
+
+
+        <label for="planBasic">
+
+          <span
+            class="plan-name"
+            data-pt="Básico"
+            data-en="Basic"
+          >
+            Básico
+          </span>
+
+
+          <span class="plan-price">
+            R$ 49,90
+          </span>
+
+
+          <span
+            class="plan-period"
+            data-pt="/ mês"
+            data-en="/ month"
+          >
+            / mês
+          </span>
+
+        </label>
+
+      </div>
+
+
+      <!-- PROFISSIONAL -->
+
+      <div class="plan-option">
+
+        <input
+          type="radio"
+          id="planProfessional"
+          name="plan"
+          value="profissional"
+        >
+
+
+        <label for="planProfessional">
+
+          <span class="most-popular"
+                data-pt="MAIS ESCOLHIDO"
+                data-en="MOST POPULAR">
+            MAIS ESCOLHIDO
+          </span>
+
+
+          <span
+            class="plan-name"
+            data-pt="Profissional"
+            data-en="Professional"
+          >
+            Profissional
+          </span>
+
+
+          <span class="plan-price">
+            R$ 99,90
+          </span>
+
+
+          <span
+            class="plan-period"
+            data-pt="/ mês"
+            data-en="/ month"
+          >
+            / mês
+          </span>
+
+        </label>
+
+      </div>
+
+
+      <!-- PREMIUM -->
+
+      <div class="plan-option">
+
+        <input
+          type="radio"
+          id="planPremium"
+          name="plan"
+          value="premium"
+        >
+
+
+        <label for="planPremium">
+
+          <span
+            class="plan-name"
+            data-pt="Premium"
+            data-en="Premium"
+          >
+            Premium
+          </span>
+
+
+          <span class="plan-price">
+            R$ 199,90
+          </span>
+
+
+          <span
+            class="plan-period"
+            data-pt="/ mês"
+            data-en="/ month"
+          >
+            / mês
+          </span>
+
+        </label>
+
+      </div>
+
+
+    </div>
+
+
+    <!-- TERMOS -->
+
+    <label class="terms">
+
+      <input
+        type="checkbox"
+        id="terms"
+        required
+      >
+
+
+      <span>
+
+        <span
+          data-pt="Concordo com os termos de uso e política de privacidade."
+          data-en="I agree to the terms of use and privacy policy."
+        >
+          Concordo com os termos de uso
+          e política de privacidade.
+        </span>
+
+      </span>
+
+    </label>
+
+
+    <!-- BOTÃO -->
+
+    <button
+      type="submit"
+      class="submit-button"
+      id="registerButton"
+      data-pt="CRIAR MINHA CONTA"
+      data-en="CREATE MY ACCOUNT"
+    >
+
+      CRIAR MINHA CONTA
+
+    </button>
+
+
+  </form>
+
+
+  <div
+    id="message"
+    class="message"
+  ></div>
+
+
+  <div class="already-account">
+
+    <span
+      data-pt="Já possui uma conta?"
+      data-en="Already have an account?"
+    >
+      Já possui uma conta?
+    </span>
+
+
+    &nbsp;
+
+
+    <a
+      href="login.html"
+      data-pt="Entrar"
+      data-en="Sign in"
+    >
+      Entrar
+    </a>
+
+  </div>
+
+
+</section>
+
+
+</div>
+
+
+<footer class="footer">
+
+  <span>
+    CriptoPro — Automação inteligente.
+  </span>
+
+  <span>
+    Segurança • Controle • Transparência
+  </span>
+
+</footer>
+
+
+</main>
+
+
+<script>
+
+/* =========================================================
+   IDIOMA
+========================================================= */
+
+const languageSelect =
+  document.getElementById(
+    "languageSelect"
+  );
+
+
+function changeLanguage(language){
+
+  document.documentElement.lang =
+    language === "en"
+      ? "en"
+      : "pt-BR";
+
+
+  document
+    .querySelectorAll(
+      "[data-pt][data-en]"
+    )
+    .forEach(
+      function(element){
+
+        element.textContent =
+          element.getAttribute(
+            language === "en"
+              ? "data-en"
+              : "data-pt"
+          );
+
+      }
+    );
+
+
+  localStorage.setItem(
+    "criptopro_language",
+    language
+  );
+
+
+  document.title =
+    language === "en"
+      ? "CriptoPro — Create Account"
+      : "CriptoPro — Criar conta";
+
+}
+
+
+const savedLanguage =
+  localStorage.getItem(
+    "criptopro_language"
+  ) || "pt";
+
+
+languageSelect.value =
+  savedLanguage;
+
+
+changeLanguage(
+  savedLanguage
+);
+
+
+languageSelect.addEventListener(
+  "change",
+  function(){
+
+    changeLanguage(
+      this.value
+    );
+
+  }
+);
+
+
+/* =========================================================
+   MOSTRAR / OCULTAR SENHAS
+========================================================= */
+
+function setupPasswordToggle(
+  buttonId,
+  inputId
+){
+
+  const button =
+    document.getElementById(
+      buttonId
+    );
+
+
+  const input =
+    document.getElementById(
+      inputId
+    );
+
+
+  if(
+    !button ||
+    !input
+  ){
+    return;
+  }
+
+
+  button.addEventListener(
+    "click",
+    function(){
+
+      if(
+        input.type ===
+        "password"
+      ){
+
+        input.type =
+          "text";
+
+        button.textContent =
+          "🙈";
+
+      }else{
+
+        input.type =
+          "password";
+
+        button.textContent =
+          "👁";
+
+      }
+
+    }
+  );
+
+}
+
+
+setupPasswordToggle(
+  "togglePassword",
+  "password"
+);
+
+
+setupPasswordToggle(
+  "toggleConfirmPassword",
+  "confirmPassword"
+);
+
+
+/* =========================================================
+   PLANO VINDO DA URL
+========================================================= */
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+
+const selectedPlan =
+  params.get("plano");
+
+
+if(selectedPlan){
+
+  const planInput =
+    document.querySelector(
+      `input[name="plan"][value="${selectedPlan}"]`
+    );
+
+
+  if(planInput){
+
+    planInput.checked =
+      true;
+
+  }
+
+}else{
+
+  /* Padrão: Profissional */
+
+  const professional =
+    document.getElementById(
+      "planProfessional"
+    );
+
+
+  if(professional){
+
+    professional.checked =
+      true;
+
+  }
+
+}
+
+
+/* =========================================================
+   CADASTRO
+========================================================= */
+
+const registerForm =
+  document.getElementById(
+    "registerForm"
+  );
+
+
+const registerButton =
+  document.getElementById(
+    "registerButton"
+  );
+
+
+const message =
+  document.getElementById(
+    "message"
+  );
+
+
+registerForm.addEventListener(
+  "submit",
+  async function(event){
+
+    event.preventDefault();
+
+
+    const name =
+      document.getElementById(
+        "name"
+      ).value.trim();
+
+
+    const email =
+      document.getElementById(
+        "email"
+      ).value.trim().toLowerCase();
+
+
+    const password =
+      document.getElementById(
+        "password"
+      ).value;
+
+
+    const confirmPassword =
+      document.getElementById(
+        "confirmPassword"
+      ).value;
+
+
+    const selected =
+      document.querySelector(
+        'input[name="plan"]:checked'
+      );
+
+
+    const terms =
+      document.getElementById(
+        "terms"
+      );
+
+
+    message.textContent =
+      "";
+
+
+    message.className =
+      "message";
+
+
+    /* -----------------------------------------
+       VALIDAÇÕES
+    ----------------------------------------- */
+
+    if(
+      password.length < 8
+    ){
+
+      message.textContent =
+        "A senha deve possuir pelo menos 8 caracteres.";
+
+      message.className =
+        "message error";
+
+      return;
+
+    }
+
+
+    if(
+      password !==
+      confirmPassword
+    ){
+
+      message.textContent =
+        "As senhas não coincidem.";
+
+      message.className =
+        "message error";
+
+      return;
+
+    }
+
+
+    if(!selected){
+
+      message.textContent =
+        "Escolha um plano para continuar.";
+
+      message.className =
+        "message error";
+
+      return;
+
+    }
+
+
+    if(!terms.checked){
+
+      message.textContent =
+        "Você precisa aceitar os termos para continuar.";
+
+      message.className =
+        "message error";
+
+      return;
+
+    }
+
+
+    /* -----------------------------------------
+       ENVIO
+    ----------------------------------------- */
+
+    registerButton.disabled =
+      true;
+
+
+    registerButton.textContent =
+      "CRIANDO CONTA...";
+
+
+    try{
+
+      const response =
+        await fetch(
+          "/api/auth/register",
+          {
+
+            method:"POST",
+
+            headers:{
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+
+                name:name,
+
+                email:email,
+
+                password:password
+
+              })
+
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if(
+        !response.ok ||
+        !data.success
+      ){
+
+        throw new Error(
+          data.message ||
+          "Não foi possível criar sua conta."
+        );
+
+      }
+
+
+      /*
+       * O cadastro foi realizado.
+       *
+       * O plano escolhido será preservado
+       * para a próxima etapa de assinatura.
+       */
+
+      localStorage.setItem(
+        "criptopro_selected_plan",
+        selected.value
+      );
+
+
+      if(data.token){
+
+        localStorage.setItem(
+          "token",
+          data.token
+        );
+
+      }
+
+
+      message.textContent =
+        "Conta criada com sucesso!";
+
+
+      message.className =
+        "message success";
+
+
+      registerButton.textContent =
+        "CONTA CRIADA ✓";
+
+
+      setTimeout(
+        function(){
+
+          window.location.href =
+            data.token
+              ? "dashboard.html"
+              : "login.html";
+
+        },
+        900
+      );
+
+
+    }catch(error){
+
+      console.error(
+        "ERRO AO CRIAR CONTA:",
+        error
+      );
+
+
+      message.textContent =
+        error.message ||
+        "Erro ao criar sua conta.";
+
+
+      message.className =
+        "message error";
+
+
+      registerButton.disabled =
+        false;
+
+
+      registerButton.textContent =
+        "CRIAR MINHA CONTA";
+
+    }
+
+  }
+);
+
+</script>
+
+
+</body>
+
+</html>

@@ -3,2081 +3,2286 @@
 
 <head>
 
-  <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
 
-  <title>CriptoPro | Automação Inteligente</title>
+<title>CriptoPro — Automação Inteligente</title>
 
-  <style>
+<style>
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+/* =========================================================
+   RESET
+========================================================= */
 
-    html {
-      scroll-behavior: smooth;
-    }
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
 
-    body {
+html{
+  scroll-behavior:smooth;
+}
 
-      min-height: 100vh;
+body{
+  min-height:100vh;
+  overflow-x:hidden;
 
-      font-family:
-        Inter,
-        Arial,
-        Helvetica,
-        sans-serif;
+  font-family:
+    Inter,
+    Arial,
+    Helvetica,
+    sans-serif;
 
-      color: #fff;
+  color:#fff;
 
-      background:
-        radial-gradient(
-          circle at 50% 15%,
-          rgba(240,185,11,.10),
-          transparent 28%
-        ),
-        radial-gradient(
-          circle at 90% 60%,
-          rgba(0,255,170,.05),
-          transparent 30%
-        ),
-        #03070c;
+  background:#02060a;
+}
 
-      overflow-x: hidden;
 
-    }
+/* =========================================================
+   FUNDO
+========================================================= */
 
+body::before{
+  content:"";
 
-    /* =====================================================
-       FUNDO ANIMADO
-    ===================================================== */
+  position:fixed;
 
-    .background {
+  inset:0;
 
-      position: fixed;
+  z-index:-10;
 
-      inset: 0;
+  background:
+    radial-gradient(
+      circle at 48% 28%,
+      rgba(240,185,11,.13),
+      transparent 23%
+    ),
+    radial-gradient(
+      circle at 78% 45%,
+      rgba(0,255,180,.06),
+      transparent 25%
+    ),
+    linear-gradient(
+      115deg,
+      #02060a 0%,
+      #061019 45%,
+      #03070b 100%
+    );
+}
 
-      z-index: 0;
 
-      overflow: hidden;
+body::after{
+  content:"";
 
-      pointer-events: none;
+  position:fixed;
 
-    }
+  inset:0;
 
+  z-index:-9;
 
-    .grid {
+  opacity:.35;
 
-      position: absolute;
+  background-image:
 
-      inset: 0;
+    linear-gradient(
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    ),
 
-      background-image:
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.025) 1px,
+      transparent 1px
+    );
 
-        linear-gradient(
-          rgba(255,255,255,.025) 1px,
-          transparent 1px
-        ),
+  background-size:55px 55px;
 
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,.025) 1px,
-          transparent 1px
-        );
+  mask-image:
+    linear-gradient(
+      to bottom,
+      black 0%,
+      transparent 95%
+    );
+}
 
-      background-size: 60px 60px;
 
-      mask-image:
-        linear-gradient(
-          to bottom,
-          black,
-          transparent
-        );
+/* =========================================================
+   GLOW
+========================================================= */
 
-    }
+.glow{
+  position:fixed;
 
+  width:650px;
+  height:650px;
 
-    .glow {
+  border-radius:50%;
 
-      position: absolute;
+  filter:blur(120px);
 
-      width: 500px;
+  pointer-events:none;
 
-      height: 500px;
+  z-index:-8;
+}
 
-      border-radius: 50%;
+.glow.gold{
+  top:-280px;
+  left:18%;
 
-      filter: blur(100px);
+  background:#f0b90b;
 
-      opacity: .12;
+  opacity:.10;
 
-    }
+  animation:
+    glowMove 12s ease-in-out infinite;
+}
 
+.glow.green{
+  right:-300px;
+  bottom:-250px;
 
-    .glow.one {
+  background:#00d995;
 
-      top: -200px;
+  opacity:.06;
 
-      left: 20%;
+  animation:
+    glowMove 15s ease-in-out infinite reverse;
+}
 
-      background: #f0b90b;
+@keyframes glowMove{
 
-      animation:
-        floatGlow 9s ease-in-out infinite;
+  0%,100%{
+    transform:translate(0,0);
+  }
 
-    }
+  50%{
+    transform:translate(80px,-40px);
+  }
 
+}
 
-    .glow.two {
 
-      right: -250px;
+/* =========================================================
+   PARTICULAS
+========================================================= */
 
-      bottom: 5%;
+.particles{
+  position:fixed;
 
-      background: #00d995;
+  inset:0;
 
-      animation:
-        floatGlow 12s ease-in-out infinite reverse;
+  z-index:-5;
 
-    }
+  overflow:hidden;
 
+  pointer-events:none;
+}
 
-    @keyframes floatGlow {
+.particle{
+  position:absolute;
 
-      0%,
-      100% {
-        transform: translate(
-          0,
-          0
-        );
-      }
+  width:2px;
+  height:2px;
 
-      50% {
-        transform: translate(
-          50px,
-          -30px
-        );
-      }
+  border-radius:50%;
 
-    }
+  background:#f0b90b;
 
+  box-shadow:
+    0 0 10px #f0b90b;
 
-    /* =====================================================
-       PARTICULAS
-    ===================================================== */
+  opacity:.5;
 
-    .particle {
+  animation:
+    particleUp linear infinite;
+}
 
-      position: absolute;
+@keyframes particleUp{
 
-      width: 3px;
+  from{
+    transform:translateY(110vh);
+  }
 
-      height: 3px;
+  to{
+    transform:translateY(-20vh);
+  }
 
-      border-radius: 50%;
+}
 
-      background: #f0b90b;
 
-      box-shadow:
-        0 0 10px #f0b90b;
+/* =========================================================
+   HEADER
+========================================================= */
 
-      opacity: .35;
+.header{
 
-      animation:
-        particleMove
-        linear
-        infinite;
+  height:72px;
 
-    }
+  position:relative;
 
+  z-index:50;
 
-    @keyframes particleMove {
+  display:flex;
 
-      from {
+  align-items:center;
 
-        transform:
-          translateY(110vh);
+  justify-content:space-between;
 
-      }
+  padding:0 3.5%;
 
-      to {
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.08);
 
-        transform:
-          translateY(-20vh);
+  background:
+    rgba(2,6,10,.72);
 
-      }
+  backdrop-filter:
+    blur(18px);
+}
 
-    }
 
+.brand{
 
-    /* =====================================================
-       HEADER
-    ===================================================== */
+  display:flex;
 
-    header {
+  align-items:center;
 
-      height: 72px;
+  gap:10px;
 
-      position: relative;
+  color:#fff;
 
-      z-index: 20;
+  text-decoration:none;
+}
 
-      display: flex;
 
-      align-items: center;
+.logo{
 
-      justify-content: space-between;
+  width:42px;
+  height:42px;
 
-      padding:
-        0 4%;
+  display:flex;
 
-      border-bottom:
-        1px solid
-        rgba(255,255,255,.07);
+  align-items:center;
+  justify-content:center;
 
-      background:
-        rgba(3,7,12,.78);
+  border-radius:11px;
 
-      backdrop-filter:
-        blur(18px);
+  background:
+    linear-gradient(
+      145deg,
+      #ffe36a,
+      #e9a700
+    );
 
-    }
+  box-shadow:
+    0 0 28px
+    rgba(240,185,11,.25);
+}
 
 
-    .brand {
+.logo svg{
+  width:28px;
+  height:28px;
+}
 
-      display: flex;
 
-      align-items: center;
+.brand-title{
 
-      gap: 10px;
+  font-size:20px;
 
-      color: #fff;
+  line-height:1;
 
-      text-decoration: none;
+  font-weight:900;
 
-    }
+  letter-spacing:-1px;
+}
 
 
-    .logo {
+.brand-title span{
+  color:#f0b90b;
+}
 
-      width: 42px;
 
-      height: 42px;
+.brand-subtitle{
 
-      display: flex;
+  margin-top:4px;
 
-      align-items: center;
+  color:#738498;
 
-      justify-content: center;
+  font-size:7px;
 
-      border-radius: 11px;
+  letter-spacing:1.8px;
 
-      background:
-        linear-gradient(
-          145deg,
-          #ffd84a,
-          #eea900
-        );
+  text-transform:uppercase;
+}
 
-      box-shadow:
-        0 8px 30px
-        rgba(240,185,11,.25);
 
-    }
+.navigation{
 
+  display:flex;
 
-    .logo svg {
+  align-items:center;
 
-      width: 28px;
+  gap:29px;
+}
 
-      height: 28px;
 
-    }
+.navigation a{
 
+  color:#8494a7;
 
-    .brand-name {
+  text-decoration:none;
 
-      font-size: 20px;
+  font-size:10px;
 
-      font-weight: 900;
+  transition:.2s;
+}
 
-      letter-spacing: -.8px;
 
-    }
+.navigation a:hover{
+  color:#fff;
+}
 
 
-    .brand-name span {
+.header-right{
 
-      color: #f0b90b;
+  display:flex;
 
-    }
+  align-items:center;
 
+  gap:10px;
+}
 
-    .brand-sub {
 
-      display: block;
+.online{
 
-      margin-top: 2px;
+  display:flex;
 
-      color: #75869a;
+  align-items:center;
 
-      font-size: 8px;
+  gap:7px;
 
-      letter-spacing: 1.6px;
+  padding:
+    8px 12px;
 
-      text-transform: uppercase;
+  border:
+    1px solid
+    rgba(255,255,255,.10);
 
-    }
+  border-radius:20px;
 
+  color:#a9b8c7;
 
-    nav {
+  font-size:9px;
+}
 
-      display: flex;
 
-      align-items: center;
+.online-dot{
 
-      gap: 26px;
+  width:7px;
+  height:7px;
 
-    }
+  border-radius:50%;
 
+  background:#24e38e;
 
-    nav a {
+  box-shadow:
+    0 0 12px #24e38e;
 
-      color: #8999ab;
+  animation:
+    onlinePulse 1.6s infinite;
+}
 
-      text-decoration: none;
 
-      font-size: 11px;
+@keyframes onlinePulse{
 
-      transition: .2s;
+  50%{
+    opacity:.3;
+    transform:scale(.65);
+  }
 
-    }
+}
 
 
-    nav a:hover {
+.view-plans{
 
-      color: #fff;
+  display:flex;
 
-    }
+  align-items:center;
 
+  gap:8px;
 
-    .header-actions {
+  height:35px;
 
-      display: flex;
+  padding:
+    0 14px;
 
-      align-items: center;
+  border:
+    1px solid
+    #f0b90b;
 
-      gap: 10px;
+  border-radius:8px;
 
-    }
+  color:#f0b90b;
 
+  text-decoration:none;
 
-    .online {
+  font-size:9px;
 
-      display: flex;
+  font-weight:800;
 
-      align-items: center;
+  transition:.2s;
+}
 
-      gap: 7px;
 
-      padding:
-        9px 13px;
+.view-plans:hover{
 
-      border:
-        1px solid
-        rgba(255,255,255,.1);
+  color:#111;
 
-      border-radius: 20px;
+  background:#f0b90b;
 
-      color: #aebccc;
+}
 
-      font-size: 10px;
 
-    }
+/* =========================================================
+   MAIN
+========================================================= */
 
+.main{
 
-    .online-dot {
+  width:94%;
 
-      width: 7px;
+  max-width:1750px;
 
-      height: 7px;
+  margin:auto;
 
-      border-radius: 50%;
+  position:relative;
 
-      background: #20df8a;
+  z-index:2;
+}
 
-      box-shadow:
-        0 0 12px
-        #20df8a;
 
-      animation:
-        pulse 1.7s infinite;
+/* =========================================================
+   HERO
+========================================================= */
 
-    }
+.hero{
 
+  min-height:675px;
 
-    @keyframes pulse {
+  padding:
+    42px 0 22px;
 
-      50% {
+  display:grid;
 
-        opacity: .35;
+  grid-template-columns:
+    minmax(0,1fr)
+    390px;
 
-        transform: scale(.7);
+  gap:35px;
 
-      }
+  align-items:start;
+}
 
-    }
 
+/* =========================================================
+   HERO LEFT
+========================================================= */
 
-    .plans-button {
+.hero-left{
 
-      border:
-        1px solid
-        #f0b90b;
+  position:relative;
 
-      border-radius: 9px;
+  min-width:0;
+}
 
-      padding:
-        10px 17px;
 
-      color: #f0b90b;
+.eyebrow{
 
-      text-decoration: none;
+  display:flex;
 
-      font-size: 10px;
+  align-items:center;
 
-      font-weight: 800;
+  gap:8px;
 
-      transition: .2s;
+  margin-bottom:14px;
 
-    }
+  color:#bac7d5;
 
+  font-size:10px;
 
-    .plans-button:hover {
+  font-weight:700;
 
-      color: #111;
+  letter-spacing:1.7px;
 
-      background: #f0b90b;
+  text-transform:uppercase;
+}
 
-    }
 
+.eyebrow .dot{
+  color:#f0b90b;
+}
 
-    /* =====================================================
-       CONTAINER
-    ===================================================== */
 
-    .container {
+.hero-title{
 
-      width:
-        min(
-          1420px,
-          92%
-        );
+  max-width:780px;
 
-      margin: auto;
+  font-size:
+    clamp(
+      48px,
+      5.5vw,
+      82px
+    );
 
-      position: relative;
+  line-height:.94;
 
-      z-index: 2;
+  letter-spacing:-4px;
 
-    }
+  font-weight:950;
+}
 
 
-    /* =====================================================
-       HERO
-    ===================================================== */
+.hero-title span{
+  color:#f0b90b;
+}
 
-    .hero {
 
-      min-height: 650px;
+.hero-description{
 
-      padding:
-        65px 0 30px;
+  max-width:680px;
 
-      display: grid;
+  margin:
+    20px 0 18px;
 
-      grid-template-columns:
-        1fr
-        410px;
+  color:#a5b3c2;
 
-      gap: 45px;
+  font-size:14px;
 
-      align-items: center;
+  line-height:1.55;
+}
 
-    }
 
+/* =========================================================
+   TICKERS
+========================================================= */
 
-    .hero-left {
+.tickers{
 
-      position: relative;
+  display:flex;
 
-    }
+  flex-wrap:wrap;
 
+  gap:7px;
 
-    .eyebrow {
+  margin-bottom:17px;
+}
 
-      display: inline-flex;
 
-      gap: 8px;
+.ticker{
 
-      align-items: center;
+  height:30px;
 
-      margin-bottom: 18px;
+  display:flex;
 
-      color: #aab8c8;
+  align-items:center;
 
-      font-size: 11px;
+  gap:7px;
 
-      font-weight: 700;
+  padding:
+    0 10px;
 
-      letter-spacing: 1.5px;
+  border:
+    1px solid
+    rgba(255,255,255,.09);
 
-      text-transform: uppercase;
+  border-radius:7px;
 
-    }
+  background:
+    rgba(255,255,255,.025);
 
+  font-size:8px;
+}
 
-    .eyebrow span {
 
-      color: #f0b90b;
+.coin{
 
-    }
+  width:17px;
+  height:17px;
 
+  display:flex;
 
-    h1 {
+  align-items:center;
+  justify-content:center;
 
-      max-width: 720px;
+  border-radius:50%;
 
-      font-size:
-        clamp(
-          45px,
-          5.2vw,
-          72px
-        );
+  background:#f0b90b;
 
-      line-height: .97;
+  color:#111;
 
-      letter-spacing: -3px;
+  font-size:8px;
 
-      font-weight: 900;
+  font-weight:900;
+}
 
-    }
 
+.ticker-name{
+  color:#dbe4ed;
+  font-weight:800;
+}
 
-    h1 .gold {
 
-      color: #f0b90b;
+.ticker-up{
+  color:#23dc8b;
+}
 
-    }
 
+/* =========================================================
+   FEATURES
+========================================================= */
 
-    .hero-text {
+.features{
 
-      max-width: 650px;
+  display:grid;
 
-      margin:
-        23px 0 25px;
+  grid-template-columns:
+    repeat(4,1fr);
 
-      color: #9aaabd;
+  gap:8px;
 
-      font-size: 16px;
+  margin-bottom:12px;
+}
 
-      line-height: 1.6;
 
-    }
+.feature{
 
+  min-height:92px;
 
-    /* =====================================================
-       CRIPTO TICKERS
-    ===================================================== */
+  padding:
+    11px 9px;
 
-    .tickers {
+  text-align:center;
 
-      display: flex;
+  border:
+    1px solid
+    rgba(255,255,255,.09);
 
-      flex-wrap: wrap;
+  border-radius:9px;
 
-      gap: 8px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.045),
+      rgba(255,255,255,.012)
+    );
 
-      margin-bottom: 27px;
+  transition:.25s;
+}
 
-    }
 
+.feature:hover{
 
-    .ticker {
+  transform:
+    translateY(-3px);
 
-      display: flex;
+  border-color:
+    rgba(240,185,11,.5);
 
-      align-items: center;
+  box-shadow:
+    0 10px 30px
+    rgba(240,185,11,.05);
+}
 
-      gap: 7px;
 
-      padding:
-        8px 11px;
+.feature-icon{
 
-      border:
-        1px solid
-        rgba(255,255,255,.09);
+  width:31px;
+  height:31px;
 
-      border-radius: 8px;
+  display:flex;
 
-      background:
-        rgba(255,255,255,.025);
+  align-items:center;
+  justify-content:center;
 
-      font-size: 10px;
+  margin:
+    0 auto 6px;
 
-    }
+  border:
+    1px solid
+    rgba(240,185,11,.5);
 
+  border-radius:8px;
 
-    .coin {
+  color:#f0b90b;
 
-      width: 19px;
+  font-size:15px;
+}
 
-      height: 19px;
 
-      display: flex;
+.feature strong{
 
-      align-items: center;
+  display:block;
 
-      justify-content: center;
+  margin-bottom:3px;
 
-      border-radius: 50%;
+  color:#e4ebf3;
 
-      background:
-        #f0b90b;
+  font-size:9px;
+}
 
-      color: #111;
 
-      font-size: 8px;
+.feature p{
 
-      font-weight: 900;
+  color:#708297;
 
-    }
+  font-size:7px;
 
+  line-height:1.4;
+}
 
-    .ticker strong {
 
-      color: #dce6f0;
+/* =========================================================
+   MARKET AREA
+========================================================= */
 
-    }
+.market-area{
 
+  height:330px;
 
-    .up {
+  position:relative;
 
-      color: #27df91;
+  overflow:hidden;
 
-    }
+  border:
+    1px solid
+    rgba(255,255,255,.11);
 
+  border-radius:15px;
 
-    .down {
+  background:
+    linear-gradient(
+      145deg,
+      #08131e,
+      #03090e
+    );
 
-      color: #ff6565;
+  box-shadow:
+    0 35px 80px
+    rgba(0,0,0,.45);
+}
 
-    }
 
+.market-grid{
 
-    /* =====================================================
-       FEATURES
-    ===================================================== */
+  position:absolute;
 
-    .features {
+  inset:0;
 
-      display: grid;
+  background-image:
 
-      grid-template-columns:
-        repeat(4,1fr);
+    linear-gradient(
+      rgba(255,255,255,.035) 1px,
+      transparent 1px
+    ),
 
-      gap: 9px;
+    linear-gradient(
+      90deg,
+      rgba(255,255,255,.035) 1px,
+      transparent 1px
+    );
 
-      margin-bottom: 22px;
+  background-size:
+    46px 46px;
+}
 
-    }
 
+.market-header{
 
-    .feature {
+  position:absolute;
 
-      min-height: 120px;
+  top:13px;
 
-      padding:
-        15px 11px;
+  left:16px;
 
-      text-align: center;
+  right:16px;
 
-      border:
-        1px solid
-        rgba(255,255,255,.08);
+  z-index:10;
 
-      border-radius: 11px;
+  display:flex;
 
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.01)
-        );
+  align-items:center;
 
-      transition: .25s;
+  justify-content:space-between;
+}
 
-    }
 
+.pair{
 
-    .feature:hover {
+  display:flex;
 
-      transform:
-        translateY(-4px);
+  align-items:center;
 
-      border-color:
-        rgba(240,185,11,.45);
+  gap:8px;
 
-      background:
-        rgba(240,185,11,.035);
+  font-size:10px;
 
-    }
+  font-weight:800;
+}
 
 
-    .feature-icon {
+.btc-icon{
 
-      width: 38px;
+  width:25px;
+  height:25px;
 
-      height: 38px;
+  display:flex;
 
-      margin:
-        0 auto 9px;
+  align-items:center;
+  justify-content:center;
 
-      display: flex;
+  border-radius:50%;
 
-      align-items: center;
+  background:#f0b90b;
 
-      justify-content: center;
+  color:#111;
 
-      border:
-        1px solid
-        rgba(240,185,11,.5);
+  font-size:14px;
 
-      border-radius: 10px;
+  font-weight:900;
+}
 
-      color: #f0b90b;
 
-      font-size: 18px;
+.price{
 
-    }
+  color:#22df91;
+}
 
 
-    .feature strong {
+.market-live{
 
-      display: block;
+  padding:
+    5px 8px;
 
-      font-size: 11px;
+  border:
+    1px solid
+    rgba(34,223,145,.4);
 
-      margin-bottom: 5px;
+  border-radius:5px;
 
-    }
+  color:#22df91;
 
+  background:
+    rgba(0,50,30,.35);
 
-    .feature p {
+  font-size:7px;
 
-      color: #73869a;
+  font-weight:800;
+}
 
-      font-size: 9px;
 
-      line-height: 1.4;
+/* =========================================================
+   SVG CHART
+========================================================= */
 
-    }
+.chart-svg{
 
+  position:absolute;
 
-    /* =====================================================
-       MARKET PANEL
-    ===================================================== */
+  left:8px;
+  right:8px;
 
-    .market {
+  top:48px;
+  bottom:5px;
 
-      height: 275px;
+  width:calc(100% - 16px);
 
-      position: relative;
+  height:calc(100% - 53px);
+}
 
-      overflow: hidden;
 
-      border:
-        1px solid
-        rgba(255,255,255,.1);
+.chart-line{
 
-      border-radius: 15px;
+  stroke-dasharray:1200;
 
-      background:
-        linear-gradient(
-          145deg,
-          #09131e,
-          #050c13
-        );
+  stroke-dashoffset:1200;
 
-      box-shadow:
-        0 25px 70px
-        rgba(0,0,0,.35);
+  animation:
+    drawChart 6s
+    ease-in-out
+    infinite alternate;
+}
 
-    }
 
+@keyframes drawChart{
 
-    .market-grid {
+  to{
+    stroke-dashoffset:0;
+  }
 
-      position: absolute;
+}
 
-      inset: 0;
 
-      background-image:
+/* =========================================================
+   CANDLES
+========================================================= */
 
-        linear-gradient(
-          rgba(255,255,255,.035) 1px,
-          transparent 1px
-        ),
+.candles{
 
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,.035) 1px,
-          transparent 1px
-        );
+  position:absolute;
 
-      background-size:
-        45px 45px;
+  left:25px;
+  right:25px;
 
-    }
+  bottom:28px;
 
+  height:205px;
 
-    .market-top {
+  display:flex;
 
-      position: absolute;
+  align-items:flex-end;
 
-      top: 15px;
+  justify-content:space-around;
 
-      left: 18px;
+  opacity:.95;
+}
 
-      right: 18px;
 
-      display: flex;
+.candle{
 
-      justify-content: space-between;
+  width:6px;
 
-      align-items: center;
+  position:relative;
 
-      z-index: 3;
+  border-radius:2px;
 
-    }
+  animation:
+    candleMove 2.8s
+    ease-in-out
+    infinite;
+}
 
 
-    .market-pair {
+.candle::before{
 
-      display: flex;
+  content:"";
 
-      align-items: center;
+  position:absolute;
 
-      gap: 8px;
+  left:2px;
 
-      font-size: 12px;
+  top:-15px;
 
-      font-weight: 800;
+  width:1px;
 
-    }
+  height:calc(100% + 30px);
 
+  background:currentColor;
+}
 
-    .btc {
 
-      width: 25px;
+.candle.green{
 
-      height: 25px;
+  color:#1fe292;
 
-      display: flex;
+  background:#1fe292;
+}
 
-      align-items: center;
 
-      justify-content: center;
+.candle.red{
 
-      border-radius: 50%;
+  color:#ff5f69;
 
-      background: #f0b90b;
+  background:#ff5f69;
+}
 
-      color: #111;
 
-      font-weight: 900;
+@keyframes candleMove{
 
-    }
+  0%,100%{
+    transform:
+      scaleY(1);
+  }
 
+  50%{
+    transform:
+      scaleY(.72);
+  }
 
-    .market-price {
+}
 
-      color: #20df8a;
 
-    }
+/* =========================================================
+   ROBÔ
+========================================================= */
 
+.robot{
 
-    .live {
+  position:absolute;
 
-      padding:
-        5px 9px;
+  z-index:15;
 
-      border:
-        1px solid
-        rgba(32,223,138,.35);
+  right:95px;
 
-      border-radius: 6px;
+  bottom:10px;
 
-      color: #20df8a;
+  width:230px;
 
-      font-size: 8px;
+  height:230px;
 
-    }
+  filter:
+    drop-shadow(
+      0 30px 35px
+      rgba(0,0,0,.8)
+    );
 
+  animation:
+    robotFloat 4s
+    ease-in-out
+    infinite;
+}
 
-    .candle-chart {
 
-      position: absolute;
+.robot-head{
 
-      left: 15px;
+  position:absolute;
 
-      right: 15px;
+  left:35px;
 
-      top: 52px;
+  top:12px;
 
-      bottom: 18px;
+  width:155px;
 
-      display: flex;
+  height:116px;
 
-      align-items: flex-end;
+  border:
+    3px solid
+    #645532;
 
-      justify-content: space-around;
+  border-radius:
+    42px 42px 30px 30px;
 
-    }
+  background:
+    linear-gradient(
+      145deg,
+      #18232d,
+      #03070b
+    );
 
+  box-shadow:
 
-    .candle {
+    inset
+    0 0 40px
+    rgba(240,185,11,.08),
 
-      position: relative;
+    0 0 35px
+    rgba(240,185,11,.14);
+}
 
-      width: 7px;
 
-      border-radius: 2px;
+.robot-head::after{
 
-      animation:
-        candlePulse
-        2.5s
-        ease-in-out
-        infinite;
+  content:"";
 
-    }
+  position:absolute;
 
+  inset:8px;
 
-    .candle::before {
+  border:
+    1px solid
+    rgba(255,255,255,.08);
 
-      content: "";
+  border-radius:
+    35px 35px 25px 25px;
+}
 
-      position: absolute;
 
-      left: 3px;
+.robot-eye{
 
-      top: -12px;
+  position:absolute;
 
-      width: 1px;
+  top:49px;
 
-      height: calc(100% + 24px);
+  width:38px;
 
-      background: currentColor;
+  height:13px;
 
-      opacity: .8;
+  border-radius:20px;
 
-    }
+  background:#ffd11a;
 
+  box-shadow:
+    0 0 20px
+    #f0b90b;
+}
 
-    .green {
 
-      color: #20df8a;
+.robot-eye.left{
+  left:33px;
+}
 
-      background: #20df8a;
 
-    }
+.robot-eye.right{
+  right:33px;
+}
 
 
-    .red {
+.robot-body{
 
-      color: #ff5f62;
+  position:absolute;
 
-      background: #ff5f62;
+  left:67px;
 
-    }
+  bottom:2px;
 
+  width:102px;
 
-    @keyframes candlePulse {
+  height:105px;
 
-      0%,
-      100% {
+  border:
+    3px solid
+    #5d5035;
 
-        transform:
-          scaleY(1);
+  border-radius:
+    32px 32px 20px 20px;
 
-      }
+  background:
+    linear-gradient(
+      145deg,
+      #1b2732,
+      #05090d
+    );
+}
 
-      50% {
 
-        transform:
-          scaleY(.72);
+.robot-core{
 
-      }
+  position:absolute;
 
-    }
+  top:36px;
 
+  left:36px;
 
-    /* =====================================================
-       ROBÔ / IA
-    ===================================================== */
+  width:30px;
 
-    .ai {
+  height:30px;
 
-      position: absolute;
+  border-radius:7px;
 
-      right: 80px;
+  background:#f0b90b;
 
-      bottom: 24px;
+  transform:rotate(45deg);
 
-      width: 160px;
+  box-shadow:
+    0 0 28px
+    rgba(240,185,11,.65);
+}
 
-      height: 160px;
 
-      z-index: 5;
+.robot-arm{
 
-      filter:
-        drop-shadow(
-          0 20px 35px
-          rgba(0,0,0,.7)
-        );
+  position:absolute;
 
-    }
+  width:50px;
 
+  height:18px;
 
-    .ai-head {
+  border-radius:20px;
 
-      width: 110px;
+  background:#111b23;
 
-      height: 85px;
+  border:
+    2px solid
+    #554a35;
+}
 
-      position: absolute;
 
-      left: 25px;
+.robot-arm.left{
 
-      top: 8px;
+  left:12px;
 
-      border:
-        2px solid
-        #6e6040;
+  bottom:62px;
 
-      border-radius:
-        35px 35px 25px 25px;
+  transform:rotate(28deg);
+}
 
-      background:
-        linear-gradient(
-          145deg,
-          #18202a,
-          #05080c
-        );
 
-      box-shadow:
-        inset 0 0 25px
-        rgba(240,185,11,.08),
-        0 0 25px
-        rgba(240,185,11,.12);
+.robot-arm.right{
 
-      transform:
-        rotate(-3deg);
+  right:5px;
 
-      animation:
-        robotFloat
-        4s
-        ease-in-out
-        infinite;
+  bottom:72px;
 
-    }
+  transform:rotate(-45deg);
+}
 
 
-    .ai-eye {
+@keyframes robotFloat{
 
-      position: absolute;
+  0%,100%{
 
-      top: 36px;
+    transform:
+      translateY(0)
+      rotate(-1deg);
 
-      width: 24px;
+  }
 
-      height: 9px;
+  50%{
 
-      border-radius: 20px;
+    transform:
+      translateY(-12px)
+      rotate(1deg);
 
-      background: #f0b90b;
+  }
 
-      box-shadow:
-        0 0 14px
-        #f0b90b;
+}
 
-    }
 
+/* =========================================================
+   FRASES
+========================================================= */
 
-    .ai-eye.left {
-      left: 25px;
-    }
+.script-text{
 
+  position:absolute;
 
-    .ai-eye.right {
-      right: 25px;
-    }
+  z-index:20;
 
+  font-family:
+    "Brush Script MT",
+    cursive;
 
-    .ai-body {
+  font-size:24px;
 
-      position: absolute;
+  line-height:1.05;
 
-      left: 45px;
+  color:#f0b90b;
 
-      bottom: 3px;
+  text-shadow:
+    0 0 15px
+    rgba(240,185,11,.22);
 
-      width: 72px;
+  transform:rotate(-7deg);
+}
 
-      height: 70px;
 
-      border-radius:
-        25px 25px 17px 17px;
+.script-text.one{
 
-      background:
-        linear-gradient(
-          145deg,
-          #1c2632,
-          #070a0e
-        );
+  right:15px;
 
-      border:
-        2px solid
-        #5d5239;
+  bottom:105px;
 
-    }
+}
 
 
-    .ai-core {
+.script-text.two{
 
-      position: absolute;
+  left:-2px;
 
-      left: 26px;
+  bottom:8px;
 
-      top: 23px;
+  color:#7acfff;
 
-      width: 20px;
+  transform:
+    rotate(-7deg);
+}
 
-      height: 20px;
 
-      border-radius: 5px;
+/* =========================================================
+   METRIC CARDS
+========================================================= */
 
-      background: #f0b90b;
+.metrics{
 
-      box-shadow:
-        0 0 20px
-        rgba(240,185,11,.7);
+  position:absolute;
 
-      transform:
-        rotate(45deg);
+  right:20px;
 
-    }
+  top:65px;
 
+  z-index:25;
 
-    @keyframes robotFloat {
+  width:175px;
 
-      0%,
-      100% {
-        transform:
-          translateY(0)
-          rotate(-3deg);
-      }
+  padding:11px;
 
-      50% {
-        transform:
-          translateY(-10px)
-          rotate(2deg);
-      }
+  border:
+    1px solid
+    rgba(255,255,255,.14);
 
-    }
+  border-radius:10px;
 
+  background:
+    rgba(5,13,20,.87);
 
-    /* =====================================================
-       FRASES
-    ===================================================== */
+  backdrop-filter:
+    blur(12px);
+}
 
-    .floating-text {
 
-      position: absolute;
+.metric{
 
-      color: #f0b90b;
+  padding:
+    8px 0;
 
-      font-family:
-        cursive;
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.07);
+}
 
-      font-size: 21px;
 
-      line-height: 1.1;
+.metric:last-child{
+  border-bottom:0;
+}
 
-      opacity: .8;
 
-      transform:
-        rotate(-8deg);
+.metric-top{
 
-    }
+  display:flex;
 
+  justify-content:space-between;
 
-    .floating-text.one {
+  color:#91a2b5;
 
-      right: 20px;
+  font-size:7px;
+}
 
-      bottom: 180px;
 
-    }
+.metric-value{
 
+  margin-top:3px;
 
-    .floating-text.two {
+  font-size:17px;
 
-      left: -10px;
+  font-weight:900;
+}
 
-      bottom: 20px;
 
-      color: #72c8ff;
+.metric-value.green{
+  color:#27df91;
+}
 
-      transform:
-        rotate(-7deg);
 
-    }
+.metric-value.gold{
+  color:#f0b90b;
+}
 
 
-    /* =====================================================
-       LOGIN
-    ===================================================== */
+.metric-bar{
 
-    .login-card {
+  height:3px;
 
-      padding:
-        29px;
+  margin-top:6px;
 
-      border:
-        1px solid
-        rgba(240,185,11,.38);
+  border-radius:5px;
 
-      border-radius: 18px;
+  background:
+    rgba(255,255,255,.07);
 
-      background:
-        linear-gradient(
-          145deg,
-          rgba(10,22,34,.97),
-          rgba(4,10,16,.98)
-        );
+  overflow:hidden;
+}
 
-      box-shadow:
-        0 35px 100px
-        rgba(0,0,0,.55);
 
-      backdrop-filter:
-        blur(20px);
+.metric-bar span{
 
-    }
+  display:block;
 
+  height:100%;
 
-    .login-brand {
+  width:72%;
 
-      text-align: center;
+  background:#20df8a;
 
-      margin-bottom: 20px;
+  animation:
+    barMove 3s ease-in-out infinite alternate;
+}
 
-    }
 
+@keyframes barMove{
 
-    .login-brand .logo {
+  to{
+    width:94%;
+  }
 
-      margin:
-        0 auto 9px;
+}
 
-    }
 
+/* =========================================================
+   LOGIN
+========================================================= */
 
-    .login-brand h2 {
+.login-wrapper{
 
-      font-size: 23px;
+  position:relative;
 
-      font-weight: 900;
+  z-index:40;
 
-    }
+}
 
 
-    .login-brand h2 span {
+.login-card{
 
-      color: #f0b90b;
+  width:100%;
 
-    }
+  padding:28px;
 
+  border:
+    1px solid
+    rgba(240,185,11,.42);
 
-    .login-brand p {
+  border-radius:17px;
 
-      margin-top: 6px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(9,22,34,.98),
+      rgba(3,9,14,.99)
+    );
 
-      color: #75869a;
+  box-shadow:
+    0 35px 100px
+    rgba(0,0,0,.65),
 
-      font-size: 10px;
+    inset
+    0 1px 0
+    rgba(255,255,255,.04);
+}
 
-      line-height: 1.5;
 
-    }
+.login-brand{
 
+  text-align:center;
 
-    .divider {
+  margin-bottom:17px;
+}
 
-      display: flex;
 
-      align-items: center;
+.login-brand .logo{
 
-      gap: 10px;
+  margin:
+    0 auto 9px;
+}
 
-      margin:
-        18px 0;
 
-      color: #64768a;
+.login-brand h2{
 
-      font-size: 9px;
+  font-size:21px;
 
-    }
+  font-weight:900;
 
+  letter-spacing:-.8px;
+}
 
-    .divider::before,
-    .divider::after {
 
-      content: "";
+.login-brand h2 span{
+  color:#f0b90b;
+}
 
-      flex: 1;
 
-      height: 1px;
+.login-brand p{
 
-      background:
-        rgba(255,255,255,.08);
+  margin-top:5px;
 
-    }
+  color:#718397;
 
+  font-size:9px;
 
-    .form-group {
+  line-height:1.4;
+}
 
-      margin-bottom: 15px;
 
-    }
+.divider{
 
+  display:flex;
 
-    label {
+  align-items:center;
 
-      display: block;
+  gap:9px;
 
-      margin-bottom: 6px;
+  margin:
+    16px 0;
 
-      color: #cbd7e4;
+  color:#617286;
 
-      font-size: 11px;
+  font-size:8px;
+}
 
-      font-weight: 700;
 
-    }
+.divider::before,
+.divider::after{
 
+  content:"";
 
-    input[type="email"],
-    input[type="password"] {
+  flex:1;
 
-      width: 100%;
+  height:1px;
 
-      height: 48px;
+  background:
+    rgba(255,255,255,.08);
+}
 
-      padding:
-        0 13px;
 
-      border:
-        1px solid
-        #2a3b4e;
+.form-group{
 
-      border-radius: 8px;
+  margin-bottom:13px;
+}
 
-      outline: none;
 
-      background: #edf4fb;
+.form-group label{
 
-      color: #15202c;
+  display:block;
 
-      font-size: 12px;
+  margin-bottom:6px;
 
-    }
+  color:#cbd6e1;
 
+  font-size:9px;
 
-    input:focus {
+  font-weight:800;
+}
 
-      border-color: #f0b90b;
 
-      box-shadow:
-        0 0 0 3px
-        rgba(240,185,11,.08);
+input[type="email"],
+input[type="password"]{
 
-    }
+  width:100%;
 
+  height:45px;
 
-    .password-wrap {
+  padding:
+    0 12px;
 
-      position: relative;
+  border:
+    1px solid
+    #2a3a4c;
 
-    }
+  border-radius:7px;
 
+  outline:none;
 
-    .password-wrap input {
+  background:#eef4fa;
 
-      padding-right: 42px;
+  color:#16202a;
 
-    }
+  font-size:11px;
 
+  transition:.2s;
+}
 
-    .toggle-password {
 
-      position: absolute;
+input:focus{
 
-      top: 8px;
+  border-color:#f0b90b;
 
-      right: 8px;
+  box-shadow:
+    0 0 0 3px
+    rgba(240,185,11,.08);
+}
 
-      width: 32px;
 
-      height: 32px;
+.password-wrap{
+  position:relative;
+}
 
-      border: 0;
 
-      background: transparent;
+.password-wrap input{
+  padding-right:40px;
+}
 
-      cursor: pointer;
 
-    }
+.toggle-password{
 
+  position:absolute;
 
-    .login-options {
+  right:7px;
 
-      display: flex;
+  top:6px;
 
-      justify-content: space-between;
+  width:32px;
 
-      align-items: center;
+  height:32px;
 
-      margin:
-        2px 0 17px;
+  border:0;
 
-    }
+  background:transparent;
 
+  cursor:pointer;
+}
 
-    .remember {
 
-      display: flex;
+.login-options{
 
-      align-items: center;
+  display:flex;
 
-      gap: 6px;
+  justify-content:space-between;
 
-      color: #7c8d9f;
+  align-items:center;
 
-      font-size: 9px;
+  margin:
+    1px 0 15px;
+}
 
-    }
 
+.remember{
 
-    .remember input {
+  display:flex;
 
-      width: 13px;
+  align-items:center;
 
-      height: 13px;
+  gap:5px;
 
-      accent-color: #f0b90b;
+  color:#77889b;
 
-    }
+  font-size:8px;
+}
 
 
-    .forgot {
+.remember input{
 
-      color: #f0b90b;
+  width:12px;
+  height:12px;
 
-      font-size: 9px;
+  accent-color:#f0b90b;
+}
 
-      text-decoration: none;
 
-      font-weight: 700;
+.forgot{
 
-    }
+  color:#f0b90b;
 
+  font-size:8px;
 
-    .btn-login {
+  text-decoration:none;
 
-      width: 100%;
+  font-weight:800;
+}
 
-      height: 50px;
 
-      border: 0;
+.btn-login{
 
-      border-radius: 8px;
+  width:100%;
 
-      cursor: pointer;
+  height:48px;
 
-      color: #111;
+  border:0;
 
-      background:
-        linear-gradient(
-          135deg,
-          #ffd84a,
-          #f0ad08
-        );
+  border-radius:7px;
 
-      font-size: 13px;
+  cursor:pointer;
 
-      font-weight: 900;
+  color:#111;
 
-      transition: .2s;
+  background:
+    linear-gradient(
+      135deg,
+      #ffd83e,
+      #efa900
+    );
 
-    }
+  font-size:11px;
 
+  font-weight:900;
 
-    .btn-login:hover {
+  transition:.2s;
+}
 
-      transform:
-        translateY(-2px);
 
-      box-shadow:
-        0 15px 30px
-        rgba(240,185,11,.18);
+.btn-login:hover{
 
-    }
+  transform:
+    translateY(-2px);
 
+  box-shadow:
+    0 14px 30px
+    rgba(240,185,11,.18);
+}
 
-    .message {
 
-      min-height: 18px;
+.message{
 
-      margin-top: 9px;
+  min-height:16px;
 
-      text-align: center;
+  margin-top:7px;
 
-      color: #ff6969;
+  text-align:center;
 
-      font-size: 10px;
+  color:#ff666d;
 
-    }
+  font-size:9px;
+}
 
 
-    .create {
+.create{
 
-      width: 100%;
+  width:100%;
 
-      height: 46px;
+  height:44px;
 
-      border:
-        1px solid
-        #f0b90b;
+  border:
+    1px solid
+    #f0b90b;
 
-      border-radius: 8px;
+  border-radius:7px;
 
-      color: #fff;
+  color:#fff;
 
-      background: transparent;
+  background:transparent;
 
-      cursor: pointer;
+  cursor:pointer;
 
-      font-size: 11px;
+  font-size:10px;
 
-      font-weight: 800;
+  font-weight:800;
 
-      transition: .2s;
+  transition:.2s;
+}
 
-    }
 
+.create:hover{
 
-    .create:hover {
+  background:
+    rgba(240,185,11,.08);
+}
 
-      background:
-        rgba(240,185,11,.07);
 
-    }
+.security{
 
+  display:grid;
 
-    .security {
+  grid-template-columns:
+    repeat(3,1fr);
 
-      display: grid;
+  gap:4px;
 
-      grid-template-columns:
-        repeat(3,1fr);
+  margin-top:18px;
 
-      gap: 5px;
+  padding-top:16px;
 
-      margin-top: 22px;
+  border-top:
+    1px solid
+    rgba(255,255,255,.07);
+}
 
-      padding-top: 18px;
 
-      border-top:
-        1px solid
-        rgba(255,255,255,.07);
+.security-item{
 
-    }
+  text-align:center;
 
+  color:#718296;
 
-    .security-item {
+  font-size:7px;
 
-      text-align: center;
+  line-height:1.4;
+}
 
-      color: #7f90a3;
 
-      font-size: 8px;
+.security-item strong{
 
-      line-height: 1.4;
+  display:block;
 
-    }
+  margin-bottom:4px;
 
+  color:#d5e0eb;
 
-    .security-item strong {
+  font-size:14px;
+}
 
-      display: block;
 
-      margin-bottom: 4px;
+.binance-note{
 
-      color: #d2dce7;
+  margin-top:15px;
 
-      font-size: 15px;
+  padding:10px;
 
-    }
+  border:
+    1px solid
+    rgba(255,255,255,.07);
 
+  border-radius:7px;
 
-    .binance-note {
+  color:#6d8093;
 
-      margin-top: 17px;
+  background:
+    rgba(255,255,255,.02);
 
-      padding: 11px;
+  text-align:center;
 
-      border:
-        1px solid
-        rgba(255,255,255,.07);
+  font-size:7px;
 
-      border-radius: 8px;
+  line-height:1.45;
+}
 
-      text-align: center;
 
-      color: #6e8094;
+.binance-note strong{
+  color:#c7d3df;
+}
 
-      font-size: 8px;
 
-      line-height: 1.5;
+/* =========================================================
+   PLANS
+========================================================= */
 
-    }
+.plans-section{
 
+  padding:
+    12px 0 55px;
+}
 
-    .binance-note strong {
 
-      color: #cbd7e4;
+.plans-heading{
 
-    }
+  display:flex;
 
+  align-items:end;
 
-    /* =====================================================
-       PLANOS
-    ===================================================== */
+  justify-content:space-between;
 
-    .plans-section {
+  margin-bottom:15px;
+}
 
-      padding:
-        25px 0 70px;
 
-    }
+.plans-heading h2{
 
+  font-size:23px;
 
-    .section-title {
+  letter-spacing:-1px;
+}
 
-      display: flex;
 
-      justify-content: space-between;
+.plans-heading h2 span{
+  color:#f0b90b;
+}
 
-      align-items: end;
 
-      margin-bottom: 18px;
+.plans-heading p{
 
-    }
+  color:#718397;
 
+  font-size:9px;
+}
 
-    .section-title h2 {
 
-      font-size: 25px;
+.plans{
 
-    }
+  display:grid;
 
+  grid-template-columns:
+    repeat(3,1fr);
 
-    .section-title h2 span {
+  gap:11px;
+}
 
-      color: #f0b90b;
 
-    }
+.plan{
 
+  position:relative;
 
-    .section-title p {
+  padding:
+    19px;
 
-      color: #718398;
+  border:
+    1px solid
+    rgba(255,255,255,.10);
 
-      font-size: 10px;
+  border-radius:12px;
 
-    }
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255,255,255,.045),
+      rgba(255,255,255,.012)
+    );
 
+  transition:.25s;
+}
 
-    .plans {
 
-      display: grid;
+.plan:hover{
 
-      grid-template-columns:
-        repeat(3,1fr);
+  transform:
+    translateY(-5px);
 
-      gap: 14px;
+  border-color:
+    rgba(240,185,11,.45);
+}
 
-    }
 
+.plan.featured{
 
-    .plan {
+  border-color:
+    #f0b90b;
 
-      position: relative;
+  box-shadow:
+    0 0 40px
+    rgba(240,185,11,.07);
+}
 
-      padding:
-        25px 22px;
 
-      border:
-        1px solid
-        rgba(255,255,255,.1);
+.popular{
 
-      border-radius: 15px;
+  position:absolute;
 
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.012)
-        );
+  top:-9px;
 
-      transition: .25s;
+  left:50%;
 
-    }
+  transform:
+    translateX(-50%);
 
+  padding:
+    4px 12px;
 
-    .plan:hover {
+  border-radius:20px;
 
-      transform:
-        translateY(-5px);
+  color:#111;
 
-      border-color:
-        rgba(240,185,11,.4);
+  background:#f0b90b;
 
-    }
+  font-size:7px;
 
+  font-weight:900;
 
-    .plan.featured {
+  white-space:nowrap;
+}
 
-      border-color:
-        #f0b90b;
 
-      box-shadow:
-        0 0 45px
-        rgba(240,185,11,.07);
+.plan h3{
 
-    }
+  font-size:14px;
 
+  margin-bottom:5px;
+}
 
-    .popular {
 
-      position: absolute;
+.price{
 
-      top: -10px;
+  font-size:25px;
 
-      left: 50%;
+  font-weight:950;
 
-      transform:
-        translateX(-50%);
+  letter-spacing:-1px;
+}
 
-      padding:
-        4px 13px;
 
-      border-radius: 20px;
+.price small{
 
-      color: #111;
+  color:#718397;
 
-      background: #f0b90b;
+  font-size:9px;
 
-      font-size: 8px;
+  font-weight:400;
+}
 
-      font-weight: 900;
 
-      white-space: nowrap;
+.plan-description{
 
-    }
+  margin:
+    6px 0 12px;
 
+  color:#718397;
 
-    .plan h3 {
+  font-size:8px;
+}
 
-      font-size: 16px;
 
-      margin-bottom: 8px;
+.plan ul{
+  list-style:none;
+}
 
-    }
 
+.plan li{
 
-    .price {
+  margin:
+    7px 0;
 
-      font-size: 29px;
+  color:#abb9c8;
 
-      font-weight: 900;
+  font-size:8px;
+}
 
-    }
 
+.plan li::before{
 
-    .price small {
+  content:"✓";
 
-      color: #73859a;
+  margin-right:6px;
 
-      font-size: 10px;
+  color:#22df91;
 
-      font-weight: 400;
+  font-weight:900;
+}
 
-    }
 
+.plan-button{
 
-    .plan-description {
+  width:100%;
 
-      margin:
-        8px 0 17px;
+  height:34px;
 
-      color: #728499;
+  margin-top:10px;
 
-      font-size: 10px;
+  border:
+    1px solid
+    #516274;
 
-    }
+  border-radius:6px;
 
+  color:#dce5ee;
 
-    .plan ul {
+  background:transparent;
 
-      list-style: none;
+  cursor:pointer;
 
-    }
+  font-size:8px;
 
+  font-weight:900;
+}
 
-    .plan li {
 
-      margin:
-        9px 0;
+.featured .plan-button{
 
-      color: #aebccc;
+  color:#111;
 
-      font-size: 10px;
+  border-color:#f0b90b;
 
-    }
+  background:#f0b90b;
+}
 
 
-    .plan li::before {
+/* =========================================================
+   BOTTOM STATS
+========================================================= */
 
-      content: "✓";
+.stats{
 
-      margin-right: 7px;
+  display:grid;
 
-      color: #20df8a;
+  grid-template-columns:
+    repeat(4,1fr);
 
-      font-weight: 900;
+  margin-top:16px;
 
-    }
+  border-top:
+    1px solid
+    rgba(255,255,255,.08);
 
+  border-bottom:
+    1px solid
+    rgba(255,255,255,.08);
+}
 
-    .plan-button {
 
-      width: 100%;
+.stat{
 
-      height: 39px;
+  min-height:60px;
 
-      margin-top: 14px;
+  display:flex;
 
-      border:
-        1px solid
-        #506070;
+  align-items:center;
 
-      border-radius: 7px;
+  justify-content:center;
 
-      color: #dce5ef;
+  gap:10px;
 
-      background: transparent;
+  border-right:
+    1px solid
+    rgba(255,255,255,.08);
+}
 
-      cursor: pointer;
 
-      font-size: 10px;
+.stat:last-child{
+  border-right:0;
+}
 
-      font-weight: 800;
 
-    }
+.stat-icon{
 
+  color:#f0b90b;
 
-    .featured .plan-button {
+  font-size:20px;
+}
 
-      border-color:
-        #f0b90b;
 
-      color: #111;
+.stat strong{
 
-      background:
-        #f0b90b;
+  display:block;
 
-    }
+  font-size:15px;
+}
 
 
-    /* =====================================================
-       RODAPÉ
-    ===================================================== */
+.stat span{
 
-    footer {
+  display:block;
 
-      padding:
-        22px 0;
+  margin-top:2px;
 
-      border-top:
-        1px solid
-        rgba(255,255,255,.06);
+  color:#708297;
 
-      color: #526376;
+  font-size:7px;
+}
 
-      font-size: 9px;
 
-      display: flex;
+/* =========================================================
+   FOOTER
+========================================================= */
 
-      justify-content: space-between;
+.footer{
 
-    }
+  padding:
+    17px 0 24px;
 
+  display:flex;
 
-    /* =====================================================
-       MOBILE
-    ===================================================== */
+  justify-content:space-between;
 
-    @media (max-width: 1100px) {
+  color:#4e6073;
 
-      nav {
-        display: none;
-      }
+  font-size:8px;
+}
 
-      .hero {
 
-        grid-template-columns:
-          1fr;
+/* =========================================================
+   RESPONSIVO
+========================================================= */
 
-      }
+@media(max-width:1250px){
 
-      .login-card {
+  .hero{
 
-        max-width: 500px;
+    grid-template-columns:
+      minmax(0,1fr)
+      350px;
 
-        width: 100%;
+  }
 
-        margin: auto;
+  .navigation{
+    gap:15px;
+  }
 
-      }
+  .navigation a{
+    font-size:9px;
+  }
 
-    }
+  .robot{
+    right:50px;
+    transform:scale(.85);
+  }
 
+  .metrics{
+    right:10px;
+    width:150px;
+  }
 
-    @media (max-width: 700px) {
+}
 
-      .container {
 
-        width: 94%;
+@media(max-width:950px){
 
-      }
+  .navigation{
+    display:none;
+  }
 
-      header {
+  .hero{
 
-        padding:
-          0 15px;
+    grid-template-columns:1fr;
 
-      }
+    padding-top:30px;
 
-      .online {
+  }
 
-        display: none;
+  .login-wrapper{
 
-      }
+    max-width:500px;
 
-      .plans-button {
+    margin:
+      0 auto;
 
-        display: none;
+  }
 
-      }
+  .market-area{
+    height:360px;
+  }
 
-      .hero {
+  .robot{
+    right:15%;
+  }
 
-        padding-top: 35px;
+}
 
-      }
 
-      h1 {
+@media(max-width:650px){
 
-        font-size: 43px;
+  .header{
+    padding:0 15px;
+  }
 
-        letter-spacing: -2px;
+  .header-right .online{
+    display:none;
+  }
 
-      }
+  .main{
+    width:94%;
+  }
 
-      .features {
+  .hero-title{
+    font-size:46px;
+    letter-spacing:-2px;
+  }
 
-        grid-template-columns:
-          repeat(2,1fr);
+  .features{
+    grid-template-columns:
+      repeat(2,1fr);
+  }
 
-      }
+  .market-area{
+    height:300px;
+  }
 
-      .ai {
+  .robot{
+    right:-5px;
+    bottom:-15px;
+    transform:scale(.65);
+  }
 
-        right: 20px;
+  .metrics{
+    display:none;
+  }
 
-        transform:
-          scale(.75);
+  .script-text{
+    display:none;
+  }
 
-      }
+  .plans{
+    grid-template-columns:1fr;
+  }
 
-      .floating-text {
+  .stats{
+    grid-template-columns:
+      repeat(2,1fr);
+  }
 
-        display: none;
+  .stat{
+    border-bottom:
+      1px solid
+      rgba(255,255,255,.08);
+  }
 
-      }
+  .footer{
+    flex-direction:column;
+    gap:7px;
+  }
 
-      .plans {
+}
 
-        grid-template-columns:
-          1fr;
-
-      }
-
-      .section-title {
-
-        display: block;
-
-      }
-
-      .section-title p {
-
-        margin-top: 5px;
-
-      }
-
-      footer {
-
-        flex-direction: column;
-
-        gap: 8px;
-
-      }
-
-    }
-
-  </style>
+</style>
 
 </head>
 
@@ -2085,50 +2290,75 @@
 <body>
 
 
-<!-- =====================================================
+<!-- =======================================================
      FUNDO
-====================================================== -->
+======================================================= -->
 
-<div class="background">
+<div class="glow gold"></div>
 
-  <div class="grid"></div>
+<div class="glow green"></div>
 
-  <div class="glow one"></div>
 
-  <div class="glow two"></div>
+<div class="particles">
 
-  <div class="particle"
-       style="left:8%;animation-duration:14s;"></div>
+  <span
+    class="particle"
+    style="left:4%;animation-duration:15s;"
+  ></span>
 
-  <div class="particle"
-       style="left:18%;animation-duration:18s;animation-delay:2s;"></div>
+  <span
+    class="particle"
+    style="left:11%;animation-duration:21s;animation-delay:2s;"
+  ></span>
 
-  <div class="particle"
-       style="left:29%;animation-duration:13s;animation-delay:5s;"></div>
+  <span
+    class="particle"
+    style="left:19%;animation-duration:17s;animation-delay:4s;"
+  ></span>
 
-  <div class="particle"
-       style="left:41%;animation-duration:20s;animation-delay:1s;"></div>
+  <span
+    class="particle"
+    style="left:28%;animation-duration:24s;animation-delay:1s;"
+  ></span>
 
-  <div class="particle"
-       style="left:53%;animation-duration:16s;animation-delay:4s;"></div>
+  <span
+    class="particle"
+    style="left:38%;animation-duration:18s;animation-delay:6s;"
+  ></span>
 
-  <div class="particle"
-       style="left:65%;animation-duration:12s;animation-delay:3s;"></div>
+  <span
+    class="particle"
+    style="left:49%;animation-duration:22s;animation-delay:3s;"
+  ></span>
 
-  <div class="particle"
-       style="left:76%;animation-duration:19s;animation-delay:7s;"></div>
+  <span
+    class="particle"
+    style="left:61%;animation-duration:16s;animation-delay:7s;"
+  ></span>
 
-  <div class="particle"
-       style="left:88%;animation-duration:15s;animation-delay:5s;"></div>
+  <span
+    class="particle"
+    style="left:73%;animation-duration:20s;animation-delay:5s;"
+  ></span>
+
+  <span
+    class="particle"
+    style="left:84%;animation-duration:14s;animation-delay:2s;"
+  ></span>
+
+  <span
+    class="particle"
+    style="left:94%;animation-duration:19s;animation-delay:8s;"
+  ></span>
 
 </div>
 
 
-<!-- =====================================================
+<!-- =======================================================
      HEADER
-====================================================== -->
+======================================================= -->
 
-<header>
+<header class="header">
 
 
   <a
@@ -2144,22 +2374,22 @@
       >
 
         <path
-          d="M15 72L31 56L45 65L73 32"
+          d="M14 72L30 56L44 65L74 30"
           stroke="#111"
-          stroke-width="9"
+          stroke-width="10"
           stroke-linecap="round"
           stroke-linejoin="round"
         />
 
         <path
-          d="M61 32H73V45"
+          d="M61 30H74V43"
           stroke="#111"
-          stroke-width="9"
+          stroke-width="10"
           stroke-linecap="round"
         />
 
         <rect
-          x="15"
+          x="14"
           y="77"
           width="11"
           height="8"
@@ -2168,7 +2398,7 @@
         />
 
         <rect
-          x="34"
+          x="33"
           y="69"
           width="11"
           height="16"
@@ -2177,10 +2407,10 @@
         />
 
         <rect
-          x="53"
-          y="59"
+          x="52"
+          y="58"
           width="11"
-          height="26"
+          height="27"
           rx="2"
           fill="#111"
         />
@@ -2192,20 +2422,20 @@
 
     <div>
 
-      <div class="brand-name">
+      <div class="brand-title">
         Cripto<span>Pro</span>
       </div>
 
-      <span class="brand-sub">
+      <div class="brand-subtitle">
         Automação inteligente
-      </span>
+      </div>
 
     </div>
 
   </a>
 
 
-  <nav>
+  <nav class="navigation">
 
     <a href="#inicio">
       Início
@@ -2234,7 +2464,8 @@
   </nav>
 
 
-  <div class="header-actions">
+  <div class="header-right">
+
 
     <div class="online">
 
@@ -2247,10 +2478,15 @@
 
     <a
       href="#planos"
-      class="plans-button"
+      class="view-plans"
     >
-      Ver planos →
+
+      Ver planos
+
+      →
+
     </a>
+
 
   </div>
 
@@ -2258,899 +2494,1194 @@
 </header>
 
 
-<!-- =====================================================
-     CONTEÚDO
-====================================================== -->
+<!-- =======================================================
+     MAIN
+======================================================= -->
 
 <main
-  class="container"
+  class="main"
   id="inicio"
 >
 
 
-  <section class="hero">
+<section class="hero">
 
 
-    <!-- =================================================
-         LADO ESQUERDO
-    ================================================== -->
+<!-- =====================================================
+     HERO ESQUERDO
+===================================================== -->
 
-    <div class="hero-left">
+<div class="hero-left">
 
 
-      <div class="eyebrow">
+  <div class="eyebrow">
 
-        <span>●</span>
+    <span class="dot">
+      ●
+    </span>
 
-        TRADING
+    TRADING
 
-        • AUTOMATIZADO
+    • AUTOMATIZADO
 
-        • 24H POR DIA
+    • 24H POR DIA
 
-      </div>
+  </div>
 
 
-      <h1>
+  <h1 class="hero-title">
 
-        Mais estratégia
+    Mais estratégia
 
-        <br>
+    <br>
 
-        <span class="gold">
-          para o seu futuro.
-        </span>
+    <span>
+      para o seu futuro.
+    </span>
 
-      </h1>
+  </h1>
 
 
-      <p class="hero-text">
+  <p class="hero-description">
 
-        Automatize suas operações na Binance
-        com segurança, controle e dados em tempo real.
-        Mais tempo para você, mais organização
-        para suas decisões no mercado cripto.
+    Automatize suas operações na Binance com
+    segurança, controle e dados em tempo real.
+    Mais tempo para você, mais organização e
+    mais inteligência para suas decisões no
+    mercado cripto.
 
-      </p>
+  </p>
 
 
-      <!-- TICKERS -->
+  <!-- TICKERS -->
 
-      <div class="tickers">
+  <div class="tickers">
 
 
-        <div class="ticker">
+    <div class="ticker">
 
-          <span class="coin">
-            ₿
-          </span>
+      <span class="coin">
+        ₿
+      </span>
 
-          <strong>BTC/USDT</strong>
+      <span class="ticker-name">
+        BTC/USDT
+      </span>
 
-          <span class="up">
-            +2,46%
-          </span>
-
-        </div>
-
-
-        <div class="ticker">
-
-          <span class="coin">
-            Ξ
-          </span>
-
-          <strong>ETH/USDT</strong>
-
-          <span class="up">
-            +1,38%
-          </span>
-
-        </div>
-
-
-        <div class="ticker">
-
-          <span class="coin">
-            B
-          </span>
-
-          <strong>BNB/USDT</strong>
-
-          <span class="up">
-            +0,92%
-          </span>
-
-        </div>
-
-
-        <div class="ticker">
-
-          <span class="coin">
-            S
-          </span>
-
-          <strong>SOL/USDT</strong>
-
-          <span class="up">
-            +3,21%
-          </span>
-
-        </div>
-
-
-      </div>
-
-
-      <!-- FEATURES -->
-
-      <div class="features">
-
-
-        <div class="feature">
-
-          <div class="feature-icon">
-            🤖
-          </div>
-
-          <strong>
-            Operações Automatizadas
-          </strong>
-
-          <p>
-            Estratégias executadas
-            automaticamente.
-          </p>
-
-        </div>
-
-
-        <div class="feature">
-
-          <div class="feature-icon">
-            🛡
-          </div>
-
-          <strong>
-            Segurança em Primeiro Lugar
-          </strong>
-
-          <p>
-            Proteção e controle
-            das credenciais.
-          </p>
-
-        </div>
-
-
-        <div class="feature">
-
-          <div class="feature-icon">
-            📊
-          </div>
-
-          <strong>
-            Dados em Tempo Real
-          </strong>
-
-          <p>
-            Acompanhe operações
-            e patrimônio.
-          </p>
-
-        </div>
-
-
-        <div class="feature">
-
-          <div class="feature-icon">
-            ⏱
-          </div>
-
-          <strong>
-            Mais Tempo para Você
-          </strong>
-
-          <p>
-            O robô trabalha
-            enquanto você vive.
-          </p>
-
-        </div>
-
-
-      </div>
-
-
-      <!-- =================================================
-           GRÁFICO
-      ================================================== -->
-
-      <div class="market">
-
-
-        <div class="market-grid"></div>
-
-
-        <div class="market-top">
-
-          <div class="market-pair">
-
-            <span class="btc">
-              ₿
-            </span>
-
-            BTC/USDT
-
-            <span class="market-price">
-              67.432,18
-            </span>
-
-            <span class="up">
-              +2,46%
-            </span>
-
-          </div>
-
-
-          <span class="live">
-            ● TEMPO REAL
-          </span>
-
-        </div>
-
-
-        <div class="candle-chart">
-
-
-          <span
-            class="candle green"
-            style="height:35px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:25px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:55px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:72px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:45px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:85px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:105px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:65px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:92px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:115px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:75px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:130px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:150px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:112px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:142px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:164px;"
-          ></span>
-
-          <span
-            class="candle red"
-            style="height:130px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:180px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:195px;"
-          ></span>
-
-          <span
-            class="candle green"
-            style="height:210px;"
-          ></span>
-
-        </div>
-
-
-        <!-- ROBÔ -->
-
-        <div class="ai">
-
-          <div class="ai-head">
-
-            <span class="ai-eye left"></span>
-
-            <span class="ai-eye right"></span>
-
-          </div>
-
-
-          <div class="ai-body">
-
-            <div class="ai-core"></div>
-
-          </div>
-
-        </div>
-
-
-        <div class="floating-text one">
-
-          Disciplina
-
-          <br>
-
-          gera resultados
-
-        </div>
-
-
-        <div class="floating-text two">
-
-          O mercado não para.
-
-          <br>
-
-          E você?
-
-        </div>
-
-
-      </div>
-
+      <span class="ticker-up">
+        +2,46%
+      </span>
 
     </div>
 
 
-    <!-- =================================================
-         LOGIN
-    ================================================== -->
+    <div class="ticker">
 
-    <aside>
+      <span class="coin">
+        Ξ
+      </span>
 
+      <span class="ticker-name">
+        ETH/USDT
+      </span>
 
-      <div class="login-card">
+      <span class="ticker-up">
+        +1,38%
+      </span>
 
+    </div>
 
-        <div class="login-brand">
 
+    <div class="ticker">
 
-          <div class="logo">
+      <span class="coin">
+        B
+      </span>
 
-            <svg
-              viewBox="0 0 100 100"
-              fill="none"
-            >
+      <span class="ticker-name">
+        BNB/USDT
+      </span>
 
-              <path
-                d="M15 72L31 56L45 65L73 32"
-                stroke="#111"
-                stroke-width="9"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
+      <span class="ticker-up">
+        +0,92%
+      </span>
 
-              <path
-                d="M61 32H73V45"
-                stroke="#111"
-                stroke-width="9"
-                stroke-linecap="round"
-              />
+    </div>
 
-              <rect
-                x="15"
-                y="77"
-                width="11"
-                height="8"
-                rx="2"
-                fill="#111"
-              />
 
-              <rect
-                x="34"
-                y="69"
-                width="11"
-                height="16"
-                rx="2"
-                fill="#111"
-              />
+    <div class="ticker">
 
-              <rect
-                x="53"
-                y="59"
-                width="11"
-                height="26"
-                rx="2"
-                fill="#111"
-              />
+      <span class="coin">
+        S
+      </span>
 
-            </svg>
+      <span class="ticker-name">
+        SOL/USDT
+      </span>
 
-          </div>
+      <span class="ticker-up">
+        +3,21%
+      </span>
 
+    </div>
 
-          <h2>
-            Cripto<span>Pro</span>
-          </h2>
 
+  </div>
 
-          <p>
-            Entre e acompanhe suas operações
-            em tempo real.
-          </p>
 
-        </div>
+  <!-- FEATURES -->
 
-
-        <div class="divider">
-          Acesse sua conta
-        </div>
-
-
-        <!-- LOGIN EXISTENTE -->
-
-        <form id="loginForm">
-
-
-          <div class="form-group">
-
-            <label for="email">
-              E-mail
-            </label>
-
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="seu@email.com"
-              autocomplete="email"
-              required
-            >
-
-          </div>
-
-
-          <div class="form-group">
-
-            <label for="password">
-              Senha
-            </label>
-
-
-            <div class="password-wrap">
-
-              <input
-                type="password"
-                id="password"
-                name="password"
-                placeholder="Sua senha"
-                autocomplete="current-password"
-                required
-              >
-
-
-              <button
-                type="button"
-                class="toggle-password"
-                id="togglePassword"
-              >
-                👁
-              </button>
-
-            </div>
-
-          </div>
-
-
-          <div class="login-options">
-
-
-            <label class="remember">
-
-              <input
-                type="checkbox"
-                id="remember"
-              >
-
-              Lembrar de mim
-
-            </label>
-
-
-            <a
-              href="#"
-              class="forgot"
-              id="forgotPassword"
-            >
-              Esqueci minha senha?
-            </a>
-
-
-          </div>
-
-
-          <button
-            type="submit"
-            class="btn-login"
-          >
-
-            → &nbsp; Entrar no sistema
-
-          </button>
-
-
-        </form>
-
-
-        <div
-          id="message"
-          class="message"
-        ></div>
-
-
-        <div class="divider">
-          ou
-        </div>
-
-
-        <button
-          type="button"
-          class="create"
-          id="createAccountButton"
-        >
-
-          ＋ &nbsp; Criar nova conta
-
-        </button>
-
-
-        <div class="security">
-
-
-          <div class="security-item">
-
-            <strong>
-              🔐
-            </strong>
-
-            Dados protegidos
-
-          </div>
-
-
-          <div class="security-item">
-
-            <strong>
-              🛡
-            </strong>
-
-            Conexão segura
-
-          </div>
-
-
-          <div class="security-item">
-
-            <strong>
-              🎧
-            </strong>
-
-            Suporte
-
-          </div>
-
-
-        </div>
-
-
-        <div class="binance-note">
-
-          <strong>
-            Integração com Binance
-          </strong>
-
-          <br>
-
-          Conecte sua conta através da API.
-          Recomendamos não habilitar permissão
-          de saques.
-
-        </div>
-
-
-      </div>
-
-
-    </aside>
-
-
-  </section>
-
-
-  <!-- =====================================================
-       PLANOS
-  ====================================================== -->
-
-  <section
-    class="plans-section"
-    id="planos"
+  <div
+    class="features"
+    id="como-funciona"
   >
 
 
-    <div class="section-title">
+    <div class="feature">
+
+      <div class="feature-icon">
+        🤖
+      </div>
+
+      <strong>
+        Operações Automatizadas
+      </strong>
+
+      <p>
+        Estratégias executadas
+        automaticamente.
+      </p>
+
+    </div>
+
+
+    <div class="feature">
+
+      <div class="feature-icon">
+        🛡
+      </div>
+
+      <strong>
+        Segurança em Primeiro Lugar
+      </strong>
+
+      <p>
+        Dados protegidos e
+        controle de acesso.
+      </p>
+
+    </div>
+
+
+    <div class="feature">
+
+      <div class="feature-icon">
+        📊
+      </div>
+
+      <strong>
+        Relatórios em Tempo Real
+      </strong>
+
+      <p>
+        Acompanhe suas operações
+        com clareza.
+      </p>
+
+    </div>
+
+
+    <div class="feature">
+
+      <div class="feature-icon">
+        ⏱
+      </div>
+
+      <strong>
+        Mais Tempo para Você
+      </strong>
+
+      <p>
+        O robô opera enquanto
+        você vive.
+      </p>
+
+    </div>
+
+
+  </div>
+
+
+  <!-- ===================================================
+       MERCADO
+  ==================================================== -->
+
+  <div class="market-area">
+
+
+    <div class="market-grid"></div>
+
+
+    <div class="market-header">
+
+
+      <div class="pair">
+
+        <span class="btc-icon">
+          ₿
+        </span>
+
+        BTC/USDT
+
+        <span class="price">
+          67.432,18
+        </span>
+
+        <span class="ticker-up">
+          +2,46%
+        </span>
+
+      </div>
+
+
+      <div class="market-live">
+        ● TEMPO REAL
+      </div>
+
+
+    </div>
+
+
+    <!-- GRÁFICO -->
+
+    <svg
+      class="chart-svg"
+      viewBox="0 0 1000 300"
+      preserveAspectRatio="none"
+    >
+
+      <defs>
+
+        <linearGradient
+          id="chartFill"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="1"
+        >
+
+          <stop
+            offset="0%"
+            stop-color="#f0b90b"
+            stop-opacity=".22"
+          />
+
+          <stop
+            offset="100%"
+            stop-color="#f0b90b"
+            stop-opacity="0"
+          />
+
+        </linearGradient>
+
+      </defs>
+
+
+      <path
+        d="
+        M0 255
+        C45 242 58 250 93 228
+        C135 203 157 221 192 195
+        C231 165 260 190 292 160
+        C332 120 358 160 395 138
+        C430 118 452 140 490 105
+        C530 68 558 108 596 87
+        C632 68 658 88 690 60
+        C728 29 755 64 793 42
+        C830 20 858 47 888 27
+        C925 5 960 25 1000 2
+        L1000 300
+        L0 300
+        Z
+        "
+        fill="url(#chartFill)"
+      />
+
+
+      <path
+        class="chart-line"
+        d="
+        M0 255
+        C45 242 58 250 93 228
+        C135 203 157 221 192 195
+        C231 165 260 190 292 160
+        C332 120 358 160 395 138
+        C430 118 452 140 490 105
+        C530 68 558 108 596 87
+        C632 68 658 88 690 60
+        C728 29 755 64 793 42
+        C830 20 858 47 888 27
+        C925 5 960 25 1000 2
+        "
+        fill="none"
+        stroke="#f0b90b"
+        stroke-width="3"
+      />
+
+    </svg>
+
+
+    <!-- CANDLES -->
+
+    <div class="candles">
+
+
+      <span
+        class="candle green"
+        style="height:32px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:47px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:61px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:82px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:58px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:95px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:115px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:74px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:130px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:145px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:105px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:152px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:170px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:120px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:185px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:198px;"
+      ></span>
+
+      <span
+        class="candle red"
+        style="height:142px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:208px;"
+      ></span>
+
+      <span
+        class="candle green"
+        style="height:220px;"
+      ></span>
+
+    </div>
+
+
+    <!-- ROBÔ -->
+
+    <div class="robot">
+
+
+      <div class="robot-head">
+
+        <span class="robot-eye left"></span>
+
+        <span class="robot-eye right"></span>
+
+      </div>
+
+
+      <div class="robot-body">
+
+        <div class="robot-core"></div>
+
+      </div>
+
+
+      <div class="robot-arm left"></div>
+
+      <div class="robot-arm right"></div>
+
+
+    </div>
+
+
+    <!-- MÉTRICAS -->
+
+    <div class="metrics">
+
+
+      <div class="metric">
+
+        <div class="metric-top">
+
+          <span>
+            MERCADO
+          </span>
+
+          <span>
+            BTC
+          </span>
+
+        </div>
+
+        <div class="metric-value green">
+          +2,46%
+        </div>
+
+        <div class="metric-bar">
+          <span></span>
+        </div>
+
+      </div>
+
+
+      <div class="metric">
+
+        <div class="metric-top">
+
+          <span>
+            SISTEMA
+          </span>
+
+          <span>
+            ONLINE
+          </span>
+
+        </div>
+
+        <div class="metric-value gold">
+          24/7
+        </div>
+
+        <div class="metric-bar">
+          <span></span>
+        </div>
+
+      </div>
+
+
+      <div class="metric">
+
+        <div class="metric-top">
+
+          <span>
+            AUTOMAÇÃO
+          </span>
+
+          <span>
+            ATIVA
+          </span>
+
+        </div>
+
+        <div class="metric-value green">
+          ON
+        </div>
+
+        <div class="metric-bar">
+          <span></span>
+        </div>
+
+      </div>
+
+
+    </div>
+
+
+    <div class="script-text one">
+
+      Disciplina
+
+      <br>
+
+      gera resultados
+
+    </div>
+
+
+    <div class="script-text two">
+
+      O mercado não para.
+
+      <br>
+
+      E você?
+
+    </div>
+
+
+  </div>
+
+
+</div>
+
+
+<!-- =====================================================
+     LOGIN
+===================================================== -->
+
+<aside class="login-wrapper">
+
+
+  <div class="login-card">
+
+
+    <div class="login-brand">
+
+
+      <div class="logo">
+
+        <svg
+          viewBox="0 0 100 100"
+          fill="none"
+        >
+
+          <path
+            d="M14 72L30 56L44 65L74 30"
+            stroke="#111"
+            stroke-width="10"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+
+          <path
+            d="M61 30H74V43"
+            stroke="#111"
+            stroke-width="10"
+            stroke-linecap="round"
+          />
+
+          <rect
+            x="14"
+            y="77"
+            width="11"
+            height="8"
+            rx="2"
+            fill="#111"
+          />
+
+          <rect
+            x="33"
+            y="69"
+            width="11"
+            height="16"
+            rx="2"
+            fill="#111"
+          />
+
+          <rect
+            x="52"
+            y="58"
+            width="11"
+            height="27"
+            rx="2"
+            fill="#111"
+          />
+
+        </svg>
+
+      </div>
+
+
+      <h2>
+        Cripto<span>Pro</span>
+      </h2>
+
+
+      <p>
+        Entre e acompanhe suas operações
+        em tempo real.
+      </p>
+
+
+    </div>
+
+
+    <div class="divider">
+      Acesse sua conta
+    </div>
+
+
+    <!-- ===============================================
+         FORMULÁRIO ORIGINAL
+    ================================================ -->
+
+    <form id="loginForm">
+
+
+      <div class="form-group">
+
+        <label for="email">
+          E-mail
+        </label>
+
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="seu@email.com"
+          autocomplete="email"
+          required
+        >
+
+      </div>
+
+
+      <div class="form-group">
+
+        <label for="password">
+          Senha
+        </label>
+
+
+        <div class="password-wrap">
+
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="Sua senha"
+            autocomplete="current-password"
+            required
+          >
+
+
+          <button
+            type="button"
+            class="toggle-password"
+            id="togglePassword"
+          >
+            👁
+          </button>
+
+        </div>
+
+      </div>
+
+
+      <div class="login-options">
+
+
+        <label class="remember">
+
+          <input
+            type="checkbox"
+            id="remember"
+          >
+
+          Lembrar de mim
+
+        </label>
+
+
+        <a
+          href="#"
+          class="forgot"
+          id="forgotPassword"
+        >
+          Esqueci minha senha?
+        </a>
+
+
+      </div>
+
+
+      <button
+        type="submit"
+        class="btn-login"
+      >
+
+        → &nbsp; Entrar no sistema
+
+      </button>
+
+
+    </form>
+
+
+    <div
+      id="message"
+      class="message"
+    ></div>
+
+
+    <div class="divider">
+      ou
+    </div>
+
+
+    <button
+      type="button"
+      class="create"
+      id="createAccountButton"
+    >
+
+      ＋ &nbsp; Criar nova conta
+
+    </button>
+
+
+    <div
+      class="security"
+      id="seguranca"
+    >
+
+
+      <div class="security-item">
+
+        <strong>
+          🔐
+        </strong>
+
+        Dados protegidos
+
+      </div>
+
+
+      <div class="security-item">
+
+        <strong>
+          🛡
+        </strong>
+
+        Conexão segura
+
+      </div>
+
+
+      <div class="security-item">
+
+        <strong>
+          🎧
+        </strong>
+
+        Suporte
+
+      </div>
+
+
+    </div>
+
+
+    <div class="binance-note">
+
+      <strong>
+        Integração com Binance
+      </strong>
+
+      <br>
+
+      Conecte sua conta através da API.
+      Recomendamos não habilitar
+      permissão de saques.
+
+    </div>
+
+
+  </div>
+
+
+</aside>
+
+
+</section>
+
+
+<!-- =====================================================
+     PLANOS
+====================================================== -->
+
+<section
+  class="plans-section"
+  id="planos"
+>
+
+
+  <div class="plans-heading">
+
+
+    <div>
+
+      <h2>
+        Nossos <span>planos</span>
+      </h2>
+
+      <p>
+        Escolha o plano ideal para o seu momento.
+      </p>
+
+    </div>
+
+
+    <p>
+      Comece quando estiver pronto →
+    </p>
+
+
+  </div>
+
+
+  <div class="plans">
+
+
+    <!-- BÁSICO -->
+
+    <div class="plan">
+
+
+      <h3>
+        Básico
+      </h3>
+
+
+      <div class="price">
+
+        R$ 49,90
+
+        <small>
+          /mês
+        </small>
+
+      </div>
+
+
+      <p class="plan-description">
+        Para quem está começando.
+      </p>
+
+
+      <ul>
+
+        <li>
+          Operações automatizadas
+        </li>
+
+        <li>
+          Painel de acompanhamento
+        </li>
+
+        <li>
+          Relatórios básicos
+        </li>
+
+        <li>
+          Suporte por e-mail
+        </li>
+
+      </ul>
+
+
+      <button
+        class="plan-button"
+        type="button"
+      >
+        ESCOLHER PLANO
+      </button>
+
+
+    </div>
+
+
+    <!-- PROFISSIONAL -->
+
+    <div class="plan featured">
+
+
+      <div class="popular">
+        MAIS ESCOLHIDO
+      </div>
+
+
+      <h3>
+        Profissional
+      </h3>
+
+
+      <div class="price">
+
+        R$ 99,90
+
+        <small>
+          /mês
+        </small>
+
+      </div>
+
+
+      <p class="plan-description">
+        Mais recursos e controle.
+      </p>
+
+
+      <ul>
+
+        <li>
+          Todos os recursos Básicos
+        </li>
+
+        <li>
+          Estratégias avançadas
+        </li>
+
+        <li>
+          Relatórios detalhados
+        </li>
+
+        <li>
+          Acompanhamento de performance
+        </li>
+
+      </ul>
+
+
+      <button
+        class="plan-button"
+        type="button"
+      >
+        ESCOLHER PLANO
+      </button>
+
+
+    </div>
+
+
+    <!-- PREMIUM -->
+
+    <div class="plan">
+
+
+      <h3>
+        Premium
+      </h3>
+
+
+      <div class="price">
+
+        R$ 199,90
+
+        <small>
+          /mês
+        </small>
+
+      </div>
+
+
+      <p class="plan-description">
+        Máximo controle e personalização.
+      </p>
+
+
+      <ul>
+
+        <li>
+          Todos os recursos
+        </li>
+
+        <li>
+          Personalização avançada
+        </li>
+
+        <li>
+          Suporte prioritário
+        </li>
+
+        <li>
+          Recursos premium
+        </li>
+
+      </ul>
+
+
+      <button
+        class="plan-button"
+        type="button"
+      >
+        ESCOLHER PLANO
+      </button>
+
+
+    </div>
+
+
+  </div>
+
+
+  <!-- ===================================================
+       STATS
+  ==================================================== -->
+
+  <div
+    class="stats"
+    id="resultados"
+  >
+
+
+    <div class="stat">
+
+      <div class="stat-icon">
+        ◈
+      </div>
 
       <div>
 
-        <h2>
-          Nossos <span>planos</span>
-        </h2>
+        <strong>
+          24/7
+        </strong>
 
-        <p>
-          Escolha o plano ideal para o seu momento.
-        </p>
+        <span>
+          Sistema online
+        </span>
 
       </div>
 
     </div>
 
 
-    <div class="plans">
+    <div class="stat">
 
-
-      <!-- BÁSICO -->
-
-      <div class="plan">
-
-
-        <h3>
-          Básico
-        </h3>
-
-
-        <div class="price">
-
-          R$ 49,90
-
-          <small>
-            /mês
-          </small>
-
-        </div>
-
-
-        <p class="plan-description">
-          Para quem está começando.
-        </p>
-
-
-        <ul>
-
-          <li>
-            Operações automatizadas
-          </li>
-
-          <li>
-            Painel de acompanhamento
-          </li>
-
-          <li>
-            Relatórios básicos
-          </li>
-
-          <li>
-            Suporte por e-mail
-          </li>
-
-        </ul>
-
-
-        <button
-          class="plan-button"
-          type="button"
-        >
-          ESCOLHER PLANO
-        </button>
-
-
+      <div class="stat-icon">
+        ↗
       </div>
 
+      <div>
 
-      <!-- PROFISSIONAL -->
+        <strong>
+          API
+        </strong>
 
-      <div class="plan featured">
-
-
-        <div class="popular">
-          MAIS ESCOLHIDO
-        </div>
-
-
-        <h3>
-          Profissional
-        </h3>
-
-
-        <div class="price">
-
-          R$ 99,90
-
-          <small>
-            /mês
-          </small>
-
-        </div>
-
-
-        <p class="plan-description">
-          Mais recursos e controle.
-        </p>
-
-
-        <ul>
-
-          <li>
-            Todos os recursos Básicos
-          </li>
-
-          <li>
-            Estratégias avançadas
-          </li>
-
-          <li>
-            Relatórios detalhados
-          </li>
-
-          <li>
-            Acompanhamento de performance
-          </li>
-
-        </ul>
-
-
-        <button
-          class="plan-button"
-          type="button"
-        >
-          ESCOLHER PLANO
-        </button>
-
+        <span>
+          Integração com Binance
+        </span>
 
       </div>
-
-
-      <!-- PREMIUM -->
-
-      <div class="plan">
-
-
-        <h3>
-          Premium
-        </h3>
-
-
-        <div class="price">
-
-          R$ 199,90
-
-          <small>
-            /mês
-          </small>
-
-        </div>
-
-
-        <p class="plan-description">
-          Para máximo controle e personalização.
-        </p>
-
-
-        <ul>
-
-          <li>
-            Todos os recursos
-          </li>
-
-          <li>
-            Personalização avançada
-          </li>
-
-          <li>
-            Suporte prioritário
-          </li>
-
-          <li>
-            Recursos premium
-          </li>
-
-        </ul>
-
-
-        <button
-          class="plan-button"
-          type="button"
-        >
-          ESCOLHER PLANO
-        </button>
-
-
-      </div>
-
 
     </div>
 
 
-  </section>
+    <div class="stat">
+
+      <div class="stat-icon">
+        🛡
+      </div>
+
+      <div>
+
+        <strong>
+          Segurança
+        </strong>
+
+        <span>
+          Proteção de credenciais
+        </span>
+
+      </div>
+
+    </div>
 
 
-  <!-- =====================================================
-       RODAPÉ
-  ====================================================== -->
+    <div class="stat">
 
-  <footer>
+      <div class="stat-icon">
+        ⚡
+      </div>
 
-    <span>
-      CriptoPro — Automação inteligente.
-    </span>
+      <div>
 
-    <span>
-      Segurança • Controle • Transparência
-    </span>
+        <strong>
+          Automação
+        </strong>
 
-  </footer>
+        <span>
+          Operações inteligentes
+        </span>
+
+      </div>
+
+    </div>
+
+
+  </div>
+
+
+</section>
+
+
+<!-- =====================================================
+     FOOTER
+====================================================== -->
+
+<footer class="footer">
+
+
+  <span>
+    CriptoPro — Automação inteligente.
+  </span>
+
+
+  <span id="faq">
+    Segurança • Controle • Transparência
+  </span>
+
+
+</footer>
 
 
 </main>
@@ -3166,134 +3697,134 @@
 <script>
 
 
-  /* =====================================================
-     MOSTRAR SENHA
-  ===================================================== */
+/* =========================================================
+   MOSTRAR / OCULTAR SENHA
+========================================================= */
 
-  const togglePassword =
-    document.getElementById(
-      "togglePassword"
-    );
-
-
-  const password =
-    document.getElementById(
-      "password"
-    );
+const togglePassword =
+  document.getElementById(
+    "togglePassword"
+  );
 
 
-  if (
-    togglePassword &&
-    password
-  ) {
+const password =
+  document.getElementById(
+    "password"
+  );
 
-    togglePassword.addEventListener(
-      "click",
-      function () {
 
-        if (
-          password.type ===
-          "password"
-        ) {
+if(
+  togglePassword &&
+  password
+){
 
-          password.type =
-            "text";
+  togglePassword.addEventListener(
+    "click",
+    function(){
 
-          togglePassword.textContent =
-            "🙈";
+      if(
+        password.type ===
+        "password"
+      ){
 
-        }
+        password.type =
+          "text";
 
-        else {
+        togglePassword.textContent =
+          "🙈";
 
-          password.type =
-            "password";
+      }else{
 
-          togglePassword.textContent =
-            "👁";
+        password.type =
+          "password";
 
-        }
+        togglePassword.textContent =
+          "👁";
 
       }
-    );
 
-  }
+    }
+  );
 
-
-  /* =====================================================
-     CRIAR CONTA
-  ===================================================== */
-
-  const createAccount =
-    document.getElementById(
-      "createAccountButton"
-    );
+}
 
 
-  if (createAccount) {
+/* =========================================================
+   CRIAR CONTA
+========================================================= */
 
-    createAccount.addEventListener(
-      "click",
-      function () {
-
-        alert(
-          "O cadastro será disponibilizado nesta próxima etapa."
-        );
-
-      }
-    );
-
-  }
+const createAccount =
+  document.getElementById(
+    "createAccountButton"
+  );
 
 
-  /* =====================================================
-     RECUPERAÇÃO
-  ===================================================== */
+if(createAccount){
 
-  const forgotPassword =
-    document.getElementById(
-      "forgotPassword"
-    );
+  createAccount.addEventListener(
+    "click",
+    function(){
 
+      alert(
+        "O cadastro será disponibilizado na próxima etapa."
+      );
 
-  if (forgotPassword) {
+    }
+  );
 
-    forgotPassword.addEventListener(
-      "click",
-      function (event) {
-
-        event.preventDefault();
-
-        alert(
-          "A recuperação de senha por e-mail será conectada ao sistema na próxima etapa."
-        );
-
-      }
-    );
-
-  }
+}
 
 
-  /* =====================================================
-     BOTÕES DE PLANOS
-  ===================================================== */
+/* =========================================================
+   RECUPERAÇÃO
+========================================================= */
 
-  document
-    .querySelectorAll(".plan-button")
-    .forEach(function(button) {
+const forgotPassword =
+  document.getElementById(
+    "forgotPassword"
+  );
+
+
+if(forgotPassword){
+
+  forgotPassword.addEventListener(
+    "click",
+    function(event){
+
+      event.preventDefault();
+
+      alert(
+        "A recuperação de senha por e-mail será conectada ao sistema na próxima etapa."
+      );
+
+    }
+  );
+
+}
+
+
+/* =========================================================
+   PLANOS
+========================================================= */
+
+document
+  .querySelectorAll(".plan-button")
+  .forEach(
+    function(button){
 
       button.addEventListener(
         "click",
-        function() {
+        function(){
 
           alert(
-            "A contratação do plano será disponibilizada quando o sistema de assinaturas estiver integrado."
+            "A contratação do plano será ativada quando o sistema de assinaturas estiver integrado."
           );
 
         }
       );
 
-    });
+    }
+  );
 
 
 </script>

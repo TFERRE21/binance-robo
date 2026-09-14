@@ -63,6 +63,10 @@ async function testarMercadoPago() {
 }
 
 
+// ============================================================
+// ROTA DE TESTE DO MERCADO PAGO
+// ============================================================
+
 router.get("/teste-mercadopago", async (req, res) => {
 
   const resultado =

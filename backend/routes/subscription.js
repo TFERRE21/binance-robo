@@ -2,7 +2,21 @@ const express = require("express");
 const db = require("../services/db");
 const authMiddleware = require("../middleware/auth");
 
-const router = express.Router();
+const {
+  MercadoPagoConfig,
+  PreApproval
+} = require("mercadopago");
+
+
+// ============================================================
+// CONFIGURAÇÃO DO MERCADO PAGO
+// ============================================================
+
+const mpClient = new MercadoPagoConfig({
+  accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN
+});
+
+const preApprovalClient = new PreApproval(mpClient);
 
 
 // ============================================================

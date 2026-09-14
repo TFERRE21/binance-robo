@@ -4,7 +4,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const db = require('../services/db');
 
+const {
+  enviarEmailRecuperacaoSenha
+} = require('../services/emailService');
+
 const router = express.Router();
+
 
 // ============================================================
 // TESTE DA ROTA
@@ -24,46 +29,70 @@ router.get('/teste', (req, res) => {
 
 router.post('/register', async (req, res) => {
   try {
+
     const { name, email, password } = req.body;
 
+
     if (!name || !email || !password) {
+
       return res.status(400).json({
         success: false,
         message: 'Nome, e-mail e senha são obrigatórios.'
       });
+
     }
 
-    const emailNormalizado = email.trim().toLowerCase();
+
+    const emailNormalizado =
+      email.trim().toLowerCase();
+
 
     if (password.length < 6) {
+
       return res.status(400).json({
         success: false,
         message: 'A senha deve ter pelo menos 6 caracteres.'
       });
+
     }
+
 
     const existingUser = await db.query(
       'SELECT id FROM users WHERE email = $1',
       [emailNormalizado]
     );
 
+
     if (existingUser.rows.length > 0) {
+
       return res.status(409).json({
         success: false,
         message: 'Este e-mail já está cadastrado.'
       });
+
     }
 
-    const passwordHash = await bcrypt.hash(password, 12);
+
+    const passwordHash =
+      await bcrypt.hash(password, 12);
+
 
     const result = await db.query(
-      `INSERT INTO users (name, email, password_hash, active)
-       VALUES ($1, $2, $3, true)
+      `INSERT INTO users
+       (name, email, password_hash, active)
+       VALUES
+       ($1, $2, $3, true)
        RETURNING id, name, email, active, created_at`,
-      [name.trim(), emailNormalizado, passwordHash]
+      [
+        name.trim(),
+        emailNormalizado,
+        passwordHash
+      ]
     );
 
+
     const user = result.rows[0];
+
 
     return res.status(201).json({
       success: true,
@@ -71,13 +100,20 @@ router.post('/register', async (req, res) => {
       user
     });
 
+
   } catch (error) {
-    console.error('ERRO NO CADASTRO:', error);
+
+    console.error(
+      'ERRO NO CADASTRO:',
+      error
+    );
+
 
     return res.status(500).json({
       success: false,
       message: 'Erro interno ao criar usuário.'
     });
+
   }
 });
 
@@ -88,82 +124,122 @@ router.post('/register', async (req, res) => {
 
 router.post('/login', async (req, res) => {
   try {
+
     const { email, password } = req.body;
 
+
     if (!email || !password) {
+
       return res.status(400).json({
         success: false,
         message: 'E-mail e senha são obrigatórios.'
       });
+
     }
 
-    const emailNormalizado = email.trim().toLowerCase();
+
+    const emailNormalizado =
+      email.trim().toLowerCase();
+
 
     const result = await db.query(
-      `SELECT id, name, email, password_hash, active
+      `SELECT
+        id,
+        name,
+        email,
+        password_hash,
+        active
        FROM users
        WHERE email = $1`,
       [emailNormalizado]
     );
 
+
     if (result.rows.length === 0) {
+
       return res.status(401).json({
         success: false,
         message: 'E-mail ou senha inválidos.'
       });
+
     }
+
 
     const user = result.rows[0];
 
+
     if (!user.active) {
+
       return res.status(403).json({
         success: false,
         message: 'Usuário inativo.'
       });
+
     }
 
-    const passwordOk = await bcrypt.compare(
-      password,
-      user.password_hash
-    );
+
+    const passwordOk =
+      await bcrypt.compare(
+        password,
+        user.password_hash
+      );
+
 
     if (!passwordOk) {
+
       return res.status(401).json({
         success: false,
         message: 'E-mail ou senha inválidos.'
       });
+
     }
 
-    const token = jwt.sign(
-      {
-        id: user.id,
-        name: user.name,
-        email: user.email
-      },
-      process.env.JWT_SECRET,
-      {
-        expiresIn: '7d'
-      }
-    );
+
+    const token =
+      jwt.sign(
+        {
+          id: user.id,
+          name: user.name,
+          email: user.email
+        },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: '7d'
+        }
+      );
+
 
     return res.json({
+
       success: true,
-      message: 'Login realizado com sucesso.',
+
+      message:
+        'Login realizado com sucesso.',
+
       token,
+
       user: {
         id: user.id,
         name: user.name,
         email: user.email
       }
+
     });
 
+
   } catch (error) {
-    console.error('ERRO NO LOGIN:', error);
+
+    console.error(
+      'ERRO NO LOGIN:',
+      error
+    );
+
 
     return res.status(500).json({
       success: false,
       message: 'Erro interno ao realizar login.'
     });
+
   }
 });
 
@@ -172,37 +248,59 @@ router.post('/login', async (req, res) => {
 // USUÁRIO LOGADO
 // ============================================================
 
-const authMiddleware = require('../middleware/auth');
+const authMiddleware =
+  require('../middleware/auth');
+
 
 router.get('/me', authMiddleware, async (req, res) => {
+
   try {
+
     const result = await db.query(
-      `SELECT id, name, email, active, created_at, updated_at
+      `SELECT
+        id,
+        name,
+        email,
+        active,
+        created_at,
+        updated_at
        FROM users
        WHERE id = $1`,
       [req.user.id]
     );
 
+
     if (result.rows.length === 0) {
+
       return res.status(404).json({
         success: false,
         message: 'Usuário não encontrado.'
       });
+
     }
+
 
     return res.json({
       success: true,
       user: result.rows[0]
     });
 
+
   } catch (error) {
-    console.error('ERRO AO BUSCAR USUARIO:', error);
+
+    console.error(
+      'ERRO AO BUSCAR USUARIO:',
+      error
+    );
+
 
     return res.status(500).json({
       success: false,
       message: 'Erro interno ao buscar usuário.'
     });
+
   }
+
 });
 
 
@@ -211,16 +309,25 @@ router.get('/me', authMiddleware, async (req, res) => {
 // ============================================================
 
 router.post('/forgot-password', async (req, res) => {
+
   try {
 
     const { email } = req.body;
 
+
+    // --------------------------------------------------------
+    // VALIDAR E-MAIL
+    // --------------------------------------------------------
+
     if (!email) {
+
       return res.status(400).json({
         success: false,
         message: 'Informe o e-mail.'
       });
+
     }
+
 
     const emailNormalizado =
       String(email)
@@ -234,7 +341,11 @@ router.post('/forgot-password', async (req, res) => {
 
     const result = await db.query(
       `
-      SELECT id, name, email, active
+      SELECT
+        id,
+        name,
+        email,
+        active
       FROM users
       WHERE LOWER(email) = $1
       LIMIT 1
@@ -242,6 +353,10 @@ router.post('/forgot-password', async (req, res) => {
       [emailNormalizado]
     );
 
+
+    // --------------------------------------------------------
+    // RESPOSTA GENÉRICA
+    // --------------------------------------------------------
 
     /*
       Por segurança, não informamos ao usuário
@@ -251,9 +366,12 @@ router.post('/forgot-password', async (req, res) => {
     if (result.rows.length === 0) {
 
       return res.json({
+
         success: true,
+
         message:
           'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+
       });
 
     }
@@ -269,9 +387,12 @@ router.post('/forgot-password', async (req, res) => {
     if (user.active === false) {
 
       return res.json({
+
         success: true,
+
         message:
           'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+
       });
 
     }
@@ -282,7 +403,9 @@ router.post('/forgot-password', async (req, res) => {
     // --------------------------------------------------------
 
     const resetToken =
-      crypto.randomBytes(32).toString('hex');
+      crypto
+        .randomBytes(32)
+        .toString('hex');
 
 
     // --------------------------------------------------------
@@ -352,7 +475,7 @@ router.post('/forgot-password', async (req, res) => {
 
 
     // --------------------------------------------------------
-    // LOG TEMPORÁRIO
+    // LOG
     // --------------------------------------------------------
 
     console.log(
@@ -360,23 +483,95 @@ router.post('/forgot-password', async (req, res) => {
     );
 
 
-    /*
-      IMPORTANTE:
+    // ========================================================
+    // MONTAR LINK DE RECUPERAÇÃO
+    // ========================================================
 
-      Ainda NÃO enviamos o e-mail nesta etapa.
+    const host =
+      req.get('host');
 
-      O token já está sendo criado e armazenado
-      com segurança no banco.
 
-      Na próxima etapa vamos configurar o envio
-      real do e-mail e montar o link de recuperação.
-    */
+    const protocolo =
+      req.headers['x-forwarded-proto'] ||
+      'https';
 
+
+    const linkRecuperacao =
+      `${protocolo}://${host}/reset-password.html?token=${encodeURIComponent(resetToken)}`;
+
+
+    console.log(
+      'LINK DE RECUPERAÇÃO GERADO.'
+    );
+
+
+    // ========================================================
+    // ENVIAR E-MAIL
+    // ========================================================
+
+    try {
+
+      await enviarEmailRecuperacaoSenha({
+
+        email: user.email,
+
+        nome: user.name,
+
+        link: linkRecuperacao
+
+      });
+
+
+      console.log(
+        `E-MAIL DE RECUPERAÇÃO ENVIADO: ${user.email}`
+      );
+
+
+    } catch (emailError) {
+
+      console.error(
+        'ERRO AO ENVIAR E-MAIL DE RECUPERAÇÃO:',
+        emailError
+      );
+
+
+      // ------------------------------------------------------
+      // INVALIDAR TOKEN SE O E-MAIL FALHAR
+      // ------------------------------------------------------
+
+      await db.query(
+        `
+        UPDATE password_resets
+        SET used = TRUE
+        WHERE token_hash = $1
+        `,
+        [tokenHash]
+      );
+
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          'Não foi possível enviar o e-mail de recuperação. Tente novamente.'
+
+      });
+
+    }
+
+
+    // ========================================================
+    // RESPOSTA FINAL
+    // ========================================================
 
     return res.json({
+
       success: true,
+
       message:
         'Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.'
+
     });
 
 
@@ -387,13 +582,18 @@ router.post('/forgot-password', async (req, res) => {
       error
     );
 
+
     return res.status(500).json({
+
       success: false,
+
       message:
         'Não foi possível iniciar a recuperação de senha.'
+
     });
 
   }
+
 });
 
 

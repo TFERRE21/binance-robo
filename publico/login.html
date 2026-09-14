@@ -12,21 +12,19 @@
 
   <title>CriptoPro | Automação Inteligente</title>
 
-
   <style>
 
     * {
       box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
-
 
     html {
       scroll-behavior: smooth;
     }
 
-
     body {
-      margin: 0;
 
       min-height: 100vh;
 
@@ -36,46 +34,65 @@
         Helvetica,
         sans-serif;
 
-      color: #f4f7fb;
+      color: #fff;
 
       background:
         radial-gradient(
-          circle at 75% 20%,
-          rgba(240, 185, 11, .10),
-          transparent 30%
+          circle at 50% 15%,
+          rgba(240,185,11,.10),
+          transparent 28%
         ),
         radial-gradient(
-          circle at 20% 70%,
-          rgba(20, 110, 180, .12),
-          transparent 32%
+          circle at 90% 60%,
+          rgba(0,255,170,.05),
+          transparent 30%
         ),
-        #050a11;
+        #03070c;
 
       overflow-x: hidden;
+
     }
 
 
-    body::before {
-      content: "";
+    /* =====================================================
+       FUNDO ANIMADO
+    ===================================================== */
+
+    .background {
 
       position: fixed;
 
       inset: 0;
 
+      z-index: 0;
+
+      overflow: hidden;
+
       pointer-events: none;
 
+    }
+
+
+    .grid {
+
+      position: absolute;
+
+      inset: 0;
+
       background-image:
+
         linear-gradient(
           rgba(255,255,255,.025) 1px,
           transparent 1px
         ),
+
         linear-gradient(
           90deg,
           rgba(255,255,255,.025) 1px,
           transparent 1px
         );
 
-      background-size: 55px 55px;
+      background-size: 60px 60px;
 
       mask-image:
         linear-gradient(
@@ -84,15 +101,119 @@
           transparent
         );
 
-      opacity: .45;
     }
 
 
-    .page {
-      width: 100%;
-      min-height: 100vh;
-      position: relative;
-      z-index: 1;
+    .glow {
+
+      position: absolute;
+
+      width: 500px;
+
+      height: 500px;
+
+      border-radius: 50%;
+
+      filter: blur(100px);
+
+      opacity: .12;
+
+    }
+
+
+    .glow.one {
+
+      top: -200px;
+
+      left: 20%;
+
+      background: #f0b90b;
+
+      animation:
+        floatGlow 9s ease-in-out infinite;
+
+    }
+
+
+    .glow.two {
+
+      right: -250px;
+
+      bottom: 5%;
+
+      background: #00d995;
+
+      animation:
+        floatGlow 12s ease-in-out infinite reverse;
+
+    }
+
+
+    @keyframes floatGlow {
+
+      0%,
+      100% {
+        transform: translate(
+          0,
+          0
+        );
+      }
+
+      50% {
+        transform: translate(
+          50px,
+          -30px
+        );
+      }
+
+    }
+
+
+    /* =====================================================
+       PARTICULAS
+    ===================================================== */
+
+    .particle {
+
+      position: absolute;
+
+      width: 3px;
+
+      height: 3px;
+
+      border-radius: 50%;
+
+      background: #f0b90b;
+
+      box-shadow:
+        0 0 10px #f0b90b;
+
+      opacity: .35;
+
+      animation:
+        particleMove
+        linear
+        infinite;
+
+    }
+
+
+    @keyframes particleMove {
+
+      from {
+
+        transform:
+          translateY(110vh);
+
+      }
+
+      to {
+
+        transform:
+          translateY(-20vh);
+
+      }
+
     }
 
 
@@ -102,9 +223,11 @@
 
     header {
 
-      width: 100%;
+      height: 72px;
 
-      height: 76px;
+      position: relative;
+
+      z-index: 20;
 
       display: flex;
 
@@ -113,21 +236,18 @@
       justify-content: space-between;
 
       padding:
-        0 5%;
+        0 4%;
 
       border-bottom:
         1px solid
-        rgba(255,255,255,.08);
+        rgba(255,255,255,.07);
 
       background:
-        rgba(5,10,17,.82);
+        rgba(3,7,12,.78);
 
       backdrop-filter:
-        blur(14px);
+        blur(18px);
 
-      position: relative;
-
-      z-index: 10;
     }
 
 
@@ -137,312 +257,20 @@
 
       align-items: center;
 
-      gap: 12px;
+      gap: 10px;
 
-      text-decoration: none;
-
-      color: white;
-    }
-
-
-    .brand-logo {
-
-      width: 43px;
-
-      height: 43px;
-
-      border-radius: 12px;
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      background:
-        linear-gradient(
-          145deg,
-          #ffd84a,
-          #f0a900
-        );
-
-      box-shadow:
-        0 8px 30px
-        rgba(240,185,11,.20);
-    }
-
-
-    .brand-logo svg {
-      width: 29px;
-      height: 29px;
-    }
-
-
-    .brand-text strong {
-
-      display: block;
-
-      font-size: 21px;
-
-      line-height: 1;
-
-      letter-spacing: -.5px;
-    }
-
-
-    .brand-text strong span {
-      color: #f0b90b;
-    }
-
-
-    .brand-text small {
-
-      display: block;
-
-      margin-top: 5px;
-
-      color: #8291a5;
-
-      font-size: 9px;
-
-      letter-spacing: 1.8px;
-
-      text-transform: uppercase;
-    }
-
-
-    nav {
-
-      display: flex;
-
-      gap: 30px;
-
-      align-items: center;
-    }
-
-
-    nav a {
-
-      color: #9eacbd;
-
-      text-decoration: none;
-
-      font-size: 13px;
-
-      transition: .2s;
-    }
-
-
-    nav a:hover {
       color: #fff;
+
+      text-decoration: none;
+
     }
 
 
-    .online {
+    .logo {
 
-      display: flex;
+      width: 42px;
 
-      align-items: center;
-
-      gap: 8px;
-
-      padding:
-        9px 14px;
-
-      border:
-        1px solid
-        rgba(255,255,255,.12);
-
-      border-radius: 20px;
-
-      color: #dbe4ef;
-
-      font-size: 12px;
-
-      background:
-        rgba(255,255,255,.025);
-    }
-
-
-    .online-dot {
-
-      width: 8px;
-
-      height: 8px;
-
-      border-radius: 50%;
-
-      background: #37d98b;
-
-      box-shadow:
-        0 0 12px
-        rgba(55,217,139,.8);
-    }
-
-
-    /* =====================================================
-       MAIN
-    ===================================================== */
-
-    .main {
-
-      width:
-        min(
-          1450px,
-          92%
-        );
-
-      margin:
-        0 auto;
-
-      padding:
-        45px 0 35px;
-
-      display: grid;
-
-      grid-template-columns:
-        minmax(0, 1.55fr)
-        minmax(390px, .85fr);
-
-      gap: 55px;
-
-      align-items: start;
-    }
-
-
-    /* =====================================================
-       LEFT
-    ===================================================== */
-
-    .hero {
-
-      position: relative;
-
-      min-height: 780px;
-    }
-
-
-    .eyebrow {
-
-      display: inline-flex;
-
-      align-items: center;
-
-      gap: 8px;
-
-      color: #b8c7d9;
-
-      font-size: 12px;
-
-      text-transform: uppercase;
-
-      letter-spacing: 1.8px;
-
-      margin-bottom: 18px;
-    }
-
-
-    .eyebrow-line {
-
-      width: 25px;
-
-      height: 2px;
-
-      background: #f0b90b;
-
-      border-radius: 5px;
-    }
-
-
-    h1 {
-
-      margin: 0;
-
-      max-width: 780px;
-
-      font-size:
-        clamp(
-          43px,
-          5vw,
-          72px
-        );
-
-      line-height: .98;
-
-      letter-spacing: -3px;
-
-      font-weight: 850;
-    }
-
-
-    h1 span {
-      color: #f0b90b;
-    }
-
-
-    .hero-description {
-
-      max-width: 670px;
-
-      margin:
-        25px 0 30px;
-
-      color: #aab8c9;
-
-      font-size: 17px;
-
-      line-height: 1.6;
-    }
-
-
-    /* =====================================================
-       BENEFITS
-    ===================================================== */
-
-    .benefits {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(4,1fr);
-
-      gap: 12px;
-
-      margin-bottom: 30px;
-    }
-
-
-    .benefit {
-
-      min-height: 145px;
-
-      padding: 19px 15px;
-
-      border:
-        1px solid
-        rgba(255,255,255,.09);
-
-      border-radius: 13px;
-
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.015)
-        );
-
-      text-align: center;
-    }
-
-
-    .benefit-icon {
-
-      width: 43px;
-
-      height: 43px;
-
-      margin:
-        0 auto 11px;
+      height: 42px;
 
       display: flex;
 
@@ -452,442 +280,368 @@
 
       border-radius: 11px;
 
-      color: #f0b90b;
-
-      background:
-        rgba(240,185,11,.08);
-
-      border:
-        1px solid
-        rgba(240,185,11,.18);
-    }
-
-
-    .benefit-icon svg {
-      width: 23px;
-      height: 23px;
-    }
-
-
-    .benefit strong {
-
-      display: block;
-
-      font-size: 13px;
-
-      margin-bottom: 7px;
-    }
-
-
-    .benefit p {
-
-      margin: 0;
-
-      color: #7f90a5;
-
-      font-size: 11px;
-
-      line-height: 1.45;
-    }
-
-
-    /* =====================================================
-       GRAPHIC
-    ===================================================== */
-
-    .visual {
-
-      position: relative;
-
-      min-height: 315px;
-
-      border:
-        1px solid
-        rgba(255,255,255,.09);
-
-      border-radius: 18px;
-
-      overflow: hidden;
-
       background:
         linear-gradient(
           145deg,
-          #0b1521,
-          #071018
+          #ffd84a,
+          #eea900
         );
 
       box-shadow:
-        0 30px 80px
-        rgba(0,0,0,.22);
+        0 8px 30px
+        rgba(240,185,11,.25);
+
     }
 
 
-    .visual-grid {
+    .logo svg {
 
-      position: absolute;
+      width: 28px;
 
-      inset: 0;
+      height: 28px;
 
-      background-image:
-        linear-gradient(
-          rgba(255,255,255,.035) 1px,
-          transparent 1px
-        ),
-        linear-gradient(
-          90deg,
-          rgba(255,255,255,.035) 1px,
-          transparent 1px
-        );
-
-      background-size:
-        58px 58px;
     }
 
 
-    .chart {
+    .brand-name {
 
-      position: absolute;
+      font-size: 20px;
 
-      inset:
-        25px 25px 35px 25px;
+      font-weight: 900;
+
+      letter-spacing: -.8px;
+
     }
 
 
-    .chart svg {
+    .brand-name span {
 
-      width: 100%;
+      color: #f0b90b;
 
-      height: 100%;
     }
 
 
-    .chart-label {
-
-      position: absolute;
-
-      top: 22px;
-
-      right: 25px;
-
-      padding:
-        7px 11px;
-
-      border:
-        1px solid
-        rgba(55,217,139,.35);
-
-      border-radius: 7px;
-
-      color: #43df91;
-
-      font-size: 12px;
-
-      background:
-        rgba(15,40,31,.65);
-    }
-
-
-    .chart-title {
-
-      position: absolute;
-
-      top: 22px;
-
-      left: 25px;
-
-      color: #9eacbd;
-
-      font-size: 12px;
-    }
-
-
-    /* =====================================================
-       TRUST
-    ===================================================== */
-
-    .trust-row {
-
-      display: grid;
-
-      grid-template-columns:
-        repeat(3,1fr);
-
-      gap: 12px;
-
-      margin-top: 14px;
-    }
-
-
-    .trust {
-
-      padding:
-        16px 18px;
-
-      border:
-        1px solid
-        rgba(255,255,255,.08);
-
-      border-radius: 12px;
-
-      background:
-        rgba(255,255,255,.025);
-    }
-
-
-    .trust strong {
+    .brand-sub {
 
       display: block;
 
-      font-size: 13px;
+      margin-top: 2px;
 
-      margin-bottom: 6px;
+      color: #75869a;
+
+      font-size: 8px;
+
+      letter-spacing: 1.6px;
+
+      text-transform: uppercase;
+
     }
 
 
-    .trust span {
-
-      color: #7f90a5;
-
-      font-size: 11px;
-    }
-
-
-    /* =====================================================
-       PLANOS
-    ===================================================== */
-
-    .plans-title {
-
-      margin:
-        38px 0 16px;
+    nav {
 
       display: flex;
 
       align-items: center;
 
-      justify-content: space-between;
+      gap: 26px;
+
     }
 
 
-    .plans-title h2 {
+    nav a {
 
-      margin: 0;
+      color: #8999ab;
 
-      font-size: 21px;
-    }
-
-
-    .plans-title span {
-
-      color: #75869a;
+      text-decoration: none;
 
       font-size: 11px;
+
+      transition: .2s;
+
     }
 
 
-    .plans {
+    nav a:hover {
 
-      display: grid;
+      color: #fff;
 
-      grid-template-columns:
-        repeat(3,1fr);
-
-      gap: 12px;
     }
 
 
-    .plan {
+    .header-actions {
 
-      position: relative;
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+    }
+
+
+    .online {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 7px;
 
       padding:
-        21px 19px;
+        9px 13px;
 
       border:
         1px solid
-        rgba(255,255,255,.09);
-
-      border-radius: 14px;
-
-      background:
-        linear-gradient(
-          145deg,
-          rgba(255,255,255,.045),
-          rgba(255,255,255,.012)
-        );
-    }
-
-
-    .plan.featured {
-
-      border-color:
-        rgba(240,185,11,.65);
-
-      box-shadow:
-        0 0 35px
-        rgba(240,185,11,.07);
-    }
-
-
-    .popular {
-
-      position: absolute;
-
-      top: -11px;
-
-      left: 50%;
-
-      transform:
-        translateX(-50%);
-
-      padding:
-        4px 12px;
+        rgba(255,255,255,.1);
 
       border-radius: 20px;
+
+      color: #aebccc;
+
+      font-size: 10px;
+
+    }
+
+
+    .online-dot {
+
+      width: 7px;
+
+      height: 7px;
+
+      border-radius: 50%;
+
+      background: #20df8a;
+
+      box-shadow:
+        0 0 12px
+        #20df8a;
+
+      animation:
+        pulse 1.7s infinite;
+
+    }
+
+
+    @keyframes pulse {
+
+      50% {
+
+        opacity: .35;
+
+        transform: scale(.7);
+
+      }
+
+    }
+
+
+    .plans-button {
+
+      border:
+        1px solid
+        #f0b90b;
+
+      border-radius: 9px;
+
+      padding:
+        10px 17px;
+
+      color: #f0b90b;
+
+      text-decoration: none;
+
+      font-size: 10px;
+
+      font-weight: 800;
+
+      transition: .2s;
+
+    }
+
+
+    .plans-button:hover {
 
       color: #111;
 
       background: #f0b90b;
 
-      font-size: 9px;
-
-      font-weight: 900;
-
-      white-space: nowrap;
-    }
-
-
-    .plan-name {
-
-      color: #c5d1df;
-
-      font-size: 13px;
-
-      font-weight: 700;
-    }
-
-
-    .plan-price {
-
-      margin:
-        11px 0 5px;
-
-      font-size: 25px;
-
-      font-weight: 850;
-    }
-
-
-    .plan-price small {
-
-      color: #75869a;
-
-      font-size: 11px;
-
-      font-weight: 400;
-    }
-
-
-    .plan-description {
-
-      min-height: 31px;
-
-      color: #788a9e;
-
-      font-size: 10px;
-
-      line-height: 1.4;
-    }
-
-
-    .plan ul {
-
-      padding: 0;
-
-      margin:
-        16px 0 0;
-
-      list-style: none;
-    }
-
-
-    .plan li {
-
-      margin:
-        9px 0;
-
-      color: #a9b8c9;
-
-      font-size: 10px;
-    }
-
-
-    .plan li::before {
-
-      content: "✓";
-
-      margin-right: 7px;
-
-      color: #39d98b;
-
-      font-weight: 900;
     }
 
 
     /* =====================================================
-       LOGIN
+       CONTAINER
     ===================================================== */
 
-    .login-side {
+    .container {
 
-      position: sticky;
+      width:
+        min(
+          1420px,
+          92%
+        );
 
-      top: 25px;
+      margin: auto;
+
+      position: relative;
+
+      z-index: 2;
+
     }
 
 
-    .login-card {
+    /* =====================================================
+       HERO
+    ===================================================== */
+
+    .hero {
+
+      min-height: 650px;
 
       padding:
-        31px;
+        65px 0 30px;
+
+      display: grid;
+
+      grid-template-columns:
+        1fr
+        410px;
+
+      gap: 45px;
+
+      align-items: center;
+
+    }
+
+
+    .hero-left {
+
+      position: relative;
+
+    }
+
+
+    .eyebrow {
+
+      display: inline-flex;
+
+      gap: 8px;
+
+      align-items: center;
+
+      margin-bottom: 18px;
+
+      color: #aab8c8;
+
+      font-size: 11px;
+
+      font-weight: 700;
+
+      letter-spacing: 1.5px;
+
+      text-transform: uppercase;
+
+    }
+
+
+    .eyebrow span {
+
+      color: #f0b90b;
+
+    }
+
+
+    h1 {
+
+      max-width: 720px;
+
+      font-size:
+        clamp(
+          45px,
+          5.2vw,
+          72px
+        );
+
+      line-height: .97;
+
+      letter-spacing: -3px;
+
+      font-weight: 900;
+
+    }
+
+
+    h1 .gold {
+
+      color: #f0b90b;
+
+    }
+
+
+    .hero-text {
+
+      max-width: 650px;
+
+      margin:
+        23px 0 25px;
+
+      color: #9aaabd;
+
+      font-size: 16px;
+
+      line-height: 1.6;
+
+    }
+
+
+    /* =====================================================
+       CRIPTO TICKERS
+    ===================================================== */
+
+    .tickers {
+
+      display: flex;
+
+      flex-wrap: wrap;
+
+      gap: 8px;
+
+      margin-bottom: 27px;
+
+    }
+
+
+    .ticker {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 7px;
+
+      padding:
+        8px 11px;
 
       border:
         1px solid
-        rgba(240,185,11,.25);
+        rgba(255,255,255,.09);
 
-      border-radius: 19px;
+      border-radius: 8px;
 
       background:
-        linear-gradient(
-          145deg,
-          rgba(12,25,38,.97),
-          rgba(5,13,21,.98)
-        );
+        rgba(255,255,255,.025);
 
-      box-shadow:
-        0 35px 100px
-        rgba(0,0,0,.45);
+      font-size: 10px;
+
     }
 
 
-    .login-brand {
+    .coin {
 
-      text-align: center;
+      width: 19px;
 
-      margin-bottom: 25px;
-    }
-
-
-    .login-logo {
-
-      width: 55px;
-
-      height: 55px;
-
-      margin:
-        0 auto 11px;
-
-      border-radius: 15px;
+      height: 19px;
 
       display: flex;
 
@@ -895,46 +649,686 @@
 
       justify-content: center;
 
+      border-radius: 50%;
+
       background:
-        linear-gradient(
-          145deg,
-          #ffd84a,
-          #f0a900
-        );
+        #f0b90b;
+
+      color: #111;
+
+      font-size: 8px;
+
+      font-weight: 900;
+
     }
 
 
-    .login-logo svg {
+    .ticker strong {
 
-      width: 37px;
+      color: #dce6f0;
 
-      height: 37px;
+    }
+
+
+    .up {
+
+      color: #27df91;
+
+    }
+
+
+    .down {
+
+      color: #ff6565;
+
+    }
+
+
+    /* =====================================================
+       FEATURES
+    ===================================================== */
+
+    .features {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(4,1fr);
+
+      gap: 9px;
+
+      margin-bottom: 22px;
+
+    }
+
+
+    .feature {
+
+      min-height: 120px;
+
+      padding:
+        15px 11px;
+
+      text-align: center;
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      border-radius: 11px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.01)
+        );
+
+      transition: .25s;
+
+    }
+
+
+    .feature:hover {
+
+      transform:
+        translateY(-4px);
+
+      border-color:
+        rgba(240,185,11,.45);
+
+      background:
+        rgba(240,185,11,.035);
+
+    }
+
+
+    .feature-icon {
+
+      width: 38px;
+
+      height: 38px;
+
+      margin:
+        0 auto 9px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border:
+        1px solid
+        rgba(240,185,11,.5);
+
+      border-radius: 10px;
+
+      color: #f0b90b;
+
+      font-size: 18px;
+
+    }
+
+
+    .feature strong {
+
+      display: block;
+
+      font-size: 11px;
+
+      margin-bottom: 5px;
+
+    }
+
+
+    .feature p {
+
+      color: #73869a;
+
+      font-size: 9px;
+
+      line-height: 1.4;
+
+    }
+
+
+    /* =====================================================
+       MARKET PANEL
+    ===================================================== */
+
+    .market {
+
+      height: 275px;
+
+      position: relative;
+
+      overflow: hidden;
+
+      border:
+        1px solid
+        rgba(255,255,255,.1);
+
+      border-radius: 15px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #09131e,
+          #050c13
+        );
+
+      box-shadow:
+        0 25px 70px
+        rgba(0,0,0,.35);
+
+    }
+
+
+    .market-grid {
+
+      position: absolute;
+
+      inset: 0;
+
+      background-image:
+
+        linear-gradient(
+          rgba(255,255,255,.035) 1px,
+          transparent 1px
+        ),
+
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,.035) 1px,
+          transparent 1px
+        );
+
+      background-size:
+        45px 45px;
+
+    }
+
+
+    .market-top {
+
+      position: absolute;
+
+      top: 15px;
+
+      left: 18px;
+
+      right: 18px;
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: center;
+
+      z-index: 3;
+
+    }
+
+
+    .market-pair {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+    }
+
+
+    .btc {
+
+      width: 25px;
+
+      height: 25px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border-radius: 50%;
+
+      background: #f0b90b;
+
+      color: #111;
+
+      font-weight: 900;
+
+    }
+
+
+    .market-price {
+
+      color: #20df8a;
+
+    }
+
+
+    .live {
+
+      padding:
+        5px 9px;
+
+      border:
+        1px solid
+        rgba(32,223,138,.35);
+
+      border-radius: 6px;
+
+      color: #20df8a;
+
+      font-size: 8px;
+
+    }
+
+
+    .candle-chart {
+
+      position: absolute;
+
+      left: 15px;
+
+      right: 15px;
+
+      top: 52px;
+
+      bottom: 18px;
+
+      display: flex;
+
+      align-items: flex-end;
+
+      justify-content: space-around;
+
+    }
+
+
+    .candle {
+
+      position: relative;
+
+      width: 7px;
+
+      border-radius: 2px;
+
+      animation:
+        candlePulse
+        2.5s
+        ease-in-out
+        infinite;
+
+    }
+
+
+    .candle::before {
+
+      content: "";
+
+      position: absolute;
+
+      left: 3px;
+
+      top: -12px;
+
+      width: 1px;
+
+      height: calc(100% + 24px);
+
+      background: currentColor;
+
+      opacity: .8;
+
+    }
+
+
+    .green {
+
+      color: #20df8a;
+
+      background: #20df8a;
+
+    }
+
+
+    .red {
+
+      color: #ff5f62;
+
+      background: #ff5f62;
+
+    }
+
+
+    @keyframes candlePulse {
+
+      0%,
+      100% {
+
+        transform:
+          scaleY(1);
+
+      }
+
+      50% {
+
+        transform:
+          scaleY(.72);
+
+      }
+
+    }
+
+
+    /* =====================================================
+       ROBÔ / IA
+    ===================================================== */
+
+    .ai {
+
+      position: absolute;
+
+      right: 80px;
+
+      bottom: 24px;
+
+      width: 160px;
+
+      height: 160px;
+
+      z-index: 5;
+
+      filter:
+        drop-shadow(
+          0 20px 35px
+          rgba(0,0,0,.7)
+        );
+
+    }
+
+
+    .ai-head {
+
+      width: 110px;
+
+      height: 85px;
+
+      position: absolute;
+
+      left: 25px;
+
+      top: 8px;
+
+      border:
+        2px solid
+        #6e6040;
+
+      border-radius:
+        35px 35px 25px 25px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #18202a,
+          #05080c
+        );
+
+      box-shadow:
+        inset 0 0 25px
+        rgba(240,185,11,.08),
+        0 0 25px
+        rgba(240,185,11,.12);
+
+      transform:
+        rotate(-3deg);
+
+      animation:
+        robotFloat
+        4s
+        ease-in-out
+        infinite;
+
+    }
+
+
+    .ai-eye {
+
+      position: absolute;
+
+      top: 36px;
+
+      width: 24px;
+
+      height: 9px;
+
+      border-radius: 20px;
+
+      background: #f0b90b;
+
+      box-shadow:
+        0 0 14px
+        #f0b90b;
+
+    }
+
+
+    .ai-eye.left {
+      left: 25px;
+    }
+
+
+    .ai-eye.right {
+      right: 25px;
+    }
+
+
+    .ai-body {
+
+      position: absolute;
+
+      left: 45px;
+
+      bottom: 3px;
+
+      width: 72px;
+
+      height: 70px;
+
+      border-radius:
+        25px 25px 17px 17px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #1c2632,
+          #070a0e
+        );
+
+      border:
+        2px solid
+        #5d5239;
+
+    }
+
+
+    .ai-core {
+
+      position: absolute;
+
+      left: 26px;
+
+      top: 23px;
+
+      width: 20px;
+
+      height: 20px;
+
+      border-radius: 5px;
+
+      background: #f0b90b;
+
+      box-shadow:
+        0 0 20px
+        rgba(240,185,11,.7);
+
+      transform:
+        rotate(45deg);
+
+    }
+
+
+    @keyframes robotFloat {
+
+      0%,
+      100% {
+        transform:
+          translateY(0)
+          rotate(-3deg);
+      }
+
+      50% {
+        transform:
+          translateY(-10px)
+          rotate(2deg);
+      }
+
+    }
+
+
+    /* =====================================================
+       FRASES
+    ===================================================== */
+
+    .floating-text {
+
+      position: absolute;
+
+      color: #f0b90b;
+
+      font-family:
+        cursive;
+
+      font-size: 21px;
+
+      line-height: 1.1;
+
+      opacity: .8;
+
+      transform:
+        rotate(-8deg);
+
+    }
+
+
+    .floating-text.one {
+
+      right: 20px;
+
+      bottom: 180px;
+
+    }
+
+
+    .floating-text.two {
+
+      left: -10px;
+
+      bottom: 20px;
+
+      color: #72c8ff;
+
+      transform:
+        rotate(-7deg);
+
+    }
+
+
+    /* =====================================================
+       LOGIN
+    ===================================================== */
+
+    .login-card {
+
+      padding:
+        29px;
+
+      border:
+        1px solid
+        rgba(240,185,11,.38);
+
+      border-radius: 18px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(10,22,34,.97),
+          rgba(4,10,16,.98)
+        );
+
+      box-shadow:
+        0 35px 100px
+        rgba(0,0,0,.55);
+
+      backdrop-filter:
+        blur(20px);
+
+    }
+
+
+    .login-brand {
+
+      text-align: center;
+
+      margin-bottom: 20px;
+
+    }
+
+
+    .login-brand .logo {
+
+      margin:
+        0 auto 9px;
+
     }
 
 
     .login-brand h2 {
 
-      margin: 0;
+      font-size: 23px;
 
-      font-size: 25px;
+      font-weight: 900;
 
-      letter-spacing: -.7px;
     }
 
 
     .login-brand h2 span {
+
       color: #f0b90b;
+
     }
 
 
     .login-brand p {
 
-      margin:
-        7px 0 0;
+      margin-top: 6px;
 
-      color: #74869a;
+      color: #75869a;
 
-      font-size: 11px;
+      font-size: 10px;
+
+      line-height: 1.5;
+
     }
 
 
@@ -944,14 +1338,15 @@
 
       align-items: center;
 
-      gap: 12px;
+      gap: 10px;
 
       margin:
-        20px 0;
+        18px 0;
 
-      color: #66778c;
+      color: #64768a;
 
-      font-size: 10px;
+      font-size: 9px;
+
     }
 
 
@@ -966,12 +1361,14 @@
 
       background:
         rgba(255,255,255,.08);
+
     }
 
 
     .form-group {
 
-      margin-bottom: 17px;
+      margin-bottom: 15px;
+
     }
 
 
@@ -979,62 +1376,66 @@
 
       display: block;
 
-      margin-bottom: 7px;
+      margin-bottom: 6px;
 
-      color: #d7e0eb;
+      color: #cbd7e4;
 
-      font-size: 12px;
+      font-size: 11px;
 
       font-weight: 700;
+
     }
 
 
-    input {
+    input[type="email"],
+    input[type="password"] {
 
       width: 100%;
 
-      height: 50px;
+      height: 48px;
+
+      padding:
+        0 13px;
 
       border:
         1px solid
-        #29394a;
+        #2a3b4e;
 
-      border-radius: 9px;
+      border-radius: 8px;
 
       outline: none;
 
-      padding:
-        0 14px;
+      background: #edf4fb;
 
-      color: #17212c;
+      color: #15202c;
 
-      background:
-        #eef4fb;
+      font-size: 12px;
 
-      font-size: 13px;
-
-      transition: .2s;
     }
 
 
     input:focus {
 
-      border-color:
-        #f0b90b;
+      border-color: #f0b90b;
 
       box-shadow:
         0 0 0 3px
-        rgba(240,185,11,.09);
+        rgba(240,185,11,.08);
+
     }
 
 
     .password-wrap {
+
       position: relative;
+
     }
 
 
     .password-wrap input {
-      padding-right: 45px;
+
+      padding-right: 42px;
+
     }
 
 
@@ -1042,9 +1443,9 @@
 
       position: absolute;
 
-      right: 9px;
+      top: 8px;
 
-      top: 9px;
+      right: 8px;
 
       width: 32px;
 
@@ -1054,9 +1455,8 @@
 
       background: transparent;
 
-      color: #64778c;
-
       cursor: pointer;
+
     }
 
 
@@ -1069,9 +1469,8 @@
       align-items: center;
 
       margin:
-        3px 0 18px;
+        2px 0 17px;
 
-      font-size: 10px;
     }
 
 
@@ -1081,19 +1480,23 @@
 
       align-items: center;
 
-      gap: 7px;
+      gap: 6px;
 
-      color: #8090a2;
+      color: #7c8d9f;
+
+      font-size: 9px;
+
     }
 
 
     .remember input {
 
-      width: 14px;
+      width: 13px;
 
-      height: 14px;
+      height: 13px;
 
       accent-color: #f0b90b;
+
     }
 
 
@@ -1101,9 +1504,12 @@
 
       color: #f0b90b;
 
+      font-size: 9px;
+
       text-decoration: none;
 
       font-weight: 700;
+
     }
 
 
@@ -1111,59 +1517,56 @@
 
       width: 100%;
 
-      height: 51px;
+      height: 50px;
 
       border: 0;
 
-      border-radius: 9px;
+      border-radius: 8px;
 
       cursor: pointer;
 
-      color: #101318;
+      color: #111;
 
       background:
         linear-gradient(
           135deg,
-          #ffd23f,
+          #ffd84a,
           #f0ad08
         );
 
-      font-size: 14px;
+      font-size: 13px;
 
-      font-weight: 850;
-
-      box-shadow:
-        0 12px 30px
-        rgba(240,185,11,.15);
+      font-weight: 900;
 
       transition: .2s;
+
     }
 
 
     .btn-login:hover {
 
       transform:
-        translateY(-1px);
+        translateY(-2px);
 
       box-shadow:
-        0 15px 35px
-        rgba(240,185,11,.23);
+        0 15px 30px
+        rgba(240,185,11,.18);
+
     }
 
 
     .message {
 
-      min-height: 20px;
+      min-height: 18px;
 
-      margin-top: 13px;
+      margin-top: 9px;
 
       text-align: center;
 
-      color: #ff7474;
+      color: #ff6969;
 
-      font-size: 11px;
+      font-size: 10px;
 
-      line-height: 1.4;
     }
 
 
@@ -1171,26 +1574,26 @@
 
       width: 100%;
 
-      height: 48px;
-
-      margin-top: 7px;
+      height: 46px;
 
       border:
         1px solid
         #f0b90b;
 
-      border-radius: 9px;
+      border-radius: 8px;
 
-      color: #f4f7fb;
+      color: #fff;
 
-      background:
-        transparent;
+      background: transparent;
 
       cursor: pointer;
 
-      font-size: 13px;
+      font-size: 11px;
 
-      font-weight: 750;
+      font-weight: 800;
+
+      transition: .2s;
+
     }
 
 
@@ -1198,47 +1601,27 @@
 
       background:
         rgba(240,185,11,.07);
+
     }
 
 
-    .create a {
-
-      color: inherit;
-
-      text-decoration: none;
-
-      display: flex;
-
-      align-items: center;
-
-      justify-content: center;
-
-      width: 100%;
-
-      height: 100%;
-    }
-
-
-    /* =====================================================
-       SECURITY
-    ===================================================== */
-
-    .security-grid {
+    .security {
 
       display: grid;
 
       grid-template-columns:
         repeat(3,1fr);
 
-      gap: 7px;
+      gap: 5px;
 
-      margin-top: 24px;
+      margin-top: 22px;
 
-      padding-top: 22px;
+      padding-top: 18px;
 
       border-top:
         1px solid
         rgba(255,255,255,.07);
+
     }
 
 
@@ -1246,184 +1629,450 @@
 
       text-align: center;
 
-      color: #9aabba;
+      color: #7f90a3;
 
-      font-size: 9px;
+      font-size: 8px;
 
-      line-height: 1.35;
+      line-height: 1.4;
+
     }
 
 
-    .security-icon {
+    .security-item strong {
 
-      margin-bottom: 7px;
+      display: block;
 
-      color: #d9e4f0;
-    }
+      margin-bottom: 4px;
 
+      color: #d2dce7;
 
-    .security-icon svg {
+      font-size: 15px;
 
-      width: 22px;
-
-      height: 22px;
     }
 
 
     .binance-note {
 
-      margin-top: 19px;
+      margin-top: 17px;
 
-      padding:
-        12px;
-
-      border-radius: 9px;
+      padding: 11px;
 
       border:
         1px solid
         rgba(255,255,255,.07);
 
-      background:
-        rgba(255,255,255,.025);
+      border-radius: 8px;
 
       text-align: center;
 
-      color: #718397;
+      color: #6e8094;
 
-      font-size: 9px;
+      font-size: 8px;
 
-      line-height: 1.45;
+      line-height: 1.5;
+
     }
 
 
     .binance-note strong {
-      color: #c8d4e1;
-    }
 
+      color: #cbd7e4;
 
-    .footer {
-
-      width:
-        min(
-          1450px,
-          92%
-        );
-
-      margin:
-        0 auto;
-
-      padding:
-        0 0 28px;
-
-      color: #56677b;
-
-      font-size: 10px;
-
-      display: flex;
-
-      justify-content: space-between;
     }
 
 
     /* =====================================================
-       RESPONSIVO
+       PLANOS
+    ===================================================== */
+
+    .plans-section {
+
+      padding:
+        25px 0 70px;
+
+    }
+
+
+    .section-title {
+
+      display: flex;
+
+      justify-content: space-between;
+
+      align-items: end;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .section-title h2 {
+
+      font-size: 25px;
+
+    }
+
+
+    .section-title h2 span {
+
+      color: #f0b90b;
+
+    }
+
+
+    .section-title p {
+
+      color: #718398;
+
+      font-size: 10px;
+
+    }
+
+
+    .plans {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3,1fr);
+
+      gap: 14px;
+
+    }
+
+
+    .plan {
+
+      position: relative;
+
+      padding:
+        25px 22px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.1);
+
+      border-radius: 15px;
+
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.045),
+          rgba(255,255,255,.012)
+        );
+
+      transition: .25s;
+
+    }
+
+
+    .plan:hover {
+
+      transform:
+        translateY(-5px);
+
+      border-color:
+        rgba(240,185,11,.4);
+
+    }
+
+
+    .plan.featured {
+
+      border-color:
+        #f0b90b;
+
+      box-shadow:
+        0 0 45px
+        rgba(240,185,11,.07);
+
+    }
+
+
+    .popular {
+
+      position: absolute;
+
+      top: -10px;
+
+      left: 50%;
+
+      transform:
+        translateX(-50%);
+
+      padding:
+        4px 13px;
+
+      border-radius: 20px;
+
+      color: #111;
+
+      background: #f0b90b;
+
+      font-size: 8px;
+
+      font-weight: 900;
+
+      white-space: nowrap;
+
+    }
+
+
+    .plan h3 {
+
+      font-size: 16px;
+
+      margin-bottom: 8px;
+
+    }
+
+
+    .price {
+
+      font-size: 29px;
+
+      font-weight: 900;
+
+    }
+
+
+    .price small {
+
+      color: #73859a;
+
+      font-size: 10px;
+
+      font-weight: 400;
+
+    }
+
+
+    .plan-description {
+
+      margin:
+        8px 0 17px;
+
+      color: #728499;
+
+      font-size: 10px;
+
+    }
+
+
+    .plan ul {
+
+      list-style: none;
+
+    }
+
+
+    .plan li {
+
+      margin:
+        9px 0;
+
+      color: #aebccc;
+
+      font-size: 10px;
+
+    }
+
+
+    .plan li::before {
+
+      content: "✓";
+
+      margin-right: 7px;
+
+      color: #20df8a;
+
+      font-weight: 900;
+
+    }
+
+
+    .plan-button {
+
+      width: 100%;
+
+      height: 39px;
+
+      margin-top: 14px;
+
+      border:
+        1px solid
+        #506070;
+
+      border-radius: 7px;
+
+      color: #dce5ef;
+
+      background: transparent;
+
+      cursor: pointer;
+
+      font-size: 10px;
+
+      font-weight: 800;
+
+    }
+
+
+    .featured .plan-button {
+
+      border-color:
+        #f0b90b;
+
+      color: #111;
+
+      background:
+        #f0b90b;
+
+    }
+
+
+    /* =====================================================
+       RODAPÉ
+    ===================================================== */
+
+    footer {
+
+      padding:
+        22px 0;
+
+      border-top:
+        1px solid
+        rgba(255,255,255,.06);
+
+      color: #526376;
+
+      font-size: 9px;
+
+      display: flex;
+
+      justify-content: space-between;
+
+    }
+
+
+    /* =====================================================
+       MOBILE
     ===================================================== */
 
     @media (max-width: 1100px) {
 
-      .main {
+      nav {
+        display: none;
+      }
+
+      .hero {
 
         grid-template-columns:
           1fr;
 
-        width: 92%;
       }
 
+      .login-card {
 
-      .login-side {
-
-        position: relative;
-
-        top: auto;
-
-        max-width: 620px;
+        max-width: 500px;
 
         width: 100%;
 
-        margin: 0 auto;
-      }
+        margin: auto;
 
-
-      .hero {
-
-        min-height: auto;
       }
 
     }
 
 
-    @media (max-width: 750px) {
+    @media (max-width: 700px) {
+
+      .container {
+
+        width: 94%;
+
+      }
 
       header {
 
-        padding: 0 18px;
+        padding:
+          0 15px;
+
       }
 
-
-      nav {
+      .online {
 
         display: none;
+
       }
 
+      .plans-button {
 
-      .main {
+        display: none;
 
-        padding-top: 30px;
-
-        gap: 30px;
       }
 
+      .hero {
 
-      .benefits {
+        padding-top: 35px;
+
+      }
+
+      h1 {
+
+        font-size: 43px;
+
+        letter-spacing: -2px;
+
+      }
+
+      .features {
 
         grid-template-columns:
           repeat(2,1fr);
+
       }
 
+      .ai {
+
+        right: 20px;
+
+        transform:
+          scale(.75);
+
+      }
+
+      .floating-text {
+
+        display: none;
+
+      }
 
       .plans {
 
         grid-template-columns:
           1fr;
+
       }
 
+      .section-title {
 
-      .trust-row {
+        display: block;
 
-        grid-template-columns:
-          1fr;
       }
 
+      .section-title p {
 
-      h1 {
+        margin-top: 5px;
 
-        font-size: 44px;
-
-        letter-spacing: -2px;
       }
 
-
-      .login-card {
-
-        padding: 23px;
-      }
-
-
-      .footer {
+      footer {
 
         flex-direction: column;
 
         gap: 8px;
+
       }
 
     }
@@ -1435,111 +2084,157 @@
 
 <body>
 
-<div class="page">
+
+<!-- =====================================================
+     FUNDO
+====================================================== -->
+
+<div class="background">
+
+  <div class="grid"></div>
+
+  <div class="glow one"></div>
+
+  <div class="glow two"></div>
+
+  <div class="particle"
+       style="left:8%;animation-duration:14s;"></div>
+
+  <div class="particle"
+       style="left:18%;animation-duration:18s;animation-delay:2s;"></div>
+
+  <div class="particle"
+       style="left:29%;animation-duration:13s;animation-delay:5s;"></div>
+
+  <div class="particle"
+       style="left:41%;animation-duration:20s;animation-delay:1s;"></div>
+
+  <div class="particle"
+       style="left:53%;animation-duration:16s;animation-delay:4s;"></div>
+
+  <div class="particle"
+       style="left:65%;animation-duration:12s;animation-delay:3s;"></div>
+
+  <div class="particle"
+       style="left:76%;animation-duration:19s;animation-delay:7s;"></div>
+
+  <div class="particle"
+       style="left:88%;animation-duration:15s;animation-delay:5s;"></div>
+
+</div>
 
 
-  <!-- =====================================================
-       HEADER
-  ====================================================== -->
+<!-- =====================================================
+     HEADER
+====================================================== -->
 
-  <header>
+<header>
 
-    <a
-      href="login.html"
-      class="brand"
-    >
 
-      <div class="brand-logo">
+  <a
+    href="#inicio"
+    class="brand"
+  >
 
-        <svg
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
+    <div class="logo">
 
-          <path
-            d="M18 68L31 55L43 65L65 37"
-            stroke="#101318"
-            stroke-width="9"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+      <svg
+        viewBox="0 0 100 100"
+        fill="none"
+      >
 
-          <path
-            d="M58 37H72V51"
-            stroke="#101318"
-            stroke-width="9"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
+        <path
+          d="M15 72L31 56L45 65L73 32"
+          stroke="#111"
+          stroke-width="9"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
 
-          <rect
-            x="16"
-            y="73"
-            width="11"
-            height="10"
-            rx="2"
-            fill="#101318"
-          />
+        <path
+          d="M61 32H73V45"
+          stroke="#111"
+          stroke-width="9"
+          stroke-linecap="round"
+        />
 
-          <rect
-            x="34"
-            y="67"
-            width="11"
-            height="16"
-            rx="2"
-            fill="#101318"
-          />
+        <rect
+          x="15"
+          y="77"
+          width="11"
+          height="8"
+          rx="2"
+          fill="#111"
+        />
 
-          <rect
-            x="52"
-            y="59"
-            width="11"
-            height="24"
-            rx="2"
-            fill="#101318"
-          />
+        <rect
+          x="34"
+          y="69"
+          width="11"
+          height="16"
+          rx="2"
+          fill="#111"
+        />
 
-        </svg>
+        <rect
+          x="53"
+          y="59"
+          width="11"
+          height="26"
+          rx="2"
+          fill="#111"
+        />
 
+      </svg>
+
+    </div>
+
+
+    <div>
+
+      <div class="brand-name">
+        Cripto<span>Pro</span>
       </div>
 
+      <span class="brand-sub">
+        Automação inteligente
+      </span>
 
-      <div class="brand-text">
+    </div>
 
-        <strong>
-          Cripto<span>Pro</span>
-        </strong>
+  </a>
 
-        <small>
-          Automação inteligente
-        </small>
 
-      </div>
+  <nav>
 
+    <a href="#inicio">
+      Início
     </a>
 
+    <a href="#planos">
+      Planos
+    </a>
 
-    <nav>
+    <a href="#como-funciona">
+      Como funciona
+    </a>
 
-      <a href="#vantagens">
-        Vantagens
-      </a>
+    <a href="#resultados">
+      Resultados
+    </a>
 
-      <a href="#planos">
-        Planos
-      </a>
+    <a href="#seguranca">
+      Segurança
+    </a>
 
-      <a href="#seguranca">
-        Segurança
-      </a>
+    <a href="#faq">
+      FAQ
+    </a>
 
-      <a href="#como-funciona">
-        Como funciona
-      </a>
+  </nav>
 
-    </nav>
 
+  <div class="header-actions">
 
     <div class="online">
 
@@ -1549,28 +2244,49 @@
 
     </div>
 
-  </header>
+
+    <a
+      href="#planos"
+      class="plans-button"
+    >
+      Ver planos →
+    </a>
+
+  </div>
 
 
-  <!-- =====================================================
-       MAIN
-  ====================================================== -->
-
-  <main class="main">
+</header>
 
 
-    <!-- ===================================================
-         MARKETING
-    ==================================================== -->
+<!-- =====================================================
+     CONTEÚDO
+====================================================== -->
 
-    <section class="hero">
+<main
+  class="container"
+  id="inicio"
+>
+
+
+  <section class="hero">
+
+
+    <!-- =================================================
+         LADO ESQUERDO
+    ================================================== -->
+
+    <div class="hero-left">
 
 
       <div class="eyebrow">
 
-        <span class="eyebrow-line"></span>
+        <span>●</span>
 
-        Automação para seus investimentos
+        TRADING
+
+        • AUTOMATIZADO
+
+        • 24H POR DIA
 
       </div>
 
@@ -1578,60 +2294,103 @@
       <h1>
 
         Mais estratégia
+
         <br>
 
-        <span>
+        <span class="gold">
           para o seu futuro.
         </span>
 
       </h1>
 
 
-      <p class="hero-description">
+      <p class="hero-text">
 
-        Automatize suas operações na Binance com
-        segurança, controle e dados em tempo real.
-        Mais tempo para você, mais organização para
-        suas decisões.
+        Automatize suas operações na Binance
+        com segurança, controle e dados em tempo real.
+        Mais tempo para você, mais organização
+        para suas decisões no mercado cripto.
 
       </p>
 
 
-      <!-- BENEFÍCIOS -->
+      <!-- TICKERS -->
 
-      <div
-        class="benefits"
-        id="vantagens"
-      >
+      <div class="tickers">
 
 
-        <div class="benefit">
+        <div class="ticker">
 
-          <div class="benefit-icon">
+          <span class="coin">
+            ₿
+          </span>
 
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
+          <strong>BTC/USDT</strong>
 
-              <rect
-                x="5"
-                y="7"
-                width="14"
-                height="12"
-                rx="3"
-              />
+          <span class="up">
+            +2,46%
+          </span>
 
-              <path d="M9 7V5a3 3 0 0 1 6 0v2" />
+        </div>
 
-              <path d="M9 12h.01M15 12h.01" />
 
-              <path d="M9 16h6" />
+        <div class="ticker">
 
-            </svg>
+          <span class="coin">
+            Ξ
+          </span>
 
+          <strong>ETH/USDT</strong>
+
+          <span class="up">
+            +1,38%
+          </span>
+
+        </div>
+
+
+        <div class="ticker">
+
+          <span class="coin">
+            B
+          </span>
+
+          <strong>BNB/USDT</strong>
+
+          <span class="up">
+            +0,92%
+          </span>
+
+        </div>
+
+
+        <div class="ticker">
+
+          <span class="coin">
+            S
+          </span>
+
+          <strong>SOL/USDT</strong>
+
+          <span class="up">
+            +3,21%
+          </span>
+
+        </div>
+
+
+      </div>
+
+
+      <!-- FEATURES -->
+
+      <div class="features">
+
+
+        <div class="feature">
+
+          <div class="feature-icon">
+            🤖
           </div>
 
           <strong>
@@ -1640,33 +2399,16 @@
 
           <p>
             Estratégias executadas
-            de forma automática.
+            automaticamente.
           </p>
 
         </div>
 
 
-        <div class="benefit">
+        <div class="feature">
 
-          <div class="benefit-icon">
-
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
-
-              <path
-                d="M12 3l7 3v5c0 4.7-3 8.3-7 10-4-1.7-7-5.3-7-10V6l7-3z"
-              />
-
-              <path
-                d="M9 12l2 2 4-4"
-              />
-
-            </svg>
-
+          <div class="feature-icon">
+            🛡
           </div>
 
           <strong>
@@ -1674,34 +2416,17 @@
           </strong>
 
           <p>
-            Dados protegidos e
-            credenciais criptografadas.
+            Proteção e controle
+            das credenciais.
           </p>
 
         </div>
 
 
-        <div class="benefit">
+        <div class="feature">
 
-          <div class="benefit-icon">
-
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
-
-              <path d="M4 19V9" />
-
-              <path d="M10 19V5" />
-
-              <path d="M16 19v-7" />
-
-              <path d="M22 19V3" />
-
-            </svg>
-
+          <div class="feature-icon">
+            📊
           </div>
 
           <strong>
@@ -1709,356 +2434,218 @@
           </strong>
 
           <p>
-            Acompanhe sua conta,
-            operações e patrimônio.
+            Acompanhe operações
+            e patrimônio.
           </p>
 
         </div>
 
 
-        <div class="benefit">
+        <div class="feature">
 
-          <div class="benefit-icon">
-
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-            >
-
-              <path
-                d="M12 2v5"
-              />
-
-              <path
-                d="M12 17v5"
-              />
-
-              <path
-                d="M4.93 4.93l3.54 3.54"
-              />
-
-              <path
-                d="M15.53 15.53l3.54 3.54"
-              />
-
-              <path
-                d="M2 12h5"
-              />
-
-              <path
-                d="M17 12h5"
-              />
-
-              <circle
-                cx="12"
-                cy="12"
-                r="4"
-              />
-
-            </svg>
-
+          <div class="feature-icon">
+            ⏱
           </div>
 
           <strong>
-            Mais Controle
+            Mais Tempo para Você
           </strong>
 
           <p>
-            Informações organizadas
-            em um único lugar.
+            O robô trabalha
+            enquanto você vive.
           </p>
 
         </div>
 
-      </div>
-
-
-      <!-- GRÁFICO -->
-
-      <div
-        class="visual"
-        id="como-funciona"
-      >
-
-        <div class="visual-grid"></div>
-
-        <div class="chart-title">
-          ACOMPANHAMENTO DE MERCADO
-        </div>
-
-        <div class="chart-label">
-          Dados em tempo real
-        </div>
-
-
-        <div class="chart">
-
-          <svg
-            viewBox="0 0 900 280"
-            preserveAspectRatio="none"
-          >
-
-            <defs>
-
-              <linearGradient
-                id="area"
-                x1="0"
-                y1="0"
-                x2="0"
-                y2="1"
-              >
-
-                <stop
-                  offset="0%"
-                  stop-color="#f0b90b"
-                  stop-opacity=".22"
-                />
-
-                <stop
-                  offset="100%"
-                  stop-color="#f0b90b"
-                  stop-opacity="0"
-                />
-
-              </linearGradient>
-
-            </defs>
-
-
-            <path
-              d="
-                M0 230
-                C50 215 65 225 110 190
-                C150 160 170 180 215 165
-                C255 150 275 180 315 135
-                C350 95 390 135 430 112
-                C470 90 495 125 535 90
-                C575 55 600 85 635 70
-                C675 52 690 65 725 45
-                C765 20 790 55 820 30
-                C850 10 870 28 900 8
-                L900 280
-                L0 280
-                Z
-              "
-              fill="url(#area)"
-            />
-
-
-            <path
-              d="
-                M0 230
-                C50 215 65 225 110 190
-                C150 160 170 180 215 165
-                C255 150 275 180 315 135
-                C350 95 390 135 430 112
-                C470 90 495 125 535 90
-                C575 55 600 85 635 70
-                C675 52 690 65 725 45
-                C765 20 790 55 820 30
-                C850 10 870 28 900 8
-              "
-              fill="none"
-              stroke="#f0b90b"
-              stroke-width="3"
-              vector-effect="non-scaling-stroke"
-            />
-
-          </svg>
-
-        </div>
 
       </div>
 
 
-      <!-- CONFIANÇA -->
+      <!-- =================================================
+           GRÁFICO
+      ================================================== -->
 
-      <div
-        class="trust-row"
-        id="seguranca"
-      >
+      <div class="market">
 
-        <div class="trust">
 
-          <strong>
-            🔐 Dados protegidos
-          </strong>
+        <div class="market-grid"></div>
 
-          <span>
-            Credenciais armazenadas
-            com proteção criptográfica.
+
+        <div class="market-top">
+
+          <div class="market-pair">
+
+            <span class="btc">
+              ₿
+            </span>
+
+            BTC/USDT
+
+            <span class="market-price">
+              67.432,18
+            </span>
+
+            <span class="up">
+              +2,46%
+            </span>
+
+          </div>
+
+
+          <span class="live">
+            ● TEMPO REAL
           </span>
 
         </div>
 
 
-        <div class="trust">
-
-          <strong>
-            🛡️ Saques protegidos
-          </strong>
-
-          <span>
-            Recomendamos API sem
-            permissão para saques.
-          </span>
-
-        </div>
+        <div class="candle-chart">
 
 
-        <div class="trust">
+          <span
+            class="candle green"
+            style="height:35px;"
+          ></span>
 
-          <strong>
-            🔗 Conexão via API
-          </strong>
+          <span
+            class="candle red"
+            style="height:25px;"
+          ></span>
 
-          <span>
-            Integração direta com
-            sua conta Binance.
-          </span>
+          <span
+            class="candle green"
+            style="height:55px;"
+          ></span>
 
-        </div>
+          <span
+            class="candle green"
+            style="height:72px;"
+          ></span>
 
-      </div>
+          <span
+            class="candle red"
+            style="height:45px;"
+          ></span>
 
+          <span
+            class="candle green"
+            style="height:85px;"
+          ></span>
 
-      <!-- PLANOS -->
+          <span
+            class="candle green"
+            style="height:105px;"
+          ></span>
 
-      <div
-        class="plans-title"
-        id="planos"
-      >
+          <span
+            class="candle red"
+            style="height:65px;"
+          ></span>
 
-        <h2>
-          Nossos planos
-        </h2>
+          <span
+            class="candle green"
+            style="height:92px;"
+          ></span>
 
-        <span>
-          Escolha o plano ideal para seu momento
-        </span>
+          <span
+            class="candle green"
+            style="height:115px;"
+          ></span>
 
-      </div>
+          <span
+            class="candle red"
+            style="height:75px;"
+          ></span>
 
+          <span
+            class="candle green"
+            style="height:130px;"
+          ></span>
 
-      <div class="plans">
+          <span
+            class="candle green"
+            style="height:150px;"
+          ></span>
 
+          <span
+            class="candle red"
+            style="height:112px;"
+          ></span>
 
-        <div class="plan">
+          <span
+            class="candle green"
+            style="height:142px;"
+          ></span>
 
-          <div class="plan-name">
-            Básico
-          </div>
+          <span
+            class="candle green"
+            style="height:164px;"
+          ></span>
 
-          <div class="plan-price">
-            R$ 49,90
-            <small>/mês</small>
-          </div>
+          <span
+            class="candle red"
+            style="height:130px;"
+          ></span>
 
-          <div class="plan-description">
-            Ideal para começar.
-          </div>
+          <span
+            class="candle green"
+            style="height:180px;"
+          ></span>
 
-          <ul>
+          <span
+            class="candle green"
+            style="height:195px;"
+          ></span>
 
-            <li>
-              Operações automatizadas
-            </li>
-
-            <li>
-              Painel de acompanhamento
-            </li>
-
-            <li>
-              Relatórios básicos
-            </li>
-
-            <li>
-              Suporte por e-mail
-            </li>
-
-          </ul>
-
-        </div>
-
-
-        <div class="plan featured">
-
-          <div class="popular">
-            MAIS ESCOLHIDO
-          </div>
-
-          <div class="plan-name">
-            Profissional
-          </div>
-
-          <div class="plan-price">
-            R$ 99,90
-            <small>/mês</small>
-          </div>
-
-          <div class="plan-description">
-            Mais recursos e controle.
-          </div>
-
-          <ul>
-
-            <li>
-              Todos os recursos Básicos
-            </li>
-
-            <li>
-              Estratégias avançadas
-            </li>
-
-            <li>
-              Relatórios detalhados
-            </li>
-
-            <li>
-              Acompanhamento de performance
-            </li>
-
-          </ul>
+          <span
+            class="candle green"
+            style="height:210px;"
+          ></span>
 
         </div>
 
 
-        <div class="plan">
+        <!-- ROBÔ -->
 
-          <div class="plan-name">
-            Premium
+        <div class="ai">
+
+          <div class="ai-head">
+
+            <span class="ai-eye left"></span>
+
+            <span class="ai-eye right"></span>
+
           </div>
 
-          <div class="plan-price">
-            R$ 199,90
-            <small>/mês</small>
+
+          <div class="ai-body">
+
+            <div class="ai-core"></div>
+
           </div>
 
-          <div class="plan-description">
-            Máximo controle e personalização.
-          </div>
+        </div>
 
-          <ul>
 
-            <li>
-              Todos os recursos
-            </li>
+        <div class="floating-text one">
 
-            <li>
-              Personalização avançada
-            </li>
+          Disciplina
 
-            <li>
-              Suporte prioritário
-            </li>
+          <br>
 
-            <li>
-              Recursos premium
-            </li>
+          gera resultados
 
-          </ul>
+        </div>
+
+
+        <div class="floating-text two">
+
+          O mercado não para.
+
+          <br>
+
+          E você?
 
         </div>
 
@@ -2066,14 +2653,14 @@
       </div>
 
 
-    </section>
+    </div>
 
 
-    <!-- ===================================================
+    <!-- =================================================
          LOGIN
-    ==================================================== -->
+    ================================================== -->
 
-    <aside class="login-side">
+    <aside>
 
 
       <div class="login-card">
@@ -2082,55 +2669,53 @@
         <div class="login-brand">
 
 
-          <div class="login-logo">
+          <div class="logo">
 
             <svg
               viewBox="0 0 100 100"
               fill="none"
-              xmlns="http://www.w3.org/2000/svg"
             >
 
               <path
-                d="M18 68L31 55L43 65L65 37"
-                stroke="#101318"
+                d="M15 72L31 56L45 65L73 32"
+                stroke="#111"
                 stroke-width="9"
                 stroke-linecap="round"
                 stroke-linejoin="round"
               />
 
               <path
-                d="M58 37H72V51"
-                stroke="#101318"
+                d="M61 32H73V45"
+                stroke="#111"
                 stroke-width="9"
                 stroke-linecap="round"
-                stroke-linejoin="round"
               />
 
               <rect
-                x="16"
-                y="73"
+                x="15"
+                y="77"
                 width="11"
-                height="10"
+                height="8"
                 rx="2"
-                fill="#101318"
+                fill="#111"
               />
 
               <rect
                 x="34"
-                y="67"
+                y="69"
                 width="11"
                 height="16"
                 rx="2"
-                fill="#101318"
+                fill="#111"
               />
 
               <rect
-                x="52"
+                x="53"
                 y="59"
                 width="11"
-                height="24"
+                height="26"
                 rx="2"
-                fill="#101318"
+                fill="#111"
               />
 
             </svg>
@@ -2144,10 +2729,9 @@
 
 
           <p>
-            Acesse sua conta e acompanhe
-            suas operações em tempo real.
+            Entre e acompanhe suas operações
+            em tempo real.
           </p>
-
 
         </div>
 
@@ -2157,7 +2741,7 @@
         </div>
 
 
-        <!-- LOGIN ORIGINAL -->
+        <!-- LOGIN EXISTENTE -->
 
         <form id="loginForm">
 
@@ -2203,11 +2787,8 @@
                 type="button"
                 class="toggle-password"
                 id="togglePassword"
-                aria-label="Mostrar senha"
               >
-
                 👁
-
               </button>
 
             </div>
@@ -2216,6 +2797,7 @@
 
 
           <div class="login-options">
+
 
             <label class="remember">
 
@@ -2234,8 +2816,9 @@
               class="forgot"
               id="forgotPassword"
             >
-              Esqueci minha senha
+              Esqueci minha senha?
             </a>
+
 
           </div>
 
@@ -2260,7 +2843,7 @@
 
 
         <div class="divider">
-          Ainda não tem uma conta?
+          ou
         </div>
 
 
@@ -2270,25 +2853,19 @@
           id="createAccountButton"
         >
 
-          <a href="#">
-            ＋ &nbsp; Criar nova conta
-          </a>
+          ＋ &nbsp; Criar nova conta
 
         </button>
 
 
-        <!-- SEGURANÇA -->
-
-        <div class="security-grid">
+        <div class="security">
 
 
           <div class="security-item">
 
-            <div class="security-icon">
-
+            <strong>
               🔐
-
-            </div>
+            </strong>
 
             Dados protegidos
 
@@ -2297,11 +2874,9 @@
 
           <div class="security-item">
 
-            <div class="security-icon">
-
-              🛡️
-
-            </div>
+            <strong>
+              🛡
+            </strong>
 
             Conexão segura
 
@@ -2310,13 +2885,11 @@
 
           <div class="security-item">
 
-            <div class="security-icon">
+            <strong>
+              🎧
+            </strong>
 
-              🌐
-
-            </div>
-
-            Acesso online
+            Suporte
 
           </div>
 
@@ -2333,7 +2906,8 @@
           <br>
 
           Conecte sua conta através da API.
-          Nunca compartilhe suas chaves com terceiros.
+          Recomendamos não habilitar permissão
+          de saques.
 
         </div>
 
@@ -2344,10 +2918,229 @@
     </aside>
 
 
-  </main>
+  </section>
 
 
-  <footer class="footer">
+  <!-- =====================================================
+       PLANOS
+  ====================================================== -->
+
+  <section
+    class="plans-section"
+    id="planos"
+  >
+
+
+    <div class="section-title">
+
+      <div>
+
+        <h2>
+          Nossos <span>planos</span>
+        </h2>
+
+        <p>
+          Escolha o plano ideal para o seu momento.
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <div class="plans">
+
+
+      <!-- BÁSICO -->
+
+      <div class="plan">
+
+
+        <h3>
+          Básico
+        </h3>
+
+
+        <div class="price">
+
+          R$ 49,90
+
+          <small>
+            /mês
+          </small>
+
+        </div>
+
+
+        <p class="plan-description">
+          Para quem está começando.
+        </p>
+
+
+        <ul>
+
+          <li>
+            Operações automatizadas
+          </li>
+
+          <li>
+            Painel de acompanhamento
+          </li>
+
+          <li>
+            Relatórios básicos
+          </li>
+
+          <li>
+            Suporte por e-mail
+          </li>
+
+        </ul>
+
+
+        <button
+          class="plan-button"
+          type="button"
+        >
+          ESCOLHER PLANO
+        </button>
+
+
+      </div>
+
+
+      <!-- PROFISSIONAL -->
+
+      <div class="plan featured">
+
+
+        <div class="popular">
+          MAIS ESCOLHIDO
+        </div>
+
+
+        <h3>
+          Profissional
+        </h3>
+
+
+        <div class="price">
+
+          R$ 99,90
+
+          <small>
+            /mês
+          </small>
+
+        </div>
+
+
+        <p class="plan-description">
+          Mais recursos e controle.
+        </p>
+
+
+        <ul>
+
+          <li>
+            Todos os recursos Básicos
+          </li>
+
+          <li>
+            Estratégias avançadas
+          </li>
+
+          <li>
+            Relatórios detalhados
+          </li>
+
+          <li>
+            Acompanhamento de performance
+          </li>
+
+        </ul>
+
+
+        <button
+          class="plan-button"
+          type="button"
+        >
+          ESCOLHER PLANO
+        </button>
+
+
+      </div>
+
+
+      <!-- PREMIUM -->
+
+      <div class="plan">
+
+
+        <h3>
+          Premium
+        </h3>
+
+
+        <div class="price">
+
+          R$ 199,90
+
+          <small>
+            /mês
+          </small>
+
+        </div>
+
+
+        <p class="plan-description">
+          Para máximo controle e personalização.
+        </p>
+
+
+        <ul>
+
+          <li>
+            Todos os recursos
+          </li>
+
+          <li>
+            Personalização avançada
+          </li>
+
+          <li>
+            Suporte prioritário
+          </li>
+
+          <li>
+            Recursos premium
+          </li>
+
+        </ul>
+
+
+        <button
+          class="plan-button"
+          type="button"
+        >
+          ESCOLHER PLANO
+        </button>
+
+
+      </div>
+
+
+    </div>
+
+
+  </section>
+
+
+  <!-- =====================================================
+       RODAPÉ
+  ====================================================== -->
+
+  <footer>
 
     <span>
       CriptoPro — Automação inteligente.
@@ -2360,20 +3153,21 @@
   </footer>
 
 
-</div>
+</main>
 
 
-<!-- =======================================================
-     LOGIN JS ORIGINAL
-======================================================= -->
+<!-- =====================================================
+     LOGIN JS EXISTENTE
+====================================================== -->
 
 <script src="js/login.js"></script>
 
 
 <script>
 
+
   /* =====================================================
-     MOSTRAR / OCULTAR SENHA
+     MOSTRAR SENHA
   ===================================================== */
 
   const togglePassword =
@@ -2382,7 +3176,7 @@
     );
 
 
-  const passwordInput =
+  const password =
     document.getElementById(
       "password"
     );
@@ -2390,19 +3184,19 @@
 
   if (
     togglePassword &&
-    passwordInput
+    password
   ) {
 
     togglePassword.addEventListener(
       "click",
-      () => {
+      function () {
 
         if (
-          passwordInput.type ===
+          password.type ===
           "password"
         ) {
 
-          passwordInput.type =
+          password.type =
             "text";
 
           togglePassword.textContent =
@@ -2412,7 +3206,7 @@
 
         else {
 
-          passwordInput.type =
+          password.type =
             "password";
 
           togglePassword.textContent =
@@ -2430,25 +3224,20 @@
      CRIAR CONTA
   ===================================================== */
 
-  const createAccountButton =
+  const createAccount =
     document.getElementById(
       "createAccountButton"
     );
 
 
-  if (createAccountButton) {
+  if (createAccount) {
 
-    createAccountButton.addEventListener(
+    createAccount.addEventListener(
       "click",
-      () => {
-
-        /*
-          A página de cadastro será criada
-          na próxima etapa.
-        */
+      function () {
 
         alert(
-          "A criação de conta será disponibilizada nesta próxima etapa."
+          "O cadastro será disponibilizado nesta próxima etapa."
         );
 
       }
@@ -2458,7 +3247,7 @@
 
 
   /* =====================================================
-     RECUPERAR SENHA
+     RECUPERAÇÃO
   ===================================================== */
 
   const forgotPassword =
@@ -2471,23 +3260,41 @@
 
     forgotPassword.addEventListener(
       "click",
-      (event) => {
+      function (event) {
 
         event.preventDefault();
 
-        /*
-          A recuperação por e-mail será
-          conectada ao backend na próxima etapa.
-        */
-
         alert(
-          "A recuperação de senha será disponibilizada nesta próxima etapa."
+          "A recuperação de senha por e-mail será conectada ao sistema na próxima etapa."
         );
 
       }
     );
 
   }
+
+
+  /* =====================================================
+     BOTÕES DE PLANOS
+  ===================================================== */
+
+  document
+    .querySelectorAll(".plan-button")
+    .forEach(function(button) {
+
+      button.addEventListener(
+        "click",
+        function() {
+
+          alert(
+            "A contratação do plano será disponibilizada quando o sistema de assinaturas estiver integrado."
+          );
+
+        }
+      );
+
+    });
+
 
 </script>
 

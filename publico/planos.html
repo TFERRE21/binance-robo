@@ -1,0 +1,2591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>Escolha seu plano - CriptoPro</title>
+
+
+  <style>
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+
+    body {
+
+      min-height: 100vh;
+
+      font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+      background:
+        radial-gradient(
+          circle at 15% 10%,
+          rgba(212, 175, 55, 0.10),
+          transparent 30%
+        ),
+
+        radial-gradient(
+          circle at 85% 20%,
+          rgba(34, 197, 94, 0.07),
+          transparent 30%
+        ),
+
+        linear-gradient(
+          180deg,
+          #080c14 0%,
+          #0b1020 100%
+        );
+
+      color: #ffffff;
+
+    }
+
+
+    /* ========================================================
+       HEADER
+       ======================================================== */
+
+    header {
+
+      position: sticky;
+
+      top: 0;
+
+      z-index: 20;
+
+      width: 100%;
+
+      background:
+        rgba(8, 12, 20, 0.94);
+
+      backdrop-filter:
+        blur(15px);
+
+      border-bottom:
+        1px solid #202a3b;
+
+    }
+
+
+    .header-inner {
+
+      width: 94%;
+
+      max-width: 1400px;
+
+      margin: auto;
+
+      min-height: 76px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      gap: 20px;
+
+    }
+
+
+    .logo {
+
+      font-size: 28px;
+
+      font-weight: 900;
+
+      letter-spacing: -1px;
+
+      white-space: nowrap;
+
+    }
+
+
+    .logo span {
+
+      color: #d4af37;
+
+    }
+
+
+    .header-user {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 15px;
+
+    }
+
+
+    .user-name {
+
+      color: #cbd5e1;
+
+      font-size: 14px;
+
+    }
+
+
+    .back-button {
+
+      border:
+        1px solid #374151;
+
+      background:
+        transparent;
+
+      color: #ffffff;
+
+      padding:
+        10px 16px;
+
+      border-radius: 8px;
+
+      cursor: pointer;
+
+      font-weight: 700;
+
+    }
+
+
+    .back-button:hover {
+
+      border-color: #d4af37;
+
+      color: #d4af37;
+
+    }
+
+
+    /* ========================================================
+       HERO
+       ======================================================== */
+
+    .hero {
+
+      width: 94%;
+
+      max-width: 1200px;
+
+      margin:
+        65px auto 45px;
+
+      text-align: center;
+
+    }
+
+
+    .hero-badge {
+
+      display: inline-block;
+
+      padding:
+        8px 14px;
+
+      border-radius: 50px;
+
+      background:
+        rgba(212, 175, 55, 0.10);
+
+      border:
+        1px solid
+        rgba(212, 175, 55, 0.30);
+
+      color: #d4af37;
+
+      font-size: 12px;
+
+      font-weight: 800;
+
+      letter-spacing: 1px;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .hero h1 {
+
+      font-size:
+        clamp(32px, 5vw, 52px);
+
+      line-height: 1.05;
+
+      margin-bottom: 18px;
+
+    }
+
+
+    .hero h1 span {
+
+      color: #d4af37;
+
+    }
+
+
+    .hero p {
+
+      max-width: 760px;
+
+      margin: auto;
+
+      color: #9ca3af;
+
+      font-size: 17px;
+
+      line-height: 1.7;
+
+    }
+
+
+    /* ========================================================
+       PLANOS
+       ======================================================== */
+
+    .plans {
+
+      width: 94%;
+
+      max-width: 1300px;
+
+      margin: 0 auto;
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3, 1fr);
+
+      gap: 22px;
+
+      align-items: stretch;
+
+    }
+
+
+    .plan {
+
+      position: relative;
+
+      background:
+        linear-gradient(
+          145deg,
+          #111827,
+          #0d1320
+        );
+
+      border:
+        1px solid #273244;
+
+      border-radius: 18px;
+
+      padding: 30px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      min-height: 720px;
+
+      transition:
+        transform .25s,
+        border-color .25s,
+        box-shadow .25s;
+
+    }
+
+
+    .plan:hover {
+
+      transform:
+        translateY(-5px);
+
+      border-color:
+        #4b5563;
+
+    }
+
+
+    .plan.professional {
+
+      border:
+        2px solid #d4af37;
+
+      box-shadow:
+        0 20px 60px
+        rgba(212, 175, 55, 0.10);
+
+      transform:
+        translateY(-10px);
+
+    }
+
+
+    .plan.professional:hover {
+
+      transform:
+        translateY(-15px);
+
+    }
+
+
+    .plan.premium {
+
+      border-color:
+        rgba(212, 175, 55, 0.45);
+
+    }
+
+
+    .popular {
+
+      position: absolute;
+
+      top: -14px;
+
+      left: 50%;
+
+      transform:
+        translateX(-50%);
+
+      padding:
+        7px 18px;
+
+      border-radius: 50px;
+
+      background:
+        #d4af37;
+
+      color:
+        #111827;
+
+      font-size: 11px;
+
+      font-weight: 900;
+
+      white-space: nowrap;
+
+    }
+
+
+    .plan-top {
+
+      text-align: center;
+
+      margin-bottom: 25px;
+
+    }
+
+
+    .plan-icon {
+
+      font-size: 30px;
+
+      margin-bottom: 12px;
+
+    }
+
+
+    .plan-name {
+
+      font-size: 22px;
+
+      font-weight: 900;
+
+      margin-bottom: 8px;
+
+    }
+
+
+    .plan-description {
+
+      min-height: 44px;
+
+      color: #9ca3af;
+
+      font-size: 13px;
+
+      line-height: 1.5;
+
+    }
+
+
+    .price {
+
+      text-align: center;
+
+      margin:
+        18px 0 25px;
+
+    }
+
+
+    .price strong {
+
+      font-size: 39px;
+
+      color: #ffffff;
+
+    }
+
+
+    .price small {
+
+      color: #9ca3af;
+
+      font-size: 13px;
+
+    }
+
+
+    .plan-button {
+
+      width: 100%;
+
+      min-height: 48px;
+
+      border-radius: 9px;
+
+      border: none;
+
+      background:
+        #d4af37;
+
+      color: #111827;
+
+      font-size: 14px;
+
+      font-weight: 900;
+
+      cursor: pointer;
+
+      margin-bottom: 25px;
+
+    }
+
+
+    .plan-button:hover {
+
+      background:
+        #f1d76b;
+
+    }
+
+
+    .professional .plan-button {
+
+      background:
+        linear-gradient(
+          135deg,
+          #d4af37,
+          #f1d76b
+        );
+
+    }
+
+
+    .premium .plan-button {
+
+      background:
+        linear-gradient(
+          135deg,
+          #d4af37,
+          #f1d76b
+        );
+
+    }
+
+
+    .features-title {
+
+      color: #ffffff;
+
+      font-size: 13px;
+
+      font-weight: 800;
+
+      margin-bottom: 14px;
+
+    }
+
+
+    .features {
+
+      list-style: none;
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 11px;
+
+      flex: 1;
+
+    }
+
+
+    .features li {
+
+      position: relative;
+
+      padding-left: 25px;
+
+      color: #cbd5e1;
+
+      font-size: 13px;
+
+      line-height: 1.4;
+
+    }
+
+
+    .features li::before {
+
+      content: "✓";
+
+      position: absolute;
+
+      left: 0;
+
+      top: 0;
+
+      color: #22c55e;
+
+      font-weight: 900;
+
+    }
+
+
+    .features li.limit {
+
+      color: #ffffff;
+
+      font-weight: 700;
+
+    }
+
+
+    .features li.limit::before {
+
+      content: "◆";
+
+      color: #d4af37;
+
+      font-size: 9px;
+
+      top: 2px;
+
+    }
+
+
+    .plan-note {
+
+      margin-top: 20px;
+
+      padding:
+        12px;
+
+      border-radius: 9px;
+
+      background:
+        rgba(255,255,255,0.03);
+
+      border:
+        1px solid #273244;
+
+      color: #9ca3af;
+
+      font-size: 11px;
+
+      line-height: 1.5;
+
+    }
+
+
+    /* ========================================================
+       COMPARAÇÃO
+       ======================================================== */
+
+    .section {
+
+      width: 94%;
+
+      max-width: 1200px;
+
+      margin:
+        90px auto 0;
+
+    }
+
+
+    .section-title {
+
+      text-align: center;
+
+      margin-bottom: 35px;
+
+    }
+
+
+    .section-title h2 {
+
+      font-size: 30px;
+
+      margin-bottom: 10px;
+
+    }
+
+
+    .section-title p {
+
+      color: #9ca3af;
+
+      font-size: 14px;
+
+    }
+
+
+    .comparison-wrapper {
+
+      overflow-x: auto;
+
+      border:
+        1px solid #273244;
+
+      border-radius: 16px;
+
+      background:
+        #0d1320;
+
+    }
+
+
+    .comparison {
+
+      width: 100%;
+
+      min-width: 800px;
+
+      border-collapse: collapse;
+
+    }
+
+
+    .comparison th,
+    .comparison td {
+
+      padding:
+        17px 20px;
+
+      text-align: center;
+
+      border-bottom:
+        1px solid #202a3b;
+
+      font-size: 13px;
+
+    }
+
+
+    .comparison th:first-child,
+    .comparison td:first-child {
+
+      text-align: left;
+
+    }
+
+
+    .comparison th {
+
+      color: #d4af37;
+
+      font-size: 14px;
+
+    }
+
+
+    .comparison td {
+
+      color: #cbd5e1;
+
+    }
+
+
+    .comparison tr:last-child td {
+
+      border-bottom: none;
+
+    }
+
+
+    .yes {
+
+      color: #22c55e !important;
+
+      font-weight: 900;
+
+    }
+
+
+    .no {
+
+      color: #6b7280 !important;
+
+    }
+
+
+    .highlight-column {
+
+      background:
+        rgba(212,175,55,0.045);
+
+    }
+
+
+    /* ========================================================
+       COMO FUNCIONA
+       ======================================================== */
+
+    .how-it-works {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(4, 1fr);
+
+      gap: 16px;
+
+    }
+
+
+    .step {
+
+      padding: 25px;
+
+      border:
+        1px solid #273244;
+
+      border-radius: 14px;
+
+      background:
+        rgba(17,24,39,.65);
+
+    }
+
+
+    .step-number {
+
+      width: 42px;
+
+      height: 42px;
+
+      border-radius: 50%;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      background:
+        rgba(212,175,55,.12);
+
+      border:
+        1px solid
+        rgba(212,175,55,.30);
+
+      color: #d4af37;
+
+      font-weight: 900;
+
+      margin-bottom: 15px;
+
+    }
+
+
+    .step h3 {
+
+      font-size: 16px;
+
+      margin-bottom: 9px;
+
+    }
+
+
+    .step p {
+
+      color: #9ca3af;
+
+      font-size: 13px;
+
+      line-height: 1.6;
+
+    }
+
+
+    /* ========================================================
+       CONFIGURAÇÃO DO ROBÔ
+       ======================================================== */
+
+    .robot-box {
+
+      padding: 35px;
+
+      border-radius: 18px;
+
+      border:
+        1px solid #273244;
+
+      background:
+        linear-gradient(
+          145deg,
+          #111827,
+          #0d1320
+        );
+
+    }
+
+
+    .robot-intro {
+
+      max-width: 850px;
+
+      color: #9ca3af;
+
+      line-height: 1.7;
+
+      font-size: 14px;
+
+      margin-bottom: 30px;
+
+    }
+
+
+    .robot-grid {
+
+      display: grid;
+
+      grid-template-columns:
+        repeat(3, 1fr);
+
+      gap: 15px;
+
+    }
+
+
+    .robot-item {
+
+      padding: 20px;
+
+      border-radius: 12px;
+
+      background:
+        rgba(255,255,255,0.025);
+
+      border:
+        1px solid #273244;
+
+    }
+
+
+    .robot-item strong {
+
+      display: block;
+
+      color: #ffffff;
+
+      margin-bottom: 7px;
+
+      font-size: 14px;
+
+    }
+
+
+    .robot-item span {
+
+      color: #9ca3af;
+
+      font-size: 12px;
+
+      line-height: 1.5;
+
+    }
+
+
+    /* ========================================================
+       AVISO
+       ======================================================== */
+
+    .security {
+
+      margin-top: 55px;
+
+      padding: 25px;
+
+      border-radius: 14px;
+
+      border:
+        1px solid
+        rgba(212,175,55,.25);
+
+      background:
+        rgba(212,175,55,.05);
+
+      text-align: center;
+
+    }
+
+
+    .security strong {
+
+      display: block;
+
+      color: #d4af37;
+
+      margin-bottom: 8px;
+
+    }
+
+
+    .security p {
+
+      color: #9ca3af;
+
+      font-size: 13px;
+
+      line-height: 1.6;
+
+    }
+
+
+    /* ========================================================
+       MODAL
+       ======================================================== */
+
+    .modal-overlay {
+
+      position: fixed;
+
+      inset: 0;
+
+      z-index: 100;
+
+      display: none;
+
+      align-items: center;
+
+      justify-content: center;
+
+      padding: 20px;
+
+      background:
+        rgba(0,0,0,.75);
+
+      backdrop-filter:
+        blur(8px);
+
+    }
+
+
+    .modal {
+
+      width: 100%;
+
+      max-width: 450px;
+
+      padding: 32px;
+
+      border-radius: 18px;
+
+      border:
+        1px solid #374151;
+
+      background:
+        #111827;
+
+      box-shadow:
+        0 30px 100px
+        rgba(0,0,0,.6);
+
+      text-align: center;
+
+    }
+
+
+    .modal-icon {
+
+      font-size: 42px;
+
+      margin-bottom: 15px;
+
+    }
+
+
+    .modal h2 {
+
+      margin-bottom: 12px;
+
+    }
+
+
+    .modal p {
+
+      color: #9ca3af;
+
+      font-size: 14px;
+
+      line-height: 1.6;
+
+      margin-bottom: 22px;
+
+    }
+
+
+    .modal-plan {
+
+      padding: 15px;
+
+      border-radius: 10px;
+
+      background:
+        rgba(212,175,55,.08);
+
+      border:
+        1px solid
+        rgba(212,175,55,.25);
+
+      color: #d4af37;
+
+      font-weight: 900;
+
+      margin-bottom: 20px;
+
+    }
+
+
+    .modal-button {
+
+      width: 100%;
+
+      height: 48px;
+
+      border: none;
+
+      border-radius: 9px;
+
+      background:
+        #d4af37;
+
+      color: #111827;
+
+      font-weight: 900;
+
+      cursor: pointer;
+
+    }
+
+
+    /* ========================================================
+       FOOTER
+       ======================================================== */
+
+    footer {
+
+      width: 94%;
+
+      max-width: 1200px;
+
+      margin:
+        70px auto 30px;
+
+      padding-top: 25px;
+
+      border-top:
+        1px solid #202a3b;
+
+      text-align: center;
+
+      color: #4b5563;
+
+      font-size: 11px;
+
+    }
+
+
+    /* ========================================================
+       RESPONSIVO
+       ======================================================== */
+
+    @media (max-width: 1000px) {
+
+      .plans {
+
+        grid-template-columns:
+          1fr;
+
+        max-width: 600px;
+
+      }
+
+
+      .plan {
+
+        min-height: auto;
+
+      }
+
+
+      .plan.professional {
+
+        transform: none;
+
+      }
+
+
+      .plan.professional:hover {
+
+        transform:
+          translateY(-5px);
+
+      }
+
+
+      .how-it-works {
+
+        grid-template-columns:
+          repeat(2, 1fr);
+
+      }
+
+    }
+
+
+    @media (max-width: 700px) {
+
+      .header-inner {
+
+        min-height: 65px;
+
+      }
+
+
+      .user-name {
+
+        display: none;
+
+      }
+
+
+      .hero {
+
+        margin-top: 40px;
+
+      }
+
+
+      .robot-grid {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+    }
+
+
+    @media (max-width: 550px) {
+
+      .how-it-works {
+
+        grid-template-columns:
+          1fr;
+
+      }
+
+
+      .plan {
+
+        padding: 23px;
+
+      }
+
+
+      .hero p {
+
+        font-size: 15px;
+
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+  <!-- ======================================================
+       HEADER
+       ====================================================== -->
+
+  <header>
+
+    <div class="header-inner">
+
+      <div class="logo">
+
+        CRIPTO<span>PRO</span>
+
+      </div>
+
+
+      <div class="header-user">
+
+        <span
+          class="user-name"
+          id="userName"
+        >
+
+          Olá!
+
+        </span>
+
+
+        <button
+          class="back-button"
+          onclick="voltarDashboard()"
+        >
+
+          ← Voltar
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </header>
+
+
+  <!-- ======================================================
+       HERO
+       ====================================================== -->
+
+  <section class="hero">
+
+    <div class="hero-badge">
+
+      PLANOS CRIPTOPRO
+
+    </div>
+
+
+    <h1>
+
+      Escolha o plano ideal para sua
+      <span>automação</span>
+
+    </h1>
+
+
+    <p>
+
+      Escolha o nível de automação e controle
+      que melhor combina com você. Quanto maior
+      o plano, maiores os recursos disponíveis
+      para configurar e acompanhar o robô.
+
+    </p>
+
+  </section>
+
+
+  <!-- ======================================================
+       PLANOS
+       ====================================================== -->
+
+  <section class="plans">
+
+
+    <!-- ====================================================
+         BÁSICO
+         ==================================================== -->
+
+    <article class="plan">
+
+
+      <div class="plan-top">
+
+        <div class="plan-icon">
+
+          🟢
+
+        </div>
+
+
+        <div class="plan-name">
+
+          BÁSICO
+
+        </div>
+
+
+        <div class="plan-description">
+
+          Para quem quer começar com
+          automação simples.
+
+        </div>
+
+
+        <div class="price">
+
+          <strong>
+
+            R$ 49,90
+
+          </strong>
+
+          <br>
+
+          <small>
+
+            por mês
+
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <button
+        class="plan-button"
+        onclick="selecionarPlano('basico', 'Básico', 'R$ 49,90/mês')"
+      >
+
+        ESCOLHER PLANO
+
+      </button>
+
+
+      <div class="features-title">
+
+        O que está incluído:
+
+      </div>
+
+
+      <ul class="features">
+
+        <li>
+          Dashboard da conta
+        </li>
+
+        <li>
+          Conexão com a Binance
+        </li>
+
+        <li>
+          1 conta Binance
+        </li>
+
+        <li>
+          Automação básica
+        </li>
+
+        <li class="limit">
+          Até <strong>1 operação simultânea</strong>
+        </li>
+
+        <li>
+          Configuração básica do robô
+        </li>
+
+        <li>
+          Configuração de % de entrada
+        </li>
+
+        <li>
+          Configuração de % de lucro
+        </li>
+
+        <li>
+          Limite de moedas operadas
+        </li>
+
+        <li>
+          Histórico básico das operações
+        </li>
+
+        <li>
+          Resultado das operações
+        </li>
+
+        <li>
+          Alertas dentro da plataforma
+        </li>
+
+        <li>
+          Suporte padrão
+        </li>
+
+      </ul>
+
+
+      <div class="plan-note">
+
+        Ideal para começar a conhecer
+        a automação e utilizar os recursos
+        essenciais do CriptoPro.
+
+      </div>
+
+    </article>
+
+
+    <!-- ====================================================
+         PROFISSIONAL
+         ==================================================== -->
+
+    <article class="plan professional">
+
+      <div class="popular">
+
+        ⭐ MAIS ESCOLHIDO
+
+      </div>
+
+
+      <div class="plan-top">
+
+        <div class="plan-icon">
+
+          ⭐
+
+        </div>
+
+
+        <div class="plan-name">
+
+          PROFISSIONAL
+
+        </div>
+
+
+        <div class="plan-description">
+
+          Mais controle sobre suas
+          configurações e operações.
+
+        </div>
+
+
+        <div class="price">
+
+          <strong>
+
+            R$ 99,90
+
+          </strong>
+
+          <br>
+
+          <small>
+
+            por mês
+
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <button
+        class="plan-button"
+        onclick="selecionarPlano('profissional', 'Profissional', 'R$ 99,90/mês')"
+      >
+
+        ESCOLHER PLANO
+
+      </button>
+
+
+      <div class="features-title">
+
+        Tudo do Básico +:
+
+      </div>
+
+
+      <ul class="features">
+
+        <li>
+          Até 2 contas Binance
+        </li>
+
+        <li class="limit">
+          Até <strong>2 operações simultâneas</strong>
+        </li>
+
+        <li>
+          Automação avançada
+        </li>
+
+        <li>
+          Configuração avançada do robô
+        </li>
+
+        <li>
+          % de entrada personalizada
+        </li>
+
+        <li>
+          % de lucro personalizada
+        </li>
+
+        <li>
+          Configuração de Stop Loss
+        </li>
+
+        <li>
+          Maior quantidade de moedas
+        </li>
+
+        <li>
+          Limite de operações configurável
+        </li>
+
+        <li>
+          Limite de exposição
+        </li>
+
+        <li>
+          Configurações avançadas por moeda
+        </li>
+
+        <li>
+          Histórico detalhado
+        </li>
+
+        <li>
+          Relatórios de performance
+        </li>
+
+        <li>
+          Alertas avançados
+        </li>
+
+        <li>
+          Suporte prioritário
+        </li>
+
+      </ul>
+
+
+      <div class="plan-note">
+
+        Para usuários que desejam maior
+        controle sobre os parâmetros da
+        automação.
+
+      </div>
+
+    </article>
+
+
+    <!-- ====================================================
+         PREMIUM
+         ==================================================== -->
+
+    <article class="plan premium">
+
+
+      <div class="plan-top">
+
+        <div class="plan-icon">
+
+          👑
+
+        </div>
+
+
+        <div class="plan-name">
+
+          PREMIUM
+
+        </div>
+
+
+        <div class="plan-description">
+
+          O plano completo para quem
+          quer o máximo de recursos.
+
+        </div>
+
+
+        <div class="price">
+
+          <strong>
+
+            R$ 199,90
+
+          </strong>
+
+          <br>
+
+          <small>
+
+            por mês
+
+          </small>
+
+        </div>
+
+      </div>
+
+
+      <button
+        class="plan-button"
+        onclick="selecionarPlano('premium', 'Premium', 'R$ 199,90/mês')"
+      >
+
+        ESCOLHER PLANO
+
+      </button>
+
+
+      <div class="features-title">
+
+        Tudo do Profissional +:
+
+      </div>
+
+
+      <ul class="features">
+
+        <li>
+          Maior quantidade de contas Binance
+        </li>
+
+        <li class="limit">
+          Até <strong>3 operações simultâneas</strong>
+        </li>
+
+        <li>
+          Automação completa
+        </li>
+
+        <li>
+          Todos os parâmetros disponíveis
+        </li>
+
+        <li>
+          Configuração avançada da estratégia
+        </li>
+
+        <li>
+          Maior quantidade de moedas
+        </li>
+
+        <li>
+          Configurações completas por moeda
+        </li>
+
+        <li>
+          Relatórios completos
+        </li>
+
+        <li>
+          Acompanhamento de performance
+        </li>
+
+        <li>
+          Alertas de operações
+        </li>
+
+        <li>
+          Alertas de erros do robô
+        </li>
+
+        <li>
+          <strong>Notificações via WhatsApp</strong>
+        </li>
+
+        <li>
+          Resumo de performance via WhatsApp
+        </li>
+
+        <li>
+          Suporte premium
+        </li>
+
+      </ul>
+
+
+      <div class="plan-note">
+
+        Plano completo para quem deseja
+        utilizar o maior conjunto de recursos
+        disponibilizados pelo CriptoPro.
+
+      </div>
+
+    </article>
+
+  </section>
+
+
+  <!-- ======================================================
+       COMPARAÇÃO
+       ====================================================== -->
+
+  <section class="section">
+
+    <div class="section-title">
+
+      <h2>
+
+        Compare os planos
+
+      </h2>
+
+
+      <p>
+
+        Veja exatamente o que muda de um plano
+        para o outro.
+
+      </p>
+
+    </div>
+
+
+    <div class="comparison-wrapper">
+
+      <table class="comparison">
+
+        <thead>
+
+          <tr>
+
+            <th>
+              Recurso
+            </th>
+
+            <th>
+              🟢 Básico
+            </th>
+
+            <th class="highlight-column">
+              ⭐ Profissional
+            </th>
+
+            <th>
+              👑 Premium
+            </th>
+
+          </tr>
+
+        </thead>
+
+
+        <tbody>
+
+          <tr>
+
+            <td>
+              Dashboard
+            </td>
+
+            <td class="yes">✓</td>
+
+            <td class="yes highlight-column">✓</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Contas Binance
+            </td>
+
+            <td>1</td>
+
+            <td class="highlight-column">2</td>
+
+            <td>Maior limite*</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Operações simultâneas
+            </td>
+
+            <td>1</td>
+
+            <td class="highlight-column">2</td>
+
+            <td>3</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Automação
+            </td>
+
+            <td>Básica</td>
+
+            <td class="highlight-column">Avançada</td>
+
+            <td>Completa</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              % de entrada
+            </td>
+
+            <td class="yes">✓</td>
+
+            <td class="yes highlight-column">✓</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              % de lucro
+            </td>
+
+            <td class="yes">✓</td>
+
+            <td class="yes highlight-column">✓</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Stop Loss
+            </td>
+
+            <td class="no">—</td>
+
+            <td class="yes highlight-column">✓</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Configuração avançada
+            </td>
+
+            <td class="no">—</td>
+
+            <td class="yes highlight-column">✓</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Relatórios
+            </td>
+
+            <td>Básicos</td>
+
+            <td class="highlight-column">Detalhados</td>
+
+            <td>Completos</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Alertas
+            </td>
+
+            <td>Básicos</td>
+
+            <td class="highlight-column">Avançados</td>
+
+            <td>Avançados</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              WhatsApp
+            </td>
+
+            <td class="no">—</td>
+
+            <td class="no highlight-column">—</td>
+
+            <td class="yes">✓</td>
+
+          </tr>
+
+
+          <tr>
+
+            <td>
+              Suporte
+            </td>
+
+            <td>Padrão</td>
+
+            <td class="highlight-column">Prioritário</td>
+
+            <td>Premium</td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+
+
+  <!-- ======================================================
+       COMO FUNCIONA
+       ====================================================== -->
+
+  <section class="section">
+
+    <div class="section-title">
+
+      <h2>
+
+        🤖 Como funciona a automação?
+
+      </h2>
+
+
+      <p>
+
+        O CriptoPro foi pensado para simplificar
+        o gerenciamento da automação.
+
+      </p>
+
+    </div>
+
+
+    <div class="how-it-works">
+
+
+      <div class="step">
+
+        <div class="step-number">
+
+          1
+
+        </div>
+
+
+        <h3>
+
+          Conecte sua Binance
+
+        </h3>
+
+
+        <p>
+
+          Você conecta sua conta através
+          das credenciais de API da Binance,
+          utilizando as permissões necessárias
+          para o funcionamento da automação.
+
+        </p>
+
+      </div>
+
+
+      <div class="step">
+
+        <div class="step-number">
+
+          2
+
+        </div>
+
+
+        <h3>
+
+          Configure o robô
+
+        </h3>
+
+
+        <p>
+
+          Conforme o seu plano, você poderá
+          configurar parâmetros como entrada,
+          lucro, stop, moedas e limites
+          de operações.
+
+        </p>
+
+      </div>
+
+
+      <div class="step">
+
+        <div class="step-number">
+
+          3
+
+        </div>
+
+
+        <h3>
+
+          Ative a automação
+
+        </h3>
+
+
+        <p>
+
+          Com a conta configurada e o plano
+          ativo, o robô poderá executar as
+          operações de acordo com os parâmetros
+          permitidos.
+
+        </p>
+
+      </div>
+
+
+      <div class="step">
+
+        <div class="step-number">
+
+          4
+
+        </div>
+
+
+        <h3>
+
+          Acompanhe
+
+        </h3>
+
+
+        <p>
+
+          Consulte operações, resultados,
+          histórico, relatórios e alertas
+          diretamente pelo seu painel.
+
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ======================================================
+       CONFIGURAÇÃO DO ROBÔ
+       ====================================================== -->
+
+  <section class="section">
+
+    <div class="section-title">
+
+      <h2>
+
+        ⚙️ Controle do seu robô
+
+      </h2>
+
+
+      <p>
+
+        Os recursos disponíveis dependerão
+        do plano contratado.
+
+      </p>
+
+    </div>
+
+
+    <div class="robot-box">
+
+      <p class="robot-intro">
+
+        Dentro do painel, o usuário terá acesso
+        às configurações liberadas pelo seu plano.
+        O CriptoPro poderá controlar os limites
+        diretamente no servidor, garantindo que
+        uma configuração acima do permitido pelo
+        plano não seja executada.
+
+      </p>
+
+
+      <div class="robot-grid">
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            💰 % de entrada
+
+          </strong>
+
+          <span>
+
+            Defina o percentual destinado à
+            entrada de cada operação, conforme
+            os recursos liberados pelo plano.
+
+          </span>
+
+        </div>
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            📈 % de lucro
+
+          </strong>
+
+          <span>
+
+            Configure o objetivo de lucro
+            utilizado pelo robô.
+
+          </span>
+
+        </div>
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            🛡️ Stop Loss
+
+          </strong>
+
+          <span>
+
+            Recurso de proteção disponível
+            nos planos que oferecerem essa
+            configuração.
+
+          </span>
+
+        </div>
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            🪙 Quantidade de moedas
+
+          </strong>
+
+          <span>
+
+            Defina a quantidade de moedas
+            que poderão participar da
+            automação dentro do limite do plano.
+
+          </span>
+
+        </div>
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            🔄 Operações simultâneas
+
+          </strong>
+
+          <span>
+
+            Básico: 1 operação.
+            Profissional: 2.
+            Premium: 3.
+
+          </span>
+
+        </div>
+
+
+        <div class="robot-item">
+
+          <strong>
+
+            📊 Relatórios
+
+          </strong>
+
+          <span>
+
+            Acompanhe as operações e os
+            resultados através do painel,
+            conforme o nível do plano.
+
+          </span>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <!-- ======================================================
+       SEGURANÇA
+       ====================================================== -->
+
+  <section class="section">
+
+    <div class="security">
+
+      <strong>
+
+        🔒 Segurança e controle
+
+      </strong>
+
+
+      <p>
+
+        A seleção de um plano não libera
+        automaticamente o painel operacional.
+        A liberação será realizada pelo sistema
+        somente após a confirmação do pagamento
+        e da assinatura ativa.
+
+      </p>
+
+    </div>
+
+  </section>
+
+
+  <!-- ======================================================
+       FOOTER
+       ====================================================== -->
+
+  <footer>
+
+    © CriptoPro - Todos os direitos reservados.
+
+  </footer>
+
+
+  <!-- ======================================================
+       MODAL
+       ====================================================== -->
+
+  <div
+    class="modal-overlay"
+    id="modalOverlay"
+  >
+
+    <div class="modal">
+
+      <div class="modal-icon">
+
+        ✅
+
+      </div>
+
+
+      <h2>
+
+        Plano selecionado
+
+      </h2>
+
+
+      <p>
+
+        Você selecionou o plano abaixo.
+
+        <br>
+
+        Na próxima etapa vamos conectar
+        este plano ao sistema de pagamento.
+
+      </p>
+
+
+      <div
+        class="modal-plan"
+        id="selectedPlan"
+      >
+
+      </div>
+
+
+      <button
+        class="modal-button"
+        onclick="fecharModal()"
+      >
+
+        CONTINUAR
+
+      </button>
+
+    </div>
+
+  </div>
+
+
+  <!-- ======================================================
+       JAVASCRIPT
+       ====================================================== -->
+
+  <script>
+
+
+    // ========================================================
+    // USUÁRIO
+    // ========================================================
+
+    const token =
+      localStorage.getItem('token');
+
+
+    const userNameElement =
+      document.getElementById(
+        'userName'
+      );
+
+
+    async function carregarUsuario() {
+
+      if (!token) {
+
+        userNameElement.textContent =
+          'Olá!';
+
+        return;
+
+      }
+
+
+      try {
+
+        const response =
+          await fetch(
+            '/api/auth/me',
+            {
+              headers: {
+                'Authorization':
+                  `Bearer ${token}`
+              }
+            }
+          );
+
+
+        const data =
+          await response.json();
+
+
+        if (
+          response.ok &&
+          data.success &&
+          data.user
+        ) {
+
+          userNameElement.textContent =
+            `Olá, ${data.user.name}`;
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          'ERRO AO CARREGAR USUARIO:',
+          error
+        );
+
+      }
+
+    }
+
+
+    carregarUsuario();
+
+
+    // ========================================================
+    // SELECIONAR PLANO
+    // ========================================================
+
+    function selecionarPlano(
+      codigo,
+      nome,
+      preco
+    ) {
+
+
+      // ------------------------------------------------------
+      // SALVAR SELEÇÃO
+      // ------------------------------------------------------
+
+      localStorage.setItem(
+        'criptopro_selected_plan',
+        codigo
+      );
+
+
+      localStorage.setItem(
+        'criptopro_selected_plan_name',
+        nome
+      );
+
+
+      localStorage.setItem(
+        'criptopro_selected_plan_price',
+        preco
+      );
+
+
+      // ------------------------------------------------------
+      // MOSTRAR MODAL
+      // ------------------------------------------------------
+
+      const selectedPlan =
+        document.getElementById(
+          'selectedPlan'
+        );
+
+
+      selectedPlan.textContent =
+        `${nome} — ${preco}`;
+
+
+      document.getElementById(
+        'modalOverlay'
+      ).style.display =
+        'flex';
+
+    }
+
+
+    // ========================================================
+    // FECHAR MODAL
+    // ========================================================
+
+    function fecharModal() {
+
+      document.getElementById(
+        'modalOverlay'
+      ).style.display =
+        'none';
+
+    }
+
+
+    // ========================================================
+    // VOLTAR
+    // ========================================================
+
+    function voltarDashboard() {
+
+      window.location.href =
+        '/dashboard.html';
+
+    }
+
+
+    // ========================================================
+    // FECHAR MODAL CLICANDO FORA
+    // ========================================================
+
+    document
+      .getElementById('modalOverlay')
+      .addEventListener(
+        'click',
+        function(event) {
+
+          if (
+            event.target ===
+            this
+          ) {
+
+            fecharModal();
+
+          }
+
+        }
+      );
+
+  </script>
+
+
+</body>
+
+</html>

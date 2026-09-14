@@ -52,9 +52,7 @@ body::before{
   content:"";
 
   position:fixed;
-
   inset:0;
-
   z-index:-10;
 
   background:
@@ -81,20 +79,16 @@ body::after{
   content:"";
 
   position:fixed;
-
   inset:0;
-
   z-index:-9;
 
   opacity:.35;
 
   background-image:
-
     linear-gradient(
       rgba(255,255,255,.025) 1px,
       transparent 1px
     ),
-
     linear-gradient(
       90deg,
       rgba(255,255,255,.025) 1px,
@@ -174,7 +168,6 @@ body::after{
 
 .particles{
   position:fixed;
-
   inset:0;
 
   z-index:-5;
@@ -225,7 +218,6 @@ body::after{
   height:72px;
 
   position:relative;
-
   z-index:50;
 
   display:flex;
@@ -241,7 +233,7 @@ body::after{
     rgba(255,255,255,.08);
 
   background:
-    rgba(2,6,10,.72);
+    rgba(2,6,10,.78);
 
   backdrop-filter:
     blur(18px);
@@ -330,7 +322,7 @@ body::after{
 
   align-items:center;
 
-  gap:29px;
+  gap:27px;
 }
 
 
@@ -357,9 +349,49 @@ body::after{
 
   align-items:center;
 
-  gap:10px;
+  gap:9px;
 }
 
+
+/* =========================================================
+   IDIOMA
+========================================================= */
+
+.language-select{
+
+  height:35px;
+
+  padding:0 9px;
+
+  border:
+    1px solid
+    rgba(255,255,255,.15);
+
+  border-radius:8px;
+
+  color:#dbe4ed;
+
+  background:
+    rgba(255,255,255,.035);
+
+  outline:none;
+
+  cursor:pointer;
+
+  font-size:9px;
+
+  font-weight:800;
+}
+
+.language-select option{
+  color:#111;
+  background:#fff;
+}
+
+
+/* =========================================================
+   ONLINE
+========================================================= */
 
 .online{
 
@@ -400,7 +432,6 @@ body::after{
     onlinePulse 1.6s infinite;
 }
 
-
 @keyframes onlinePulse{
 
   50%{
@@ -410,6 +441,10 @@ body::after{
 
 }
 
+
+/* =========================================================
+   BOTÃO PLANOS
+========================================================= */
 
 .view-plans{
 
@@ -447,7 +482,6 @@ body::after{
   color:#111;
 
   background:#f0b90b;
-
 }
 
 
@@ -750,7 +784,7 @@ body::after{
 
 
 /* =========================================================
-   MARKET AREA
+   MARKET
 ========================================================= */
 
 .market-area{
@@ -787,20 +821,17 @@ body::after{
   inset:0;
 
   background-image:
-
     linear-gradient(
       rgba(255,255,255,.035) 1px,
       transparent 1px
     ),
-
     linear-gradient(
       90deg,
       rgba(255,255,255,.035) 1px,
       transparent 1px
     );
 
-  background-size:
-    46px 46px;
+  background-size:46px 46px;
 }
 
 
@@ -809,9 +840,7 @@ body::after{
   position:absolute;
 
   top:13px;
-
   left:16px;
-
   right:16px;
 
   z-index:10;
@@ -861,7 +890,6 @@ body::after{
 
 
 .price{
-
   color:#22df91;
 }
 
@@ -889,7 +917,7 @@ body::after{
 
 
 /* =========================================================
-   SVG CHART
+   GRÁFICO
 ========================================================= */
 
 .chart-svg{
@@ -1007,13 +1035,11 @@ body::after{
 @keyframes candleMove{
 
   0%,100%{
-    transform:
-      scaleY(1);
+    transform:scaleY(1);
   }
 
   50%{
-    transform:
-      scaleY(.72);
+    transform:scaleY(.72);
   }
 
 }
@@ -1030,11 +1056,9 @@ body::after{
   z-index:15;
 
   right:95px;
-
   bottom:10px;
 
   width:230px;
-
   height:230px;
 
   filter:
@@ -1055,11 +1079,9 @@ body::after{
   position:absolute;
 
   left:35px;
-
   top:12px;
 
   width:155px;
-
   height:116px;
 
   border:
@@ -1077,9 +1099,7 @@ body::after{
     );
 
   box-shadow:
-
-    inset
-    0 0 40px
+    inset 0 0 40px
     rgba(240,185,11,.08),
 
     0 0 35px
@@ -1111,7 +1131,6 @@ body::after{
   top:49px;
 
   width:38px;
-
   height:13px;
 
   border-radius:20px;
@@ -1139,11 +1158,9 @@ body::after{
   position:absolute;
 
   left:67px;
-
   bottom:2px;
 
   width:102px;
-
   height:105px;
 
   border:
@@ -1167,11 +1184,9 @@ body::after{
   position:absolute;
 
   top:36px;
-
   left:36px;
 
   width:30px;
-
   height:30px;
 
   border-radius:7px;
@@ -1191,7 +1206,6 @@ body::after{
   position:absolute;
 
   width:50px;
-
   height:18px;
 
   border-radius:20px;
@@ -1207,7 +1221,6 @@ body::after{
 .robot-arm.left{
 
   left:12px;
-
   bottom:62px;
 
   transform:rotate(28deg);
@@ -1217,7 +1230,6 @@ body::after{
 .robot-arm.right{
 
   right:5px;
-
   bottom:72px;
 
   transform:rotate(-45deg);
@@ -1227,19 +1239,15 @@ body::after{
 @keyframes robotFloat{
 
   0%,100%{
-
     transform:
       translateY(0)
       rotate(-1deg);
-
   }
 
   50%{
-
     transform:
       translateY(-12px)
       rotate(1deg);
-
   }
 
 }
@@ -1276,27 +1284,23 @@ body::after{
 .script-text.one{
 
   right:15px;
-
   bottom:105px;
-
 }
 
 
 .script-text.two{
 
   left:-2px;
-
   bottom:8px;
 
   color:#7acfff;
 
-  transform:
-    rotate(-7deg);
+  transform:rotate(-7deg);
 }
 
 
 /* =========================================================
-   METRIC CARDS
+   MÉTRICAS
 ========================================================= */
 
 .metrics{
@@ -1304,7 +1308,6 @@ body::after{
   position:absolute;
 
   right:20px;
-
   top:65px;
 
   z-index:25;
@@ -1329,8 +1332,7 @@ body::after{
 
 .metric{
 
-  padding:
-    8px 0;
+  padding:8px 0;
 
   border-bottom:
     1px solid
@@ -1419,11 +1421,8 @@ body::after{
 ========================================================= */
 
 .login-wrapper{
-
   position:relative;
-
   z-index:40;
-
 }
 
 
@@ -1530,7 +1529,6 @@ body::after{
 
 
 .form-group{
-
   margin-bottom:13px;
 }
 
@@ -1602,11 +1600,9 @@ input:focus{
   position:absolute;
 
   right:7px;
-
   top:6px;
 
   width:32px;
-
   height:32px;
 
   border:0;
@@ -1696,8 +1692,7 @@ input:focus{
 
 .btn-login:hover{
 
-  transform:
-    translateY(-2px);
+  transform:translateY(-2px);
 
   box-shadow:
     0 14px 30px
@@ -1826,7 +1821,7 @@ input:focus{
 
 
 /* =========================================================
-   PLANS
+   PLANOS
 ========================================================= */
 
 .plans-section{
@@ -1884,8 +1879,7 @@ input:focus{
 
   position:relative;
 
-  padding:
-    19px;
+  padding:19px;
 
   border:
     1px solid
@@ -1906,8 +1900,7 @@ input:focus{
 
 .plan:hover{
 
-  transform:
-    translateY(-5px);
+  transform:translateY(-5px);
 
   border-color:
     rgba(240,185,11,.45);
@@ -1916,8 +1909,7 @@ input:focus{
 
 .plan.featured{
 
-  border-color:
-    #f0b90b;
+  border-color:#f0b90b;
 
   box-shadow:
     0 0 40px
@@ -1930,14 +1922,11 @@ input:focus{
   position:absolute;
 
   top:-9px;
-
   left:50%;
 
-  transform:
-    translateX(-50%);
+  transform:translateX(-50%);
 
-  padding:
-    4px 12px;
+  padding:4px 12px;
 
   border-radius:20px;
 
@@ -1961,7 +1950,7 @@ input:focus{
 }
 
 
-.price{
+.plan-price{
 
   font-size:25px;
 
@@ -1971,7 +1960,7 @@ input:focus{
 }
 
 
-.price small{
+.plan-price small{
 
   color:#718397;
 
@@ -1999,8 +1988,7 @@ input:focus{
 
 .plan li{
 
-  margin:
-    7px 0;
+  margin:7px 0;
 
   color:#abb9c8;
 
@@ -2043,6 +2031,16 @@ input:focus{
   font-size:8px;
 
   font-weight:900;
+
+  transition:.2s;
+}
+
+
+.plan-button:hover{
+
+  border-color:#f0b90b;
+
+  color:#f0b90b;
 }
 
 
@@ -2057,7 +2055,7 @@ input:focus{
 
 
 /* =========================================================
-   BOTTOM STATS
+   STATS
 ========================================================= */
 
 .stats{
@@ -2150,6 +2148,267 @@ input:focus{
 
 
 /* =========================================================
+   MODAL RECUPERAÇÃO
+========================================================= */
+
+.forgot-overlay{
+
+  position:fixed;
+
+  inset:0;
+
+  z-index:99999;
+
+  display:flex;
+
+  align-items:center;
+
+  justify-content:center;
+
+  padding:20px;
+
+  background:
+    rgba(0,0,0,.80);
+
+  backdrop-filter:blur(10px);
+}
+
+
+.forgot-box{
+
+  position:relative;
+
+  width:100%;
+
+  max-width:420px;
+
+  padding:32px;
+
+  border:
+    1px solid
+    rgba(240,185,11,.45);
+
+  border-radius:18px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #091622,
+      #03090e
+    );
+
+  box-shadow:
+    0 30px 100px
+    rgba(0,0,0,.75);
+
+  animation:
+    forgotUp .25s ease;
+}
+
+
+@keyframes forgotUp{
+
+  from{
+    opacity:0;
+    transform:translateY(15px) scale(.98);
+  }
+
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+
+}
+
+
+.forgot-close{
+
+  position:absolute;
+
+  top:12px;
+  right:14px;
+
+  width:32px;
+  height:32px;
+
+  border:0;
+
+  border-radius:50%;
+
+  color:#8ea0b2;
+
+  background:
+    rgba(255,255,255,.05);
+
+  cursor:pointer;
+
+  font-size:22px;
+}
+
+
+.forgot-icon{
+
+  width:52px;
+  height:52px;
+
+  display:flex;
+
+  align-items:center;
+  justify-content:center;
+
+  margin:
+    0 auto 14px;
+
+  border-radius:14px;
+
+  background:
+    linear-gradient(
+      145deg,
+      #ffd83e,
+      #e9a700
+    );
+
+  font-size:23px;
+}
+
+
+.forgot-box h2{
+
+  text-align:center;
+
+  font-size:23px;
+
+  font-weight:900;
+}
+
+
+.forgot-description{
+
+  margin:
+    10px 0 22px;
+
+  color:#8192a4;
+
+  text-align:center;
+
+  font-size:10px;
+
+  line-height:1.6;
+}
+
+
+.forgot-box label{
+
+  display:block;
+
+  margin-bottom:7px;
+
+  color:#ccd7e2;
+
+  font-size:9px;
+
+  font-weight:800;
+}
+
+
+.forgot-box input{
+
+  width:100%;
+
+  height:46px;
+
+  padding:0 12px;
+
+  border:
+    1px solid
+    #2a3b4d;
+
+  border-radius:7px;
+
+  outline:none;
+
+  background:#eef4fa;
+
+  color:#17222d;
+
+  font-size:11px;
+}
+
+
+.forgot-submit{
+
+  width:100%;
+
+  height:46px;
+
+  margin-top:14px;
+
+  border:0;
+
+  border-radius:7px;
+
+  color:#111;
+
+  background:
+    linear-gradient(
+      135deg,
+      #ffd83e,
+      #efa900
+    );
+
+  cursor:pointer;
+
+  font-size:10px;
+
+  font-weight:900;
+}
+
+
+.forgot-message{
+
+  min-height:20px;
+
+  margin-top:14px;
+
+  text-align:center;
+
+  font-size:9px;
+
+  line-height:1.5;
+}
+
+
+.forgot-message.success{
+  color:#28df91;
+}
+
+
+.forgot-message.error{
+  color:#ff6670;
+}
+
+
+.forgot-back{
+
+  width:100%;
+
+  margin-top:15px;
+
+  padding:8px;
+
+  border:0;
+
+  color:#8293a5;
+
+  background:transparent;
+
+  cursor:pointer;
+
+  font-size:9px;
+}
+
+
+/* =========================================================
    RESPONSIVO
 ========================================================= */
 
@@ -2160,7 +2419,6 @@ input:focus{
     grid-template-columns:
       minmax(0,1fr)
       350px;
-
   }
 
   .navigation{
@@ -2195,16 +2453,13 @@ input:focus{
     grid-template-columns:1fr;
 
     padding-top:30px;
-
   }
 
   .login-wrapper{
 
     max-width:500px;
 
-    margin:
-      0 auto;
-
+    margin:0 auto;
   }
 
   .market-area{
@@ -2225,6 +2480,10 @@ input:focus{
   }
 
   .header-right .online{
+    display:none;
+  }
+
+  .view-plans{
     display:none;
   }
 
@@ -2295,61 +2554,21 @@ input:focus{
 ======================================================= -->
 
 <div class="glow gold"></div>
-
 <div class="glow green"></div>
 
 
 <div class="particles">
 
-  <span
-    class="particle"
-    style="left:4%;animation-duration:15s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:11%;animation-duration:21s;animation-delay:2s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:19%;animation-duration:17s;animation-delay:4s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:28%;animation-duration:24s;animation-delay:1s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:38%;animation-duration:18s;animation-delay:6s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:49%;animation-duration:22s;animation-delay:3s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:61%;animation-duration:16s;animation-delay:7s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:73%;animation-duration:20s;animation-delay:5s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:84%;animation-duration:14s;animation-delay:2s;"
-  ></span>
-
-  <span
-    class="particle"
-    style="left:94%;animation-duration:19s;animation-delay:8s;"
-  ></span>
+  <span class="particle" style="left:4%;animation-duration:15s;"></span>
+  <span class="particle" style="left:11%;animation-duration:21s;animation-delay:2s;"></span>
+  <span class="particle" style="left:19%;animation-duration:17s;animation-delay:4s;"></span>
+  <span class="particle" style="left:28%;animation-duration:24s;animation-delay:1s;"></span>
+  <span class="particle" style="left:38%;animation-duration:18s;animation-delay:6s;"></span>
+  <span class="particle" style="left:49%;animation-duration:22s;animation-delay:3s;"></span>
+  <span class="particle" style="left:61%;animation-duration:16s;animation-delay:7s;"></span>
+  <span class="particle" style="left:73%;animation-duration:20s;animation-delay:5s;"></span>
+  <span class="particle" style="left:84%;animation-duration:14s;animation-delay:2s;"></span>
+  <span class="particle" style="left:94%;animation-duration:19s;animation-delay:8s;"></span>
 
 </div>
 
@@ -2361,10 +2580,7 @@ input:focus{
 <header class="header">
 
 
-  <a
-    href="#inicio"
-    class="brand"
-  >
+  <a href="#inicio" class="brand">
 
     <div class="logo">
 
@@ -2426,7 +2642,9 @@ input:focus{
         Cripto<span>Pro</span>
       </div>
 
-      <div class="brand-subtitle">
+      <div class="brand-subtitle"
+           data-pt="Automação inteligente"
+           data-en="Intelligent automation">
         Automação inteligente
       </div>
 
@@ -2437,27 +2655,39 @@ input:focus{
 
   <nav class="navigation">
 
-    <a href="#inicio">
+    <a href="#inicio"
+       data-pt="Início"
+       data-en="Home">
       Início
     </a>
 
-    <a href="#planos">
+    <a href="#planos"
+       data-pt="Planos"
+       data-en="Plans">
       Planos
     </a>
 
-    <a href="#como-funciona">
+    <a href="#como-funciona"
+       data-pt="Como funciona"
+       data-en="How it works">
       Como funciona
     </a>
 
-    <a href="#resultados">
+    <a href="#resultados"
+       data-pt="Resultados"
+       data-en="Results">
       Resultados
     </a>
 
-    <a href="#seguranca">
+    <a href="#seguranca"
+       data-pt="Segurança"
+       data-en="Security">
       Segurança
     </a>
 
-    <a href="#faq">
+    <a href="#faq"
+       data-pt="FAQ"
+       data-en="FAQ">
       FAQ
     </a>
 
@@ -2467,11 +2697,35 @@ input:focus{
   <div class="header-right">
 
 
+    <!-- IDIOMA -->
+
+    <select
+      id="languageSelect"
+      class="language-select"
+      aria-label="Idioma"
+    >
+
+      <option value="pt">
+        🇧🇷 PT
+      </option>
+
+      <option value="en">
+        🇺🇸 EN
+      </option>
+
+    </select>
+
+
     <div class="online">
 
       <span class="online-dot"></span>
 
-      Sistema Online
+      <span
+        data-pt="Sistema Online"
+        data-en="System Online"
+      >
+        Sistema Online
+      </span>
 
     </div>
 
@@ -2481,7 +2735,12 @@ input:focus{
       class="view-plans"
     >
 
-      Ver planos
+      <span
+        data-pt="Ver planos"
+        data-en="View plans"
+      >
+        Ver planos
+      </span>
 
       →
 
@@ -2489,7 +2748,6 @@ input:focus{
 
 
   </div>
-
 
 </header>
 
@@ -2516,40 +2774,50 @@ input:focus{
 
   <div class="eyebrow">
 
-    <span class="dot">
-      ●
+    <span class="dot">●</span>
+
+    <span
+      data-pt="TRADING • AUTOMATIZADO • 24H POR DIA"
+      data-en="TRADING • AUTOMATED • 24/7"
+    >
+      TRADING • AUTOMATIZADO • 24H POR DIA
     </span>
-
-    TRADING
-
-    • AUTOMATIZADO
-
-    • 24H POR DIA
 
   </div>
 
 
   <h1 class="hero-title">
 
-    Mais estratégia
+    <span
+      data-pt="Mais estratégia"
+      data-en="More strategy"
+      style="color:#fff;"
+    >
+      Mais estratégia
+    </span>
 
     <br>
 
-    <span>
+    <span
+      data-pt="para o seu futuro."
+      data-en="for your future."
+    >
       para o seu futuro.
     </span>
 
   </h1>
 
 
-  <p class="hero-description">
-
+  <p
+    class="hero-description"
+    data-pt="Automatize suas operações na Binance com segurança, controle e dados em tempo real. Mais tempo para você, mais organização e mais inteligência para suas decisões no mercado cripto."
+    data-en="Automate your Binance operations with security, control and real-time data. More time for you, more organization and smarter decisions in the crypto market."
+  >
     Automatize suas operações na Binance com
     segurança, controle e dados em tempo real.
     Mais tempo para você, mais organização e
     mais inteligência para suas decisões no
     mercado cripto.
-
   </p>
 
 
@@ -2557,12 +2825,9 @@ input:focus{
 
   <div class="tickers">
 
-
     <div class="ticker">
 
-      <span class="coin">
-        ₿
-      </span>
+      <span class="coin">₿</span>
 
       <span class="ticker-name">
         BTC/USDT
@@ -2577,9 +2842,7 @@ input:focus{
 
     <div class="ticker">
 
-      <span class="coin">
-        Ξ
-      </span>
+      <span class="coin">Ξ</span>
 
       <span class="ticker-name">
         ETH/USDT
@@ -2594,9 +2857,7 @@ input:focus{
 
     <div class="ticker">
 
-      <span class="coin">
-        B
-      </span>
+      <span class="coin">B</span>
 
       <span class="ticker-name">
         BNB/USDT
@@ -2611,9 +2872,7 @@ input:focus{
 
     <div class="ticker">
 
-      <span class="coin">
-        S
-      </span>
+      <span class="coin">S</span>
 
       <span class="ticker-name">
         SOL/USDT
@@ -2624,7 +2883,6 @@ input:focus{
       </span>
 
     </div>
-
 
   </div>
 
@@ -2643,13 +2901,18 @@ input:focus{
         🤖
       </div>
 
-      <strong>
+      <strong
+        data-pt="Operações Automatizadas"
+        data-en="Automated Operations"
+      >
         Operações Automatizadas
       </strong>
 
-      <p>
-        Estratégias executadas
-        automaticamente.
+      <p
+        data-pt="Estratégias executadas automaticamente."
+        data-en="Strategies executed automatically."
+      >
+        Estratégias executadas automaticamente.
       </p>
 
     </div>
@@ -2661,13 +2924,18 @@ input:focus{
         🛡
       </div>
 
-      <strong>
+      <strong
+        data-pt="Segurança em Primeiro Lugar"
+        data-en="Security First"
+      >
         Segurança em Primeiro Lugar
       </strong>
 
-      <p>
-        Dados protegidos e
-        controle de acesso.
+      <p
+        data-pt="Dados protegidos e controle de acesso."
+        data-en="Protected data and access control."
+      >
+        Dados protegidos e controle de acesso.
       </p>
 
     </div>
@@ -2679,13 +2947,18 @@ input:focus{
         📊
       </div>
 
-      <strong>
+      <strong
+        data-pt="Relatórios em Tempo Real"
+        data-en="Real-Time Reports"
+      >
         Relatórios em Tempo Real
       </strong>
 
-      <p>
-        Acompanhe suas operações
-        com clareza.
+      <p
+        data-pt="Acompanhe suas operações com clareza."
+        data-en="Track your operations clearly."
+      >
+        Acompanhe suas operações com clareza.
       </p>
 
     </div>
@@ -2697,13 +2970,18 @@ input:focus{
         ⏱
       </div>
 
-      <strong>
+      <strong
+        data-pt="Mais Tempo para Você"
+        data-en="More Time for You"
+      >
         Mais Tempo para Você
       </strong>
 
-      <p>
-        O robô opera enquanto
-        você vive.
+      <p
+        data-pt="O robô opera enquanto você vive."
+        data-en="The robot works while you live."
+      >
+        O robô opera enquanto você vive.
       </p>
 
     </div>
@@ -2745,7 +3023,15 @@ input:focus{
 
 
       <div class="market-live">
-        ● TEMPO REAL
+
+        ●
+        <span
+          data-pt="TEMPO REAL"
+          data-en="REAL TIME"
+        >
+          TEMPO REAL
+        </span>
+
       </div>
 
 
@@ -2835,101 +3121,25 @@ input:focus{
 
     <div class="candles">
 
-
-      <span
-        class="candle green"
-        style="height:32px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:47px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:61px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:82px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:58px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:95px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:115px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:74px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:130px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:145px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:105px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:152px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:170px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:120px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:185px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:198px;"
-      ></span>
-
-      <span
-        class="candle red"
-        style="height:142px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:208px;"
-      ></span>
-
-      <span
-        class="candle green"
-        style="height:220px;"
-      ></span>
+      <span class="candle green" style="height:32px;"></span>
+      <span class="candle red" style="height:47px;"></span>
+      <span class="candle green" style="height:61px;"></span>
+      <span class="candle green" style="height:82px;"></span>
+      <span class="candle red" style="height:58px;"></span>
+      <span class="candle green" style="height:95px;"></span>
+      <span class="candle green" style="height:115px;"></span>
+      <span class="candle red" style="height:74px;"></span>
+      <span class="candle green" style="height:130px;"></span>
+      <span class="candle green" style="height:145px;"></span>
+      <span class="candle red" style="height:105px;"></span>
+      <span class="candle green" style="height:152px;"></span>
+      <span class="candle green" style="height:170px;"></span>
+      <span class="candle red" style="height:120px;"></span>
+      <span class="candle green" style="height:185px;"></span>
+      <span class="candle green" style="height:198px;"></span>
+      <span class="candle red" style="height:142px;"></span>
+      <span class="candle green" style="height:208px;"></span>
+      <span class="candle green" style="height:220px;"></span>
 
     </div>
 
@@ -2938,11 +3148,9 @@ input:focus{
 
     <div class="robot">
 
-
       <div class="robot-head">
 
         <span class="robot-eye left"></span>
-
         <span class="robot-eye right"></span>
 
       </div>
@@ -2956,9 +3164,7 @@ input:focus{
 
 
       <div class="robot-arm left"></div>
-
       <div class="robot-arm right"></div>
-
 
     </div>
 
@@ -2972,13 +3178,11 @@ input:focus{
 
         <div class="metric-top">
 
-          <span>
+          <span data-pt="MERCADO" data-en="MARKET">
             MERCADO
           </span>
 
-          <span>
-            BTC
-          </span>
+          <span>BTC</span>
 
         </div>
 
@@ -2997,13 +3201,11 @@ input:focus{
 
         <div class="metric-top">
 
-          <span>
+          <span data-pt="SISTEMA" data-en="SYSTEM">
             SISTEMA
           </span>
 
-          <span>
-            ONLINE
-          </span>
+          <span>ONLINE</span>
 
         </div>
 
@@ -3022,11 +3224,11 @@ input:focus{
 
         <div class="metric-top">
 
-          <span>
+          <span data-pt="AUTOMAÇÃO" data-en="AUTOMATION">
             AUTOMAÇÃO
           </span>
 
-          <span>
+          <span data-pt="ATIVA" data-en="ACTIVE">
             ATIVA
           </span>
 
@@ -3048,22 +3250,28 @@ input:focus{
 
     <div class="script-text one">
 
-      Disciplina
-
-      <br>
-
-      gera resultados
+      <span
+        data-pt="Disciplina<br>gera resultados"
+        data-en="Discipline<br>creates results"
+      >
+        Disciplina
+        <br>
+        gera resultados
+      </span>
 
     </div>
 
 
     <div class="script-text two">
 
-      O mercado não para.
-
-      <br>
-
-      E você?
+      <span
+        data-pt="O mercado não para.<br>E você?"
+        data-en="The market never stops.<br>And you?"
+      >
+        O mercado não para.
+        <br>
+        E você?
+      </span>
 
     </div>
 
@@ -3146,30 +3354,36 @@ input:focus{
       </h2>
 
 
-      <p>
-        Entre e acompanhe suas operações
-        em tempo real.
+      <p
+        data-pt="Entre e acompanhe suas operações em tempo real."
+        data-en="Sign in and track your operations in real time."
+      >
+        Entre e acompanhe suas operações em tempo real.
       </p>
 
 
     </div>
 
 
-    <div class="divider">
+    <div
+      class="divider"
+      data-pt="Acesse sua conta"
+      data-en="Access your account"
+    >
       Acesse sua conta
     </div>
 
-
-    <!-- ===============================================
-         FORMULÁRIO ORIGINAL
-    ================================================ -->
 
     <form id="loginForm">
 
 
       <div class="form-group">
 
-        <label for="email">
+        <label
+          for="email"
+          data-pt="E-mail"
+          data-en="Email"
+        >
           E-mail
         </label>
 
@@ -3187,7 +3401,11 @@ input:focus{
 
       <div class="form-group">
 
-        <label for="password">
+        <label
+          for="password"
+          data-pt="Senha"
+          data-en="Password"
+        >
           Senha
         </label>
 
@@ -3208,6 +3426,7 @@ input:focus{
             type="button"
             class="toggle-password"
             id="togglePassword"
+            aria-label="Mostrar senha"
           >
             👁
           </button>
@@ -3227,7 +3446,12 @@ input:focus{
             id="remember"
           >
 
-          Lembrar de mim
+          <span
+            data-pt="Lembrar de mim"
+            data-en="Remember me"
+          >
+            Lembrar de mim
+          </span>
 
         </label>
 
@@ -3236,6 +3460,8 @@ input:focus{
           href="#"
           class="forgot"
           id="forgotPassword"
+          data-pt="Esqueci minha senha?"
+          data-en="Forgot password?"
         >
           Esqueci minha senha?
         </a>
@@ -3247,6 +3473,8 @@ input:focus{
       <button
         type="submit"
         class="btn-login"
+        data-pt="→ Entrar no sistema"
+        data-en="→ Sign in"
       >
 
         → &nbsp; Entrar no sistema
@@ -3263,7 +3491,11 @@ input:focus{
     ></div>
 
 
-    <div class="divider">
+    <div
+      class="divider"
+      data-pt="ou"
+      data-en="or"
+    >
       ou
     </div>
 
@@ -3272,6 +3504,8 @@ input:focus{
       type="button"
       class="create"
       id="createAccountButton"
+      data-pt="＋ Criar nova conta"
+      data-en="＋ Create new account"
     >
 
       ＋ &nbsp; Criar nova conta
@@ -3287,33 +3521,42 @@ input:focus{
 
       <div class="security-item">
 
-        <strong>
-          🔐
-        </strong>
+        <strong>🔐</strong>
 
-        Dados protegidos
-
-      </div>
-
-
-      <div class="security-item">
-
-        <strong>
-          🛡
-        </strong>
-
-        Conexão segura
+        <span
+          data-pt="Dados protegidos"
+          data-en="Protected data"
+        >
+          Dados protegidos
+        </span>
 
       </div>
 
 
       <div class="security-item">
 
-        <strong>
-          🎧
-        </strong>
+        <strong>🛡</strong>
 
-        Suporte
+        <span
+          data-pt="Conexão segura"
+          data-en="Secure connection"
+        >
+          Conexão segura
+        </span>
+
+      </div>
+
+
+      <div class="security-item">
+
+        <strong>🎧</strong>
+
+        <span
+          data-pt="Suporte"
+          data-en="Support"
+        >
+          Suporte
+        </span>
 
       </div>
 
@@ -3323,15 +3566,23 @@ input:focus{
 
     <div class="binance-note">
 
-      <strong>
+      <strong
+        data-pt="Integração com Binance"
+        data-en="Binance Integration"
+      >
         Integração com Binance
       </strong>
 
       <br>
 
-      Conecte sua conta através da API.
-      Recomendamos não habilitar
-      permissão de saques.
+      <span
+        data-pt="Conecte sua conta através da API. Recomendamos não habilitar permissão de saques."
+        data-en="Connect your account through the API. We recommend keeping withdrawal permissions disabled."
+      >
+        Conecte sua conta através da API.
+        Recomendamos não habilitar
+        permissão de saques.
+      </span>
 
     </div>
 
@@ -3361,17 +3612,38 @@ input:focus{
     <div>
 
       <h2>
-        Nossos <span>planos</span>
+
+        <span
+          data-pt="Nossos"
+          data-en="Our"
+          style="color:#fff;"
+        >
+          Nossos
+        </span>
+
+        <span
+          data-pt="planos"
+          data-en="plans"
+        >
+          planos
+        </span>
+
       </h2>
 
-      <p>
+      <p
+        data-pt="Escolha o plano ideal para o seu momento."
+        data-en="Choose the plan that fits your needs."
+      >
         Escolha o plano ideal para o seu momento.
       </p>
 
     </div>
 
 
-    <p>
+    <p
+      data-pt="Comece quando estiver pronto →"
+      data-en="Start when you're ready →"
+    >
       Comece quando estiver pronto →
     </p>
 
@@ -3387,12 +3659,15 @@ input:focus{
     <div class="plan">
 
 
-      <h3>
+      <h3
+        data-pt="Básico"
+        data-en="Basic"
+      >
         Básico
       </h3>
 
 
-      <div class="price">
+      <div class="plan-price">
 
         R$ 49,90
 
@@ -3403,26 +3678,42 @@ input:focus{
       </div>
 
 
-      <p class="plan-description">
+      <p
+        class="plan-description"
+        data-pt="Para quem está começando."
+        data-en="For those getting started."
+      >
         Para quem está começando.
       </p>
 
 
       <ul>
 
-        <li>
+        <li
+          data-pt="Operações automatizadas"
+          data-en="Automated operations"
+        >
           Operações automatizadas
         </li>
 
-        <li>
+        <li
+          data-pt="Painel de acompanhamento"
+          data-en="Monitoring dashboard"
+        >
           Painel de acompanhamento
         </li>
 
-        <li>
+        <li
+          data-pt="Relatórios básicos"
+          data-en="Basic reports"
+        >
           Relatórios básicos
         </li>
 
-        <li>
+        <li
+          data-pt="Suporte por e-mail"
+          data-en="Email support"
+        >
           Suporte por e-mail
         </li>
 
@@ -3432,6 +3723,9 @@ input:focus{
       <button
         class="plan-button"
         type="button"
+        data-plan="basico"
+        data-pt="ESCOLHER PLANO"
+        data-en="CHOOSE PLAN"
       >
         ESCOLHER PLANO
       </button>
@@ -3445,17 +3739,24 @@ input:focus{
     <div class="plan featured">
 
 
-      <div class="popular">
+      <div
+        class="popular"
+        data-pt="MAIS ESCOLHIDO"
+        data-en="MOST POPULAR"
+      >
         MAIS ESCOLHIDO
       </div>
 
 
-      <h3>
+      <h3
+        data-pt="Profissional"
+        data-en="Professional"
+      >
         Profissional
       </h3>
 
 
-      <div class="price">
+      <div class="plan-price">
 
         R$ 99,90
 
@@ -3466,26 +3767,42 @@ input:focus{
       </div>
 
 
-      <p class="plan-description">
+      <p
+        class="plan-description"
+        data-pt="Mais recursos e controle."
+        data-en="More features and control."
+      >
         Mais recursos e controle.
       </p>
 
 
       <ul>
 
-        <li>
+        <li
+          data-pt="Todos os recursos Básicos"
+          data-en="All Basic features"
+        >
           Todos os recursos Básicos
         </li>
 
-        <li>
+        <li
+          data-pt="Estratégias avançadas"
+          data-en="Advanced strategies"
+        >
           Estratégias avançadas
         </li>
 
-        <li>
+        <li
+          data-pt="Relatórios detalhados"
+          data-en="Detailed reports"
+        >
           Relatórios detalhados
         </li>
 
-        <li>
+        <li
+          data-pt="Acompanhamento de performance"
+          data-en="Performance tracking"
+        >
           Acompanhamento de performance
         </li>
 
@@ -3495,6 +3812,9 @@ input:focus{
       <button
         class="plan-button"
         type="button"
+        data-plan="profissional"
+        data-pt="ESCOLHER PLANO"
+        data-en="CHOOSE PLAN"
       >
         ESCOLHER PLANO
       </button>
@@ -3508,12 +3828,15 @@ input:focus{
     <div class="plan">
 
 
-      <h3>
+      <h3
+        data-pt="Premium"
+        data-en="Premium"
+      >
         Premium
       </h3>
 
 
-      <div class="price">
+      <div class="plan-price">
 
         R$ 199,90
 
@@ -3524,26 +3847,42 @@ input:focus{
       </div>
 
 
-      <p class="plan-description">
+      <p
+        class="plan-description"
+        data-pt="Máximo controle e personalização."
+        data-en="Maximum control and customization."
+      >
         Máximo controle e personalização.
       </p>
 
 
       <ul>
 
-        <li>
+        <li
+          data-pt="Todos os recursos"
+          data-en="All features"
+        >
           Todos os recursos
         </li>
 
-        <li>
+        <li
+          data-pt="Personalização avançada"
+          data-en="Advanced customization"
+        >
           Personalização avançada
         </li>
 
-        <li>
+        <li
+          data-pt="Suporte prioritário"
+          data-en="Priority support"
+        >
           Suporte prioritário
         </li>
 
-        <li>
+        <li
+          data-pt="Recursos premium"
+          data-en="Premium features"
+        >
           Recursos premium
         </li>
 
@@ -3553,6 +3892,9 @@ input:focus{
       <button
         class="plan-button"
         type="button"
+        data-plan="premium"
+        data-pt="ESCOLHER PLANO"
+        data-en="CHOOSE PLAN"
       >
         ESCOLHER PLANO
       </button>
@@ -3586,7 +3928,10 @@ input:focus{
           24/7
         </strong>
 
-        <span>
+        <span
+          data-pt="Sistema online"
+          data-en="Online system"
+        >
           Sistema online
         </span>
 
@@ -3607,7 +3952,10 @@ input:focus{
           API
         </strong>
 
-        <span>
+        <span
+          data-pt="Integração com Binance"
+          data-en="Binance integration"
+        >
           Integração com Binance
         </span>
 
@@ -3624,11 +3972,17 @@ input:focus{
 
       <div>
 
-        <strong>
+        <strong
+          data-pt="Segurança"
+          data-en="Security"
+        >
           Segurança
         </strong>
 
-        <span>
+        <span
+          data-pt="Proteção de credenciais"
+          data-en="Credential protection"
+        >
           Proteção de credenciais
         </span>
 
@@ -3645,11 +3999,17 @@ input:focus{
 
       <div>
 
-        <strong>
+        <strong
+          data-pt="Automação"
+          data-en="Automation"
+        >
           Automação
         </strong>
 
-        <span>
+        <span
+          data-pt="Operações inteligentes"
+          data-en="Smart operations"
+        >
           Operações inteligentes
         </span>
 
@@ -3671,13 +4031,23 @@ input:focus{
 <footer class="footer">
 
 
-  <span>
+  <span
+    data-pt="CriptoPro — Automação inteligente."
+    data-en="CriptoPro — Intelligent automation."
+  >
     CriptoPro — Automação inteligente.
   </span>
 
 
   <span id="faq">
-    Segurança • Controle • Transparência
+
+    <span
+      data-pt="Segurança • Controle • Transparência"
+      data-en="Security • Control • Transparency"
+    >
+      Segurança • Controle • Transparência
+    </span>
+
   </span>
 
 
@@ -3695,6 +4065,101 @@ input:focus{
 
 
 <script>
+
+/* =========================================================
+   IDIOMA
+========================================================= */
+
+const languageSelect =
+  document.getElementById(
+    "languageSelect"
+  );
+
+
+function changeLanguage(language){
+
+  document.documentElement.lang =
+    language === "en"
+      ? "en"
+      : "pt-BR";
+
+
+  document
+    .querySelectorAll(
+      "[data-pt][data-en]"
+    )
+    .forEach(
+      function(element){
+
+        const text =
+          element.getAttribute(
+            language === "en"
+              ? "data-en"
+              : "data-pt"
+          );
+
+        if(
+          text &&
+          text.includes("<br>")
+        ){
+
+          element.innerHTML =
+            text;
+
+        }else{
+
+          element.textContent =
+            text;
+
+        }
+
+      }
+    );
+
+
+  localStorage.setItem(
+    "criptopro_language",
+    language
+  );
+
+
+  document.title =
+    language === "en"
+      ? "CriptoPro — Intelligent Automation"
+      : "CriptoPro — Automação Inteligente";
+
+}
+
+
+if(languageSelect){
+
+  const savedLanguage =
+    localStorage.getItem(
+      "criptopro_language"
+    ) || "pt";
+
+
+  languageSelect.value =
+    savedLanguage;
+
+
+  changeLanguage(
+    savedLanguage
+  );
+
+
+  languageSelect.addEventListener(
+    "change",
+    function(){
+
+      changeLanguage(
+        this.value
+      );
+
+    }
+  );
+
+}
 
 
 /* =========================================================
@@ -3750,7 +4215,7 @@ if(
 
 
 /* =========================================================
-   CRIAR CONTA
+   CRIAR NOVA CONTA
 ========================================================= */
 
 const createAccount =
@@ -3765,9 +4230,8 @@ if(createAccount){
     "click",
     function(){
 
-      alert(
-        "O cadastro será disponibilizado na próxima etapa."
-      );
+      window.location.href =
+        "cadastro.html";
 
     }
   );
@@ -3776,7 +4240,39 @@ if(createAccount){
 
 
 /* =========================================================
-   RECUPERAÇÃO
+   ESCOLHER PLANO
+========================================================= */
+
+document
+  .querySelectorAll(
+    ".plan-button"
+  )
+  .forEach(
+    function(button){
+
+      button.addEventListener(
+        "click",
+        function(){
+
+          const plan =
+            button.getAttribute(
+              "data-plan"
+            );
+
+
+          window.location.href =
+            "cadastro.html?plano=" +
+            encodeURIComponent(plan);
+
+        }
+      );
+
+    }
+  );
+
+
+/* =========================================================
+   RECUPERAÇÃO DE SENHA
 ========================================================= */
 
 const forgotPassword =
@@ -3793,32 +4289,350 @@ if(forgotPassword){
 
       event.preventDefault();
 
-      alert(
-        "A recuperação de senha por e-mail será conectada ao sistema na próxima etapa."
+
+      const oldModal =
+        document.getElementById(
+          "forgotPasswordModal"
+        );
+
+
+      if(oldModal){
+        oldModal.remove();
+      }
+
+
+      const modal =
+        document.createElement("div");
+
+
+      modal.id =
+        "forgotPasswordModal";
+
+
+      modal.innerHTML = `
+
+        <div class="forgot-overlay">
+
+          <div class="forgot-box">
+
+            <button
+              type="button"
+              class="forgot-close"
+              id="closeForgotModal"
+            >
+              ×
+            </button>
+
+
+            <div class="forgot-icon">
+              🔐
+            </div>
+
+
+            <h2>
+              Recuperar senha
+            </h2>
+
+
+            <p class="forgot-description">
+
+              Informe o e-mail cadastrado
+              na sua conta CriptoPro.
+
+              <br><br>
+
+              Enviaremos as instruções para
+              você criar uma nova senha.
+
+            </p>
+
+
+            <form
+              id="forgotPasswordForm"
+            >
+
+              <label for="forgotEmail">
+                E-mail
+              </label>
+
+
+              <input
+                type="email"
+                id="forgotEmail"
+                placeholder="seu@email.com"
+                autocomplete="email"
+                required
+              >
+
+
+              <button
+                type="submit"
+                class="forgot-submit"
+                id="forgotSubmit"
+              >
+
+                ENVIAR INSTRUÇÕES
+
+              </button>
+
+
+            </form>
+
+
+            <div
+              id="forgotMessage"
+              class="forgot-message"
+            ></div>
+
+
+            <button
+              type="button"
+              class="forgot-back"
+              id="forgotBack"
+            >
+
+              ← Voltar para o login
+
+            </button>
+
+
+          </div>
+
+        </div>
+
+      `;
+
+
+      document.body.appendChild(
+        modal
       );
 
-    }
-  );
 
-}
+      const loginEmail =
+        document.getElementById(
+          "email"
+        );
 
 
-/* =========================================================
-   PLANOS
-========================================================= */
+      const forgotEmail =
+        document.getElementById(
+          "forgotEmail"
+        );
 
-document
-  .querySelectorAll(".plan-button")
-  .forEach(
-    function(button){
 
-      button.addEventListener(
-        "click",
-        function(){
+      if(
+        loginEmail &&
+        loginEmail.value
+      ){
 
-          alert(
-            "A contratação do plano será ativada quando o sistema de assinaturas estiver integrado."
+        forgotEmail.value =
+          loginEmail.value;
+
+      }
+
+
+      forgotEmail.focus();
+
+
+      function closeModal(){
+
+        const currentModal =
+          document.getElementById(
+            "forgotPasswordModal"
           );
+
+        if(currentModal){
+          currentModal.remove();
+        }
+
+      }
+
+
+      document
+        .getElementById(
+          "closeForgotModal"
+        )
+        .addEventListener(
+          "click",
+          closeModal
+        );
+
+
+      document
+        .getElementById(
+          "forgotBack"
+        )
+        .addEventListener(
+          "click",
+          closeModal
+        );
+
+
+      modal
+        .querySelector(
+          ".forgot-overlay"
+        )
+        .addEventListener(
+          "click",
+          function(event){
+
+            if(
+              event.target.classList
+                .contains(
+                  "forgot-overlay"
+                )
+            ){
+
+              closeModal();
+
+            }
+
+          }
+        );
+
+
+      const form =
+        document.getElementById(
+          "forgotPasswordForm"
+        );
+
+
+      const submitButton =
+        document.getElementById(
+          "forgotSubmit"
+        );
+
+
+      const message =
+        document.getElementById(
+          "forgotMessage"
+        );
+
+
+      form.addEventListener(
+        "submit",
+        async function(event){
+
+          event.preventDefault();
+
+
+          const email =
+            forgotEmail.value
+              .trim()
+              .toLowerCase();
+
+
+          if(!email){
+
+            message.textContent =
+              "Informe seu e-mail.";
+
+            message.className =
+              "forgot-message error";
+
+            return;
+
+          }
+
+
+          submitButton.disabled =
+            true;
+
+
+          submitButton.textContent =
+            "ENVIANDO...";
+
+
+          message.textContent =
+            "";
+
+
+          try{
+
+            const response =
+              await fetch(
+                "/api/auth/forgot-password",
+                {
+                  method:"POST",
+
+                  headers:{
+                    "Content-Type":
+                      "application/json"
+                  },
+
+                  body:
+                    JSON.stringify({
+                      email:email
+                    })
+                }
+              );
+
+
+            const data =
+              await response.json();
+
+
+            if(
+              !response.ok ||
+              !data.success
+            ){
+
+              throw new Error(
+                data.message ||
+                "Não foi possível processar a solicitação."
+              );
+
+            }
+
+
+            message.innerHTML = `
+
+              <strong>
+                Solicitação realizada!
+              </strong>
+
+              <br><br>
+
+              Se o e-mail estiver cadastrado,
+              você receberá as instruções
+              para redefinir sua senha.
+
+            `;
+
+
+            message.className =
+              "forgot-message success";
+
+
+            submitButton.textContent =
+              "SOLICITAÇÃO REALIZADA";
+
+
+          }catch(error){
+
+            console.error(
+              "ERRO AO RECUPERAR SENHA:",
+              error
+            );
+
+
+            message.textContent =
+              error.message ||
+              "Erro ao solicitar recuperação.";
+
+
+            message.className =
+              "forgot-message error";
+
+
+            submitButton.disabled =
+              false;
+
+
+            submitButton.textContent =
+              "ENVIAR INSTRUÇÕES";
+
+          }
 
         }
       );
@@ -3826,6 +4640,7 @@ document
     }
   );
 
+}
 
 </script>
 

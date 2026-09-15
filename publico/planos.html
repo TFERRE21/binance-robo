@@ -302,20 +302,24 @@ footer{padding:35px 0 45px;text-align:center;color:#6b7280;font-size:12px}
 
 <!-- CRIPTOPRO - NAVEGAÇÃO SUPERIOR -->
 <div class="criptopro-top-nav">
-  <button type="button" class="criptopro-nav-btn criptopro-back-btn" onclick="voltarLogin()">
+  <button type="button" class="criptopro-nav-btn criptopro-back-btn"
+    onclick="window.location.href='/login.html';">
     ← Voltar / Back
   </button>
 
-  <div class="criptopro-language">
-    🇧🇷 Português / 🇺🇸 English
+  <div class="criptopro-language" aria-label="Seleção de idioma / Language selection">
+    <button type="button" id="languagePT" class="language-btn" onclick="setCriptoProLanguage('pt')">
+      🇧🇷 Português
+    </button>
+    <button type="button" id="languageEN" class="language-btn" onclick="setCriptoProLanguage('en')">
+      🇺🇸 English
+    </button>
   </div>
 
-  <div class="criptopro-language" aria-label="Seleção de idioma / Language selection">
-      <button type="button" id="languagePT" class="language-btn" onclick="setCriptoProLanguage('pt')">🇧🇷 Português</button>
-      <button type="button" id="languageEN" class="language-btn" onclick="setCriptoProLanguage('en')">🇺🇸 English</button>
-    </div>
+  
 
-    <button type="button" class="criptopro-nav-btn criptopro-logout-btn" onclick="sairSistema()">
+    <button type="button" class="criptopro-nav-btn criptopro-logout-btn"
+    onclick="localStorage.removeItem('token'); localStorage.removeItem('criptopro_selected_plan'); localStorage.removeItem('criptopro_selected_plan_name'); localStorage.removeItem('criptopro_selected_plan_price'); localStorage.removeItem('criptopro_user'); window.location.href='/login.html';">
     ↪ Sair / Logout
   </button>
 </div>
@@ -605,6 +609,22 @@ document.addEventListener("DOMContentLoaded",async()=>{
 
 
 
-<script src="/js/idioma.js"></script>
+<script src="/js/idioma.js?v=20260915"></script>
+
+<script>
+function voltarLogin(){
+  window.location.href = "/login.html";
+}
+
+function sairSistema(){
+  localStorage.removeItem("token");
+  localStorage.removeItem("criptopro_selected_plan");
+  localStorage.removeItem("criptopro_selected_plan_name");
+  localStorage.removeItem("criptopro_selected_plan_price");
+  localStorage.removeItem("criptopro_user");
+  window.location.href = "/login.html";
+}
+</script>
+
 </body>
 </html>

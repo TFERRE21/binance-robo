@@ -629,6 +629,15 @@ router.post("/select", authMiddleware, async (req, res) => {
 
 
     // --------------------------------------------------------
+    // DEBUG TEMPORÁRIO - RESPOSTA DO MERCADO PAGO
+    // --------------------------------------------------------
+
+    console.log(
+      "RESPOSTA MERCADO PAGO:",
+      JSON.stringify(mercadoPagoSubscription, null, 2)
+    );
+
+    // --------------------------------------------------------
     // SALVAR ID DA ASSINATURA DO MERCADO PAGO
     // --------------------------------------------------------
 

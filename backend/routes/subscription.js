@@ -7,8 +7,11 @@ const router = express.Router();
 const ASAAS_API_URL =
   process.env.ASAAS_API_URL || "https://api.asaas.com/v3";
 
-const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
-const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN;
+const ASAAS_API_KEY =
+  process.env.ASAAS_API_KEY;
+
+const ASAAS_WEBHOOK_TOKEN =
+  process.env.ASAAS_WEBHOOK_TOKEN;
 
 const BASE_URL =
   process.env.BASE_URL ||
@@ -42,26 +45,31 @@ const PLANOS = {
 };
 
 // ============================================================
-// REQUISIÇÃO ASAAS
+// ASAAS
 // ============================================================
 
 async function asaasRequest(endpoint, options = {}) {
   if (!ASAAS_API_KEY) {
-    throw new Error("ASAAS_API_KEY não configurada.");
+    throw new Error("ASAAS_API_KEY não configurada no servidor.");
   }
 
-  const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      "access_token": ASAAS_API_KEY,
-      ...(options.headers || {})
+  const response = await fetch(
+    `${ASAAS_API_URL}${endpoint}`,
+    {
+      method: options.method || "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "access_token": ASAAS_API_KEY,
+        ...(options.headers || {})
+      },
+      body: options.body || undefined
     }
-  });
+  );
 
   const text = await response.text();
 
-  let data;
+  let data = {};
 
   try {
     data = text ? JSON.parse(text) : {};
@@ -70,17 +78,22 @@ async function asaasRequest(endpoint, options = {}) {
   }
 
   if (!response.ok) {
-    console.error("Erro Asaas:", {
+    console.error("ERRO API ASAAS:", {
       status: response.status,
       endpoint,
       data
     });
 
-    throw new Error(
+    const error = new Error(
       data?.errors?.[0]?.description ||
       data?.message ||
       `Erro Asaas HTTP ${response.status}`
     );
+
+    error.status = response.status;
+    error.data = data;
+
+    throw error;
   }
 
   return data;
@@ -96,26 +109,18 @@ function somenteNumeros(valor) {
 
 function dataAsaas() {
   const data = new Date();
-
   data.setDate(data.getDate() + 1);
-
   return data.toISOString().slice(0, 10);
 }
 
 function adicionarUmMes(data) {
   const novaData = new Date(data);
-
   novaData.setMonth(novaData.getMonth() + 1);
-
   return novaData;
 }
 
-// ============================================================
-// GERAR LINK DO CHECKOUT
-// ============================================================
-
 function gerarLinkCheckout(checkoutId) {
-  return `https://asaas.com/checkoutSession/show?id=${checkoutId}`;
+  return `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(checkoutId)}`;
 }
 
 // ============================================================
@@ -123,7 +128,7 @@ function gerarLinkCheckout(checkoutId) {
 // ============================================================
 
 router.get("/teste", (req, res) => {
-  res.json({
+  return res.json({
     ok: true,
     service: "subscription",
     provider: "ASAAS"
@@ -131,12 +136,11 @@ router.get("/teste", (req, res) => {
 });
 
 // ============================================================
-// TESTE MERCADO PAGO
-// Mantido para não quebrar código antigo
+// COMPATIBILIDADE MERCADO PAGO
 // ============================================================
 
 router.get("/teste-mercadopago", (req, res) => {
-  res.json({
+  return res.json({
     ok: true,
     message: "Rota antiga mantida apenas para compatibilidade.",
     provider: "MERCADO_PAGO"
@@ -144,11 +148,11 @@ router.get("/teste-mercadopago", (req, res) => {
 });
 
 // ============================================================
-// LISTAR PLANOS
+// PLANOS
 // ============================================================
 
 router.get("/plans", (req, res) => {
-  res.json({
+  return res.json({
     ok: true,
     planos: PLANOS
   });
@@ -159,8 +163,12 @@ router.get("/plans", (req, res) => {
 // ============================================================
 
 router.post("/select", authMiddleware, async (req, res) => {
+  let subscriptionId = null;
+
   try {
-    const userId = req.user?.id || req.user?.userId;
+    const userId =
+      req.user?.id ||
+      req.user?.userId;
 
     if (!userId) {
       return res.status(401).json({
@@ -169,46 +177,42 @@ router.post("/select", authMiddleware, async (req, res) => {
       });
     }
 
-    const {
-      plan,
-      customerData
-    } = req.body;
+    const plan =
+      String(req.body?.plan || "")
+        .trim()
+        .toLowerCase();
 
-    // --------------------------------------------------------
-    // VALIDAR PLANO
-    // --------------------------------------------------------
+    const customerData =
+      req.body?.customerData || {};
 
-    if (!plan || !PLANOS[plan]) {
+    if (!PLANOS[plan]) {
       return res.status(400).json({
         ok: false,
         error: "Plano inválido."
       });
     }
 
-    // --------------------------------------------------------
-    // VALIDAR DADOS DO CLIENTE
-    // --------------------------------------------------------
+    const nome =
+      String(customerData.name || "")
+        .trim();
 
-    if (!customerData) {
-      return res.status(400).json({
-        ok: false,
-        error: "Dados do cliente são obrigatórios."
-      });
-    }
+    const email =
+      String(customerData.email || "")
+        .trim();
 
-    const nome = String(customerData.name || "").trim();
-    const email = String(customerData.email || "").trim();
-    const cpfCnpj = somenteNumeros(
-      customerData.cpfCnpj ||
-      customerData.cpf ||
-      customerData.cnpj
-    );
+    const cpfCnpj =
+      somenteNumeros(
+        customerData.cpfCnpj ||
+        customerData.cpf ||
+        customerData.cnpj
+      );
 
-    const telefone = somenteNumeros(
-      customerData.phone ||
-      customerData.telefone ||
-      customerData.mobilePhone
-    );
+    const telefone =
+      somenteNumeros(
+        customerData.phone ||
+        customerData.telefone ||
+        customerData.mobilePhone
+      );
 
     if (!nome) {
       return res.status(400).json({
@@ -239,28 +243,52 @@ router.post("/select", authMiddleware, async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // VERIFICAR ASSINATURA ATIVA
+    // USUÁRIO
     // --------------------------------------------------------
 
-    const assinaturaAtiva = await new Promise((resolve, reject) => {
-      db.get(
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE user_id = ?
-          AND status = 'ACTIVE'
-        ORDER BY id DESC
-        LIMIT 1
-        `,
-        [userId],
-        (err, row) => {
-          if (err) return reject(err);
-          resolve(row);
-        }
-      );
-    });
+    const userResult = await db.query(
+      `
+      SELECT id, name, email, active
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
 
-    if (assinaturaAtiva) {
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "Usuário não encontrado."
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.active === false) {
+      return res.status(403).json({
+        ok: false,
+        error: "Usuário inativo."
+      });
+    }
+
+    // --------------------------------------------------------
+    // ASSINATURA ATIVA
+    // --------------------------------------------------------
+
+    const activeResult = await db.query(
+      `
+      SELECT *
+      FROM subscriptions
+      WHERE user_id = $1
+        AND status = 'ACTIVE'
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (activeResult.rows.length > 0) {
       return res.status(400).json({
         ok: false,
         error: "Você já possui uma assinatura ativa."
@@ -268,76 +296,61 @@ router.post("/select", authMiddleware, async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // VERIFICAR CHECKOUT PENDENTE
+    // CHECKOUT PENDENTE RECENTE
     // --------------------------------------------------------
 
-    const pendente = await new Promise((resolve, reject) => {
-      db.get(
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE user_id = ?
-          AND status = 'PENDING'
-          AND payment_provider = 'ASAAS'
-        ORDER BY id DESC
-        LIMIT 1
-        `,
-        [userId],
-        (err, row) => {
-          if (err) return reject(err);
-          resolve(row);
+    const pendingResult = await db.query(
+      `
+      SELECT *
+      FROM subscriptions
+      WHERE user_id = $1
+        AND status = 'PENDING'
+        AND payment_provider = 'ASAAS'
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (pendingResult.rows.length > 0) {
+      const pending = pendingResult.rows[0];
+
+      if (
+        pending.external_payment_id &&
+        pending.created_at
+      ) {
+        const criadoEm =
+          new Date(pending.created_at);
+
+        const minutos =
+          (Date.now() - criadoEm.getTime()) / 60000;
+
+        if (Number.isFinite(minutos) && minutos <= 60) {
+          return res.json({
+            ok: true,
+            paymentUrl:
+              gerarLinkCheckout(
+                pending.external_payment_id
+              ),
+            checkoutId:
+              pending.external_payment_id,
+            subscriptionId:
+              pending.id,
+            reused: true
+          });
         }
-      );
-    });
 
-    // --------------------------------------------------------
-    // REUTILIZAR CHECKOUT SOMENTE SE AINDA ESTIVER VÁLIDO
-    // --------------------------------------------------------
-
-    if (
-      pendente &&
-      pendente.external_payment_id &&
-      pendente.created_at
-    ) {
-      const criadoEm = new Date(pendente.created_at);
-      const agora = new Date();
-
-      const minutos =
-        (agora.getTime() - criadoEm.getTime()) / 60000;
-
-      if (minutos <= 60) {
-        return res.json({
-          ok: true,
-          paymentUrl: gerarLinkCheckout(
-            pendente.external_payment_id
-          ),
-          checkoutId: pendente.external_payment_id,
-          subscriptionId: pendente.id,
-          reused: true
-        });
-      }
-
-      // Checkout antigo
-      await new Promise((resolve, reject) => {
-        db.run(
+        await db.query(
           `
           UPDATE subscriptions
           SET status = 'EXPIRED',
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
+              updated_at = NOW()
+          WHERE id = $1
           `,
-          [pendente.id],
-          err => {
-            if (err) return reject(err);
-            resolve();
-          }
+          [pending.id]
         );
-      });
+      }
     }
-
-    // --------------------------------------------------------
-    // DADOS DO PLANO
-    // --------------------------------------------------------
 
     const plano = PLANOS[plan];
 
@@ -345,36 +358,43 @@ router.post("/select", authMiddleware, async (req, res) => {
     // CRIAR ASSINATURA LOCAL
     // --------------------------------------------------------
 
-    const subscriptionId = await new Promise((resolve, reject) => {
-      db.run(
-        `
-        INSERT INTO subscriptions (
-          user_id,
-          plan,
-          status,
-          amount,
-          payment_provider,
-          payment_method,
-          created_at,
-          updated_at
-        )
-        VALUES (?, ?, 'PENDING', ?, 'ASAAS', 'CREDIT_CARD', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-        `,
-        [
-          userId,
-          plan,
-          plano.valor
-        ],
-        function (err) {
-          if (err) return reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+    const insertResult = await db.query(
+      `
+      INSERT INTO subscriptions (
+        user_id,
+        plan,
+        status,
+        amount,
+        payment_provider,
+        payment_method,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        'PENDING',
+        $3,
+        'ASAAS',
+        'CREDIT_CARD',
+        NOW(),
+        NOW()
+      )
+      RETURNING id
+      `,
+      [
+        userId,
+        plan,
+        plano.valor
+      ]
+    );
 
-    // ========================================================
-    // CRIAR CHECKOUT ASAAS
-    // ========================================================
+    subscriptionId =
+      insertResult.rows[0].id;
+
+    // --------------------------------------------------------
+    // CHECKOUT ASAAS
+    // --------------------------------------------------------
 
     const checkoutPayload = {
       billingTypes: [
@@ -387,7 +407,8 @@ router.post("/select", authMiddleware, async (req, res) => {
 
       minutesToExpire: 60,
 
-      externalReference: String(subscriptionId),
+      externalReference:
+        String(subscriptionId),
 
       callback: {
         successUrl:
@@ -402,105 +423,162 @@ router.post("/select", authMiddleware, async (req, res) => {
 
       items: [
         {
-          name: `CriptoPro ${plano.nome}`,
+          name:
+            `CriptoPro ${plano.nome}`,
+
           description:
             `Assinatura mensal CriptoPro ${plano.nome}`,
+
           quantity: 1,
-          value: plano.valor
+
+          value:
+            plano.valor
         }
       ],
 
+      // IMPORTANTE:
+      // No Checkout do Asaas o campo correto é "phone".
       customerData: {
-        name: nome,
-        email: email,
-        cpfCnpj: cpfCnpj,
-        phone: telefone
+        name:
+          nome,
+
+        email:
+          email,
+
+        cpfCnpj:
+          cpfCnpj,
+
+        phone:
+          telefone
       },
 
       subscription: {
-        cycle: "MONTHLY",
-        nextDueDate: dataAsaas()
+        cycle:
+          "MONTHLY",
+
+        nextDueDate:
+          dataAsaas()
       }
     };
 
-    console.log("CRIANDO CHECKOUT ASAAS:", {
-      plan,
-      subscriptionId,
-      customerData: {
-        name: nome,
-        email: email,
-        cpfCnpj: cpfCnpj,
-        phone: telefone
-      }
-    });
-
-    const checkout = await asaasRequest(
-      "/checkouts",
+    console.log(
+      "CRIANDO CHECKOUT ASAAS:",
       {
-        method: "POST",
-        body: JSON.stringify(checkoutPayload)
+        plan,
+        subscriptionId,
+        customerData: {
+          name: nome,
+          email,
+          cpfCnpj,
+          phone: telefone
+        }
       }
     );
 
-    console.log("CHECKOUT ASAAS CRIADO:", {
-      id: checkout.id,
-      status: checkout.status
-    });
-
-    // ========================================================
-    // SALVAR CHECKOUT ASAAS
-    // ========================================================
-
-    await new Promise((resolve, reject) => {
-      db.run(
-        `
-        UPDATE subscriptions
-        SET external_payment_id = ?,
-            payment_provider = 'ASAAS',
-            payment_method = 'CREDIT_CARD',
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-        `,
-        [
-          checkout.id,
-          subscriptionId
-        ],
-        err => {
-          if (err) return reject(err);
-          resolve();
+    const checkout =
+      await asaasRequest(
+        "/checkouts",
+        {
+          method: "POST",
+          body:
+            JSON.stringify(
+              checkoutPayload
+            )
         }
       );
-    });
 
-    // ========================================================
-    // RESPONDER PARA FRONTEND
-    // ========================================================
+    console.log(
+      "CHECKOUT ASAAS CRIADO:",
+      {
+        id:
+          checkout.id,
+
+        status:
+          checkout.status,
+
+        link:
+          checkout.link
+      }
+    );
+
+    if (!checkout.id) {
+      throw new Error(
+        "O Asaas não retornou o ID do checkout."
+      );
+    }
+
+    // --------------------------------------------------------
+    // SALVAR CHECKOUT
+    // --------------------------------------------------------
+
+    await db.query(
+      `
+      UPDATE subscriptions
+      SET
+        external_payment_id = $1,
+        payment_provider = 'ASAAS',
+        payment_method = 'CREDIT_CARD',
+        updated_at = NOW()
+      WHERE id = $2
+      `,
+      [
+        checkout.id,
+        subscriptionId
+      ]
+    );
+
+    // --------------------------------------------------------
+    // RESPOSTA
+    // --------------------------------------------------------
 
     return res.json({
       ok: true,
-
       plan,
-
-      planName: plano.nome,
-
-      amount: plano.valor,
-
+      planName:
+        plano.nome,
+      amount:
+        plano.valor,
       subscriptionId,
-
-      checkoutId: checkout.id,
-
-      paymentUrl: gerarLinkCheckout(
-        checkout.id
-      )
+      checkoutId:
+        checkout.id,
+      paymentUrl:
+        gerarLinkCheckout(
+          checkout.id
+        )
     });
 
   } catch (error) {
     console.error(
-      "Erro ao selecionar plano:",
+      "ERRO AO SELECIONAR PLANO:",
       error
     );
 
-    return res.status(500).json({
+    // Se criamos uma assinatura local mas
+    // o checkout falhou, ela não deve ficar
+    // eternamente como PENDING.
+    if (subscriptionId) {
+      try {
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET status = 'CANCELLED',
+              updated_at = NOW()
+          WHERE id = $1
+            AND status = 'PENDING'
+          `,
+          [subscriptionId]
+        );
+      } catch (dbError) {
+        console.error(
+          "ERRO AO CANCELAR PENDING APÓS FALHA:",
+          dbError
+        );
+      }
+    }
+
+    return res.status(
+      error.status || 500
+    ).json({
       ok: false,
       error:
         error.message ||
@@ -510,7 +588,7 @@ router.post("/select", authMiddleware, async (req, res) => {
 });
 
 // ============================================================
-// STATUS DA ASSINATURA
+// STATUS
 // ============================================================
 
 router.get("/status", authMiddleware, async (req, res) => {
@@ -526,26 +604,18 @@ router.get("/status", authMiddleware, async (req, res) => {
       });
     }
 
-    const assinatura = await new Promise(
-      (resolve, reject) => {
-        db.get(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE user_id = ?
-          ORDER BY id DESC
-          LIMIT 1
-          `,
-          [userId],
-          (err, row) => {
-            if (err) return reject(err);
-            resolve(row);
-          }
-        );
-      }
+    const result = await db.query(
+      `
+      SELECT *
+      FROM subscriptions
+      WHERE user_id = $1
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
     );
 
-    if (!assinatura) {
+    if (result.rows.length === 0) {
       return res.json({
         ok: true,
         active: false,
@@ -553,38 +623,33 @@ router.get("/status", authMiddleware, async (req, res) => {
       });
     }
 
-    // --------------------------------------------------------
-    // VERIFICAR EXPIRAÇÃO
-    // --------------------------------------------------------
+    const assinatura =
+      result.rows[0];
 
     if (
       assinatura.status === "ACTIVE" &&
       assinatura.expires_at
     ) {
-      const agora = new Date();
       const expiracao =
-        new Date(assinatura.expires_at);
-
-      if (expiracao <= agora) {
-        await new Promise(
-          (resolve, reject) => {
-            db.run(
-              `
-              UPDATE subscriptions
-              SET status = 'EXPIRED',
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [assinatura.id],
-              err => {
-                if (err) return reject(err);
-                resolve();
-              }
-            );
-          }
+        new Date(
+          assinatura.expires_at
         );
 
-        assinatura.status = "EXPIRED";
+      if (
+        expiracao <= new Date()
+      ) {
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET status = 'EXPIRED',
+              updated_at = NOW()
+          WHERE id = $1
+          `,
+          [assinatura.id]
+        );
+
+        assinatura.status =
+          "EXPIRED";
       }
     }
 
@@ -595,7 +660,8 @@ router.get("/status", authMiddleware, async (req, res) => {
       ok: true,
 
       active:
-        assinatura.status === "ACTIVE",
+        assinatura.status ===
+        "ACTIVE",
 
       status:
         assinatura.status,
@@ -604,16 +670,19 @@ router.get("/status", authMiddleware, async (req, res) => {
         assinatura.plan,
 
       planName:
-        plano?.nome || assinatura.plan,
+        plano?.nome ||
+        assinatura.plan,
 
       amount:
         assinatura.amount,
 
       operacoesSimultaneas:
-        plano?.operacoesSimultaneas || 0,
+        plano?.operacoesSimultaneas ||
+        0,
 
       contasBinance:
-        plano?.contasBinance || 0,
+        plano?.contasBinance ||
+        0,
 
       started_at:
         assinatura.started_at,
@@ -627,7 +696,7 @@ router.get("/status", authMiddleware, async (req, res) => {
 
   } catch (error) {
     console.error(
-      "Erro ao consultar assinatura:",
+      "ERRO AO CONSULTAR ASSINATURA:",
       error
     );
 
@@ -643,26 +712,26 @@ router.get("/status", authMiddleware, async (req, res) => {
 // LOCALIZAR ASSINATURA PELO EVENTO ASAAS
 // ============================================================
 
-async function encontrarAssinaturaLocal(event) {
+async function encontrarAssinaturaLocal(evento) {
   const payment =
-    event?.payment || {};
+    evento?.payment || {};
 
   const checkout =
-    event?.checkout || {};
+    evento?.checkout || {};
 
-  const subscriptionAsaas =
-    event?.subscription || {};
+  const subscription =
+    evento?.subscription || {};
 
   const externalReference =
     checkout.externalReference ||
     payment.externalReference ||
-    subscriptionAsaas.externalReference;
+    subscription.externalReference;
 
   const checkoutId =
     checkout.id;
 
-  const subscriptionIdAsaas =
-    subscriptionAsaas.id ||
+  const asaasSubscriptionId =
+    subscription.id ||
     payment.subscription;
 
   // ----------------------------------------------------------
@@ -670,26 +739,19 @@ async function encontrarAssinaturaLocal(event) {
   // ----------------------------------------------------------
 
   if (externalReference) {
-    const local = await new Promise(
-      (resolve, reject) => {
-        db.get(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE id = ?
-          LIMIT 1
-          `,
-          [externalReference],
-          (err, row) => {
-            if (err) return reject(err);
-            resolve(row);
-          }
-        );
-      }
-    );
+    const result =
+      await db.query(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE id = $1
+        LIMIT 1
+        `,
+        [externalReference]
+      );
 
-    if (local) {
-      return local;
+    if (result.rows.length > 0) {
+      return result.rows[0];
     }
   }
 
@@ -698,54 +760,40 @@ async function encontrarAssinaturaLocal(event) {
   // ----------------------------------------------------------
 
   if (checkoutId) {
-    const local = await new Promise(
-      (resolve, reject) => {
-        db.get(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_payment_id = ?
-          LIMIT 1
-          `,
-          [checkoutId],
-          (err, row) => {
-            if (err) return reject(err);
-            resolve(row);
-          }
-        );
-      }
-    );
+    const result =
+      await db.query(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE external_payment_id = $1
+        LIMIT 1
+        `,
+        [checkoutId]
+      );
 
-    if (local) {
-      return local;
+    if (result.rows.length > 0) {
+      return result.rows[0];
     }
   }
 
   // ----------------------------------------------------------
-  // 3. ID DA ASSINATURA ASAAS
+  // 3. ASSINATURA ASAAS
   // ----------------------------------------------------------
 
-  if (subscriptionIdAsaas) {
-    const local = await new Promise(
-      (resolve, reject) => {
-        db.get(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_subscription_id = ?
-          LIMIT 1
-          `,
-          [subscriptionIdAsaas],
-          (err, row) => {
-            if (err) return reject(err);
-            resolve(row);
-          }
-        );
-      }
-    );
+  if (asaasSubscriptionId) {
+    const result =
+      await db.query(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE external_subscription_id = $1
+        LIMIT 1
+        `,
+        [asaasSubscriptionId]
+      );
 
-    if (local) {
-      return local;
+    if (result.rows.length > 0) {
+      return result.rows[0];
     }
   }
 
@@ -753,19 +801,11 @@ async function encontrarAssinaturaLocal(event) {
 }
 
 // ============================================================
-// WEBHOOK ASAAS
+// PROCESSAR WEBHOOK ASAAS
 // ============================================================
 
-async function processarWebhookAsaas(
-  req,
-  res
-) {
+async function processarWebhookAsaas(req, res) {
   try {
-
-    // --------------------------------------------------------
-    // VALIDAR TOKEN
-    // --------------------------------------------------------
-
     const tokenRecebido =
       req.headers["asaas-access-token"];
 
@@ -783,16 +823,13 @@ async function processarWebhookAsaas(
       });
     }
 
-    const evento = req.body || {};
+    const evento =
+      req.body || {};
 
     console.log(
-      "Webhook Asaas recebido:",
+      "WEBHOOK ASAAS:",
       evento.event
     );
-
-    // --------------------------------------------------------
-    // LOCALIZAR ASSINATURA
-    // --------------------------------------------------------
 
     const assinatura =
       await encontrarAssinaturaLocal(
@@ -801,19 +838,23 @@ async function processarWebhookAsaas(
 
     if (!assinatura) {
       console.warn(
-        "Assinatura local não encontrada.",
+        "Assinatura local não encontrada:",
         {
-          event: evento.event,
-          payment: evento.payment?.id,
-          checkout: evento.checkout?.id,
+          event:
+            evento.event,
+
+          payment:
+            evento.payment?.id,
+
+          checkout:
+            evento.checkout?.id,
+
           subscription:
             evento.subscription?.id ||
             evento.payment?.subscription
         }
       );
 
-      // Retorna 200 para o Asaas não ficar
-      // reenviando indefinidamente eventos
       return res.json({
         ok: true,
         ignored: true
@@ -830,47 +871,47 @@ async function processarWebhookAsaas(
     if (
       event === "CHECKOUT_PAID"
     ) {
-
       const agora =
         new Date();
 
-      let expiresAt =
+      const expiresAt =
         assinatura.expires_at
           ? new Date(
               assinatura.expires_at
             )
-          : null;
+          : adicionarUmMes(
+              agora
+            );
 
-      if (!expiresAt) {
-        expiresAt =
-          adicionarUmMes(agora);
-      }
+      const asaasSubscriptionId =
+        evento.subscription?.id ||
+        evento.checkout?.subscription ||
+        null;
 
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'ACTIVE',
-                started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                expires_at = ?,
-                external_subscription_id = COALESCE(?, external_subscription_id),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            `,
-            [
-              expiresAt.toISOString(),
-              evento.subscription?.id ||
-              evento.checkout?.subscription ||
-              null,
-              assinatura.id
-            ],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'ACTIVE',
+          started_at =
+            COALESCE(
+              started_at,
+              NOW()
+            ),
+          expires_at = $1,
+          external_subscription_id =
+            COALESCE(
+              $2,
+              external_subscription_id
+            ),
+          updated_at = NOW()
+        WHERE id = $3
+        `,
+        [
+          expiresAt.toISOString(),
+          asaasSubscriptionId,
+          assinatura.id
+        ]
       );
 
       console.log(
@@ -885,37 +926,26 @@ async function processarWebhookAsaas(
     else if (
       event === "SUBSCRIPTION_CREATED"
     ) {
-
       const asaasSubscriptionId =
         evento.subscription?.id;
 
-      if (
-        asaasSubscriptionId
-      ) {
-
-        await new Promise(
-          (resolve, reject) => {
-            db.run(
-              `
-              UPDATE subscriptions
-              SET external_subscription_id = ?,
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [
-                asaasSubscriptionId,
-                assinatura.id
-              ],
-              err => {
-                if (err) return reject(err);
-                resolve();
-              }
-            );
-          }
+      if (asaasSubscriptionId) {
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET
+            external_subscription_id = $1,
+            updated_at = NOW()
+          WHERE id = $2
+          `,
+          [
+            asaasSubscriptionId,
+            assinatura.id
+          ]
         );
 
         console.log(
-          `Assinatura Asaas ${asaasSubscriptionId} vinculada à assinatura local ${assinatura.id}`
+          `Assinatura Asaas ${asaasSubscriptionId} vinculada à local ${assinatura.id}`
         );
       }
     }
@@ -927,26 +957,20 @@ async function processarWebhookAsaas(
     else if (
       event === "PAYMENT_RECEIVED"
     ) {
-
       const payment =
         evento.payment || {};
 
       const dueDate =
         payment.dueDate;
 
-      let novaData;
-
-      if (dueDate) {
-        novaData =
-          adicionarUmMes(
-            new Date(dueDate)
-          );
-      } else {
-        novaData =
-          adicionarUmMes(
-            new Date()
-          );
-      }
+      const novaData =
+        dueDate
+          ? adicionarUmMes(
+              new Date(dueDate)
+            )
+          : adicionarUmMes(
+              new Date()
+            );
 
       const atual =
         assinatura.expires_at
@@ -955,65 +979,32 @@ async function processarWebhookAsaas(
             )
           : null;
 
-      // Evita aumentar a validade duas vezes
-      // caso o webhook seja entregue novamente.
-      if (
+      const novaDataFinal =
         !atual ||
         novaData > atual
-      ) {
+          ? novaData
+          : atual;
 
-        await new Promise(
-          (resolve, reject) => {
-            db.run(
-              `
-              UPDATE subscriptions
-              SET status = 'ACTIVE',
-                  expires_at = ?,
-                  external_subscription_id = COALESCE(?, external_subscription_id),
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [
-                novaData.toISOString(),
-
-                payment.subscription ||
-                null,
-
-                assinatura.id
-              ],
-              err => {
-                if (err) return reject(err);
-                resolve();
-              }
-            );
-          }
-        );
-      } else {
-
-        await new Promise(
-          (resolve, reject) => {
-            db.run(
-              `
-              UPDATE subscriptions
-              SET status = 'ACTIVE',
-                  external_subscription_id = COALESCE(?, external_subscription_id),
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [
-                payment.subscription ||
-                null,
-
-                assinatura.id
-              ],
-              err => {
-                if (err) return reject(err);
-                resolve();
-              }
-            );
-          }
-        );
-      }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'ACTIVE',
+          expires_at = $1,
+          external_subscription_id =
+            COALESCE(
+              $2,
+              external_subscription_id
+            ),
+          updated_at = NOW()
+        WHERE id = $3
+        `,
+        [
+          novaDataFinal.toISOString(),
+          payment.subscription || null,
+          assinatura.id
+        ]
+      );
 
       console.log(
         `Pagamento recebido para assinatura ${assinatura.id}`
@@ -1027,14 +1018,14 @@ async function processarWebhookAsaas(
     else if (
       event === "PAYMENT_CONFIRMED"
     ) {
+      // Mantido como fallback.
+      // O CHECKOUT_PAID é o evento usado
+      // para ativar a contratação inicial.
 
-      // Se ainda estiver pendente,
-      // podemos ativar como fallback.
       if (
         assinatura.status ===
         "PENDING"
       ) {
-
         const expiresAt =
           assinatura.expires_at
             ? new Date(
@@ -1044,32 +1035,31 @@ async function processarWebhookAsaas(
                 new Date()
               );
 
-        await new Promise(
-          (resolve, reject) => {
-            db.run(
-              `
-              UPDATE subscriptions
-              SET status = 'ACTIVE',
-                  started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
-                  expires_at = ?,
-                  external_subscription_id = COALESCE(?, external_subscription_id),
-                  updated_at = CURRENT_TIMESTAMP
-              WHERE id = ?
-              `,
-              [
-                expiresAt.toISOString(),
-
-                evento.payment?.subscription ||
-                null,
-
-                assinatura.id
-              ],
-              err => {
-                if (err) return reject(err);
-                resolve();
-              }
-            );
-          }
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET
+            status = 'ACTIVE',
+            started_at =
+              COALESCE(
+                started_at,
+                NOW()
+              ),
+            expires_at = $1,
+            external_subscription_id =
+              COALESCE(
+                $2,
+                external_subscription_id
+              ),
+            updated_at = NOW()
+          WHERE id = $3
+          `,
+          [
+            expiresAt.toISOString(),
+            evento.payment?.subscription ||
+              null,
+            assinatura.id
+          ]
         );
 
         console.log(
@@ -1085,23 +1075,15 @@ async function processarWebhookAsaas(
     else if (
       event === "PAYMENT_OVERDUE"
     ) {
-
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'PENDING',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            `,
-            [assinatura.id],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'PENDING',
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [assinatura.id]
       );
 
       console.log(
@@ -1116,24 +1098,16 @@ async function processarWebhookAsaas(
     else if (
       event === "CHECKOUT_CANCELED"
     ) {
-
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'CANCELLED',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND status = 'PENDING'
-            `,
-            [assinatura.id],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'CANCELLED',
+          updated_at = NOW()
+        WHERE id = $1
+          AND status = 'PENDING'
+        `,
+        [assinatura.id]
       );
     }
 
@@ -1144,29 +1118,21 @@ async function processarWebhookAsaas(
     else if (
       event === "CHECKOUT_EXPIRED"
     ) {
-
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'EXPIRED',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-              AND status = 'PENDING'
-            `,
-            [assinatura.id],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'EXPIRED',
+          updated_at = NOW()
+        WHERE id = $1
+          AND status = 'PENDING'
+        `,
+        [assinatura.id]
       );
     }
 
     // ========================================================
-    // ASSINATURA INATIVADA
+    // ASSINATURA INATIVADA / EXCLUÍDA
     // ========================================================
 
     else if (
@@ -1175,23 +1141,15 @@ async function processarWebhookAsaas(
       event ===
         "SUBSCRIPTION_DELETED"
     ) {
-
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'CANCELLED',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            `,
-            [assinatura.id],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'CANCELLED',
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [assinatura.id]
       );
 
       console.log(
@@ -1200,7 +1158,7 @@ async function processarWebhookAsaas(
     }
 
     // ========================================================
-    // ESTORNO
+    // ESTORNO / CHARGEBACK
     // ========================================================
 
     else if (
@@ -1209,53 +1167,35 @@ async function processarWebhookAsaas(
       event ===
         "PAYMENT_CHARGEBACK_REQUESTED"
     ) {
-
-      await new Promise(
-        (resolve, reject) => {
-          db.run(
-            `
-            UPDATE subscriptions
-            SET status = 'CANCELLED',
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            `,
-            [assinatura.id],
-            err => {
-              if (err) return reject(err);
-              resolve();
-            }
-          );
-        }
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          status = 'CANCELLED',
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [assinatura.id]
       );
 
       console.log(
-        `Pagamento estornado/chargeback: assinatura ${assinatura.id}`
+        `Pagamento estornado/chargeback: ${assinatura.id}`
       );
     }
-
-    // ========================================================
-    // OUTROS EVENTOS
-    // ========================================================
 
     else {
-
       console.log(
-        `Evento Asaas recebido sem ação específica: ${event}`
+        `Evento Asaas sem ação específica: ${event}`
       );
     }
-
-    // ========================================================
-    // RESPONDER ASAAS
-    // ========================================================
 
     return res.json({
       ok: true
     });
 
   } catch (error) {
-
     console.error(
-      "Erro ao processar webhook Asaas:",
+      "ERRO AO PROCESSAR WEBHOOK ASAAS:",
       error
     );
 
@@ -1268,7 +1208,7 @@ async function processarWebhookAsaas(
 }
 
 // ============================================================
-// WEBHOOK ASAAS - PRINCIPAL
+// WEBHOOK PRINCIPAL
 // ============================================================
 
 router.post(
@@ -1277,8 +1217,7 @@ router.post(
 );
 
 // ============================================================
-// WEBHOOK ASAAS - ALIAS
-// Mantido para compatibilidade
+// ALIAS
 // ============================================================
 
 router.post(

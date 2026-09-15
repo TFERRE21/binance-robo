@@ -4,31 +4,21 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-
-// ============================================================
-// CONFIGURAÇÃO ASAAS
-// ============================================================
-
 const ASAAS_API_URL =
-  process.env.ASAAS_API_URL ||
-  "https://api.asaas.com/v3";
+  process.env.ASAAS_API_URL || "https://api.asaas.com/v3";
 
-const ASAAS_API_KEY =
-  process.env.ASAAS_API_KEY;
-
-const ASAAS_WEBHOOK_TOKEN =
-  process.env.ASAAS_WEBHOOK_TOKEN;
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY;
+const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN;
 
 const BASE_URL =
+  process.env.BASE_URL ||
   "https://site--painel-binance--clbfrw28wcz.code.run";
 
-
 // ============================================================
-// CONFIGURAÇÃO DOS PLANOS
+// PLANOS
 // ============================================================
 
 const PLANOS = {
-
   basico: {
     nome: "Básico",
     valor: 49.90,
@@ -49,2557 +39,1220 @@ const PLANOS = {
     operacoesSimultaneas: 3,
     contasBinance: 3
   }
-
 };
 
-
 // ============================================================
-// FUNÇÃO - REQUISIÇÃO ASAAS
+// REQUISIÇÃO ASAAS
 // ============================================================
 
-async function asaasRequest(path, options = {}) {
-
+async function asaasRequest(endpoint, options = {}) {
   if (!ASAAS_API_KEY) {
-
-    throw new Error(
-      "ASAAS_API_KEY não está configurada no servidor."
-    );
-
+    throw new Error("ASAAS_API_KEY não configurada.");
   }
 
-
-  const response = await fetch(
-    `${ASAAS_API_URL}${path}`,
-    {
-
-      method:
-        options.method || "GET",
-
-      headers: {
-
-        "Content-Type":
-          "application/json",
-
-        "Accept":
-          "application/json",
-
-        "access_token":
-          ASAAS_API_KEY
-
-      },
-
-      body:
-        options.body !== undefined
-          ? JSON.stringify(options.body)
-          : undefined
-
+  const response = await fetch(`${ASAAS_API_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "access_token": ASAAS_API_KEY,
+      ...(options.headers || {})
     }
-  );
+  });
 
+  const text = await response.text();
 
-  const text =
-    await response.text();
-
-
-  let data = {};
-
+  let data;
 
   try {
-
-    data =
-      text
-        ? JSON.parse(text)
-        : {};
-
+    data = text ? JSON.parse(text) : {};
   } catch {
-
-    data = {
-      raw: text
-    };
-
+    data = { raw: text };
   }
-
 
   if (!response.ok) {
+    console.error("Erro Asaas:", {
+      status: response.status,
+      endpoint,
+      data
+    });
 
-    console.error(
-      "ERRO API ASAAS:",
-      response.status,
-      JSON.stringify(
-        data,
-        null,
-        2
-      )
+    throw new Error(
+      data?.errors?.[0]?.description ||
+      data?.message ||
+      `Erro Asaas HTTP ${response.status}`
     );
-
-
-    const error =
-      new Error(
-
-        data?.errors?.[0]?.description ||
-
-        data?.message ||
-
-        "Erro ao comunicar com o Asaas."
-
-      );
-
-
-    error.status =
-      response.status;
-
-    error.data =
-      data;
-
-
-    throw error;
-
   }
 
-
   return data;
-
 }
 
-
 // ============================================================
-// FUNÇÃO - SOMENTE NÚMEROS
+// UTILITÁRIOS
 // ============================================================
 
 function somenteNumeros(valor) {
-
-  return String(
-    valor || ""
-  ).replace(
-    /\D/g,
-    ""
-  );
-
+  return String(valor || "").replace(/\D/g, "");
 }
 
+function dataAsaas() {
+  const data = new Date();
 
-// ============================================================
-// FUNÇÃO - DATA PARA ASAAS
-// ============================================================
+  data.setDate(data.getDate() + 1);
 
-function dataAsaas(diasAdicionar = 1) {
-
-  const data =
-    new Date();
-
-  data.setDate(
-    data.getDate() +
-    diasAdicionar
-  );
-
-
-  const ano =
-    data.getFullYear();
-
-  const mes =
-    String(
-      data.getMonth() + 1
-    ).padStart(
-      2,
-      "0"
-    );
-
-  const dia =
-    String(
-      data.getDate()
-    ).padStart(
-      2,
-      "0"
-    );
-
-
-  return `${ano}-${mes}-${dia}`;
-
+  return data.toISOString().slice(0, 10);
 }
 
+function adicionarUmMes(data) {
+  const novaData = new Date(data);
 
-// ============================================================
-// FUNÇÃO - LINK DO CHECKOUT
-// ============================================================
+  novaData.setMonth(novaData.getMonth() + 1);
 
-function gerarLinkCheckout(
-  checkoutId
-) {
-
-  if (!checkoutId) {
-    return null;
-  }
-
-
-  return (
-    `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(
-      checkoutId
-    )}`
-  );
-
+  return novaData;
 }
 
-
 // ============================================================
-// TESTE DA ROTA
-// ============================================================
-
-router.get(
-  "/teste",
-  (req, res) => {
-
-    return res.json({
-
-      success:
-        true,
-
-      provider:
-        "ASAAS",
-
-      message:
-        "Rota de assinatura funcionando com Asaas."
-
-    });
-
-  }
-);
-
-
-// ============================================================
-// COMPATIBILIDADE COM TESTE ANTIGO DO MERCADO PAGO
+// GERAR LINK DO CHECKOUT
 // ============================================================
 
-router.get(
-  "/teste-mercadopago",
-  (req, res) => {
+function gerarLinkCheckout(checkoutId) {
+  return `https://asaas.com/checkoutSession/show?id=${checkoutId}`;
+}
 
-    return res.json({
+// ============================================================
+// TESTE
+// ============================================================
 
-      success:
-        false,
+router.get("/teste", (req, res) => {
+  res.json({
+    ok: true,
+    service: "subscription",
+    provider: "ASAAS"
+  });
+});
 
-      provider:
-        "ASAAS",
+// ============================================================
+// TESTE MERCADO PAGO
+// Mantido para não quebrar código antigo
+// ============================================================
 
-      message:
-        "Mercado Pago não é mais utilizado neste módulo."
-
-    });
-
-  }
-);
-
+router.get("/teste-mercadopago", (req, res) => {
+  res.json({
+    ok: true,
+    message: "Rota antiga mantida apenas para compatibilidade.",
+    provider: "MERCADO_PAGO"
+  });
+});
 
 // ============================================================
 // LISTAR PLANOS
 // ============================================================
 
-router.get(
-  "/plans",
-  (req, res) => {
-
-    return res.json({
-
-      success:
-        true,
-
-      plans:
-
-        Object.entries(
-          PLANOS
-        ).map(
-          ([codigo, plano]) => ({
-
-            code:
-              codigo,
-
-            name:
-              plano.nome,
-
-            price:
-              plano.valor,
-
-            simultaneousOperations:
-              plano.operacoesSimultaneas,
-
-            binanceAccounts:
-              plano.contasBinance
-
-          })
-        )
-
-    });
-
-  }
-);
-
+router.get("/plans", (req, res) => {
+  res.json({
+    ok: true,
+    planos: PLANOS
+  });
+});
 
 // ============================================================
 // SELECIONAR PLANO
 // ============================================================
-//
-// Fluxo:
-//
-// Usuário
-//   ↓
-// /select
-//   ↓
-// Banco PENDING
-//   ↓
-// Checkout Asaas
-//   ↓
-// Cliente paga
-//   ↓
-// Webhook
-//   ↓
-// ACTIVE
-//
-// ============================================================
 
-router.post(
-  "/select",
-  authMiddleware,
-  async (req, res) => {
-
-    try {
-
-      // ------------------------------------------------------
-      // USUÁRIO
-      // ------------------------------------------------------
-
-      const userId =
-        req.user.id;
-
-
-      // ------------------------------------------------------
-      // PLANO
-      // ------------------------------------------------------
-
-      const planCode =
-        String(
-          req.body?.plan || ""
-        )
-        .trim()
-        .toLowerCase();
-
-
-      if (
-        !PLANOS[planCode]
-      ) {
-
-        return res.status(400).json({
-
-          success:
-            false,
-
-          message:
-            "Plano inválido. Escolha Básico, Profissional ou Premium."
-
-        });
-
-      }
-
-
-      const plano =
-        PLANOS[planCode];
-
-
-      // ------------------------------------------------------
-      // BUSCAR USUÁRIO
-      // ------------------------------------------------------
-
-      const userResult =
-        await db.query(
-
-          `
-          SELECT
-            id,
-            name,
-            email,
-            active
-          FROM users
-          WHERE id = $1
-          LIMIT 1
-          `,
-
-          [
-            userId
-          ]
-
-        );
-
-
-      if (
-        userResult.rows.length === 0
-      ) {
-
-        return res.status(404).json({
-
-          success:
-            false,
-
-          message:
-            "Usuário não encontrado."
-
-        });
-
-      }
-
-
-      const user =
-        userResult.rows[0];
-
-
-      // ------------------------------------------------------
-      // USUÁRIO ATIVO?
-      // ------------------------------------------------------
-
-      if (
-        !user.active
-      ) {
-
-        return res.status(403).json({
-
-          success:
-            false,
-
-          message:
-            "Usuário inativo."
-
-        });
-
-      }
-
-
-      // ------------------------------------------------------
-      // ASSINATURA ATIVA
-      // ------------------------------------------------------
-
-      const activeResult =
-        await db.query(
-
-          `
-          SELECT
-            id,
-            plan,
-            status,
-            amount,
-            expires_at
-          FROM subscriptions
-          WHERE user_id = $1
-            AND status = 'ACTIVE'
-          ORDER BY created_at DESC
-          LIMIT 1
-          `,
-
-          [
-            userId
-          ]
-
-        );
-
-
-      if (
-        activeResult.rows.length > 0
-      ) {
-
-        const active =
-          activeResult.rows[0];
-
-
-        // Mesmo plano
-
-        if (
-          active.plan ===
-          planCode
-        ) {
-
-          return res.status(409).json({
-
-            success:
-              false,
-
-            message:
-              "Você já possui este plano ativo.",
-
-            subscription: {
-
-              id:
-                active.id,
-
-              plan:
-                active.plan,
-
-              status:
-                active.status,
-
-              amount:
-                active.amount,
-
-              expiresAt:
-                active.expires_at
-
-            }
-
-          });
-
-        }
-
-
-        // Outro plano
-
-        return res.status(409).json({
-
-          success:
-            false,
-
-          message:
-            "Você já possui uma assinatura ativa. O novo plano poderá ser contratado após o tratamento da assinatura atual.",
-
-          currentPlan:
-            active.plan
-
-        });
-
-      }
-
-
-      // ------------------------------------------------------
-      // DADOS DO CLIENTE
-      // ------------------------------------------------------
-
-      const customerData =
-        req.body?.customerData ||
-        {};
-
-
-      const customerName =
-        String(
-          customerData.name ||
-          ""
-        ).trim();
-
-
-      const customerCpfCnpj =
-        somenteNumeros(
-          customerData.cpfCnpj
-        );
-
-
-      const customerEmail =
-        String(
-          customerData.email ||
-          user.email ||
-          ""
-        ).trim();
-
-
-      const customerPhone =
-        somenteNumeros(
-          customerData.phone
-        );
-
-
-      // ------------------------------------------------------
-      // VALIDAR CLIENTE
-      // ------------------------------------------------------
-
-      if (
-        !customerName ||
-        !customerCpfCnpj ||
-        !customerEmail ||
-        !customerPhone
-      ) {
-
-        return res.status(400).json({
-
-          success:
-            false,
-
-          message:
-            "Informe nome, CPF/CNPJ, e-mail e telefone."
-
-        });
-
-      }
-
-
-      // ------------------------------------------------------
-      // VALIDAR CPF/CNPJ
-      // ------------------------------------------------------
-
-      if (
-        customerCpfCnpj.length !== 11 &&
-        customerCpfCnpj.length !== 14
-      ) {
-
-        return res.status(400).json({
-
-          success:
-            false,
-
-          message:
-            "CPF/CNPJ inválido."
-
-        });
-
-      }
-
-
-      // ------------------------------------------------------
-      // VALIDAR TELEFONE
-      // ------------------------------------------------------
-
-      if (
-        customerPhone.length < 10
-      ) {
-
-        return res.status(400).json({
-
-          success:
-            false,
-
-          message:
-            "Telefone inválido."
-
-        });
-
-      }
-
-
-      // ======================================================
-      // VERIFICAR CHECKOUT PENDENTE
-      // ======================================================
-
-      const pendingResult =
-        await db.query(
-
-          `
-          SELECT
-            id,
-            plan,
-            status,
-            amount,
-            payment_provider,
-            external_payment_id,
-            external_subscription_id,
-            payment_method,
-            started_at,
-            expires_at,
-            created_at
-          FROM subscriptions
-          WHERE user_id = $1
-            AND plan = $2
-            AND status = 'PENDING'
-            AND payment_provider = 'ASAAS'
-          ORDER BY created_at DESC
-          LIMIT 1
-          `,
-
-          [
-            userId,
-            planCode
-          ]
-
-        );
-
-
-      if (
-        pendingResult.rows.length > 0
-      ) {
-
-        const pending =
-          pendingResult.rows[0];
-
-
-        // ----------------------------------------------------
-        // VERIFICAR SE O CHECKOUT AINDA ESTÁ DENTRO DA
-        // VALIDADE DE 60 MINUTOS
-        // ----------------------------------------------------
-
-        const criadoEm =
-          pending.created_at
-            ? new Date(
-                pending.created_at
-              )
-            : null;
-
-
-        const agora =
-          Date.now();
-
-
-        const validade =
-          criadoEm
-            ? criadoEm.getTime() +
-              (60 * 60 * 1000)
-            : 0;
-
-
-        const checkoutAindaValido =
-          Boolean(
-            pending.external_payment_id &&
-            criadoEm &&
-            agora < validade
-          );
-
-
-        // ----------------------------------------------------
-        // REUTILIZAR CHECKOUT VÁLIDO
-        // ----------------------------------------------------
-
-        if (
-          checkoutAindaValido
-        ) {
-
-          return res.json({
-
-            success:
-              true,
-
-            requiresPayment:
-              true,
-
-            reused:
-              true,
-
-            message:
-              "Existe uma contratação pendente para este plano.",
-
-            paymentUrl:
-              gerarLinkCheckout(
-                pending.external_payment_id
-              ),
-
-            subscription: {
-
-              id:
-                pending.id,
-
-              plan:
-                pending.plan,
-
-              planName:
-                plano.nome,
-
-              status:
-                pending.status,
-
-              amount:
-                pending.amount,
-
-              paymentProvider:
-                pending.payment_provider,
-
-              paymentMethod:
-                pending.payment_method,
-
-              externalPaymentId:
-                pending.external_payment_id,
-
-              externalSubscriptionId:
-                pending.external_subscription_id,
-
-              startedAt:
-                pending.started_at,
-
-              expiresAt:
-                pending.expires_at,
-
-              createdAt:
-                pending.created_at
-
-            }
-
-          });
-
-        }
-
-
-        // ----------------------------------------------------
-        // CHECKOUT EXPIRADO
-        // ----------------------------------------------------
-        //
-        // Não apagamos histórico.
-        // Apenas marcamos a tentativa anterior como expirada.
-        //
-        // ----------------------------------------------------
-
-        await db.query(
-
-          `
-          UPDATE subscriptions
-          SET
-            status = 'EXPIRED',
-            updated_at = NOW()
-          WHERE id = $1
-            AND status = 'PENDING'
-          `,
-
-          [
-            pending.id
-          ]
-
-        );
-
-      }
-
-
-      // ======================================================
-      // CRIAR ASSINATURA LOCAL
-      // ======================================================
-
-      const result =
-        await db.query(
-
-          `
-          INSERT INTO subscriptions (
-            user_id,
-            plan,
-            status,
-            amount,
-            payment_provider,
-            payment_method
-          )
-          VALUES (
-            $1,
-            $2,
-            'PENDING',
-            $3,
-            'ASAAS',
-            'ASAAS_CHECKOUT'
-          )
-          RETURNING
-            id,
-            user_id,
-            plan,
-            status,
-            amount,
-            payment_provider,
-            payment_method,
-            created_at
-          `,
-
-          [
-            userId,
-            planCode,
-            plano.valor
-          ]
-
-        );
-
-
-      const subscription =
-        result.rows[0];
-
-
-      // ======================================================
-      // PRIMEIRA COBRANÇA
-      // ======================================================
-
-      const nextDueDate =
-        dataAsaas(1);
-
-
-      // ======================================================
-      // CRIAR CHECKOUT ASAAS
-      // ======================================================
-
-      let checkout;
-
-
-      try {
-
-        checkout =
-          await asaasRequest(
-            "/checkouts",
-            {
-
-              method:
-                "POST",
-
-              body: {
-
-                // ------------------------------------------------
-                // CARTÃO
-                // ------------------------------------------------
-                //
-                // Recorrência automática pelo cartão.
-                //
-                // ------------------------------------------------
-
-                billingTypes: [
-                  "CREDIT_CARD"
-                ],
-
-
-                // ------------------------------------------------
-                // RECORRENTE
-                // ------------------------------------------------
-
-                chargeTypes: [
-                  "RECURRENT"
-                ],
-
-
-                // ------------------------------------------------
-                // CHECKOUT EXPIRA EM 60 MINUTOS
-                // ------------------------------------------------
-
-                minutesToExpire:
-                  60,
-
-
-                // ------------------------------------------------
-                // REFERÊNCIA DO NOSSO BANCO
-                // ------------------------------------------------
-
-                externalReference:
-                  String(
-                    subscription.id
-                  ),
-
-
-                // ------------------------------------------------
-                // CALLBACKS
-                // ------------------------------------------------
-
-                callback: {
-
-                  successUrl:
-                    `${BASE_URL}/pagamento-sucesso.html?subscriptionId=${subscription.id}`,
-
-                  cancelUrl:
-                    `${BASE_URL}/pagamento.html?plan=${encodeURIComponent(
-                      planCode
-                    )}&cancelled=1`,
-
-                  expiredUrl:
-                    `${BASE_URL}/pagamento.html?plan=${encodeURIComponent(
-                      planCode
-                    )}&expired=1`
-
-                },
-
-
-                // ------------------------------------------------
-                // PRODUTO
-                // ------------------------------------------------
-
-                items: [
-
-                  {
-
-                    name:
-                      `CriptoPro ${plano.nome}`,
-
-                    description:
-                      `Assinatura mensal CriptoPro - Plano ${plano.nome}`,
-
-                    quantity:
-                      1,
-
-                    value:
-                      Number(
-                        plano.valor
-                      )
-
-                  }
-
-                ],
-
-
-                // ------------------------------------------------
-                // CLIENTE
-                // ------------------------------------------------
-
-                customerData: {
-
-                  name:
-                    customerName,
-
-                  cpfCnpj:
-                    customerCpfCnpj,
-
-                  email:
-                    customerEmail,
-
-                  phone:
-                    customerPhone
-
-                },
-
-
-                // ------------------------------------------------
-                // ASSINATURA
-                // ------------------------------------------------
-
-                subscription: {
-
-                  cycle:
-                    "MONTHLY",
-
-                  nextDueDate:
-                    nextDueDate
-
-                }
-
-              }
-
-            }
-
-          );
-
-      } catch (asaasError) {
-
-        console.error(
-          "ERRO AO CRIAR CHECKOUT ASAAS:",
-          asaasError
-        );
-
-
-        // ------------------------------------------------------
-        // ROLLBACK DA ASSINATURA LOCAL
-        // ------------------------------------------------------
-
-        try {
-
-          await db.query(
-
-            `
-            DELETE FROM subscriptions
-            WHERE id = $1
-            `,
-
-            [
-              subscription.id
-            ]
-
-          );
-
-        } catch (rollbackError) {
-
-          console.error(
-            "ERRO AO DESFAZER ASSINATURA LOCAL:",
-            rollbackError
-          );
-
-        }
-
-
-        return res.status(
-          asaasError.status ||
-          502
-        ).json({
-
-          success:
-            false,
-
-          message:
-            asaasError.message ||
-            "Não foi possível iniciar o pagamento no Asaas."
-
-        });
-
-      }
-
-
-      // ======================================================
-      // CHECKOUT CRIADO
-      // ======================================================
-
-      console.log(
-        "CHECKOUT ASAAS CRIADO:",
-        JSON.stringify(
-          checkout,
-          null,
-          2
-        )
-      );
-
-
-      const checkoutId =
-        checkout?.id
-          ? String(
-              checkout.id
-            )
-          : null;
-
-
-      if (!checkoutId) {
-
-        console.error(
-          "ASAAS NÃO RETORNOU ID DO CHECKOUT:",
-          checkout
-        );
-
-
-        try {
-
-          await db.query(
-
-            `
-            DELETE FROM subscriptions
-            WHERE id = $1
-            `,
-
-            [
-              subscription.id
-            ]
-
-          );
-
-        } catch (rollbackError) {
-
-          console.error(
-            "ERRO AO DESFAZER ASSINATURA LOCAL:",
-            rollbackError
-          );
-
-        }
-
-
-        return res.status(502).json({
-
-          success:
-            false,
-
-          message:
-            "O Asaas não retornou o identificador do Checkout."
-
-        });
-
-      }
-
-
-      // ======================================================
-      // LINK DO CHECKOUT
-      // ======================================================
-
-      const paymentUrl =
-        checkout.link ||
-        checkout.paymentUrl ||
-        gerarLinkCheckout(
-          checkoutId
-        );
-
-
-      // ======================================================
-      // SALVAR CHECKOUT
-      // ======================================================
-
-      const updatedSubscription =
-        await db.query(
-
-          `
-          UPDATE subscriptions
-          SET
-
-            external_payment_id =
-              $1,
-
-            payment_provider =
-              'ASAAS',
-
-            payment_method =
-              'ASAAS_CHECKOUT',
-
-            updated_at =
-              NOW()
-
-          WHERE id = $2
-
-          RETURNING
-            id,
-            user_id,
-            plan,
-            status,
-            amount,
-            payment_provider,
-            external_payment_id,
-            external_subscription_id,
-            payment_method,
-            started_at,
-            expires_at,
-            created_at,
-            updated_at
-          `,
-
-          [
-            checkoutId,
-            subscription.id
-          ]
-
-        );
-
-
-      const subscriptionAtualizada =
-        updatedSubscription.rows[0];
-
-
-      // ======================================================
-      // RESPOSTA
-      // ======================================================
-
-      return res.status(201).json({
-
-        success:
-          true,
-
-        requiresPayment:
-          true,
-
-        reused:
-          false,
-
-        message:
-          "Contratação criada. Prossiga para o pagamento.",
-
-        paymentUrl:
-          paymentUrl,
-
-        subscription: {
-
-          id:
-            subscriptionAtualizada.id,
-
-          plan:
-            subscriptionAtualizada.plan,
-
-          planName:
-            plano.nome,
-
-          status:
-            subscriptionAtualizada.status,
-
-          amount:
-            subscriptionAtualizada.amount,
-
-          simultaneousOperations:
-            plano.operacoesSimultaneas,
-
-          binanceAccounts:
-            plano.contasBinance,
-
-          paymentProvider:
-            subscriptionAtualizada.payment_provider,
-
-          paymentMethod:
-            subscriptionAtualizada.payment_method,
-
-          externalPaymentId:
-            subscriptionAtualizada.external_payment_id,
-
-          externalSubscriptionId:
-            subscriptionAtualizada.external_subscription_id,
-
-          startedAt:
-            subscriptionAtualizada.started_at,
-
-          expiresAt:
-            subscriptionAtualizada.expires_at,
-
-          createdAt:
-            subscriptionAtualizada.created_at
-
-        }
-
+router.post("/select", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: "Usuário não autenticado."
       });
-
-    } catch (error) {
-
-      console.error(
-        "ERRO AO SELECIONAR PLANO:",
-        error
-      );
-
-
-      return res.status(
-        500
-      ).json({
-
-        success:
-          false,
-
-        message:
-          "Erro interno ao selecionar o plano."
-
-      });
-
     }
 
-  }
-);
+    const {
+      plan,
+      customerData
+    } = req.body;
 
+    // --------------------------------------------------------
+    // VALIDAR PLANO
+    // --------------------------------------------------------
+
+    if (!plan || !PLANOS[plan]) {
+      return res.status(400).json({
+        ok: false,
+        error: "Plano inválido."
+      });
+    }
+
+    // --------------------------------------------------------
+    // VALIDAR DADOS DO CLIENTE
+    // --------------------------------------------------------
+
+    if (!customerData) {
+      return res.status(400).json({
+        ok: false,
+        error: "Dados do cliente são obrigatórios."
+      });
+    }
+
+    const nome = String(customerData.name || "").trim();
+    const email = String(customerData.email || "").trim();
+    const cpfCnpj = somenteNumeros(
+      customerData.cpfCnpj ||
+      customerData.cpf ||
+      customerData.cnpj
+    );
+
+    const telefone = somenteNumeros(
+      customerData.phone ||
+      customerData.telefone ||
+      customerData.mobilePhone
+    );
+
+    if (!nome) {
+      return res.status(400).json({
+        ok: false,
+        error: "Nome é obrigatório."
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        error: "E-mail é obrigatório."
+      });
+    }
+
+    if (!cpfCnpj) {
+      return res.status(400).json({
+        ok: false,
+        error: "CPF/CNPJ é obrigatório."
+      });
+    }
+
+    if (!telefone) {
+      return res.status(400).json({
+        ok: false,
+        error: "Telefone é obrigatório."
+      });
+    }
+
+    // --------------------------------------------------------
+    // VERIFICAR ASSINATURA ATIVA
+    // --------------------------------------------------------
+
+    const assinaturaAtiva = await new Promise((resolve, reject) => {
+      db.get(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE user_id = ?
+          AND status = 'ACTIVE'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [userId],
+        (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        }
+      );
+    });
+
+    if (assinaturaAtiva) {
+      return res.status(400).json({
+        ok: false,
+        error: "Você já possui uma assinatura ativa."
+      });
+    }
+
+    // --------------------------------------------------------
+    // VERIFICAR CHECKOUT PENDENTE
+    // --------------------------------------------------------
+
+    const pendente = await new Promise((resolve, reject) => {
+      db.get(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE user_id = ?
+          AND status = 'PENDING'
+          AND payment_provider = 'ASAAS'
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [userId],
+        (err, row) => {
+          if (err) return reject(err);
+          resolve(row);
+        }
+      );
+    });
+
+    // --------------------------------------------------------
+    // REUTILIZAR CHECKOUT SOMENTE SE AINDA ESTIVER VÁLIDO
+    // --------------------------------------------------------
+
+    if (
+      pendente &&
+      pendente.external_payment_id &&
+      pendente.created_at
+    ) {
+      const criadoEm = new Date(pendente.created_at);
+      const agora = new Date();
+
+      const minutos =
+        (agora.getTime() - criadoEm.getTime()) / 60000;
+
+      if (minutos <= 60) {
+        return res.json({
+          ok: true,
+          paymentUrl: gerarLinkCheckout(
+            pendente.external_payment_id
+          ),
+          checkoutId: pendente.external_payment_id,
+          subscriptionId: pendente.id,
+          reused: true
+        });
+      }
+
+      // Checkout antigo
+      await new Promise((resolve, reject) => {
+        db.run(
+          `
+          UPDATE subscriptions
+          SET status = 'EXPIRED',
+              updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+          `,
+          [pendente.id],
+          err => {
+            if (err) return reject(err);
+            resolve();
+          }
+        );
+      });
+    }
+
+    // --------------------------------------------------------
+    // DADOS DO PLANO
+    // --------------------------------------------------------
+
+    const plano = PLANOS[plan];
+
+    // --------------------------------------------------------
+    // CRIAR ASSINATURA LOCAL
+    // --------------------------------------------------------
+
+    const subscriptionId = await new Promise((resolve, reject) => {
+      db.run(
+        `
+        INSERT INTO subscriptions (
+          user_id,
+          plan,
+          status,
+          amount,
+          payment_provider,
+          payment_method,
+          created_at,
+          updated_at
+        )
+        VALUES (?, ?, 'PENDING', ?, 'ASAAS', 'CREDIT_CARD', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        `,
+        [
+          userId,
+          plan,
+          plano.valor
+        ],
+        function (err) {
+          if (err) return reject(err);
+          resolve(this.lastID);
+        }
+      );
+    });
+
+    // ========================================================
+    // CRIAR CHECKOUT ASAAS
+    // ========================================================
+
+    const checkoutPayload = {
+      billingTypes: [
+        "CREDIT_CARD"
+      ],
+
+      chargeTypes: [
+        "RECURRENT"
+      ],
+
+      minutesToExpire: 60,
+
+      externalReference: String(subscriptionId),
+
+      callback: {
+        successUrl:
+          `${BASE_URL}/pagamento-sucesso.html`,
+
+        cancelUrl:
+          `${BASE_URL}/planos.html`,
+
+        expiredUrl:
+          `${BASE_URL}/planos.html`
+      },
+
+      items: [
+        {
+          name: `CriptoPro ${plano.nome}`,
+          description:
+            `Assinatura mensal CriptoPro ${plano.nome}`,
+          quantity: 1,
+          value: plano.valor
+        }
+      ],
+
+      customerData: {
+        name: nome,
+        email: email,
+        cpfCnpj: cpfCnpj,
+        mobilePhone: telefone
+      },
+
+      subscription: {
+        cycle: "MONTHLY",
+        nextDueDate: dataAsaas()
+      }
+    };
+
+    const checkout = await asaasRequest(
+      "/checkouts",
+      {
+        method: "POST",
+        body: JSON.stringify(checkoutPayload)
+      }
+    );
+
+    // ========================================================
+    // SALVAR CHECKOUT ASAAS
+    // ========================================================
+
+    await new Promise((resolve, reject) => {
+      db.run(
+        `
+        UPDATE subscriptions
+        SET external_payment_id = ?,
+            payment_provider = 'ASAAS',
+            payment_method = 'CREDIT_CARD',
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+        `,
+        [
+          checkout.id,
+          subscriptionId
+        ],
+        err => {
+          if (err) return reject(err);
+          resolve();
+        }
+      );
+    });
+
+    // ========================================================
+    // RESPONDER PARA FRONTEND
+    // ========================================================
+
+    return res.json({
+      ok: true,
+
+      plan,
+
+      planName: plano.nome,
+
+      amount: plano.valor,
+
+      subscriptionId,
+
+      checkoutId: checkout.id,
+
+      paymentUrl: gerarLinkCheckout(
+        checkout.id
+      )
+    });
+
+  } catch (error) {
+    console.error(
+      "Erro ao selecionar plano:",
+      error
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error:
+        error.message ||
+        "Erro ao criar checkout."
+    });
+  }
+});
 
 // ============================================================
 // STATUS DA ASSINATURA
 // ============================================================
 
-router.get(
-  "/status",
-  authMiddleware,
-  async (req, res) => {
-
-    try {
-
-      const userId =
-        req.user.id;
-
-
-      const result =
-        await db.query(
-
-          `
-          SELECT
-            id,
-            user_id,
-            plan,
-            status,
-            amount,
-            payment_provider,
-            external_payment_id,
-            external_subscription_id,
-            payment_method,
-            started_at,
-            expires_at,
-            created_at,
-            updated_at
-          FROM subscriptions
-          WHERE user_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1
-          `,
-
-          [
-            userId
-          ]
-
-        );
-
-
-      // ------------------------------------------------------
-      // SEM ASSINATURA
-      // ------------------------------------------------------
-
-      if (
-        result.rows.length === 0
-      ) {
-
-        return res.json({
-
-          success:
-            true,
-
-          hasSubscription:
-            false,
-
-          active:
-            false,
-
-          plan:
-            null,
-
-          planName:
-            null,
-
-          status:
-            null,
-
-          amount:
-            null,
-
-          paymentProvider:
-            null,
-
-          paymentMethod:
-            null,
-
-          expiresAt:
-            null,
-
-          message:
-            "Nenhuma assinatura encontrada."
-
-        });
-
-      }
-
-
-      const subscription =
-        result.rows[0];
-
-
-      // ------------------------------------------------------
-      // VERIFICAR STATUS
-      // ------------------------------------------------------
-
-      let active =
-        subscription.status ===
-        "ACTIVE";
-
-
-      // ------------------------------------------------------
-      // VERIFICAR EXPIRAÇÃO
-      // ------------------------------------------------------
-
-      if (
-        active &&
-        subscription.expires_at
-      ) {
-
-        const agora =
-          new Date();
-
-
-        const vencimento =
-          new Date(
-            subscription.expires_at
-          );
-
-
-        if (
-          vencimento <= agora
-        ) {
-
-          active =
-            false;
-
-
-          await db.query(
-
-            `
-            UPDATE subscriptions
-            SET
-              status = 'EXPIRED',
-              updated_at = NOW()
-            WHERE id = $1
-              AND status = 'ACTIVE'
-            `,
-
-            [
-              subscription.id
-            ]
-
-          );
-
-
-          subscription.status =
-            "EXPIRED";
-
-        }
-
-      }
-
-
-      // ------------------------------------------------------
-      // PLANO
-      // ------------------------------------------------------
-
-      const plano =
-        PLANOS[
-          subscription.plan
-        ] || null;
-
-
-      // ------------------------------------------------------
-      // RESPOSTA
-      // ------------------------------------------------------
-
-      return res.json({
-
-        success:
-          true,
-
-        hasSubscription:
-          true,
-
-        active:
-          active,
-
-        subscriptionId:
-          subscription.id,
-
-        plan:
-          subscription.plan,
-
-        planName:
-          plano
-            ? plano.nome
-            : subscription.plan,
-
-        status:
-          subscription.status,
-
-        amount:
-          subscription.amount,
-
-        paymentProvider:
-          subscription.payment_provider,
-
-        paymentMethod:
-          subscription.payment_method,
-
-        startedAt:
-          subscription.started_at,
-
-        expiresAt:
-          subscription.expires_at,
-
-        limits:
-          plano
-            ? {
-
-                simultaneousOperations:
-                  plano.operacoesSimultaneas,
-
-                binanceAccounts:
-                  plano.contasBinance
-
-              }
-            : null
-
+router.get("/status", authMiddleware, async (req, res) => {
+  try {
+    const userId =
+      req.user?.id ||
+      req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: "Usuário não autenticado."
       });
-
-    } catch (error) {
-
-      console.error(
-        "ERRO AO CONSULTAR ASSINATURA:",
-        error
-      );
-
-
-      return res.status(
-        500
-      ).json({
-
-        success:
-          false,
-
-        message:
-          "Erro interno ao consultar assinatura."
-
-      });
-
     }
 
-  }
-);
-
-
-// ============================================================
-// IDENTIFICAR ASSINATURA LOCAL PELO EVENTO
-// ============================================================
-
-async function encontrarAssinaturaLocal(
-  event
-) {
-
-  const checkout =
-    event.checkout ||
-    {};
-
-  const payment =
-    event.payment ||
-    {};
-
-  const subscriptionData =
-    event.subscription ||
-    {};
-
-
-  // ----------------------------------------------------------
-  // 1. externalReference
-  // ----------------------------------------------------------
-
-  const externalReference =
-    checkout.externalReference ||
-    subscriptionData.externalReference ||
-    payment.externalReference ||
-    null;
-
-
-  if (
-    externalReference
-  ) {
-
-    const id =
-      Number(
-        externalReference
-      );
-
-
-    if (
-      Number.isInteger(id) &&
-      id > 0
-    ) {
-
-      const result =
-        await db.query(
-
+    const assinatura = await new Promise(
+      (resolve, reject) => {
+        db.get(
           `
           SELECT *
           FROM subscriptions
-          WHERE id = $1
+          WHERE user_id = ?
+          ORDER BY id DESC
           LIMIT 1
           `,
-
-          [
-            id
-          ]
-
+          [userId],
+          (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+          }
         );
-
-
-      if (
-        result.rows.length > 0
-      ) {
-
-        return result.rows[0];
-
       }
+    );
 
+    if (!assinatura) {
+      return res.json({
+        ok: true,
+        active: false,
+        status: "NONE"
+      });
     }
 
-  }
-
-
-  // ----------------------------------------------------------
-  // 2. ID DO CHECKOUT
-  // ----------------------------------------------------------
-
-  if (
-    checkout.id
-  ) {
-
-    const result =
-      await db.query(
-
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE external_payment_id = $1
-        LIMIT 1
-        `,
-
-        [
-          String(
-            checkout.id
-          )
-        ]
-
-      );
-
+    // --------------------------------------------------------
+    // VERIFICAR EXPIRAÇÃO
+    // --------------------------------------------------------
 
     if (
-      result.rows.length > 0
+      assinatura.status === "ACTIVE" &&
+      assinatura.expires_at
     ) {
+      const agora = new Date();
+      const expiracao =
+        new Date(assinatura.expires_at);
 
-      return result.rows[0];
+      if (expiracao <= agora) {
+        await new Promise(
+          (resolve, reject) => {
+            db.run(
+              `
+              UPDATE subscriptions
+              SET status = 'EXPIRED',
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [assinatura.id],
+              err => {
+                if (err) return reject(err);
+                resolve();
+              }
+            );
+          }
+        );
 
+        assinatura.status = "EXPIRED";
+      }
     }
 
+    const plano =
+      PLANOS[assinatura.plan];
+
+    return res.json({
+      ok: true,
+
+      active:
+        assinatura.status === "ACTIVE",
+
+      status:
+        assinatura.status,
+
+      plan:
+        assinatura.plan,
+
+      planName:
+        plano?.nome || assinatura.plan,
+
+      amount:
+        assinatura.amount,
+
+      operacoesSimultaneas:
+        plano?.operacoesSimultaneas || 0,
+
+      contasBinance:
+        plano?.contasBinance || 0,
+
+      started_at:
+        assinatura.started_at,
+
+      expires_at:
+        assinatura.expires_at,
+
+      subscriptionId:
+        assinatura.id
+    });
+
+  } catch (error) {
+    console.error(
+      "Erro ao consultar assinatura:",
+      error
+    );
+
+    return res.status(500).json({
+      ok: false,
+      error:
+        "Erro ao consultar assinatura."
+    });
+  }
+});
+
+// ============================================================
+// LOCALIZAR ASSINATURA PELO EVENTO ASAAS
+// ============================================================
+
+async function encontrarAssinaturaLocal(event) {
+  const payment =
+    event?.payment || {};
+
+  const checkout =
+    event?.checkout || {};
+
+  const subscriptionAsaas =
+    event?.subscription || {};
+
+  const externalReference =
+    checkout.externalReference ||
+    payment.externalReference ||
+    subscriptionAsaas.externalReference;
+
+  const checkoutId =
+    checkout.id;
+
+  const subscriptionIdAsaas =
+    subscriptionAsaas.id ||
+    payment.subscription;
+
+  // ----------------------------------------------------------
+  // 1. EXTERNAL REFERENCE
+  // ----------------------------------------------------------
+
+  if (externalReference) {
+    const local = await new Promise(
+      (resolve, reject) => {
+        db.get(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE id = ?
+          LIMIT 1
+          `,
+          [externalReference],
+          (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+          }
+        );
+      }
+    );
+
+    if (local) {
+      return local;
+    }
   }
 
+  // ----------------------------------------------------------
+  // 2. CHECKOUT ID
+  // ----------------------------------------------------------
+
+  if (checkoutId) {
+    const local = await new Promise(
+      (resolve, reject) => {
+        db.get(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_payment_id = ?
+          LIMIT 1
+          `,
+          [checkoutId],
+          (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+          }
+        );
+      }
+    );
+
+    if (local) {
+      return local;
+    }
+  }
 
   // ----------------------------------------------------------
   // 3. ID DA ASSINATURA ASAAS
   // ----------------------------------------------------------
 
-  const asaasSubscriptionId =
-    subscriptionData.id ||
-    payment.subscription ||
-    null;
+  if (subscriptionIdAsaas) {
+    const local = await new Promise(
+      (resolve, reject) => {
+        db.get(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_subscription_id = ?
+          LIMIT 1
+          `,
+          [subscriptionIdAsaas],
+          (err, row) => {
+            if (err) return reject(err);
+            resolve(row);
+          }
+        );
+      }
+    );
 
-
-  if (
-    asaasSubscriptionId
-  ) {
-
-    const result =
-      await db.query(
-
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE external_subscription_id = $1
-        LIMIT 1
-        `,
-
-        [
-          String(
-            asaasSubscriptionId
-          )
-        ]
-
-      );
-
-
-    if (
-      result.rows.length > 0
-    ) {
-
-      return result.rows[0];
-
+    if (local) {
+      return local;
     }
-
   }
 
-
   return null;
-
 }
-
 
 // ============================================================
 // WEBHOOK ASAAS
-// ============================================================
-//
-// O Asaas envia:
-//
-// asaas-access-token
-//
-// O token deve ser igual ao:
-//
-// ASAAS_WEBHOOK_TOKEN
-//
 // ============================================================
 
 async function processarWebhookAsaas(
   req,
   res
 ) {
-
   try {
 
     // --------------------------------------------------------
-    // TOKEN
+    // VALIDAR TOKEN
     // --------------------------------------------------------
 
-    const token =
-      req.headers[
-        "asaas-access-token"
-      ];
-
+    const tokenRecebido =
+      req.headers["asaas-access-token"];
 
     if (
-      !ASAAS_WEBHOOK_TOKEN
+      !ASAAS_WEBHOOK_TOKEN ||
+      tokenRecebido !== ASAAS_WEBHOOK_TOKEN
     ) {
-
-      console.error(
-        "ASAAS_WEBHOOK_TOKEN não configurado."
-      );
-
-      return res.sendStatus(
-        500
-      );
-
-    }
-
-
-    if (
-      token !==
-      ASAAS_WEBHOOK_TOKEN
-    ) {
-
       console.warn(
-        "WEBHOOK ASAAS RECUSADO: TOKEN INVÁLIDO."
+        "Webhook Asaas recusado: token inválido."
       );
 
-      return res.sendStatus(
-        401
-      );
-
+      return res.status(401).json({
+        ok: false,
+        error: "Não autorizado."
+      });
     }
 
-
-    // --------------------------------------------------------
-    // EVENTO
-    // --------------------------------------------------------
-
-    const event =
-      req.body ||
-      {};
-
-
-    const eventId =
-      event.id ||
-      null;
-
-
-    const eventType =
-      event.event ||
-      null;
-
+    const evento = req.body || {};
 
     console.log(
-      "WEBHOOK ASAAS:",
-      JSON.stringify(
-        {
-          id:
-            eventId,
-
-          event:
-            eventType
-
-        },
-        null,
-        2
-      )
+      "Webhook Asaas recebido:",
+      evento.event
     );
-
-
-    // --------------------------------------------------------
-    // EVENTO VÁLIDO?
-    // --------------------------------------------------------
-
-    if (
-      !eventType
-    ) {
-
-      console.warn(
-        "Webhook Asaas sem tipo de evento."
-      );
-
-      return res.sendStatus(
-        200
-      );
-
-    }
-
 
     // --------------------------------------------------------
     // LOCALIZAR ASSINATURA
     // --------------------------------------------------------
 
-    const subscription =
+    const assinatura =
       await encontrarAssinaturaLocal(
-        event
+        evento
       );
 
-
-    if (
-      !subscription
-    ) {
-
+    if (!assinatura) {
       console.warn(
-        "WEBHOOK ASAAS SEM ASSINATURA LOCAL:",
-        eventType,
-        eventId
+        "Assinatura local não encontrada.",
+        {
+          event: evento.event,
+          payment: evento.payment?.id,
+          checkout: evento.checkout?.id,
+          subscription:
+            evento.subscription?.id ||
+            evento.payment?.subscription
+        }
       );
 
-
-      // Respondemos 200 para não criar
-      // uma fila infinita de reenvios para
-      // eventos que não pertencem ao sistema.
-
-      return res.sendStatus(
-        200
-      );
-
+      // Retorna 200 para o Asaas não ficar
+      // reenviando indefinidamente eventos
+      return res.json({
+        ok: true,
+        ignored: true
+      });
     }
 
-
-    const localId =
-      subscription.id;
-
-
-    const checkout =
-      event.checkout ||
-      {};
-
-    const payment =
-      event.payment ||
-      {};
-
-    const subscriptionData =
-      event.subscription ||
-      {};
-
+    const event =
+      evento.event;
 
     // ========================================================
     // CHECKOUT PAGO
     // ========================================================
-    //
-    // ESTE É O EVENTO PRINCIPAL PARA ATIVAR
-    // A CONTRATAÇÃO INICIAL.
-    //
-    // ========================================================
 
     if (
-      eventType ===
-      "CHECKOUT_PAID"
+      event === "CHECKOUT_PAID"
     ) {
 
-      await db.query(
+      const agora =
+        new Date();
 
-        `
-        UPDATE subscriptions
-        SET
+      let expiresAt =
+        assinatura.expires_at
+          ? new Date(
+              assinatura.expires_at
+            )
+          : null;
 
-          status =
-            'ACTIVE',
-
-          started_at =
-            COALESCE(
-              started_at,
-              NOW()
-            ),
-
-          expires_at =
-            COALESCE(
-              expires_at,
-              NOW() + INTERVAL '1 month'
-            ),
-
-          external_payment_id =
-            COALESCE(
-              external_payment_id,
-              $1
-            ),
-
-          updated_at =
-            NOW()
-
-        WHERE id = $2
-        `,
-
-        [
-
-          checkout.id
-            ? String(
-                checkout.id
-              )
-            : null,
-
-          localId
-
-        ]
-
-      );
-
-
-      console.log(
-        "CHECKOUT PAGO - ASSINATURA ATIVADA:",
-        localId
-      );
-
-    }
-
-
-    // ========================================================
-    // ASSINATURA ASAAS CRIADA
-    // ========================================================
-
-    if (
-      eventType ===
-      "SUBSCRIPTION_CREATED"
-    ) {
-
-      if (
-        subscriptionData.id
-      ) {
-
-        await db.query(
-
-          `
-          UPDATE subscriptions
-          SET
-
-            external_subscription_id =
-              $1,
-
-            updated_at =
-              NOW()
-
-          WHERE id = $2
-          `,
-
-          [
-
-            String(
-              subscriptionData.id
-            ),
-
-            localId
-
-          ]
-
-        );
-
-
-        console.log(
-          "ASSINATURA ASAAS REGISTRADA:",
-          subscriptionData.id
-        );
-
+      if (!expiresAt) {
+        expiresAt =
+          adicionarUmMes(agora);
       }
 
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'ACTIVE',
+                started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+                expires_at = ?,
+                external_subscription_id = COALESCE(?, external_subscription_id),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            `,
+            [
+              expiresAt.toISOString(),
+              evento.subscription?.id ||
+              evento.checkout?.subscription ||
+              null,
+              assinatura.id
+            ],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
+      );
+
+      console.log(
+        `Assinatura ${assinatura.id} ativada via CHECKOUT_PAID`
+      );
     }
 
+    // ========================================================
+    // ASSINATURA CRIADA
+    // ========================================================
+
+    else if (
+      event === "SUBSCRIPTION_CREATED"
+    ) {
+
+      const asaasSubscriptionId =
+        evento.subscription?.id;
+
+      if (
+        asaasSubscriptionId
+      ) {
+
+        await new Promise(
+          (resolve, reject) => {
+            db.run(
+              `
+              UPDATE subscriptions
+              SET external_subscription_id = ?,
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [
+                asaasSubscriptionId,
+                assinatura.id
+              ],
+              err => {
+                if (err) return reject(err);
+                resolve();
+              }
+            );
+          }
+        );
+
+        console.log(
+          `Assinatura Asaas ${asaasSubscriptionId} vinculada à assinatura local ${assinatura.id}`
+        );
+      }
+    }
 
     // ========================================================
     // PAGAMENTO RECEBIDO
     // ========================================================
-    //
-    // O pagamento pertence a uma assinatura.
-    //
-    // Não fazemos:
-    //
-    // expires_at + 1 month
-    //
-    // porque o mesmo webhook pode ser reenviado.
-    //
-    // Em vez disso usamos a data de vencimento
-    // da cobrança para determinar o próximo período.
-    //
-    // ========================================================
 
-    if (
-      eventType ===
-      "PAYMENT_RECEIVED"
+    else if (
+      event === "PAYMENT_RECEIVED"
     ) {
 
-      // ------------------------------------------------------
-      // PRIMEIRO: guardar a assinatura ASAAS se disponível
-      // ------------------------------------------------------
-
-      if (
-        payment.subscription
-      ) {
-
-        await db.query(
-
-          `
-          UPDATE subscriptions
-          SET
-
-            external_subscription_id =
-              COALESCE(
-                external_subscription_id,
-                $1
-              ),
-
-            updated_at =
-              NOW()
-
-          WHERE id = $2
-          `,
-
-          [
-
-            String(
-              payment.subscription
-            ),
-
-            localId
-
-          ]
-
-        );
-
-      }
-
-
-      // ------------------------------------------------------
-      // ATIVAR E DEFINIR VALIDADE
-      // ------------------------------------------------------
-      //
-      // Se a cobrança tiver dueDate, usamos esse período.
-      // Caso contrário, usamos NOW().
-      //
-      // GREATEST evita diminuir uma validade já existente.
-      //
-      // ------------------------------------------------------
+      const payment =
+        evento.payment || {};
 
       const dueDate =
-        payment.dueDate
+        payment.dueDate;
+
+      let novaData;
+
+      if (dueDate) {
+        novaData =
+          adicionarUmMes(
+            new Date(dueDate)
+          );
+      } else {
+        novaData =
+          adicionarUmMes(
+            new Date()
+          );
+      }
+
+      const atual =
+        assinatura.expires_at
           ? new Date(
-              `${payment.dueDate}T23:59:59`
+              assinatura.expires_at
             )
-          : new Date();
+          : null;
 
+      // Evita aumentar a validade duas vezes
+      // caso o webhook seja entregue novamente.
+      if (
+        !atual ||
+        novaData > atual
+      ) {
 
-      const baseDate =
-        !Number.isNaN(
-          dueDate.getTime()
-        )
-          ? dueDate
-          : new Date();
+        await new Promise(
+          (resolve, reject) => {
+            db.run(
+              `
+              UPDATE subscriptions
+              SET status = 'ACTIVE',
+                  expires_at = ?,
+                  external_subscription_id = COALESCE(?, external_subscription_id),
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [
+                novaData.toISOString(),
 
+                payment.subscription ||
+                null,
 
-      const novaData =
-        new Date(
-          baseDate
+                assinatura.id
+              ],
+              err => {
+                if (err) return reject(err);
+                resolve();
+              }
+            );
+          }
         );
+      } else {
 
+        await new Promise(
+          (resolve, reject) => {
+            db.run(
+              `
+              UPDATE subscriptions
+              SET status = 'ACTIVE',
+                  external_subscription_id = COALESCE(?, external_subscription_id),
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [
+                payment.subscription ||
+                null,
 
-      novaData.setMonth(
-        novaData.getMonth() + 1
-      );
-
-
-      const novaDataISO =
-        novaData.toISOString();
-
-
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            'ACTIVE',
-
-          started_at =
-            COALESCE(
-              started_at,
-              NOW()
-            ),
-
-          expires_at =
-            CASE
-
-              WHEN expires_at IS NULL
-                THEN $1::timestamp
-
-              WHEN expires_at <
-                   $1::timestamp
-                THEN $1::timestamp
-
-              ELSE expires_at
-
-            END,
-
-          external_subscription_id =
-            COALESCE(
-              external_subscription_id,
-              $2
-            ),
-
-          updated_at =
-            NOW()
-
-        WHERE id = $3
-        `,
-
-        [
-
-          novaDataISO,
-
-          payment.subscription
-            ? String(
-                payment.subscription
-              )
-            : null,
-
-          localId
-
-        ]
-
-      );
-
+                assinatura.id
+              ],
+              err => {
+                if (err) return reject(err);
+                resolve();
+              }
+            );
+          }
+        );
+      }
 
       console.log(
-        "PAGAMENTO RECEBIDO:",
-        localId,
-        payment.id || ""
+        `Pagamento recebido para assinatura ${assinatura.id}`
       );
-
     }
-
 
     // ========================================================
     // PAGAMENTO CONFIRMADO
     // ========================================================
-    //
-    // PAYMENT_CONFIRMED significa que o pagamento foi
-    // concluído, mas os fundos ainda não necessariamente
-    // estão disponíveis.
-    //
-    // Para evitar liberar duas vezes, apenas garantimos
-    // ACTIVE caso ainda esteja PENDING.
-    //
-    // ========================================================
 
-    if (
-      eventType ===
-      "PAYMENT_CONFIRMED"
+    else if (
+      event === "PAYMENT_CONFIRMED"
     ) {
 
-      await db.query(
+      // Se ainda estiver pendente,
+      // podemos ativar como fallback.
+      if (
+        assinatura.status ===
+        "PENDING"
+      ) {
 
-        `
-        UPDATE subscriptions
-        SET
+        const expiresAt =
+          assinatura.expires_at
+            ? new Date(
+                assinatura.expires_at
+              )
+            : adicionarUmMes(
+                new Date()
+              );
 
-          status =
-            CASE
+        await new Promise(
+          (resolve, reject) => {
+            db.run(
+              `
+              UPDATE subscriptions
+              SET status = 'ACTIVE',
+                  started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+                  expires_at = ?,
+                  external_subscription_id = COALESCE(?, external_subscription_id),
+                  updated_at = CURRENT_TIMESTAMP
+              WHERE id = ?
+              `,
+              [
+                expiresAt.toISOString(),
 
-              WHEN status = 'PENDING'
-                THEN 'ACTIVE'
+                evento.payment?.subscription ||
+                null,
 
-              ELSE status
+                assinatura.id
+              ],
+              err => {
+                if (err) return reject(err);
+                resolve();
+              }
+            );
+          }
+        );
 
-            END,
-
-          started_at =
-            CASE
-
-              WHEN status = 'PENDING'
-                THEN COALESCE(
-                  started_at,
-                  NOW()
-                )
-
-              ELSE started_at
-
-            END,
-
-          expires_at =
-            CASE
-
-              WHEN status = 'PENDING'
-                THEN COALESCE(
-                  expires_at,
-                  NOW() + INTERVAL '1 month'
-                )
-
-              ELSE expires_at
-
-            END,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
-      );
-
-
-      console.log(
-        "PAGAMENTO CONFIRMADO:",
-        localId,
-        payment.id || ""
-      );
-
+        console.log(
+          `Pagamento confirmado para assinatura ${assinatura.id}`
+        );
+      }
     }
 
-
     // ========================================================
-    // PAGAMENTO VENCIDO
+    // PAGAMENTO EM ATRASO
     // ========================================================
 
-    if (
-      eventType ===
-      "PAYMENT_OVERDUE"
+    else if (
+      event === "PAYMENT_OVERDUE"
     ) {
 
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            CASE
-
-              WHEN status = 'ACTIVE'
-                THEN 'PENDING'
-
-              ELSE status
-
-            END,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'PENDING',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            `,
+            [assinatura.id],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
       );
-
 
       console.log(
-        "PAGAMENTO VENCIDO:",
-        localId
+        `Pagamento em atraso: assinatura ${assinatura.id}`
       );
-
     }
-
 
     // ========================================================
     // CHECKOUT CANCELADO
     // ========================================================
 
-    if (
-      eventType ===
-      "CHECKOUT_CANCELED"
+    else if (
+      event === "CHECKOUT_CANCELED"
     ) {
 
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            CASE
-
-              WHEN status = 'PENDING'
-                THEN 'CANCELLED'
-
-              ELSE status
-
-            END,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'CANCELLED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND status = 'PENDING'
+            `,
+            [assinatura.id],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
       );
-
-
-      console.log(
-        "CHECKOUT CANCELADO:",
-        localId
-      );
-
     }
-
 
     // ========================================================
     // CHECKOUT EXPIRADO
     // ========================================================
 
-    if (
-      eventType ===
-      "CHECKOUT_EXPIRED"
+    else if (
+      event === "CHECKOUT_EXPIRED"
     ) {
 
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            CASE
-
-              WHEN status = 'PENDING'
-                THEN 'EXPIRED'
-
-              ELSE status
-
-            END,
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'EXPIRED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+              AND status = 'PENDING'
+            `,
+            [assinatura.id],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
       );
-
-
-      console.log(
-        "CHECKOUT EXPIRADO:",
-        localId
-      );
-
     }
-
 
     // ========================================================
     // ASSINATURA INATIVADA
     // ========================================================
 
-    if (
-      eventType ===
-      "SUBSCRIPTION_INACTIVATED"
+    else if (
+      event ===
+        "SUBSCRIPTION_INACTIVATED" ||
+      event ===
+        "SUBSCRIPTION_DELETED"
     ) {
 
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            'CANCELLED',
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'CANCELLED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            `,
+            [assinatura.id],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
       );
-
 
       console.log(
-        "ASSINATURA INATIVADA:",
-        localId
+        `Assinatura ${assinatura.id} cancelada`
       );
-
     }
-
-
-    // ========================================================
-    // ASSINATURA DELETADA
-    // ========================================================
-
-    if (
-      eventType ===
-      "SUBSCRIPTION_DELETED"
-    ) {
-
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            'CANCELLED',
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
-      );
-
-
-      console.log(
-        "ASSINATURA DELETADA:",
-        localId
-      );
-
-    }
-
 
     // ========================================================
     // ESTORNO
     // ========================================================
-    //
-    // Caso um pagamento seja estornado, não devemos
-    // simplesmente manter a assinatura ativa.
-    //
-    // ========================================================
 
-    if (
-      eventType ===
+    else if (
+      event ===
         "PAYMENT_REFUNDED" ||
-
-      eventType ===
+      event ===
         "PAYMENT_CHARGEBACK_REQUESTED"
     ) {
 
-      await db.query(
-
-        `
-        UPDATE subscriptions
-        SET
-
-          status =
-            'CANCELLED',
-
-          updated_at =
-            NOW()
-
-        WHERE id = $1
-        `,
-
-        [
-          localId
-        ]
-
+      await new Promise(
+        (resolve, reject) => {
+          db.run(
+            `
+            UPDATE subscriptions
+            SET status = 'CANCELLED',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            `,
+            [assinatura.id],
+            err => {
+              if (err) return reject(err);
+              resolve();
+            }
+          );
+        }
       );
-
 
       console.log(
-        "PAGAMENTO ESTORNADO/CHARGEBACK:",
-        localId
+        `Pagamento estornado/chargeback: assinatura ${assinatura.id}`
       );
-
     }
 
+    // ========================================================
+    // OUTROS EVENTOS
+    // ========================================================
+
+    else {
+
+      console.log(
+        `Evento Asaas recebido sem ação específica: ${event}`
+      );
+    }
 
     // ========================================================
     // RESPONDER ASAAS
     // ========================================================
 
-    return res.sendStatus(
-      200
-    );
+    return res.json({
+      ok: true
+    });
 
   } catch (error) {
 
     console.error(
-      "ERRO NO WEBHOOK ASAAS:",
+      "Erro ao processar webhook Asaas:",
       error
     );
 
-
-    return res.sendStatus(
-      500
-    );
-
+    return res.status(500).json({
+      ok: false,
+      error:
+        "Erro interno ao processar webhook."
+    });
   }
-
 }
 
-
 // ============================================================
-// WEBHOOK PRINCIPAL
-// ============================================================
-//
-// Mantemos /webhook para compatibilidade.
-//
-// ============================================================
-
-router.post(
-  "/webhook",
-  processarWebhookAsaas
-);
-
-
-// ============================================================
-// WEBHOOK ASAAS EXPLÍCITO
-// ============================================================
-//
-// Também disponibilizamos /webhook/asaas.
-//
+// WEBHOOK ASAAS - PRINCIPAL
 // ============================================================
 
 router.post(
@@ -2607,10 +1260,18 @@ router.post(
   processarWebhookAsaas
 );
 
+// ============================================================
+// WEBHOOK ASAAS - ALIAS
+// Mantido para compatibilidade
+// ============================================================
+
+router.post(
+  "/webhook",
+  processarWebhookAsaas
+);
 
 // ============================================================
-// EXPORTAR
+// EXPORT
 // ============================================================
 
-module.exports =
-  router;
+module.exports = router;

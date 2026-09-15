@@ -3,288 +3,1639 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CriptoPro — Finalizar assinatura</title>
+
+  <title>CriptoPro • Finalizar assinatura</title>
+
   <style>
-    :root{
-      --bg:#070b12;
-      --panel:#0e1522;
-      --panel2:#111b2b;
-      --gold:#e4bd3f;
-      --gold2:#f5d65d;
-      --text:#f7f8fb;
-      --muted:#9aa7bb;
-      --line:rgba(255,255,255,.09);
-      --green:#31d17c;
+    :root {
+      --blue: #0030b9;
+      --blue-dark: #001d73;
+      --gold: #f3c928;
+      --gold-dark: #d8aa00;
+      --bg: #07101f;
+      --card: #0d192b;
+      --card-2: #101f35;
+      --line: rgba(255,255,255,.10);
+      --text: #ffffff;
+      --muted: #9aa9bd;
+      --success: #35d07f;
+      --danger: #ff5f6d;
     }
-    *{box-sizing:border-box}
-    body{
-      margin:0;
-      min-height:100vh;
-      font-family:Inter,Segoe UI,Arial,sans-serif;
-      color:var(--text);
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family:
+        Inter,
+        Arial,
+        Helvetica,
+        sans-serif;
       background:
-        radial-gradient(circle at 15% 10%,rgba(228,189,63,.12),transparent 28%),
-        radial-gradient(circle at 85% 20%,rgba(20,140,180,.10),transparent 25%),
-        linear-gradient(135deg,#05080d,#0a101a 55%,#071116);
+        radial-gradient(
+          circle at top right,
+          rgba(0,48,185,.28),
+          transparent 35%
+        ),
+        radial-gradient(
+          circle at bottom left,
+          rgba(243,201,40,.08),
+          transparent 30%
+        ),
+        var(--bg);
+      color: var(--text);
     }
-    a{color:inherit}
-    .top{
-      height:74px;
-      border-bottom:1px solid var(--line);
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      padding:0 6%;
-      background:rgba(5,8,13,.78);
-      backdrop-filter:blur(16px);
+
+    /* ======================================================
+       HEADER
+       ====================================================== */
+
+    header {
+      height: 76px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6%;
+      background: rgba(4,11,23,.85);
+      backdrop-filter: blur(12px);
     }
-    .logo{font-weight:950;font-size:25px;letter-spacing:-1.2px}
-    .logo span{color:var(--gold)}
-    .secure{
-      color:#b7c1d0;font-size:13px;display:flex;gap:8px;align-items:center
+
+    .logo {
+      font-size: 25px;
+      font-weight: 950;
+      letter-spacing: -1px;
+      color: #fff;
     }
-    .wrap{max-width:1120px;margin:0 auto;padding:52px 22px 70px}
-    .hero{text-align:center;margin-bottom:34px}
-    .eyebrow{
-      display:inline-flex;align-items:center;gap:8px;
-      border:1px solid rgba(228,189,63,.3);
-      color:var(--gold2);background:rgba(228,189,63,.07);
-      padding:8px 14px;border-radius:999px;font-size:12px;font-weight:800;
-      text-transform:uppercase;letter-spacing:.8px
+
+    .logo span {
+      color: var(--gold);
     }
-    h1{font-size:42px;line-height:1.08;margin:18px 0 10px;letter-spacing:-1.6px}
-    .sub{color:var(--muted);max-width:650px;margin:auto;font-size:16px;line-height:1.6}
-    .grid{display:grid;grid-template-columns:1fr 1.15fr;gap:22px;align-items:stretch}
-    .card{
-      background:linear-gradient(160deg,rgba(17,27,43,.96),rgba(8,13,22,.96));
-      border:1px solid var(--line);border-radius:24px;
-      box-shadow:0 24px 70px rgba(0,0,0,.34);
-      overflow:hidden
+
+    .secure-header {
+      color: #b9c5d7;
+      font-size: 13px;
     }
-    .plan{padding:30px}
-    .plan-head{display:flex;justify-content:space-between;align-items:center;gap:15px}
-    .badge{
-      background:linear-gradient(135deg,var(--gold),var(--gold2));
-      color:#10131a;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:950
+
+    /* ======================================================
+       CONTAINER
+       ====================================================== */
+
+    .container {
+      width: min(1100px, 92%);
+      margin: 0 auto;
+      padding: 55px 0 70px;
     }
-    .plan-name{font-size:28px;font-weight:950;margin-top:20px}
-    .price{font-size:45px;font-weight:950;letter-spacing:-1.5px;margin:10px 0 0}
-    .price small{font-size:14px;color:var(--muted);font-weight:600}
-    .desc{color:var(--muted);line-height:1.55;margin:8px 0 25px}
-    .features{border-top:1px solid var(--line);padding-top:20px}
-    .features div{padding:9px 0;color:#d7deea;font-size:14px}
-    .features b{color:var(--green);margin-right:8px}
-    .checkout{padding:34px}
-    .checkout h2{margin:0 0 8px;font-size:24px}
-    .checkout .hint{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:24px}
-    .secure-box{
-      display:flex;gap:13px;align-items:flex-start;
-      padding:16px;border:1px solid rgba(49,209,124,.2);
-      background:rgba(49,209,124,.055);border-radius:15px;margin-bottom:22px
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
     }
-    .secure-box strong{font-size:14px}.secure-box p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
-    .payment-title{font-size:14px;font-weight:800;margin:24px 0 12px}
-    .payment-options{display:grid;gap:10px;margin-bottom:18px}
-    .payment-option{
-      width:100%;display:flex;align-items:center;gap:13px;text-align:left;
-      border:1px solid var(--line);background:rgba(255,255,255,.025);
-      border-radius:14px;padding:15px;color:var(--text);cursor:pointer;
-      transition:.2s;border:1px solid rgba(255,255,255,.09)
+
+    h1 {
+      margin: 0;
+      font-size: clamp(32px, 5vw, 52px);
+      line-height: 1.05;
+      letter-spacing: -2px;
     }
-    .payment-option:hover:not(:disabled){border-color:rgba(228,189,63,.55);transform:translateY(-1px)}
-    .payment-option.selected{border-color:var(--gold);background:rgba(228,189,63,.07)}
-    .payment-icon{font-size:21px;width:28px;text-align:center}
-    .payment-copy{flex:1}
-    .payment-copy strong{display:block;font-size:14px}
-    .payment-copy small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
-    .radio{
-      width:18px;height:18px;border:2px solid #66758c;border-radius:50%;position:relative;flex:none
+
+    .subtitle {
+      max-width: 720px;
+      color: var(--muted);
+      margin-top: 15px;
+      line-height: 1.6;
+      font-size: 16px;
     }
-    .selected .radio{border-color:var(--gold)}
-    .selected .radio:after{
-      content:"";position:absolute;width:8px;height:8px;border-radius:50%;
-      background:var(--gold);left:3px;top:3px
+
+    /* ======================================================
+       GRID
+       ====================================================== */
+
+    .grid {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 25px;
+      margin-top: 38px;
     }
-    .payment-option:disabled{opacity:.52;cursor:not-allowed}
-    .coming{
-      font-size:9px;font-weight:900;color:var(--gold2);
-      border:1px solid rgba(228,189,63,.35);padding:5px 7px;border-radius:999px
+
+    .card {
+      background:
+        linear-gradient(
+          145deg,
+          rgba(255,255,255,.055),
+          rgba(255,255,255,.02)
+        );
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 30px;
+      box-shadow:
+        0 25px 70px rgba(0,0,0,.28);
     }
-    .btn{
-      width:100%;border:0;border-radius:14px;padding:17px 18px;
-      background:linear-gradient(135deg,var(--gold),var(--gold2));
-      color:#11151d;font-weight:950;font-size:15px;cursor:pointer;
-      box-shadow:0 10px 30px rgba(228,189,63,.18);
-      transition:.2s transform,.2s filter
+
+    /* ======================================================
+       PLANO
+       ====================================================== */
+
+    .plan-card {
+      position: relative;
+      overflow: hidden;
     }
-    .btn:hover{transform:translateY(-2px);filter:brightness(1.04)}
-    .back{
-      display:block;text-align:center;margin-top:16px;color:#aeb8c8;text-decoration:none;font-size:13px
+
+    .plan-card::before {
+      content: "";
+      position: absolute;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: rgba(0,48,185,.28);
+      filter: blur(50px);
+      top: -100px;
+      right: -100px;
     }
-    .methods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:20px 0}
-    .method{
-      border:1px solid var(--line);background:rgba(255,255,255,.025);
-      border-radius:13px;padding:14px;font-size:13px
+
+    .plan-label {
+      display: inline-flex;
+      padding: 7px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(243,201,40,.35);
+      background: rgba(243,201,40,.08);
+      color: var(--gold);
+      font-size: 11px;
+      font-weight: 900;
+      letter-spacing: .8px;
     }
-    .method strong{display:block;margin-bottom:4px}.method span{color:var(--muted);font-size:11px}
-    .footer{text-align:center;color:#68758a;font-size:12px;margin-top:30px}
-    @media(max-width:800px){
-      .top{padding:0 20px}.secure{display:none}
-      h1{font-size:33px}.grid{grid-template-columns:1fr}
-      .wrap{padding-top:30px}.checkout,.plan{padding:25px}
+
+    .plan-name {
+      position: relative;
+      margin-top: 25px;
+      font-size: 34px;
+      font-weight: 900;
+    }
+
+    .price {
+      position: relative;
+      margin-top: 8px;
+      font-size: 38px;
+      font-weight: 950;
+      color: var(--gold);
+    }
+
+    .price small {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .plan-description {
+      position: relative;
+      color: var(--muted);
+      line-height: 1.6;
+      margin: 15px 0 25px;
+    }
+
+    .features {
+      position: relative;
+      display: grid;
+      gap: 13px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #dce5f2;
+      font-size: 14px;
+    }
+
+    .check {
+      width: 23px;
+      height: 23px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: rgba(53,208,127,.12);
+      color: var(--success);
+      font-size: 13px;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+
+    /* ======================================================
+       CHECKOUT
+       ====================================================== */
+
+    .checkout-title {
+      margin: 0;
+      font-size: 25px;
+      font-weight: 900;
+    }
+
+    .checkout-subtitle {
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    /* ======================================================
+       SEGURANÇA
+       ====================================================== */
+
+    .security {
+      display: flex;
+      gap: 13px;
+      align-items: flex-start;
+      padding: 16px;
+      border: 1px solid rgba(53,208,127,.18);
+      background: rgba(53,208,127,.055);
+      border-radius: 14px;
+      margin: 22px 0;
+    }
+
+    .security-icon {
+      font-size: 22px;
+    }
+
+    .security strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .security p {
+      margin: 0;
+      color: #9fb1c7;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* ======================================================
+       FORMULÁRIO
+       ====================================================== */
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 800;
+      color: #dce5f2;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.11);
+      border-radius: 12px;
+      padding: 14px 15px;
+      background: rgba(0,0,0,.22);
+      color: white;
+      outline: none;
+      font-size: 14px;
+      transition: .2s;
+    }
+
+    input::placeholder {
+      color: #627289;
+    }
+
+    input:focus {
+      border-color: var(--blue);
+      box-shadow:
+        0 0 0 3px rgba(0,48,185,.15);
+    }
+
+    /* ======================================================
+       MÉTODO
+       ====================================================== */
+
+    .payment-method {
+      margin-top: 23px;
+    }
+
+    .payment-method-title {
+      font-size: 13px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .method {
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 14px;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      background: rgba(255,255,255,.025);
+    }
+
+    .method-icon {
+      font-size: 22px;
+    }
+
+    .method-text strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .method-text span {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .method-badge {
+      margin-left: auto;
+      color: var(--success);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    /* ======================================================
+       BOTÃO
+       ====================================================== */
+
+    .button {
+      width: 100%;
+      margin-top: 22px;
+      border: 0;
+      border-radius: 13px;
+      padding: 17px;
+      background:
+        linear-gradient(
+          135deg,
+          var(--gold),
+          var(--gold-dark)
+        );
+      color: #121722;
+      font-weight: 950;
+      font-size: 14px;
+      cursor: pointer;
+      transition: .2s;
+      box-shadow:
+        0 12px 35px rgba(243,201,40,.16);
+    }
+
+    .button:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.04);
+    }
+
+    .button:disabled {
+      opacity: .65;
+      cursor: wait;
+      transform: none;
+    }
+
+    .back {
+      display: block;
+      text-align: center;
+      margin-top: 17px;
+      color: #8493a8;
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .back:hover {
+      color: white;
+    }
+
+    /* ======================================================
+       MENSAGEM
+       ====================================================== */
+
+    .message {
+      display: none;
+      margin-top: 15px;
+      border-radius: 12px;
+      padding: 13px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .message.error {
+      display: block;
+      background: rgba(255,95,109,.08);
+      border: 1px solid rgba(255,95,109,.25);
+      color: #ff9ba4;
+    }
+
+    .message.success {
+      display: block;
+      background: rgba(53,208,127,.08);
+      border: 1px solid rgba(53,208,127,.25);
+      color: #7ee4aa;
+    }
+
+    /* ======================================================
+       FOOTER
+       ====================================================== */
+
+    footer {
+      text-align: center;
+      color: #536176;
+      font-size: 11px;
+      padding-bottom: 35px;
+    }
+
+    /* ======================================================
+       RESPONSIVO
+       ====================================================== */
+
+    @media (max-width: 800px) {
+
+      header {
+        padding: 0 20px;
+      }
+
+      .secure-header {
+        display: none;
+      }
+
+      .container {
+        padding-top: 35px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field.full {
+        grid-column: auto;
+      }
+
+      .card {
+        padding: 23px;
+      }
     }
   </style>
 </head>
+
 <body>
-  <header class="top">
-    <div class="logo">CRIPTO<span>PRO</span></div>
-    <div class="secure">🔒 Checkout seguro • Assinatura mensal</div>
-  </header>
 
-  <main class="wrap">
-    <section class="hero">
-      <div class="eyebrow">✦ contratação premium</div>
-      <h1>Seu próximo nível de automação começa aqui.</h1>
-      <p class="sub">Escolha seu plano e finalize sua assinatura com segurança. O pagamento será realizado no checkout protegido do Asaas.</p>
-    </section>
+<header>
 
-    <section class="grid">
-      <article class="card plan">
-        <div class="plan-head">
-          <span class="badge" id="planBadge">CRIPTOPRO</span>
-          <span>⚡</span>
+  <div class="logo">
+    CRIPTO<span>PRO</span>
+  </div>
+
+  <div class="secure-header">
+    🔒 Checkout seguro • Assinatura mensal
+  </div>
+
+</header>
+
+
+<main class="container">
+
+  <div class="eyebrow">
+    ✦ contratação CriptoPro
+  </div>
+
+  <h1>
+    Finalize sua assinatura.
+  </h1>
+
+  <p class="subtitle">
+    Confira seu plano, informe seus dados e continue para o
+    ambiente seguro de pagamento.
+  </p>
+
+
+  <section class="grid">
+
+
+    <!-- ====================================================
+         PLANO
+         ==================================================== -->
+
+    <article class="card plan-card">
+
+      <span
+        class="plan-label"
+        id="planBadge"
+      >
+        CRIPTOPRO
+      </span>
+
+      <div
+        class="plan-name"
+        id="planName"
+      >
+        Básico
+      </div>
+
+      <div
+        class="price"
+        id="planPrice"
+      >
+        R$ 49,90
+        <small>/mês</small>
+      </div>
+
+      <p
+        class="plan-description"
+        id="planDescription"
+      >
+        Automação essencial para começar.
+      </p>
+
+
+      <div class="features">
+
+        <div class="feature">
+          <span class="check">✓</span>
+          Dashboard CriptoPro
         </div>
-        <div class="plan-name" id="planName">Básico</div>
-        <div class="price" id="planPrice">R$ 49,90 <small>/mês</small></div>
-        <p class="desc" id="planDesc">Automação essencial para começar com controle e praticidade.</p>
 
-        <div class="features" id="features">
-          <div><b>✓</b> Dashboard da conta</div>
-          <div><b>✓</b> Conexão com a Binance</div>
-          <div><b>✓</b> 1 conta Binance</div>
-          <div><b>✓</b> Automação básica</div>
-          <div><b>✓</b> 1 operação simultânea</div>
-          <div><b>✓</b> Histórico e resultados</div>
+        <div class="feature">
+          <span class="check">✓</span>
+          Conexão com a Binance
         </div>
-      </article>
 
-      <article class="card checkout">
-        <h2>Finalizar assinatura</h2>
-        <p class="hint">Você será direcionado para o checkout seguro do Asaas para concluir a contratação.</p>
+        <div class="feature">
+          <span class="check">✓</span>
+          <span id="featureAccounts">
+            1 conta Binance
+          </span>
+        </div>
 
-        <div class="secure-box">
-          <div style="font-size:22px">🛡️</div>
-          <div>
-            <strong>Pagamento protegido</strong>
-            <p>O CriptoPro não recebe nem armazena os dados do seu cartão. O pagamento é processado pelo Asaas.</p>
+        <div class="feature">
+          <span class="check">✓</span>
+          <span id="featureOperations">
+            1 operação simultânea
+          </span>
+        </div>
+
+        <div class="feature">
+          <span class="check">✓</span>
+          Histórico e resultados
+        </div>
+
+        <div class="feature">
+          <span class="check">✓</span>
+          Recursos conforme seu plano
+        </div>
+
+      </div>
+
+    </article>
+
+
+    <!-- ====================================================
+         CHECKOUT
+         ==================================================== -->
+
+    <article class="card">
+
+      <h2 class="checkout-title">
+        Dados para contratação
+      </h2>
+
+      <p class="checkout-subtitle">
+        Essas informações serão utilizadas para identificar
+        o titular da assinatura no pagamento.
+      </p>
+
+
+      <div class="security">
+
+        <div class="security-icon">
+          🛡️
+        </div>
+
+        <div>
+
+          <strong>
+            Pagamento protegido
+          </strong>
+
+          <p>
+            O CriptoPro não recebe nem armazena os dados
+            do seu cartão. O pagamento será processado
+            pelo ambiente seguro do Asaas.
+          </p>
+
+        </div>
+
+      </div>
+
+
+      <!-- ==================================================
+           FORM
+           ================================================== -->
+
+      <form id="paymentForm">
+
+
+        <div class="form-grid">
+
+
+          <div class="field full">
+
+            <label for="customerName">
+              Nome completo
+            </label>
+
+            <input
+              id="customerName"
+              name="customerName"
+              type="text"
+              autocomplete="name"
+              placeholder="Digite seu nome completo"
+              required
+            >
+
           </div>
+
+
+          <div class="field">
+
+            <label for="customerCpfCnpj">
+              CPF ou CNPJ
+            </label>
+
+            <input
+              id="customerCpfCnpj"
+              name="customerCpfCnpj"
+              type="text"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="000.000.000-00"
+              maxlength="18"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label for="customerPhone">
+              Telefone
+            </label>
+
+            <input
+              id="customerPhone"
+              name="customerPhone"
+              type="tel"
+              inputmode="tel"
+              autocomplete="tel"
+              placeholder="(00) 00000-0000"
+              maxlength="16"
+              required
+            >
+
+          </div>
+
+
+          <div class="field full">
+
+            <label for="customerEmail">
+              E-mail
+            </label>
+
+            <input
+              id="customerEmail"
+              name="customerEmail"
+              type="email"
+              autocomplete="email"
+              placeholder="seuemail@exemplo.com"
+              required
+            >
+
+          </div>
+
+
         </div>
 
-        <div class="payment-title">Escolha a forma de pagamento</div>
 
-        <div class="payment-options">
-          <button class="payment-option selected" type="button" data-method="card">
-            <span class="payment-icon">💳</span>
-            <span class="payment-copy">
-              <strong>Cartão de crédito</strong>
-              <small>Pagamento recorrente mensal</small>
-            </span>
-            <span class="radio"></span>
-          </button>
+        <!-- ================================================
+             MÉTODO
+             ================================================ -->
 
-          <button class="payment-option pix-option" type="button" data-method="pix" disabled>
-            <span class="payment-icon">⚡</span>
-            <span class="payment-copy">
-              <strong>PIX</strong>
-              <small id="pixStatus">Disponível após a aprovação da conta</small>
-            </span>
-            <span class="coming">EM BREVE</span>
-            <span class="radio"></span>
-          </button>
+        <div class="payment-method">
+
+          <div class="payment-method-title">
+            Forma de pagamento
+          </div>
+
+
+          <div class="method">
+
+            <div class="method-icon">
+              💳
+            </div>
+
+            <div class="method-text">
+
+              <strong>
+                Cartão de crédito
+              </strong>
+
+              <span>
+                Assinatura recorrente mensal
+              </span>
+
+            </div>
+
+            <div class="method-badge">
+              DISPONÍVEL
+            </div>
+
+          </div>
+
         </div>
 
-        <button class="btn" id="btnAssinar">CONTINUAR PARA PAGAMENTO →</button>
-        <a class="back" href="/planos.html">← Voltar para os planos</a>
-      </article>
-    </section>
 
-    <div class="footer">© CriptoPro • Todos os direitos reservados</div>
-  </main>
+        <button
+          class="button"
+          id="btnAssinar"
+          type="submit"
+        >
+          CONTINUAR PARA PAGAMENTO →
+        </button>
+
+
+        <div
+          id="message"
+          class="message"
+        ></div>
+
+
+      </form>
+
+
+      <a
+        class="back"
+        href="/planos.html"
+      >
+        ← Voltar para os planos
+      </a>
+
+    </article>
+
+  </section>
+
+</main>
+
+
+<footer>
+  © CriptoPro • Todos os direitos reservados.
+</footer>
+
 
 <script>
+
+  // ==========================================================
+  // PLANOS
+  // ==========================================================
+
   const plans = {
+
     basico: {
+
       name: "Básico",
-      price: "R$ 49,90",
+
+      price: 49.90,
+
+      priceText: "R$ 49,90",
+
       badge: "COMECE AGORA",
-      desc: "Automação essencial para começar com controle e praticidade.",
-      link: "https://www.asaas.com/c/v2eovtcuo7koo2xw"
+
+      description:
+        "Automação essencial para começar com controle e praticidade.",
+
+      accounts: 1,
+
+      operations: 1
+
     },
+
+
     profissional: {
+
       name: "Profissional",
-      price: "R$ 99,90",
+
+      price: 99.90,
+
+      priceText: "R$ 99,90",
+
       badge: "MAIS ESCOLHIDO",
-      desc: "Mais controle, mais operações e recursos avançados para sua automação.",
-      link: "https://www.asaas.com/c/o24lda7misc3uwdq"
+
+      description:
+        "Mais controle, mais operações e recursos avançados para sua automação.",
+
+      accounts: 2,
+
+      operations: 2
+
     },
+
+
     premium: {
+
       name: "Premium",
-      price: "R$ 199,90",
+
+      price: 199.90,
+
+      priceText: "R$ 199,90",
+
       badge: "MÁXIMO DE RECURSOS",
-      desc: "O pacote completo para quem quer o máximo de recursos do CriptoPro.",
-      link: "https://www.asaas.com/c/lejkuntj49hq8fml"
+
+      description:
+        "O pacote completo para quem quer o máximo de recursos do CriptoPro.",
+
+      accounts: 3,
+
+      operations: 3
+
     }
+
   };
 
-  const code = localStorage.getItem("criptopro_selected_plan") || "basico";
-  const plan = plans[code] || plans.basico;
 
-  document.getElementById("planName").textContent = plan.name;
-  document.getElementById("planPrice").innerHTML = plan.price + ' <small>/mês</small>';
-  document.getElementById("planBadge").textContent = plan.badge;
-  document.getElementById("planDesc").textContent = plan.desc;
+  // ==========================================================
+  // PLANO SELECIONADO
+  // ==========================================================
 
-  // Deixe false enquanto o Pix do Asaas estiver bloqueado.
-  // Quando a conta/checkout estiver aprovado para Pix, altere para true
-  // e habilite o Pix também no respectivo link do Asaas.
-  const pixAtivo = false;
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
 
-  const pixOption = document.querySelector('[data-method="pix"]');
-  const cardOption = document.querySelector('[data-method="card"]');
-  let metodoSelecionado = "card";
 
-  if (pixAtivo) {
-    pixOption.disabled = false;
-    pixOption.querySelector("#pixStatus").textContent =
-      "Pagamento via Pix";
-    pixOption.querySelector(".coming").textContent = "DISPONÍVEL";
+  const codigoURL =
+    params.get("plan");
+
+
+  const codigoSalvo =
+    localStorage.getItem(
+      "criptopro_selected_plan"
+    );
+
+
+  const codigo =
+    codigoURL ||
+    codigoSalvo ||
+    "basico";
+
+
+  const plan =
+    plans[codigo] ||
+    plans.basico;
+
+
+  // Salvar novamente para manter consistência
+  localStorage.setItem(
+    "criptopro_selected_plan",
+    codigo
+  );
+
+
+  // ==========================================================
+  // PREENCHER PLANO
+  // ==========================================================
+
+  document.getElementById(
+    "planBadge"
+  ).textContent =
+    plan.badge;
+
+
+  document.getElementById(
+    "planName"
+  ).textContent =
+    plan.name;
+
+
+  document.getElementById(
+    "planPrice"
+  ).innerHTML =
+    `${plan.priceText} <small>/mês</small>`;
+
+
+  document.getElementById(
+    "planDescription"
+  ).textContent =
+    plan.description;
+
+
+  document.getElementById(
+    "featureAccounts"
+  ).textContent =
+    `${plan.accounts} conta${plan.accounts > 1 ? "s" : ""} Binance`;
+
+
+  document.getElementById(
+    "featureOperations"
+  ).textContent =
+    `${plan.operations} operação${plan.operations > 1 ? "ões" : ""} simultânea${plan.operations > 1 ? "s" : ""}`;
+
+
+  // ==========================================================
+  // TOKEN
+  // ==========================================================
+
+  const token =
+    localStorage.getItem("token");
+
+
+  // ==========================================================
+  // ELEMENTOS
+  // ==========================================================
+
+  const form =
+    document.getElementById(
+      "paymentForm"
+    );
+
+
+  const button =
+    document.getElementById(
+      "btnAssinar"
+    );
+
+
+  const message =
+    document.getElementById(
+      "message"
+    );
+
+
+  const nameInput =
+    document.getElementById(
+      "customerName"
+    );
+
+
+  const cpfInput =
+    document.getElementById(
+      "customerCpfCnpj"
+    );
+
+
+  const emailInput =
+    document.getElementById(
+      "customerEmail"
+    );
+
+
+  const phoneInput =
+    document.getElementById(
+      "customerPhone"
+    );
+
+
+  // ==========================================================
+  // MENSAGEM
+  // ==========================================================
+
+  function showMessage(
+    text,
+    type = "error"
+  ) {
+
+    message.textContent =
+      text;
+
+    message.className =
+      `message ${type}`;
+
   }
 
-  document.querySelectorAll(".payment-option").forEach(option => {
-    option.addEventListener("click", () => {
-      if (option.disabled) return;
 
-      document.querySelectorAll(".payment-option")
-        .forEach(item => item.classList.remove("selected"));
+  // ==========================================================
+  // SOMENTE NÚMEROS
+  // ==========================================================
 
-      option.classList.add("selected");
-      metodoSelecionado = option.dataset.method;
-    });
-  });
+  function onlyNumbers(value) {
 
-  document.getElementById("btnAssinar").addEventListener("click", function(){
-    if (metodoSelecionado === "pix" && !pixAtivo) {
-      alert("O pagamento via PIX será liberado assim que o Asaas aprovar essa modalidade.");
+    return String(value || "")
+      .replace(/\D/g, "");
+
+  }
+
+
+  // ==========================================================
+  // MÁSCARA CPF / CNPJ
+  // ==========================================================
+
+  cpfInput.addEventListener(
+    "input",
+    function() {
+
+      let value =
+        onlyNumbers(
+          this.value
+        );
+
+
+      if (value.length <= 11) {
+
+        value =
+          value.replace(
+            /(\d{3})(\d)/,
+            "$1.$2"
+          );
+
+        value =
+          value.replace(
+            /(\d{3})(\d)/,
+            "$1.$2"
+          );
+
+        value =
+          value.replace(
+            /(\d{3})(\d{1,2})$/,
+            "$1-$2"
+          );
+
+      } else {
+
+        value =
+          value.slice(
+            0,
+            14
+          );
+
+        value =
+          value.replace(
+            /^(\d{2})(\d)/,
+            "$1.$2"
+          );
+
+        value =
+          value.replace(
+            /^(\d{2})\.(\d{3})(\d)/,
+            "$1.$2.$3"
+          );
+
+        value =
+          value.replace(
+            /\.(\d{3})(\d)/,
+            ".$1/$2"
+          );
+
+        value =
+          value.replace(
+            /(\d{4})(\d)/,
+            "$1-$2"
+          );
+
+      }
+
+
+      this.value =
+        value;
+
+    }
+  );
+
+
+  // ==========================================================
+  // MÁSCARA TELEFONE
+  // ==========================================================
+
+  phoneInput.addEventListener(
+    "input",
+    function() {
+
+      let value =
+        onlyNumbers(
+          this.value
+        )
+        .slice(0, 11);
+
+
+      if (value.length <= 10) {
+
+        value =
+          value.replace(
+            /^(\d{2})(\d)/,
+            "($1) $2"
+          );
+
+        value =
+          value.replace(
+            /(\d{4})(\d)/,
+            "$1-$2"
+          );
+
+      } else {
+
+        value =
+          value.replace(
+            /^(\d{2})(\d)/,
+            "($1) $2"
+          );
+
+        value =
+          value.replace(
+            /(\d{5})(\d)/,
+            "$1-$2"
+          );
+
+      }
+
+
+      this.value =
+        value;
+
+    }
+  );
+
+
+  // ==========================================================
+  // CARREGAR USUÁRIO LOGADO
+  // ==========================================================
+
+  async function carregarUsuario() {
+
+    if (!token) {
+
+      showMessage(
+        "Você precisa estar logado para contratar um plano.",
+        "error"
+      );
+
+      button.disabled =
+        true;
+
+      setTimeout(
+        () => {
+          window.location.href =
+            "/login.html";
+        },
+        1500
+      );
+
       return;
+
     }
 
-    this.disabled = true;
-    this.textContent = "ABRINDO CHECKOUT...";
 
-    // O Asaas apresenta as formas de pagamento habilitadas
-    // no link do plano.
-    window.location.href = plan.link;
-  });
+    try {
+
+      const response =
+        await fetch(
+          "/api/auth/me",
+          {
+            headers: {
+              "Authorization":
+                `Bearer ${token}`
+            }
+          }
+        );
+
+
+      const data =
+        await response.json();
+
+
+      if (
+        !response.ok ||
+        !data.success ||
+        !data.user
+      ) {
+
+        localStorage.removeItem(
+          "token"
+        );
+
+        showMessage(
+          "Sua sessão expirou. Faça login novamente.",
+          "error"
+        );
+
+        button.disabled =
+          true;
+
+        setTimeout(
+          () => {
+            window.location.href =
+              "/login.html";
+          },
+          1200
+        );
+
+        return;
+
+      }
+
+
+      const user =
+        data.user;
+
+
+      // ------------------------------------------------------
+      // Preencher automaticamente nome e e-mail
+      // ------------------------------------------------------
+
+      if (user.name) {
+
+        nameInput.value =
+          user.name;
+
+      }
+
+
+      if (user.email) {
+
+        emailInput.value =
+          user.email;
+
+      }
+
+
+      // Salvar usuário localmente
+      localStorage.setItem(
+        "criptopro_user",
+        JSON.stringify(user)
+      );
+
+
+    } catch (error) {
+
+      console.error(
+        "Erro ao carregar usuário:",
+        error
+      );
+
+      showMessage(
+        "Não foi possível verificar sua sessão. Tente novamente.",
+        "error"
+      );
+
+    }
+
+  }
+
+
+  carregarUsuario();
+
+
+  // ==========================================================
+  // ENVIAR CONTRATAÇÃO
+  // ==========================================================
+
+  form.addEventListener(
+    "submit",
+    async function(event) {
+
+      event.preventDefault();
+
+
+      if (!token) {
+
+        window.location.href =
+          "/login.html";
+
+        return;
+
+      }
+
+
+      // ------------------------------------------------------
+      // DADOS
+      // ------------------------------------------------------
+
+      const customerName =
+        nameInput.value.trim();
+
+
+      const customerCpfCnpj =
+        onlyNumbers(
+          cpfInput.value
+        );
+
+
+      const customerEmail =
+        emailInput.value.trim();
+
+
+      const customerPhone =
+        onlyNumbers(
+          phoneInput.value
+        );
+
+
+      // ------------------------------------------------------
+      // VALIDAÇÕES
+      // ------------------------------------------------------
+
+      if (!customerName) {
+
+        showMessage(
+          "Informe seu nome completo."
+        );
+
+        nameInput.focus();
+
+        return;
+
+      }
+
+
+      if (
+        customerCpfCnpj.length !== 11 &&
+        customerCpfCnpj.length !== 14
+      ) {
+
+        showMessage(
+          "Informe um CPF ou CNPJ válido."
+        );
+
+        cpfInput.focus();
+
+        return;
+
+      }
+
+
+      if (!customerEmail) {
+
+        showMessage(
+          "Informe seu e-mail."
+        );
+
+        emailInput.focus();
+
+        return;
+
+      }
+
+
+      if (
+        customerPhone.length < 10
+      ) {
+
+        showMessage(
+          "Informe um telefone válido."
+        );
+
+        phoneInput.focus();
+
+        return;
+
+      }
+
+
+      // ------------------------------------------------------
+      // LOADING
+      // ------------------------------------------------------
+
+      button.disabled =
+        true;
+
+      button.textContent =
+        "CRIANDO PAGAMENTO...";
+
+      message.style.display =
+        "none";
+
+
+      try {
+
+        // ----------------------------------------------------
+        // CHAMAR BACKEND
+        // ----------------------------------------------------
+
+        const response =
+          await fetch(
+            "/api/subscription/select",
+            {
+              method: "POST",
+
+              headers: {
+
+                "Content-Type":
+                  "application/json",
+
+                "Authorization":
+                  `Bearer ${token}`
+
+              },
+
+              body:
+                JSON.stringify({
+
+                  plan: codigo,
+
+                  customerData: {
+
+                    name:
+                      customerName,
+
+                    cpfCnpj:
+                      customerCpfCnpj,
+
+                    email:
+                      customerEmail,
+
+                    phone:
+                      customerPhone
+
+                  }
+
+                })
+
+            }
+          );
+
+
+        // ----------------------------------------------------
+        // RESPOSTA
+        // ----------------------------------------------------
+
+        let data = {};
+
+        try {
+
+          data =
+            await response.json();
+
+        } catch {
+
+          data = {};
+
+        }
+
+
+        console.log(
+          "RESPOSTA PAGAMENTO:",
+          data
+        );
+
+
+        // ----------------------------------------------------
+        // SESSÃO INVÁLIDA
+        // ----------------------------------------------------
+
+        if (
+          response.status === 401
+        ) {
+
+          localStorage.removeItem(
+            "token"
+          );
+
+          showMessage(
+            "Sua sessão expirou. Faça login novamente."
+          );
+
+          setTimeout(
+            () => {
+              window.location.href =
+                "/login.html";
+            },
+            1200
+          );
+
+          return;
+
+        }
+
+
+        // ----------------------------------------------------
+        // ERRO
+        // ----------------------------------------------------
+
+        if (
+          !response.ok ||
+          (!data.ok && !data.success)
+        ) {
+
+          showMessage(
+            data.error ||
+            data.message ||
+            "Não foi possível iniciar o pagamento."
+          );
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "CONTINUAR PARA PAGAMENTO →";
+
+          return;
+
+        }
+
+
+        // ----------------------------------------------------
+        // LINK DO ASAAS
+        // ----------------------------------------------------
+
+        const paymentUrl =
+          data.paymentUrl ||
+          data.payment_url;
+
+
+        if (!paymentUrl) {
+
+          console.error(
+            "Resposta sem paymentUrl:",
+            data
+          );
+
+          showMessage(
+            "O pagamento foi iniciado, mas o link não foi recebido. Tente novamente."
+          );
+
+          button.disabled =
+            false;
+
+          button.textContent =
+            "CONTINUAR PARA PAGAMENTO →";
+
+          return;
+
+        }
+
+
+        // ----------------------------------------------------
+        // REDIRECIONAR
+        // ----------------------------------------------------
+
+        button.textContent =
+          "ABRINDO PAGAMENTO...";
+
+
+        window.location.href =
+          paymentUrl;
+
+      } catch (error) {
+
+        console.error(
+          "ERRO AO INICIAR PAGAMENTO:",
+          error
+        );
+
+        showMessage(
+          "Erro de conexão com o servidor. Tente novamente."
+        );
+
+        button.disabled =
+          false;
+
+        button.textContent =
+          "CONTINUAR PARA PAGAMENTO →";
+
+      }
+
+    }
+  );
+
+
+  // ==========================================================
+  // MENSAGENS DA URL
+  // ==========================================================
+
+  if (
+    params.get("cancelled") === "1"
+  ) {
+
+    showMessage(
+      "O pagamento foi cancelado. Você pode tentar novamente."
+    );
+
+  }
+
+
+  if (
+    params.get("expired") === "1"
+  ) {
+
+    showMessage(
+      "O checkout anterior expirou. Você pode iniciar um novo pagamento."
+    );
+
+  }
+
 </script>
+
 </body>
 </html>

@@ -3,454 +3,288 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pagamento — CriptoPro</title>
-
+  <title>CriptoPro — Finalizar assinatura</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root{
+      --bg:#070b12;
+      --panel:#0e1522;
+      --panel2:#111b2b;
+      --gold:#e4bd3f;
+      --gold2:#f5d65d;
+      --text:#f7f8fb;
+      --muted:#9aa7bb;
+      --line:rgba(255,255,255,.09);
+      --green:#31d17c;
     }
-
-    body {
-      min-height: 100vh;
-      font-family: Arial, Helvetica, sans-serif;
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Inter,Segoe UI,Arial,sans-serif;
+      color:var(--text);
       background:
-        radial-gradient(circle at top, #182033 0%, #080b12 45%, #05070b 100%);
-      color: #fff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      padding: 30px 15px;
+        radial-gradient(circle at 15% 10%,rgba(228,189,63,.12),transparent 28%),
+        radial-gradient(circle at 85% 20%,rgba(20,140,180,.10),transparent 25%),
+        linear-gradient(135deg,#05080d,#0a101a 55%,#071116);
     }
-
-    .container {
-      width: 100%;
-      max-width: 520px;
+    a{color:inherit}
+    .top{
+      height:74px;
+      border-bottom:1px solid var(--line);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 6%;
+      background:rgba(5,8,13,.78);
+      backdrop-filter:blur(16px);
     }
-
-    .logo {
-      text-align: center;
-      font-size: 30px;
-      font-weight: 800;
-      margin-bottom: 25px;
-      letter-spacing: 1px;
+    .logo{font-weight:950;font-size:25px;letter-spacing:-1.2px}
+    .logo span{color:var(--gold)}
+    .secure{
+      color:#b7c1d0;font-size:13px;display:flex;gap:8px;align-items:center
     }
-
-    .logo span {
-      color: #00e5ff;
+    .wrap{max-width:1120px;margin:0 auto;padding:52px 22px 70px}
+    .hero{text-align:center;margin-bottom:34px}
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:8px;
+      border:1px solid rgba(228,189,63,.3);
+      color:var(--gold2);background:rgba(228,189,63,.07);
+      padding:8px 14px;border-radius:999px;font-size:12px;font-weight:800;
+      text-transform:uppercase;letter-spacing:.8px
     }
-
-    .card {
-      background: rgba(15, 20, 32, 0.96);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 30px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    h1{font-size:42px;line-height:1.08;margin:18px 0 10px;letter-spacing:-1.6px}
+    .sub{color:var(--muted);max-width:650px;margin:auto;font-size:16px;line-height:1.6}
+    .grid{display:grid;grid-template-columns:1fr 1.15fr;gap:22px;align-items:stretch}
+    .card{
+      background:linear-gradient(160deg,rgba(17,27,43,.96),rgba(8,13,22,.96));
+      border:1px solid var(--line);border-radius:24px;
+      box-shadow:0 24px 70px rgba(0,0,0,.34);
+      overflow:hidden
     }
-
-    .titulo {
-      text-align: center;
-      font-size: 24px;
-      margin-bottom: 8px;
+    .plan{padding:30px}
+    .plan-head{display:flex;justify-content:space-between;align-items:center;gap:15px}
+    .badge{
+      background:linear-gradient(135deg,var(--gold),var(--gold2));
+      color:#10131a;padding:7px 11px;border-radius:8px;font-size:11px;font-weight:950
     }
-
-    .subtitulo {
-      text-align: center;
-      color: #9ca7b8;
-      font-size: 14px;
-      margin-bottom: 25px;
+    .plan-name{font-size:28px;font-weight:950;margin-top:20px}
+    .price{font-size:45px;font-weight:950;letter-spacing:-1.5px;margin:10px 0 0}
+    .price small{font-size:14px;color:var(--muted);font-weight:600}
+    .desc{color:var(--muted);line-height:1.55;margin:8px 0 25px}
+    .features{border-top:1px solid var(--line);padding-top:20px}
+    .features div{padding:9px 0;color:#d7deea;font-size:14px}
+    .features b{color:var(--green);margin-right:8px}
+    .checkout{padding:34px}
+    .checkout h2{margin:0 0 8px;font-size:24px}
+    .checkout .hint{color:var(--muted);font-size:14px;line-height:1.5;margin-bottom:24px}
+    .secure-box{
+      display:flex;gap:13px;align-items:flex-start;
+      padding:16px;border:1px solid rgba(49,209,124,.2);
+      background:rgba(49,209,124,.055);border-radius:15px;margin-bottom:22px
     }
-
-    .plano {
-      background: #101827;
-      border: 1px solid rgba(0,229,255,0.25);
-      border-radius: 14px;
-      padding: 18px;
-      margin-bottom: 25px;
-      text-align: center;
+    .secure-box strong{font-size:14px}.secure-box p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.45}
+    .payment-title{font-size:14px;font-weight:800;margin:24px 0 12px}
+    .payment-options{display:grid;gap:10px;margin-bottom:18px}
+    .payment-option{
+      width:100%;display:flex;align-items:center;gap:13px;text-align:left;
+      border:1px solid var(--line);background:rgba(255,255,255,.025);
+      border-radius:14px;padding:15px;color:var(--text);cursor:pointer;
+      transition:.2s;border:1px solid rgba(255,255,255,.09)
     }
-
-    .plano-nome {
-      font-size: 20px;
-      font-weight: 700;
+    .payment-option:hover:not(:disabled){border-color:rgba(228,189,63,.55);transform:translateY(-1px)}
+    .payment-option.selected{border-color:var(--gold);background:rgba(228,189,63,.07)}
+    .payment-icon{font-size:21px;width:28px;text-align:center}
+    .payment-copy{flex:1}
+    .payment-copy strong{display:block;font-size:14px}
+    .payment-copy small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+    .radio{
+      width:18px;height:18px;border:2px solid #66758c;border-radius:50%;position:relative;flex:none
     }
-
-    .plano-valor {
-      margin-top: 7px;
-      color: #00e5ff;
-      font-size: 22px;
-      font-weight: 800;
+    .selected .radio{border-color:var(--gold)}
+    .selected .radio:after{
+      content:"";position:absolute;width:8px;height:8px;border-radius:50%;
+      background:var(--gold);left:3px;top:3px
     }
-
-    .metodos-titulo {
-      font-size: 15px;
-      margin-bottom: 12px;
-      color: #cbd5e1;
+    .payment-option:disabled{opacity:.52;cursor:not-allowed}
+    .coming{
+      font-size:9px;font-weight:900;color:var(--gold2);
+      border:1px solid rgba(228,189,63,.35);padding:5px 7px;border-radius:999px
     }
-
-    .metodo {
-      width: 100%;
-      background: #0c121e;
-      border: 1px solid #293244;
-      border-radius: 14px;
-      padding: 17px;
-      margin-bottom: 12px;
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      text-align: left;
-      transition: 0.2s;
+    .btn{
+      width:100%;border:0;border-radius:14px;padding:17px 18px;
+      background:linear-gradient(135deg,var(--gold),var(--gold2));
+      color:#11151d;font-weight:950;font-size:15px;cursor:pointer;
+      box-shadow:0 10px 30px rgba(228,189,63,.18);
+      transition:.2s transform,.2s filter
     }
-
-    .metodo:hover {
-      border-color: #00e5ff;
-      transform: translateY(-1px);
+    .btn:hover{transform:translateY(-2px);filter:brightness(1.04)}
+    .back{
+      display:block;text-align:center;margin-top:16px;color:#aeb8c8;text-decoration:none;font-size:13px
     }
-
-    .metodo.selecionado {
-      border-color: #00e5ff;
-      background: #101d2d;
-      box-shadow: 0 0 0 1px rgba(0,229,255,0.15);
+    .methods{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:20px 0}
+    .method{
+      border:1px solid var(--line);background:rgba(255,255,255,.025);
+      border-radius:13px;padding:14px;font-size:13px
     }
-
-    .icone {
-      width: 42px;
-      height: 42px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #182234;
-      font-size: 21px;
-      flex-shrink: 0;
-    }
-
-    .metodo-info strong {
-      display: block;
-      font-size: 16px;
-      margin-bottom: 4px;
-    }
-
-    .metodo-info span {
-      color: #8d98aa;
-      font-size: 12px;
-    }
-
-    .check {
-      margin-left: auto;
-      width: 20px;
-      height: 20px;
-      border: 1px solid #526075;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .metodo.selecionado .check {
-      border: 5px solid #00e5ff;
-      background: #0c121e;
-    }
-
-    .continuar {
-      width: 100%;
-      border: none;
-      border-radius: 12px;
-      padding: 16px;
-      margin-top: 10px;
-      background: #00e5ff;
-      color: #061018;
-      font-size: 15px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-
-    .continuar:hover {
-      transform: translateY(-1px);
-      filter: brightness(1.08);
-    }
-
-    .continuar:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-
-    .voltar {
-      display: block;
-      text-align: center;
-      margin-top: 18px;
-      color: #8995a8;
-      text-decoration: none;
-      font-size: 13px;
-    }
-
-    .voltar:hover {
-      color: #fff;
-    }
-
-    .seguro {
-      text-align: center;
-      margin-top: 20px;
-      color: #707c8e;
-      font-size: 11px;
+    .method strong{display:block;margin-bottom:4px}.method span{color:var(--muted);font-size:11px}
+    .footer{text-align:center;color:#68758a;font-size:12px;margin-top:30px}
+    @media(max-width:800px){
+      .top{padding:0 20px}.secure{display:none}
+      h1{font-size:33px}.grid{grid-template-columns:1fr}
+      .wrap{padding-top:30px}.checkout,.plan{padding:25px}
     }
   </style>
 </head>
-
 <body>
+  <header class="top">
+    <div class="logo">CRIPTO<span>PRO</span></div>
+    <div class="secure">🔒 Checkout seguro • Assinatura mensal</div>
+  </header>
 
-  <div class="container">
+  <main class="wrap">
+    <section class="hero">
+      <div class="eyebrow">✦ contratação premium</div>
+      <h1>Seu próximo nível de automação começa aqui.</h1>
+      <p class="sub">Escolha seu plano e finalize sua assinatura com segurança. O pagamento será realizado no checkout protegido do Asaas.</p>
+    </section>
 
-    <div class="logo">
-      Cripto<span>Pro</span>
-    </div>
+    <section class="grid">
+      <article class="card plan">
+        <div class="plan-head">
+          <span class="badge" id="planBadge">CRIPTOPRO</span>
+          <span>⚡</span>
+        </div>
+        <div class="plan-name" id="planName">Básico</div>
+        <div class="price" id="planPrice">R$ 49,90 <small>/mês</small></div>
+        <p class="desc" id="planDesc">Automação essencial para começar com controle e praticidade.</p>
 
-    <div class="card">
+        <div class="features" id="features">
+          <div><b>✓</b> Dashboard da conta</div>
+          <div><b>✓</b> Conexão com a Binance</div>
+          <div><b>✓</b> 1 conta Binance</div>
+          <div><b>✓</b> Automação básica</div>
+          <div><b>✓</b> 1 operação simultânea</div>
+          <div><b>✓</b> Histórico e resultados</div>
+        </div>
+      </article>
 
-      <h1 class="titulo">Forma de pagamento</h1>
+      <article class="card checkout">
+        <h2>Finalizar assinatura</h2>
+        <p class="hint">Você será direcionado para o checkout seguro do Asaas para concluir a contratação.</p>
 
-      <p class="subtitulo">
-        Escolha como deseja realizar sua contratação.
-      </p>
-
-      <div class="plano">
-        <div class="plano-nome" id="planoNome">
-          Carregando plano...
+        <div class="secure-box">
+          <div style="font-size:22px">🛡️</div>
+          <div>
+            <strong>Pagamento protegido</strong>
+            <p>O CriptoPro não recebe nem armazena os dados do seu cartão. O pagamento é processado pelo Asaas.</p>
+          </div>
         </div>
 
-        <div class="plano-valor" id="planoValor">
-          --
-        </div>
-      </div>
+        <div class="payment-title">Escolha a forma de pagamento</div>
 
-      <div class="metodos-titulo">
-        Escolha uma opção:
-      </div>
+        <div class="payment-options">
+          <button class="payment-option selected" type="button" data-method="card">
+            <span class="payment-icon">💳</span>
+            <span class="payment-copy">
+              <strong>Cartão de crédito</strong>
+              <small>Pagamento recorrente mensal</small>
+            </span>
+            <span class="radio"></span>
+          </button>
 
-      <button class="metodo" data-metodo="credit_card" onclick="selecionarMetodo(this)">
-        <div class="icone">💳</div>
-
-        <div class="metodo-info">
-          <strong>Cartão de crédito</strong>
-          <span>Pagamento recorrente mensal</span>
-        </div>
-
-        <div class="check"></div>
-      </button>
-
-      <button class="metodo" data-metodo="debit_card" onclick="selecionarMetodo(this)">
-        <div class="icone">💳</div>
-
-        <div class="metodo-info">
-          <strong>Cartão de débito</strong>
-          <span>Se disponível para sua conta</span>
+          <button class="payment-option pix-option" type="button" data-method="pix" disabled>
+            <span class="payment-icon">⚡</span>
+            <span class="payment-copy">
+              <strong>PIX</strong>
+              <small id="pixStatus">Disponível após a aprovação da conta</small>
+            </span>
+            <span class="coming">EM BREVE</span>
+            <span class="radio"></span>
+          </button>
         </div>
 
-        <div class="check"></div>
-      </button>
+        <button class="btn" id="btnAssinar">CONTINUAR PARA PAGAMENTO →</button>
+        <a class="back" href="/planos.html">← Voltar para os planos</a>
+      </article>
+    </section>
 
-      <button class="metodo" data-metodo="pix" onclick="selecionarMetodo(this)">
-        <div class="icone">⚡</div>
+    <div class="footer">© CriptoPro • Todos os direitos reservados</div>
+  </main>
 
-        <div class="metodo-info">
-          <strong>PIX</strong>
-          <span>Se disponível para a contratação</span>
-        </div>
+<script>
+  const plans = {
+    basico: {
+      name: "Básico",
+      price: "R$ 49,90",
+      badge: "COMECE AGORA",
+      desc: "Automação essencial para começar com controle e praticidade.",
+      link: "https://www.asaas.com/c/v2eovtcuo7koo2xw"
+    },
+    profissional: {
+      name: "Profissional",
+      price: "R$ 99,90",
+      badge: "MAIS ESCOLHIDO",
+      desc: "Mais controle, mais operações e recursos avançados para sua automação.",
+      link: "https://www.asaas.com/c/o24lda7misc3uwdq"
+    },
+    premium: {
+      name: "Premium",
+      price: "R$ 199,90",
+      badge: "MÁXIMO DE RECURSOS",
+      desc: "O pacote completo para quem quer o máximo de recursos do CriptoPro.",
+      link: "https://www.asaas.com/c/lejkuntj49hq8fml"
+    }
+  };
 
-        <div class="check"></div>
-      </button>
+  const code = localStorage.getItem("criptopro_selected_plan") || "basico";
+  const plan = plans[code] || plans.basico;
 
-      <button
-        id="btnContinuar"
-        class="continuar"
-        disabled
-        onclick="continuarPagamento()"
-      >
-        CONTINUAR PARA PAGAMENTO
-      </button>
+  document.getElementById("planName").textContent = plan.name;
+  document.getElementById("planPrice").innerHTML = plan.price + ' <small>/mês</small>';
+  document.getElementById("planBadge").textContent = plan.badge;
+  document.getElementById("planDesc").textContent = plan.desc;
 
-      <a href="/planos.html" class="voltar">
-        ← Voltar para os planos
-      </a>
+  // Deixe false enquanto o Pix do Asaas estiver bloqueado.
+  // Quando a conta/checkout estiver aprovado para Pix, altere para true
+  // e habilite o Pix também no respectivo link do Asaas.
+  const pixAtivo = false;
 
-      <div class="seguro">
-        🔒 O pagamento será processado com segurança pelo Mercado Pago.
-      </div>
+  const pixOption = document.querySelector('[data-method="pix"]');
+  const cardOption = document.querySelector('[data-method="card"]');
+  let metodoSelecionado = "card";
 
-    </div>
+  if (pixAtivo) {
+    pixOption.disabled = false;
+    pixOption.querySelector("#pixStatus").textContent =
+      "Pagamento via Pix";
+    pixOption.querySelector(".coming").textContent = "DISPONÍVEL";
+  }
 
-  </div>
+  document.querySelectorAll(".payment-option").forEach(option => {
+    option.addEventListener("click", () => {
+      if (option.disabled) return;
 
-  <script>
+      document.querySelectorAll(".payment-option")
+        .forEach(item => item.classList.remove("selected"));
 
-    let metodoSelecionado = null;
+      option.classList.add("selected");
+      metodoSelecionado = option.dataset.method;
+    });
+  });
 
-    const plano =
-      localStorage.getItem("criptopro_selected_plan");
-
-    const nome =
-      localStorage.getItem("criptopro_selected_plan_name");
-
-    const valor =
-      localStorage.getItem("criptopro_selected_plan_price");
-
-    if (!plano || !nome || !valor) {
-
-      window.location.href = "/planos.html";
-
-    } else {
-
-      document.getElementById("planoNome").textContent =
-        nome;
-
-      document.getElementById("planoValor").textContent =
-        valor;
-
+  document.getElementById("btnAssinar").addEventListener("click", function(){
+    if (metodoSelecionado === "pix" && !pixAtivo) {
+      alert("O pagamento via PIX será liberado assim que o Asaas aprovar essa modalidade.");
+      return;
     }
 
-    function selecionarMetodo(elemento) {
+    this.disabled = true;
+    this.textContent = "ABRINDO CHECKOUT...";
 
-      document
-        .querySelectorAll(".metodo")
-        .forEach(function(botao) {
-
-          botao.classList.remove("selecionado");
-
-        });
-
-      elemento.classList.add("selecionado");
-
-      metodoSelecionado =
-        elemento.dataset.metodo;
-
-      document.getElementById("btnContinuar").disabled =
-        false;
-
-      localStorage.setItem(
-        "criptopro_payment_method",
-        metodoSelecionado
-      );
-
-    }
-
-    async function continuarPagamento() {
-
-      const plano =
-        localStorage.getItem("criptopro_selected_plan");
-
-      const token =
-        localStorage.getItem("token");
-
-      const metodo =
-        localStorage.getItem("criptopro_payment_method");
-
-      if (!plano) {
-
-        alert("Nenhum plano foi selecionado.");
-
-        window.location.href = "/planos.html";
-
-        return;
-
-      }
-
-      if (!token) {
-
-        alert("Sua sessão expirou. Faça login novamente.");
-
-        window.location.href = "/login.html";
-
-        return;
-
-      }
-
-      if (!metodo) {
-
-        alert("Selecione uma forma de pagamento.");
-
-        return;
-
-      }
-
-      const botao =
-        document.getElementById("btnContinuar");
-
-      botao.disabled = true;
-
-      botao.textContent =
-        "PROCESSANDO...";
-
-      try {
-
-        const response =
-          await fetch(
-            "/api/subscription/select",
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-
-                "Authorization":
-                  `Bearer ${token}`
-              },
-
-              body: JSON.stringify({
-                plan: plano,
-                paymentMethod: metodo
-              })
-            }
-          );
-
-        const data =
-          await response.json();
-
-        if (!response.ok || !data.success) {
-
-          throw new Error(
-            data.message ||
-            "Não foi possível iniciar o pagamento."
-          );
-
-        }
-
-        if (!data.paymentUrl) {
-
-          throw new Error(
-            "O Mercado Pago não retornou o link de pagamento."
-          );
-
-        }
-
-        window.location.href =
-          data.paymentUrl;
-
-      } catch (error) {
-
-        console.error(
-          "ERRO AO INICIAR PAGAMENTO:",
-          error
-        );
-
-        alert(
-          error.message ||
-          "Ocorreu um erro ao iniciar o pagamento."
-        );
-
-        botao.disabled = false;
-
-        botao.textContent =
-          "CONTINUAR PARA PAGAMENTO";
-
-      }
-
-    }
-
-  </script>
-
+    // O Asaas apresenta as formas de pagamento habilitadas
+    // no link do plano.
+    window.location.href = plan.link;
+  });
+</script>
 </body>
 </html>

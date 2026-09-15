@@ -336,9 +336,38 @@
 
     }
 
-    function continuarPagamento() {
+    async function continuarPagamento() {
 
-      if (!metodoSelecionado) {
+      const plano =
+        localStorage.getItem("criptopro_selected_plan");
+
+      const token =
+        localStorage.getItem("token");
+
+      const metodo =
+        localStorage.getItem("criptopro_payment_method");
+
+      if (!plano) {
+
+        alert("Nenhum plano foi selecionado.");
+
+        window.location.href = "/planos.html";
+
+        return;
+
+      }
+
+      if (!token) {
+
+        alert("Sua sessão expirou. Faça login novamente.");
+
+        window.location.href = "/login.html";
+
+        return;
+
+      }
+
+      if (!metodo) {
 
         alert("Selecione uma forma de pagamento.");
 
@@ -346,17 +375,78 @@
 
       }
 
-      /*
-       * Próxima etapa:
-       * criar a assinatura no backend e
-       * redirecionar para o checkout do Mercado Pago.
-       */
+      const botao =
+        document.getElementById("btnContinuar");
 
-      alert(
-        "Forma selecionada: " +
-        metodoSelecionado +
-        "\\n\\nIntegração com o Mercado Pago será concluída na próxima etapa."
-      );
+      botao.disabled = true;
+
+      botao.textContent =
+        "PROCESSANDO...";
+
+      try {
+
+        const response =
+          await fetch(
+            "/api/subscription/select",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                "Authorization":
+                  `Bearer ${token}`
+              },
+
+              body: JSON.stringify({
+                plan: plano,
+                paymentMethod: metodo
+              })
+            }
+          );
+
+        const data =
+          await response.json();
+
+        if (!response.ok || !data.success) {
+
+          throw new Error(
+            data.message ||
+            "Não foi possível iniciar o pagamento."
+          );
+
+        }
+
+        if (!data.paymentUrl) {
+
+          throw new Error(
+            "O Mercado Pago não retornou o link de pagamento."
+          );
+
+        }
+
+        window.location.href =
+          data.paymentUrl;
+
+      } catch (error) {
+
+        console.error(
+          "ERRO AO INICIAR PAGAMENTO:",
+          error
+        );
+
+        alert(
+          error.message ||
+          "Ocorreu um erro ao iniciar o pagamento."
+        );
+
+        botao.disabled = false;
+
+        botao.textContent =
+          "CONTINUAR PARA PAGAMENTO";
+
+      }
 
     }
 

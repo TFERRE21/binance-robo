@@ -414,7 +414,7 @@ router.post("/select", authMiddleware, async (req, res) => {
         name: nome,
         email: email,
         cpfCnpj: cpfCnpj,
-        mobilePhone: telefone
+        phone: telefone
       },
 
       subscription: {
@@ -423,6 +423,17 @@ router.post("/select", authMiddleware, async (req, res) => {
       }
     };
 
+    console.log("CRIANDO CHECKOUT ASAAS:", {
+      plan,
+      subscriptionId,
+      customerData: {
+        name: nome,
+        email: email,
+        cpfCnpj: cpfCnpj,
+        phone: telefone
+      }
+    });
+
     const checkout = await asaasRequest(
       "/checkouts",
       {
@@ -430,6 +441,11 @@ router.post("/select", authMiddleware, async (req, res) => {
         body: JSON.stringify(checkoutPayload)
       }
     );
+
+    console.log("CHECKOUT ASAAS CRIADO:", {
+      id: checkout.id,
+      status: checkout.status
+    });
 
     // ========================================================
     // SALVAR CHECKOUT ASAAS

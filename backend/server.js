@@ -2301,6 +2301,110 @@ section.section.compactOpen{
   }
 }
 
+
+/* =========================================================
+   CRIPTOPRO - NAVEGAÇÃO DO PAINEL / DASHBOARD NAVIGATION
+========================================================= */
+
+.panelNavigation{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:18px;
+  padding:12px 14px;
+  background:rgba(4,7,14,.92);
+  border:1px solid var(--line);
+  border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.20);
+}
+
+.panelNavigationLeft,
+.panelNavigationRight{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.panelLanguage{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:800;
+  text-align:center;
+  letter-spacing:.2px;
+}
+
+.panelNavBtn{
+  border:1px solid var(--line);
+  border-radius:10px;
+  padding:9px 14px;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  transition:transform .18s ease,filter .18s ease;
+}
+
+.panelNavBtn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.12);
+}
+
+.panelBackBtn{
+  background:#0030B9;
+  border-color:#2458e8;
+}
+
+.panelLogoutBtn{
+  background:#8b1e2d;
+  border-color:#b52a3b;
+}
+
+.panelLanguageLegend{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  padding:8px 11px;
+  border-radius:9px;
+  background:#0b1220;
+  border:1px solid #1b2940;
+}
+
+@media(max-width:700px){
+  .panelNavigation{
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+
+  .panelNavigationLeft,
+  .panelNavigationRight{
+    width:100%;
+    justify-content:center;
+  }
+
+  .panelLanguage{
+    width:100%;
+    order:2;
+  }
+
+  .panelNavBtn{
+    min-width:140px;
+  }
+}
+
+
+.panelNavigationWrap{
+  max-width:1400px;
+  margin:0 auto;
+  padding:18px 28px 0;
+}
+@media(max-width:700px){
+  .panelNavigationWrap{
+    padding:14px 14px 0;
+  }
+}
+
 </style>
 </head>
 
@@ -2320,6 +2424,47 @@ section.section.compactOpen{
     ONLINE
   </div>
 </header>
+
+
+<!-- ======================================================
+     CRIPTOPRO - NAVEGAÇÃO DO PAINEL
+     ====================================================== -->
+
+<div class="panelNavigationWrap">
+  <div class="panelNavigation">
+
+    <div class="panelNavigationLeft">
+
+      <button
+        type="button"
+        class="panelNavBtn panelBackBtn"
+        onclick="voltarPlanos()"
+      >
+        ← Voltar / Back
+      </button>
+
+    </div>
+
+    <div class="panelLanguage">
+      <span class="panelLanguageLegend">
+        🇧🇷 Português / 🇺🇸 English
+      </span>
+    </div>
+
+    <div class="panelNavigationRight">
+
+      <button
+        type="button"
+        class="panelNavBtn panelLogoutBtn"
+        onclick="sairSistema()"
+      >
+        ↪ Sair / Logout
+      </button>
+
+    </div>
+
+  </div>
+</div>
 
 <div class="container">
 
@@ -4878,6 +5023,57 @@ function atualizarResumoCompacto(){
   }
 }
 
+
+
+
+/*
+=========================================================
+CRIPTOPRO - NAVEGAÇÃO
+=========================================================
+*/
+
+function voltarPlanos(){
+
+  window.location.href = "/planos.html";
+
+}
+
+
+function sairSistema(){
+
+  const idioma =
+    localStorage.getItem("criptopro_language") || "pt";
+
+  const mensagem =
+    idioma === "en"
+      ? "Do you really want to leave the dashboard?"
+      : "Deseja realmente sair do painel?";
+
+  if(!window.confirm(mensagem)){
+    return;
+  }
+
+  localStorage.removeItem("token");
+
+  localStorage.removeItem(
+    "criptopro_selected_plan"
+  );
+
+  localStorage.removeItem(
+    "criptopro_selected_plan_name"
+  );
+
+  localStorage.removeItem(
+    "criptopro_selected_plan_price"
+  );
+
+  localStorage.removeItem(
+    "criptopro_user"
+  );
+
+  window.location.href = "/login.html";
+
+}
 
 
 /*

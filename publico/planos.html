@@ -2419,8 +2419,8 @@
 
         <br>
 
-        Você será direcionado para o
-        checkout seguro do Asaas para concluir a assinatura.
+        Na próxima etapa, você informará seus dados
+        e continuará para o pagamento seguro.
 
       </p>
 
@@ -2720,13 +2720,10 @@
     // INICIAR PAGAMENTO
     // ========================================================
 
-    async function iniciarPagamento() {
+    function iniciarPagamento() {
 
       const plano =
         localStorage.getItem("criptopro_selected_plan");
-
-      const token =
-        localStorage.getItem("token");
 
       if (!plano) {
 
@@ -2736,45 +2733,11 @@
 
       }
 
-      if (!token) {
-
-        alert(
-          "Você precisa estar logado para continuar."
-        );
-
-        window.location.href =
-          "/login.html";
-
-        return;
-
-      }
-
-      const linksAsaas = {
-        basico:
-          "https://www.asaas.com/c/v2eovtcuo7koo2xw",
-
-        profissional:
-          "https://www.asaas.com/c/o24lda7misc3uwdq",
-
-        premium:
-          "https://www.asaas.com/c/lejkuntj49hq8fml"
-      };
-
-      const linkPagamento =
-        linksAsaas[plano];
-
-      if (!linkPagamento) {
-
-        alert(
-          "Link de pagamento não configurado para este plano."
-        );
-
-        return;
-
-      }
-
+      // O cliente NÃO vai mais diretamente para um link fixo
+      // do Asaas. Primeiro passa pela página própria do CriptoPro,
+      // que coleta os dados do cliente e chama o backend.
       window.location.href =
-        linkPagamento;
+        `/pagamento.html?plan=${encodeURIComponent(plano)}`;
 
     }
 

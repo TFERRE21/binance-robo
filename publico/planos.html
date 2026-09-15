@@ -201,6 +201,93 @@ footer{padding:35px 0 45px;text-align:center;color:#6b7280;font-size:12px}
 </head>
 <body>
 
+<style id="criptopro-top-nav-style">
+.criptopro-top-nav{
+  width:100%;
+  max-width:1400px;
+  margin:0 auto 20px auto;
+  padding:12px 18px;
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  border:1px solid rgba(255,215,0,.25);
+  border-radius:14px;
+  background:rgba(0,0,0,.28);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.criptopro-nav-btn{
+  border:0;
+  border-radius:10px;
+  padding:10px 16px;
+  font-size:14px;
+  font-weight:700;
+  cursor:pointer;
+  transition:all .2s ease;
+  white-space:nowrap;
+}
+
+.criptopro-nav-btn:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.08);
+}
+
+.criptopro-back-btn{
+  background:#0030B9;
+  color:#fff;
+}
+
+.criptopro-logout-btn{
+  background:#8b0000;
+  color:#fff;
+}
+
+.criptopro-language{
+  color:#e8e8e8;
+  font-size:13px;
+  font-weight:600;
+  text-align:center;
+}
+
+@media(max-width:700px){
+  .criptopro-top-nav{
+    flex-wrap:wrap;
+    justify-content:center;
+  }
+
+  .criptopro-language{
+    width:100%;
+    order:-1;
+  }
+
+  .criptopro-nav-btn{
+    flex:1;
+    min-width:130px;
+  }
+}
+</style>
+
+
+<!-- CRIPTOPRO - NAVEGAÇÃO SUPERIOR -->
+<div class="criptopro-top-nav">
+  <button type="button" class="criptopro-nav-btn criptopro-back-btn" onclick="voltarLogin()">
+    ← Voltar / Back
+  </button>
+
+  <div class="criptopro-language">
+    🇧🇷 Português / 🇺🇸 English
+  </div>
+
+  <button type="button" class="criptopro-nav-btn criptopro-logout-btn" onclick="sairSistema()">
+    ↪ Sair / Logout
+  </button>
+</div>
+
+
+
 <header>
   <div class="header-inner">
     <div class="logo">Cripto<span>Pro</span></div>
@@ -481,5 +568,33 @@ document.addEventListener("DOMContentLoaded",async()=>{
   }catch(e){}
 });
 </script>
+
+
+<script id="criptopro-top-nav-script">
+function voltarLogin(){
+  window.location.href = "https://site--painel-binance--clbfrw28wczh.code.run/login.html";
+}
+
+function sairSistema(){
+  const idioma = localStorage.getItem("criptopro_language") || "pt";
+
+  const mensagem = idioma === "en"
+    ? "Do you really want to leave?"
+    : "Deseja realmente sair?";
+
+  if (!window.confirm(mensagem)) {
+    return;
+  }
+
+  localStorage.removeItem("token");
+  localStorage.removeItem("criptopro_selected_plan");
+  localStorage.removeItem("criptopro_selected_plan_name");
+  localStorage.removeItem("criptopro_selected_plan_price");
+  localStorage.removeItem("criptopro_user");
+
+  window.location.href = "https://site--painel-binance--clbfrw28wczh.code.run/login.html";
+}
+</script>
+
 </body>
 </html>

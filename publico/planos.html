@@ -2419,8 +2419,8 @@
 
         <br>
 
-        Na próxima etapa vamos conectar
-        este plano ao sistema de pagamento.
+        Você será direcionado para o
+        checkout seguro do Asaas para concluir a assinatura.
 
       </p>
 
@@ -2749,8 +2749,32 @@
 
       }
 
+      const linksAsaas = {
+        basico:
+          "https://www.asaas.com/c/v2eovtcuo7koo2xw",
+
+        profissional:
+          "https://www.asaas.com/c/o24lda7misc3uwdq",
+
+        premium:
+          "https://www.asaas.com/c/lejkuntj49hq8fml"
+      };
+
+      const linkPagamento =
+        linksAsaas[plano];
+
+      if (!linkPagamento) {
+
+        alert(
+          "Link de pagamento não configurado para este plano."
+        );
+
+        return;
+
+      }
+
       window.location.href =
-        "/pagamento.html";
+        linkPagamento;
 
     }
 

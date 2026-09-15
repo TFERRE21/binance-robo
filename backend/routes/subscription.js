@@ -43,6 +43,8 @@ async function criarAssinaturaMercadoPago({
         reason:
           `CriptoPro - Plano ${plano}`,
 
+        // Sem plano associado: o cliente conclui a assinatura no checkout.
+
         external_reference:
           String(subscriptionId),
 
@@ -66,7 +68,7 @@ async function criarAssinaturaMercadoPago({
         },
 
         back_url:
-          `${baseUrl}/pagamento-sucesso.html`,
+          "https://www.google.com",
 
         status:
           "pending"

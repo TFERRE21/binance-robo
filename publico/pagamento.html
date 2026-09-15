@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pagamento — CriptoPro</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(circle at top, #182033 0%, #080b12 45%, #05070b 100%);
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 30px 15px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 520px;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 30px;
+      font-weight: 800;
+      margin-bottom: 25px;
+      letter-spacing: 1px;
+    }
+
+    .logo span {
+      color: #00e5ff;
+    }
+
+    .card {
+      background: rgba(15, 20, 32, 0.96);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+    }
+
+    .titulo {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .subtitulo {
+      text-align: center;
+      color: #9ca7b8;
+      font-size: 14px;
+      margin-bottom: 25px;
+    }
+
+    .plano {
+      background: #101827;
+      border: 1px solid rgba(0,229,255,0.25);
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 25px;
+      text-align: center;
+    }
+
+    .plano-nome {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .plano-valor {
+      margin-top: 7px;
+      color: #00e5ff;
+      font-size: 22px;
+      font-weight: 800;
+    }
+
+    .metodos-titulo {
+      font-size: 15px;
+      margin-bottom: 12px;
+      color: #cbd5e1;
+    }
+
+    .metodo {
+      width: 100%;
+      background: #0c121e;
+      border: 1px solid #293244;
+      border-radius: 14px;
+      padding: 17px;
+      margin-bottom: 12px;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      text-align: left;
+      transition: 0.2s;
+    }
+
+    .metodo:hover {
+      border-color: #00e5ff;
+      transform: translateY(-1px);
+    }
+
+    .metodo.selecionado {
+      border-color: #00e5ff;
+      background: #101d2d;
+      box-shadow: 0 0 0 1px rgba(0,229,255,0.15);
+    }
+
+    .icone {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #182234;
+      font-size: 21px;
+      flex-shrink: 0;
+    }
+
+    .metodo-info strong {
+      display: block;
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .metodo-info span {
+      color: #8d98aa;
+      font-size: 12px;
+    }
+
+    .check {
+      margin-left: auto;
+      width: 20px;
+      height: 20px;
+      border: 1px solid #526075;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .metodo.selecionado .check {
+      border: 5px solid #00e5ff;
+      background: #0c121e;
+    }
+
+    .continuar {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 16px;
+      margin-top: 10px;
+      background: #00e5ff;
+      color: #061018;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .continuar:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.08);
+    }
+
+    .continuar:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .voltar {
+      display: block;
+      text-align: center;
+      margin-top: 18px;
+      color: #8995a8;
+      text-decoration: none;
+      font-size: 13px;
+    }
+
+    .voltar:hover {
+      color: #fff;
+    }
+
+    .seguro {
+      text-align: center;
+      margin-top: 20px;
+      color: #707c8e;
+      font-size: 11px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <div class="logo">
+      Cripto<span>Pro</span>
+    </div>
+
+    <div class="card">
+
+      <h1 class="titulo">Forma de pagamento</h1>
+
+      <p class="subtitulo">
+        Escolha como deseja realizar sua contratação.
+      </p>
+
+      <div class="plano">
+        <div class="plano-nome" id="planoNome">
+          Carregando plano...
+        </div>
+
+        <div class="plano-valor" id="planoValor">
+          --
+        </div>
+      </div>
+
+      <div class="metodos-titulo">
+        Escolha uma opção:
+      </div>
+
+      <button class="metodo" data-metodo="credit_card" onclick="selecionarMetodo(this)">
+        <div class="icone">💳</div>
+
+        <div class="metodo-info">
+          <strong>Cartão de crédito</strong>
+          <span>Pagamento recorrente mensal</span>
+        </div>
+
+        <div class="check"></div>
+      </button>
+
+      <button class="metodo" data-metodo="debit_card" onclick="selecionarMetodo(this)">
+        <div class="icone">💳</div>
+
+        <div class="metodo-info">
+          <strong>Cartão de débito</strong>
+          <span>Se disponível para sua conta</span>
+        </div>
+
+        <div class="check"></div>
+      </button>
+
+      <button class="metodo" data-metodo="pix" onclick="selecionarMetodo(this)">
+        <div class="icone">⚡</div>
+
+        <div class="metodo-info">
+          <strong>PIX</strong>
+          <span>Se disponível para a contratação</span>
+        </div>
+
+        <div class="check"></div>
+      </button>
+
+      <button
+        id="btnContinuar"
+        class="continuar"
+        disabled
+        onclick="continuarPagamento()"
+      >
+        CONTINUAR PARA PAGAMENTO
+      </button>
+
+      <a href="/planos.html" class="voltar">
+        ← Voltar para os planos
+      </a>
+
+      <div class="seguro">
+        🔒 O pagamento será processado com segurança pelo Mercado Pago.
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+
+    let metodoSelecionado = null;
+
+    const plano =
+      localStorage.getItem("criptopro_selected_plan");
+
+    const nome =
+      localStorage.getItem("criptopro_selected_plan_name");
+
+    const valor =
+      localStorage.getItem("criptopro_selected_plan_price");
+
+    if (!plano || !nome || !valor) {
+
+      window.location.href = "/planos.html";
+
+    } else {
+
+      document.getElementById("planoNome").textContent =
+        nome;
+
+      document.getElementById("planoValor").textContent =
+        valor;
+
+    }
+
+    function selecionarMetodo(elemento) {
+
+      document
+        .querySelectorAll(".metodo")
+        .forEach(function(botao) {
+
+          botao.classList.remove("selecionado");
+
+        });
+
+      elemento.classList.add("selecionado");
+
+      metodoSelecionado =
+        elemento.dataset.metodo;
+
+      document.getElementById("btnContinuar").disabled =
+        false;
+
+      localStorage.setItem(
+        "criptopro_payment_method",
+        metodoSelecionado
+      );
+
+    }
+
+    function continuarPagamento() {
+
+      if (!metodoSelecionado) {
+
+        alert("Selecione uma forma de pagamento.");
+
+        return;
+
+      }
+
+      /*
+       * Próxima etapa:
+       * criar a assinatura no backend e
+       * redirecionar para o checkout do Mercado Pago.
+       */
+
+      alert(
+        "Forma selecionada: " +
+        metodoSelecionado +
+        "\\n\\nIntegração com o Mercado Pago será concluída na próxima etapa."
+      );
+
+    }
+
+  </script>
+
+</body>
+</html>

@@ -2,16 +2,28 @@ const express = require("express");
 const path = require("path");
 
 const authRoutes = require("./routes/auth");
-
 const binanceRoutes = require("./routes/binance");
-
 const panelRoutes = require("./routes/panel");
-
 const subscriptionRoutes = require("./routes/subscription");
 
-app.use("/api/robot/risk", robotRiskRoutes.router);
-
 const robotRiskRoutes = require("./routes/robotRisk");
+
+const authMiddleware = require("./middleware/auth");
+
+// ============================================================
+// ROTAS PRINCIPAIS
+// ============================================================
+
+app.use("/api/auth", authRoutes);
+app.use("/api/binance", binanceRoutes);
+app.use("/api/panel", panelRoutes);
+app.use("/api/subscription", subscriptionRoutes);
+
+// ============================================================
+// TERMO DE RESPONSABILIDADE DO ROBÔ
+// ============================================================
+
+app.use("/api/robot/risk", robotRiskRoutes.router);
 
 // =========================================================
 // CRIPTOPRO V7 - NOVAS ROTAS

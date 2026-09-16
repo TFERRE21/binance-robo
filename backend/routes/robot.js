@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const authMiddleware = require("../middleware/auth");
-const db = require("../database");
+const db = require("../services/db");
 
 // ============================================================
 // CONFIGURAÇÕES PERMITIDAS

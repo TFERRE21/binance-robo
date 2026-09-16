@@ -331,6 +331,22 @@ button{cursor:pointer}
 @media(max-width:900px){.news-grid{grid-template-columns:1fr 1fr}.market7{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.news-grid{grid-template-columns:1fr}.market7{grid-template-columns:1fr 1fr}.chart-wrap{height:300px}.chart-detail{height:390px}}
 
+
+.robotConfigCard{margin:18px 0;padding:20px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(20,20,28,.96)}
+.robotConfigTitle{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.robotConfigTitle h3{margin:0 0 5px}.robotConfigTitle p{margin:0;opacity:.75;font-size:13px}
+.robotStatusBadge{padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;background:#555;color:#fff}
+.robotConfigGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.robotConfigGrid label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700}
+.robotConfigGrid input,.robotConfigGrid select{box-sizing:border-box;width:100%;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#11131a;color:inherit}
+.robotCheckLabel{flex-direction:row!important;align-items:center;padding-top:20px}
+.robotCheckLabel input{width:auto}
+.robotConfigActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.robotConfigActions button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer}
+#robotSaveConfigBtn{background:#fff;color:#111}#robotStartBtn{background:#18a558;color:#fff}#robotStopBtn{background:#c0392b;color:#fff}
+.robotConfigActions button:disabled{opacity:.45;cursor:not-allowed}
+.robotConfigMessage{min-height:20px;margin-top:12px;font-size:13px}
+
 </style>
 </head>
 
@@ -411,7 +427,7 @@ button{cursor:pointer}
   <div class="chart-head">
     <div>
       <div class="chart-title">₿ BTC/USDT</div>
-      <div class="chart-sub" id="btcChartSub">Gráfico real da Binance · últimos candles de 15 minutos</div>
+      <div class="chart-sub" id="btcChartSub">Gráfico real da Binance · candles ao vivo · 1m / 15m / 30m / 1h</div>
     </div>
     <div class="btc-price" id="btcPrice">US$ 0,00<small>carregando...</small></div>
   </div>
@@ -426,6 +442,11 @@ button{cursor:pointer}
     <div class="operation-badge" id="operationBadge">TEMPO REAL</div>
   </div>
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
+</section>
+
+<section class="operation-card" id="robotLiveCard" style="margin-top:14px">
+  <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
+  <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
 </section>
 
 <section class="news-section">
@@ -452,7 +473,69 @@ button{cursor:pointer}
   <div class="modules">
     <button class="module" data-module="operation" onclick="openModule('operation')"><div class="module-icon">⚡</div><div class="module-title">Operação</div><div class="module-desc">Acompanhe suas posições, entradas, saídas e P/L.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="chart" onclick="openModule('chart')"><div class="module-icon">📈</div><div class="module-title">Gráfico</div><div class="module-desc">Preço, compra média, ordens de venda e diferença atual.</div><span class="module-status">● TEMPO REAL</span></button>
-    <button class="module" data-module="robot" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div><div class="module-desc">Configuração de entrada, TP, SL e operações simultâneas.</div><span class="module-status">● CONFIGURÁVEL</span></button>
+    <button class="module" data-module="robot" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div>
+<div class="robotConfigCard" id="robotConfigCard">
+  <div class="robotConfigTitle">
+    <div>
+      <h3>🤖 Configuração do Robô</h3>
+      <p>Escolha os parâmetros, salve a configuração e depois use START para aceitar o termo e iniciar.</p>
+    </div>
+    <span id="robotStatusBadge" class="robotStatusBadge">PARADO</span>
+  </div>
+
+  <div class="robotConfigGrid">
+    <label>Estratégia
+      <select id="robotStrategy">
+        <option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option>
+        <option value="v6">V6 — TOP 40 Volume · EMA/RSI</option>
+      </select>
+    </label>
+
+    <label>Entrada (%)
+      <input id="robotEntry" type="number" min="0" max="100" step="0.1" value="98">
+    </label>
+
+    <label>Take Profit (%)
+      <input id="robotTp" type="number" min="0.01" step="0.1" value="5">
+    </label>
+
+    <label>Stop Loss (%)
+      <input id="robotSl" type="number" min="0.01" step="0.1" value="2.5">
+    </label>
+
+    <label>Máx. operações simultâneas
+      <input id="robotMaxOps" type="number" min="1" max="3" step="1" value="3">
+    </label>
+
+    <label>Intervalo
+      <select id="robotInterval">
+        <option value="1m">1 minuto</option>
+        <option value="5m">5 minutos</option>
+        <option value="15m" selected>15 minutos</option>
+        <option value="30m">30 minutos</option>
+        <option value="1h">1 hora</option>
+      </select>
+    </label>
+
+    <label>Máx. moedas
+      <input id="robotMaxCoins" type="number" min="1" max="50" step="1" value="20">
+    </label>
+
+    <label class="robotCheckLabel">
+      <input id="robotStopLossActive" type="checkbox" checked>
+      Stop Loss ativo
+    </label>
+  </div>
+
+  <div class="robotConfigActions">
+    <button id="robotSaveConfigBtn" type="button">💾 SALVAR CONFIGURAÇÃO</button>
+    <button id="robotStartBtn" type="button" disabled>▶ START ROBÔ</button>
+    <button id="robotStopBtn" type="button">⏹ STOP</button>
+  </div>
+
+  <div id="robotConfigMessage" class="robotConfigMessage"></div>
+</div>
+<span class="module-status">● CONFIGURÁVEL</span></button>
     <button class="module" data-module="comparison" onclick="openModule('comparison')"><div class="module-icon">🔄</div><div class="module-title">Comparação</div><div class="module-desc">Compare patrimônio, P/L e posições entre suas APIs.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="performance" onclick="openModule('performance')"><div class="module-icon">🏆</div><div class="module-title">Performance</div><div class="module-desc">Resumo de desempenho, lucro aberto e realizado.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="coins" onclick="openModule('coins')"><div class="module-icon">🪙</div><div class="module-title">Moedas</div><div class="module-desc">Todas as moedas com saldo e valor atual.</div><span class="module-status">● ATIVO</span></button>
@@ -488,6 +571,18 @@ button{cursor:pointer}
     <div class="action-title" id="robotActionTitle">Configurar Robô</div>
     <div class="action-desc" id="robotActionDesc">Configure entrada, Take Profit, Stop Loss, operações simultâneas e análise.</div>
   </button>
+
+  <div class="robot-control-card" id="robotControlCard" style="margin-top:10px;border:1px solid rgba(240,185,11,.22);border-radius:12px;padding:12px;background:rgba(240,185,11,.035)">
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+      <div><div style="font-size:10px;font-weight:900" id="robotStatusTitle">Robô Premium</div><div style="font-size:8px;color:#778395;margin-top:3px" id="robotStatusText">Configuração não carregada.</div></div>
+      <span class="badge-yellow" id="robotStatusBadge">PARADO</span>
+    </div>
+    <div id="robotSavedInfo" style="font-size:8px;color:#8f9aab;margin-top:9px"></div>
+    <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn btn-primary" id="startRobotBtn" onclick="startRobot()">▶ Iniciar robô</button>
+      <button class="btn" id="stopRobotBtn" onclick="stopRobot()" disabled>■ Parar robô</button>
+    </div>
+  </div>
 
   <div class="limit-box">
     <div class="limit-title" id="limitTitle">Seu plano Premium</div>
@@ -560,7 +655,7 @@ button{cursor:pointer}
     <div class="detail-toolbar">
       <select id="chartAssetSelector" onchange="loadDetailedChart(this.value)"></select>
       <select id="chartInterval" onchange="loadDetailedChart(document.getElementById('chartAssetSelector').value)">
-        <option value="5m">5 min</option><option value="15m" selected>15 min</option><option value="1h">1 hora</option><option value="4h">4 horas</option>
+        <option value="1m">1 min</option><option value="15m" selected>15 min</option><option value="30m">30 min</option><option value="1h">1 hora</option>
       </select>
     </div>
     <div class="chart-detail"><div id="detailChartTV" class="tv-chart"></div></div>
@@ -635,7 +730,11 @@ button{cursor:pointer}
   </div>
   <div class="modal-body">
     <div class="message" id="robotMessage"></div>
-    <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. Nesta etapa, a configuração é salva neste navegador; o motor automático ainda precisa ser ligado ao backend para executar a estratégia por usuário.</div>
+    <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
+    <div class="grid2">
+      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion"><option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option><option value="v6">V6 — TOP 40 Volume · EMA/RSI</option></select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
+      <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
+    </div>
     <div class="grid2">
       <div class="field"><label>% de entrada</label><input id="entryPercent" type="number" min="1" max="100" step="0.1" value="90"><div class="field-help">Percentual do saldo destinado à entrada.</div></div>
       <div class="field"><label>Take Profit (%)</label><input id="takeProfit" type="number" min="0.1" max="100" step="0.1" value="3.5"><div class="field-help">Percentual desejado para saída com lucro.</div></div>
@@ -658,7 +757,7 @@ button{cursor:pointer}
 const token=localStorage.getItem("token");
 if(!token) window.location.href="/login.html";
 
-const defaultRobotConfig={entryPercent:90,takeProfit:3.5,stopLoss:2.5,maxOperations:3,interval:"5m",maxCoins:40};
+const defaultRobotConfig={entryPercent:98,takeProfit:5,stopLoss:2.5,maxOperations:3,interval:"15m",maxCoins:20,strategyVersion:"v7.1",stopLossActive:true};
 let accounts=[];
 let selectedAccountId=localStorage.getItem("selected_binance_account")||"";
 let selectedAccountData=null;
@@ -670,7 +769,7 @@ async function apiFetch(url,options={}){
   const response=await fetch(url,{...options,headers});
   if(response.status===401){logout();throw new Error("Sessão expirada.");}
   let data={}; try{data=await response.json()}catch(e){}
-  if(!response.ok) throw new Error(data.message||"Erro ao processar solicitação.");
+  if(!response.ok) throw new Error(data.message||`HTTP ${response.status} em ${url}`);
   return data;
 }
 
@@ -960,6 +1059,8 @@ async function loadSelectedAccount(){
       statusEl.classList.remove("pending-account");
     }
 
+    await loadRobotStatus();
+
     await renderOperation(assets);
 
     /*
@@ -967,7 +1068,7 @@ async function loadSelectedAccount(){
       O relatório completo será consultado somente quando o usuário
       abrir/gerar o módulo Relatórios.
     */
-    loadBtcChart().catch(error=>{
+    loadBtcChart(document.getElementById("btcInterval")?.value||"15m").catch(error=>{
       console.warn("Gráfico BTC:",error);
     });
 
@@ -1096,9 +1197,12 @@ function makeTVChart(containerId, height){
     wickUpColor:'#16c784',wickDownColor:'#ea3943'
   });
   const volume=chart.addHistogramSeries({
-    priceFormat:{type:'volume'},priceScale:{scaleMargins:{top:.82,bottom:0}},
+    priceFormat:{type:'volume'},
+    priceScaleId:'volume',
     color:'rgba(240,185,11,.25)'
   });
+  chart.priceScale('right').applyOptions({scaleMargins:{top:.06,bottom:.22}});
+  chart.priceScale('volume').applyOptions({scaleMargins:{top:.82,bottom:0},borderVisible:false});
   return {chart,candles,volume};
 }
 function tvRows(rows){
@@ -1119,9 +1223,9 @@ function setTVSize(obj,el){
 }
 function closeSocket(sock){try{if(sock)sock.close()}catch(e){}}
 
-async function loadBtcChart(){
+async function loadBtcChart(interval="15m"){
   try{
-    const r=await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=150");
+    const r=await fetch(`https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${encodeURIComponent(interval)}&limit=300`);
     if(!r.ok)throw new Error("Binance indisponível");
     const rows=await r.json();
     if(btcTVChart) btcTVChart.chart.remove();
@@ -1130,17 +1234,17 @@ async function loadBtcChart(){
     btcTVChart.volume.setData(tvVolumes(rows));
     btcTVChart.chart.timeScale().fitContent();
     const last=rows[rows.length-1];
-    document.getElementById("btcPrice").innerHTML=moneyUSDT(Number(last[4]))+"<small>BTC/USDT · 15m · BINANCE</small>";
+    document.getElementById("btcPrice").innerHTML=moneyUSDT(Number(last[4]))+`<small>BTC/USDT · ${interval} · BINANCE</small>`;
     document.getElementById("btcStatus").textContent="Dados reais da Binance · atualizado agora";
     closeSocket(btcSocket);
-    btcSocket=new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_15m");
+    btcSocket=new WebSocket(`wss://stream.binance.com:9443/ws/btcusdt@kline_${interval}`);
     btcSocket.onmessage=(ev)=>{
       try{
         const k=JSON.parse(ev.data).k;
         const candle={time:Math.floor(k.t/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c};
         btcTVChart.candles.update(candle);
         btcTVChart.volume.update({time:Math.floor(k.t/1000),value:+k.v,color:+k.c>=+k.o?'rgba(22,199,132,.28)':'rgba(234,57,67,.28)'});
-        document.getElementById("btcPrice").innerHTML=moneyUSDT(+k.c)+"<small>BTC/USDT · 15m · AO VIVO</small>";
+        document.getElementById("btcPrice").innerHTML=moneyUSDT(+k.c)+`<small>BTC/USDT · ${interval} · AO VIVO</small>`;
       }catch(e){}
     };
   }catch(e){
@@ -1212,10 +1316,32 @@ function openLearnApi(){document.getElementById("learnModal").classList.add("ope
 function closeLearnApi(){document.getElementById("learnModal").classList.remove("open")}
 
 function getRobotConfig(){
+  try{const saved=localStorage.getItem("criptopro_robot_config");return saved?{...defaultRobotConfig,...JSON.parse(saved)}:{...defaultRobotConfig};}catch(e){return {...defaultRobotConfig}}
+}
+function renderRobotLive(d){
+  const box=document.getElementById('robotLiveContent'),badge=document.getElementById('robotLiveBadge'); if(!box)return;
+  const c=d?.config, ops=(d?.operations||[]), open=ops.filter(x=>x.status==='OPEN');
+  if(badge){badge.textContent=d?.running?'● RODANDO':'PARADO';badge.className=d?.running?'operation-badge pnl-positive':'operation-badge';}
+  if(!c){box.innerHTML='<div class="operation-empty">Nenhuma configuração salva para a API selecionada. Abra <strong>Robô</strong> para configurar.</div>';return;}
+  box.innerHTML=`<div class="report-summary">\n    <div class="report-box"><span>Estratégia</span><strong>${escapeHtml(c.strategy_version||'v7.1')}</strong></div>\n    <div class="report-box"><span>Entrada</span><strong>${Number(c.entry_percent).toFixed(1)}%</strong></div>\n    <div class="report-box"><span>Take Profit</span><strong>${Number(c.take_profit).toFixed(2)}%</strong></div>\n    <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${c.stop_loss_active?'ATIVO · ':''}${Number(c.stop_loss).toFixed(2)}%</strong></div>\n  </div>\n  <div class="security">${open.length?`🟢 ${open.length} operação(ões) aberta(s) · limite ${c.max_operations}.`:'ℹ️ Nenhuma operação do robô aberta neste momento.'} · Intervalo ${escapeHtml(c.interval)} · até ${c.max_coins} moedas.</div>\n  ${open.length?`<table class="data-table" style="margin-top:10px"><thead><tr><th>Ativo</th><th>Compra</th><th>Quantidade</th><th>Venda</th><th>Stop</th><th>Status</th></tr></thead><tbody>${open.map(o=>`<tr><td>${escapeHtml(o.symbol)}</td><td>${moneyUSDT(o.buy_price)}</td><td>${formatNumber(o.quantity)}</td><td>${moneyUSDT(o.tp_price)}</td><td class="pnl-negative">${moneyUSDT(o.stop_price)}</td><td>ABERTA</td></tr>`).join('')}</tbody></table>`:''}`;
+}
+
+async function loadRobotStatus(){
+  if(!selectedAccountId)return;
   try{
-    const saved=localStorage.getItem("criptopro_robot_config");
-    return saved?{...defaultRobotConfig,...JSON.parse(saved)}:{...defaultRobotConfig};
-  }catch(e){return {...defaultRobotConfig}}
+    const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
+    renderRobotLive(d);
+    const c=d.config;
+    const running=!!d.running;
+    const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
+    if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
+    if(txt)txt.textContent=c?`${c.strategy_version||'v7.1'} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';
+    if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
+    const sb=document.getElementById('startRobotBtn'),st=document.getElementById('stopRobotBtn'); if(sb)sb.disabled=running||!c; if(st)st.disabled=!running;
+    document.getElementById('operationCount').textContent=`${(d.operations||[]).filter(x=>x.status==='OPEN').length}/${c?.max_operations||3}`;
+    if(c)localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));
+    return d;
+  }catch(e){console.warn('ROBÔ STATUS:',e);}
 }
 function openRobot(){
   const c=getRobotConfig();
@@ -1223,32 +1349,45 @@ function openRobot(){
   document.getElementById("takeProfit").value=c.takeProfit;
   document.getElementById("stopLoss").value=c.stopLoss;
   document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||3,3);
-  document.getElementById("interval").value=c.interval;
-  document.getElementById("maxCoins").value=c.maxCoins;
-  document.getElementById("robotMessage").className="message";
-  document.getElementById("robotMessage").textContent="";
+  document.getElementById("interval").value=c.interval||'15m';
+  document.getElementById("maxCoins").value=c.maxCoins||20;
+  document.getElementById("strategyVersion").value=c.strategyVersion||'v7.1';
+  document.getElementById("stopLossActive").value=(c.stopLossActive===false?'false':'true');
+  document.getElementById("robotMessage").className="message";document.getElementById("robotMessage").textContent="";
   document.getElementById("robotModal").classList.add("open");
 }
 function closeRobot(){document.getElementById("robotModal").classList.remove("open")}
-function saveRobot(){
+async function saveRobot(){
   const c={
-    entryPercent:Number(document.getElementById("entryPercent").value),
-    takeProfit:Number(document.getElementById("takeProfit").value),
-    stopLoss:Number(document.getElementById("stopLoss").value),
-    maxOperations:Number(document.getElementById("maxOperations").value),
-    interval:document.getElementById("interval").value,
-    maxCoins:Number(document.getElementById("maxCoins").value)
+    entryPercent:Number(document.getElementById("entryPercent").value),takeProfit:Number(document.getElementById("takeProfit").value),stopLoss:Number(document.getElementById("stopLoss").value),
+    maxOperations:Number(document.getElementById("maxOperations").value),interval:document.getElementById("interval").value,maxCoins:Number(document.getElementById("maxCoins").value),
+    strategyVersion:document.getElementById("strategyVersion").value,stopLossActive:document.getElementById("stopLossActive").value==='true'
   };
   const msg=document.getElementById("robotMessage");
+  if(!selectedAccountId){showMessage(msg,"Selecione e carregue uma API antes de configurar o robô.","error");return}
   if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return}
   if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return}
   if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return}
   if(c.maxOperations<1||c.maxOperations>3){showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return}
-  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>100){showMessage(msg,"O número de moedas deve estar entre 1 e 100.","error");return}
-  localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
-  document.getElementById("operationCount").textContent="0/"+c.maxOperations;
-  showMessage(msg,"Configuração salva neste navegador. O motor automático ainda precisa ser ligado ao backend.","success");
-  setTimeout(closeRobot,1000);
+  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return}
+  const saveBtn=document.querySelector('#robotModal .btn-primary'); if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Salvando no servidor...';}
+  try{
+    const d=await apiFetch('/api/robot/config',{method:'POST',body:JSON.stringify({accountId:selectedAccountId,...c})});
+    if(!d.success)throw new Error(d.message||'Não foi possível salvar.');
+    localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
+    showMessage(msg,"Configuração salva para esta API. Agora você pode iniciar o robô.","success");
+    await loadRobotStatus();
+    setTimeout(closeRobot,900);
+  }catch(e){showMessage(msg,e.message||'Erro ao salvar configuração.',"error")}
+  finally{if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Salvar configuração';}}
+}
+async function startRobot(){
+  if(!selectedAccountId){alert('Selecione uma API e clique em Carregar painel.');return}
+  try{const d=await apiFetch('/api/robot/start',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível iniciar o robô.');await loadRobotStatus();alert('Robô iniciado para a API selecionada.');}catch(e){alert(e.message||'Erro ao iniciar o robô.')}
+}
+async function stopRobot(){
+  if(!selectedAccountId)return;
+  try{const d=await apiFetch('/api/robot/stop',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível parar o robô.');await loadRobotStatus();alert('Robô parado. Ordens já existentes permanecem na Binance.');}catch(e){alert(e.message||'Erro ao parar o robô.')}
 }
 
 function showMessage(element,text,type){element.textContent=text;element.className="message show "+type}
@@ -1360,10 +1499,9 @@ async function loadActivityAndNews(){
   const box=document.getElementById("activityLive");
   if(!box||!selectedAccountId)return;
   try{
-    const [activity,news]=await Promise.all([
-      apiFetch(`/api/panel/report/activity?account=${encodeURIComponent(selectedAccountId)}&days=7`),
-      fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():Promise.reject(new Error("Notícias indisponíveis")))
-    ]);
+    const activityPromise=apiFetch(`/api/panel/report/activity?account=${encodeURIComponent(selectedAccountId)}&days=7`).catch(()=>({trades:[],summary:{}}));
+    const newsPromise=fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():({articles:[],market7:{}})).catch(()=>({articles:[],market7:{}}));
+    const [activity,news]=await Promise.all([activityPromise,newsPromise]);
     const rows=activity.trades||[];
     const summary=activity.summary||{};
     const articles=news.articles||[];
@@ -1391,7 +1529,7 @@ async function loadCryptoNews(){
   try{
     const d=await fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():Promise.reject(new Error("Não foi possível consultar as notícias.")));
     const a=d.articles||[];
-    grid.innerHTML=a.slice(0,6).map(n=>`<article class="news-card"><div class="news-source">${escapeHtml(n.source||"CriptoPro")}</div><h4>${escapeHtml(n.title||"")}</h4><p>${escapeHtml(n.description||"")}</p><div class="news-date">${dateTime(n.publishedAt)}</div></article>`).join("")||'<div class="empty-data">Nenhuma notícia recente encontrada.</div>';
+    grid.innerHTML=a.slice(0,6).map(n=>`<article class="news-card"><div class="news-source">${escapeHtml(n.source||"CriptoPro")}</div><h4>${escapeHtml(n.title||"")}</h4><p>${escapeHtml(n.description||"")}</p><div class="news-date">${dateTime(n.publishedAt)} ${n.url?` · <a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">Abrir fonte</a>`:''}</div></article>`).join("")||'<div class="empty-data">O feed jornalístico não retornou artigos agora. O panorama de mercado dos últimos 7 dias continua disponível abaixo.</div>';
     const m=d.market7||{};
     summary.innerHTML=[
       ["BTC 7D",percent(m.btc7d)],
@@ -1400,7 +1538,8 @@ async function loadCryptoNews(){
       ["XRP 7D",percent(m.xrp7d)]
     ].map(x=>`<div class="report-box"><span>${x[0]}</span><strong class="${Number(String(x[1]).replace('%','').replace(',','.'))>=0?'pnl-positive':'pnl-negative'}">${x[1]}</strong></div>`).join("");
   }catch(e){
-    grid.innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`;
+    grid.innerHTML='<div class="empty-data">Jornal temporariamente sem feed de notícias. Os dados de mercado continuam disponíveis.</div>';
+    if(summary)summary.innerHTML='<div class="report-box"><span>Status</span><strong>Mercado Binance ativo</strong></div>';
   }
 }
 
@@ -1510,7 +1649,7 @@ async function loadDetailedChart(asset){
   const interval=document.getElementById("chartInterval").value;
   try{
     const [klineRes,opRes,tradeInfoRes]=await Promise.all([
-      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=300`),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=500`),
       apiFetch(`/api/panel/operation/${encodeURIComponent(selectedAccountId)}?symbol=${encodeURIComponent(symbol)}`),
       apiFetch(`/api/panel/report/trade-info?account=${encodeURIComponent(selectedAccountId)}&symbol=${encodeURIComponent(symbol)}`).catch(()=>({}))
     ]);
@@ -1714,16 +1853,158 @@ async function init(){
   if(!active)return;
   await loadExchangeRate();
   await loadAccounts();
-  await loadBtcChart();
+  await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
   await loadCryptoNews();
   refreshTimer=setInterval(async()=>{
     await loadExchangeRate();
     await loadAccounts();
-    await loadBtcChart();
+    await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
     await loadCryptoNews();
+    await loadRobotStatus();
   },30000);
 }
 init();
+
+/* CRIPTOPRO — ETAPA 11: CONFIGURAÇÃO -> START -> TERMO -> ROBÔ */
+(function(){
+  let robotCurrentConfigId = null;
+
+  function robotMsg(msg){
+    const el=document.getElementById("robotConfigMessage");
+    if(el) el.textContent=msg||"";
+  }
+
+  function payload(){
+    return {
+      strategy: document.getElementById("robotStrategy").value,
+      entryPercent: Number(document.getElementById("robotEntry").value),
+      takeProfitPercent: Number(document.getElementById("robotTp").value),
+      stopLossPercent: Number(document.getElementById("robotSl").value),
+      maxSimultaneous: Number(document.getElementById("robotMaxOps").value),
+      interval: document.getElementById("robotInterval").value,
+      maxCoins: Number(document.getElementById("robotMaxCoins").value),
+      stopLossActive: document.getElementById("robotStopLossActive").checked
+    };
+  }
+
+  async function saveConfig(){
+    const token=localStorage.getItem("token");
+    if(!token){robotMsg("Faça login para configurar o robô.");return;}
+    const btn=document.getElementById("robotSaveConfigBtn");
+    btn.disabled=true;
+    try{
+      const r=await fetch("/api/robot/config",{
+        method:"POST",
+        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+        body:JSON.stringify(payload())
+      });
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok) throw new Error(d.error||d.message||("Erro HTTP "+r.status));
+      robotCurrentConfigId=d.configId||d.id||(d.config&&d.config.id)||null;
+      robotMsg("Configuração salva. Clique em START ROBÔ para continuar.");
+      document.getElementById("robotStartBtn").disabled=!robotCurrentConfigId;
+    }catch(e){robotMsg("Erro ao salvar configuração: "+e.message);}
+    finally{btn.disabled=false;}
+  }
+
+  function start(){
+    if(!robotCurrentConfigId){robotMsg("Salve a configuração antes de iniciar.");return;}
+    if(typeof window.abrirTermoRisco==="function"){
+      window.robotRiskConfigId=robotCurrentConfigId;
+      window.abrirTermoRisco(robotCurrentConfigId);
+    }else{
+      robotMsg("Termo de Responsabilidade não foi carregado.");
+    }
+  }
+
+  async function stop(){
+    const token=localStorage.getItem("token");
+    if(!token)return;
+    try{
+      const r=await fetch("/api/robot/stop",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:"{}"});
+      const d=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
+      document.getElementById("robotStatusBadge").textContent="PARADO";
+      robotMsg("Robô parado.");
+    }catch(e){robotMsg("Erro ao parar: "+e.message);}
+  }
+
+  document.addEventListener("DOMContentLoaded",function(){
+    document.getElementById("robotSaveConfigBtn")?.addEventListener("click",saveConfig);
+    document.getElementById("robotStartBtn")?.addEventListener("click",start);
+    document.getElementById("robotStopBtn")?.addEventListener("click",stop);
+  });
+
+  window.robotStartAfterRiskAcceptance=async function(){
+    const token=localStorage.getItem("token");
+    const id=window.robotRiskConfigId||robotCurrentConfigId;
+    if(!token||!id)throw new Error("Configuração do robô não encontrada.");
+    const r=await fetch("/api/robot/start",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({configId:id})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
+    document.getElementById("robotStatusBadge").textContent="ATIVO";
+    robotMsg("Robô iniciado com a configuração salva.");
+  };
+})();
+
+
+let robotRiskConfigId=null;
+function abrirTermoRisco(configId){
+  robotRiskConfigId=configId;
+  window.robotRiskConfigId=configId;
+  const modal=document.getElementById("robotRiskModal");
+  const check=document.getElementById("robotRiskAccepted");
+  if(check)check.checked=false;
+  if(modal)modal.style.display="flex";
+}
+function fecharTermoRisco(){
+  const modal=document.getElementById("robotRiskModal");
+  if(modal)modal.style.display="none";
+}
+async function aceitarTermoRisco(){
+  const check=document.getElementById("robotRiskAccepted");
+  if(!check||!check.checked){alert("Marque o aceite do termo para continuar.");return;}
+  const token=localStorage.getItem("token");
+  const configId=window.robotRiskConfigId||robotRiskConfigId;
+  if(!token||!configId){alert("Configuração do robô não encontrada.");return;}
+  const btn=document.getElementById("robotRiskAcceptBtn");
+  if(btn)btn.disabled=true;
+  try{
+    const r=await fetch("/api/robot/risk/accept",{
+      method:"POST",
+      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+      body:JSON.stringify({configId:configId})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
+    fecharTermoRisco();
+    if(typeof window.robotStartAfterRiskAcceptance==="function"){
+      await window.robotStartAfterRiskAcceptance();
+    }
+  }catch(e){alert("Não foi possível aceitar o termo: "+e.message);}
+  finally{if(btn)btn.disabled=false;}
+}
+
 </script>
+
+<div id="robotRiskModal" class="robotRiskOverlay" style="display:none">
+  <div class="robotRiskModal">
+    <h2>Termo de Responsabilidade e Ciência de Riscos</h2>
+    <p>Declaro que li e compreendi as informações apresentadas sobre a automação de operações em criptomoedas.</p>
+    <p>Estou ciente de que criptoativos envolvem riscos de mercado, volatilidade, perdas financeiras, slippage, falhas de conexão, indisponibilidade de serviços e outros eventos que podem afetar o resultado.</p>
+    <p>Estou ciente de que os parâmetros configurados por mim serão utilizados pelo robô conforme a estratégia selecionada.</p>
+    <p>Declaro que sou responsável pelas configurações realizadas e compreendo que resultados passados não garantem resultados futuros.</p>
+    <label><input id="robotRiskAccepted" type="checkbox"> Li, compreendi e aceito o Termo de Responsabilidade e Ciência de Riscos.</label>
+    <div class="robotRiskActions">
+      <button type="button" onclick="fecharTermoRisco()">CANCELAR</button>
+      <button id="robotRiskAcceptBtn" type="button" onclick="aceitarTermoRisco()">ACEITAR E CONTINUAR</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

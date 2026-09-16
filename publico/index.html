@@ -64,6 +64,30 @@ button{cursor:pointer}
 .api-selector-title{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.4px}
 .api-selector-help{font-size:9px;color:#778395}
 .api-selector-row{display:flex;gap:10px;align-items:center}
+.api-selector-row .load-panel-btn{
+  height:42px;min-width:150px;border:1px solid rgba(240,185,11,.35);
+  background:linear-gradient(135deg,#dca900,#f0b90b);color:#111;
+  border-radius:9px;padding:0 14px;font-size:10px;font-weight:900;cursor:pointer
+}
+.api-selector-row .load-panel-btn:hover{filter:brightness(1.04);transform:translateY(-1px)}
+.api-selector-row .load-panel-btn:disabled{opacity:.55;cursor:wait;transform:none}
+.pending-account{color:#f0b90b!important}
+.chart-detail{background:#080d14}
+.chart-overlay-note{
+  margin-top:8px;padding:9px 11px;border:1px solid rgba(240,185,11,.16);
+  background:rgba(240,185,11,.04);border-radius:8px;color:#aeb8c7;font-size:9px
+}
+.report-account-bar{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;
+  padding:10px;margin-bottom:12px;border:1px solid rgba(240,185,11,.15);
+  background:rgba(240,185,11,.035);border-radius:9px
+}
+.report-account-bar select{
+  height:38px;border:1px solid rgba(255,255,255,.1);border-radius:8px;
+  background:#080d14;color:#e5ebf3;padding:0 10px;font-size:10px
+}
+@media(max-width:700px){.report-account-bar{grid-template-columns:1fr}.api-selector-row .load-panel-btn{width:100%}}
+
 .api-selector select{
   flex:1;height:42px;border:1px solid rgba(255,255,255,.1);border-radius:9px;
   background:#080d14;color:#e5ebf3;padding:0 12px;outline:none;font-weight:800
@@ -310,9 +334,10 @@ button{cursor:pointer}
     <div class="api-selector-help" id="apiSelectorHelp">Selecione qual conta será exibida no painel</div>
   </div>
   <div class="api-selector-row">
-    <select id="accountSelector" onchange="selectAccount(this.value)">
+    <select id="accountSelector" onchange="prepareAccount(this.value)">
       <option value="">Carregando APIs...</option>
     </select>
+    <button class="load-panel-btn" id="loadPanelBtn" onclick="loadPendingAccount()">↻ Carregar painel</button>
     <button onclick="openApiModal()" id="manageApiBtn">🔑 Gerenciar APIs</button>
   </div>
   <div class="selected-account" id="selectedAccountText">Nenhuma API selecionada.</div>
@@ -444,6 +469,12 @@ button{cursor:pointer}
     <button class="close" onclick="closeReports()">×</button>
   </div>
   <div class="modal-body">
+    <div class="report-account-bar">
+      <select id="reportAccountSelector" onchange="syncReportAccount(this.value)">
+        <option value="">Selecione a API</option>
+      </select>
+      <span class="badge-yellow" id="reportAccountStatus">API selecionada</span>
+    </div>
     <div class="detail-toolbar">
       <select id="reportPeriod" onchange="applyReportPeriod()">
         <option value="7">Últimos 7 dias</option>
@@ -479,10 +510,10 @@ button{cursor:pointer}
     </div>
     <div class="chart-detail"><canvas id="detailChart"></canvas></div>
     <div class="chart-legend">
-      <span class="legend-buy">● Compra / preço médio</span>
-      <span class="legend-sell">● Ordem de venda</span>
-      <span class="legend-stop">● Stop</span>
-      <span class="legend-now">● Preço atual</span>
+      <span class="legend-buy">▲ COMPRA REALIZADA</span>
+      <span class="legend-sell">━ VENDA / ORDEM</span>
+      <span class="legend-stop">━ STOP LOSS</span>
+      <span class="legend-now">━ PREÇO ATUAL</span>
     </div>
     <div id="chartDetailsInfo" style="margin-top:13px"></div>
   </div>
@@ -654,17 +685,27 @@ async function loadAccounts(){
     document.getElementById("limitAccounts").textContent=accounts.length+"/3";
     renderAccountSelector();
     renderApiSlots();
+    renderReportAccountSelector();
+
     if(!accounts.length){
       selectedAccountId="";
       localStorage.removeItem("selected_binance_account");
+      selectedAccountData=null;
       document.getElementById("operationContent").innerHTML="Nenhuma API cadastrada. Clique em “APIs Binance” para adicionar uma conta.";
       updateCurrencyDisplays(0,0,0);
       return;
     }
+
     const exists=accounts.some(a=>String(a.id)===String(selectedAccountId));
     if(!exists) selectedAccountId=String(accounts[0].id);
+
     localStorage.setItem("selected_binance_account",selectedAccountId);
     document.getElementById("accountSelector").value=selectedAccountId;
+    renderAccountSelector();
+    renderReportAccountSelector();
+
+    // A primeira conta continua carregando automaticamente na abertura.
+    // Depois, ao trocar no seletor, o usuário confirma pelo botão "Carregar painel".
     await loadSelectedAccount();
   }catch(e){
     console.error(e);
@@ -680,15 +721,42 @@ function renderAccountSelector(){
   select.innerHTML=accounts.map((a,i)=>`<option value="${escapeHtml(a.id)}">API ${i+1} — ${escapeHtml(a.name)}</option>`).join("");
   select.value=selectedAccountId;
   const account=accounts.find(a=>String(a.id)===String(selectedAccountId));
-  document.getElementById("selectedAccountText").textContent=account?"Conta selecionada: "+account.name:"Nenhuma API selecionada.";
+  document.getElementById("selectedAccountText").textContent=account?"Conta carregada: "+account.name:"Nenhuma API selecionada.";
 }
 
-async function selectAccount(id){
+function prepareAccount(id){
+  if(!id)return;
+  const account=accounts.find(a=>String(a.id)===String(id));
+  document.getElementById("accountSelector").value=String(id);
+  const text=document.getElementById("selectedAccountText");
+  text.textContent=account
+    ? "Conta selecionada: "+account.name+" · clique em “Carregar painel” para atualizar os dados abaixo."
+    : "Nenhuma API selecionada.";
+  text.classList.add("pending-account");
+  const btn=document.getElementById("loadPanelBtn");
+  if(btn)btn.disabled=false;
+}
+
+async function loadPendingAccount(){
+  const id=document.getElementById("accountSelector").value;
   if(!id)return;
   selectedAccountId=String(id);
   localStorage.setItem("selected_binance_account",selectedAccountId);
   renderAccountSelector();
-  await loadSelectedAccount();
+  const btn=document.getElementById("loadPanelBtn");
+  if(btn)btn.disabled=true;
+  try{
+    await loadSelectedAccount();
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+  document.getElementById("selectedAccountText").classList.remove("pending-account");
+}
+
+async function selectAccount(id){
+  // Compatibilidade com chamadas antigas.
+  prepareAccount(id);
+  await loadPendingAccount();
 }
 
 async function loadSelectedAccount(){
@@ -1182,113 +1250,292 @@ async function loadDetailedChart(asset){
     ]);
     if(!klineRes.ok)throw new Error("Não foi possível carregar o gráfico.");
     const rows=await klineRes.json(), op=opRes.operation||{}, tradeInfo=tradeInfoRes||{};
-    const candles=rows.map(x=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4]}));
+    const candles=rows.map(x=>({
+      time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4]
+    }));
     op.lastBuy=tradeInfo.lastBuy||null;
     op.lastSell=tradeInfo.lastSell||null;
-    if(Array.isArray(tradeInfo.sellOrders)&&tradeInfo.sellOrders.length)op.sellOrders=tradeInfo.sellOrders;
+    op.sellOrders=Array.isArray(tradeInfo.sellOrders)?tradeInfo.sellOrders:[];
     drawDetailedChart(candles,op);
-    const diff=op.averageEntry?((op.currentPrice/op.averageEntry)-1)*100:0;
-    const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
+
+    const avg=Number(op.averageEntry||0);
+    const current=Number(op.currentPrice||0);
+    const diff=avg>0?((current/avg)-1)*100:0;
+    const sellOrders=op.sellOrders.filter(o=>Number(o.price)>0);
+    const cfg=JSON.parse(localStorage.getItem("criptopro_robot_config")||"{}");
+    const stopPct=Math.abs(Number(cfg.stopLoss||2.5));
+    const stopPrice=avg>0?avg*(1-stopPct/100):0;
+
     document.getElementById("chartDetailsInfo").innerHTML=`
       <div class="report-summary">
-        <div class="report-box"><span>Compra média</span><strong>${op.averageEntry?moneyUSDT(op.averageEntry):"—"}</strong></div>
-        <div class="report-box"><span>Preço atual</span><strong>${moneyUSDT(op.currentPrice)}</strong></div>
-        <div class="report-box"><span>Diferença</span><strong class="${diff>=0?"pnl-positive":"pnl-negative"}">${percent(diff)}</strong></div>
+        <div class="report-box"><span>Compra média</span><strong>${avg?moneyUSDT(avg):"—"}</strong></div>
+        <div class="report-box"><span>Preço atual</span><strong>${moneyUSDT(current)}</strong></div>
+        <div class="report-box"><span>Diferença compra → atual</span><strong class="${diff>=0?"pnl-positive":"pnl-negative"}">${percent(diff)}</strong></div>
         <div class="report-box"><span>P/L</span><strong class="${Number(op.pnlUSDT||0)>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(op.pnlUSDT||0)}</strong></div>
         <div class="report-box"><span>Última compra</span><strong>${op.lastBuy?dateTime(op.lastBuy.time):"Não identificada"}</strong></div>
+        <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${stopPrice?moneyUSDT(stopPrice)+" · -"+stopPct.toFixed(2).replace(".",",")+"%":"—"}</strong></div>
       </div>
-      <div class="security">${sellOrders.length?`📍 Ordens de venda abertas: ${sellOrders.map(o=>moneyUSDT(o.price)).join(" · ")}`:"ℹ️ Nenhuma ordem de venda aberta foi encontrada para este ativo."}</div>`;
+      <div class="security">
+        ${sellOrders.length
+          ? `📍 Venda conforme ordem aberta: ${sellOrders.map((o,i)=>`<strong>VENDA ${i+1}</strong> ${moneyUSDT(o.price)}`).join(" · ")}`
+          : "ℹ️ Nenhuma ordem de venda aberta foi encontrada para este ativo."}
+        ${stopPrice?`<br>🛑 Stop Loss visual calculado a partir da compra média e da configuração atual do robô (${stopPct.toFixed(2)}%).`:""}
+      </div>`;
     document.getElementById("chartModalTitle").textContent=`📈 ${symbol}`;
-    document.getElementById("chartModalSubtitle").textContent=`Compra média, ordens de venda e preço atual · ${interval}`;
-  }catch(e){document.getElementById("chartDetailsInfo").innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`}
+    document.getElementById("chartModalSubtitle").textContent=`Candles Binance · compra, venda, stop e preço atual · ${interval}`;
+  }catch(e){
+    document.getElementById("chartDetailsInfo").innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`;
+  }
 }
 
 function drawDetailedChart(data,op){
   const canvas=document.getElementById("detailChart"),ctx=canvas.getContext("2d");
   const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
-  const w=rect.width,h=rect.height,p={l:55,r:20,t:25,b:30};ctx.clearRect(0,0,w,h);
+  const w=rect.width,h=rect.height;
+  canvas.width=Math.max(1,w*dpr);canvas.height=Math.max(1,h*dpr);
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
   if(!data.length)return;
-  const extra=[Number(op.averageEntry||0),Number(op.currentPrice||0),...(op.sellOrders||[]).map(o=>Number(o.price||0))].filter(x=>x>0);
-  const min=Math.min(...data.map(x=>x.low),...extra),max=Math.max(...data.map(x=>x.high),...extra),range=max-min||1;
-  const x=i=>p.l+i/(data.length-1)*(w-p.l-p.r), y=v=>p.t+(max-v)/range*(h-p.t-p.b);
-  ctx.strokeStyle="rgba(255,255,255,.06)";ctx.lineWidth=1;
-  for(let i=0;i<5;i++){let yy=p.t+i*(h-p.t-p.b)/4;ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);ctx.stroke();ctx.fillStyle="#778395";ctx.font="9px Arial";ctx.fillText(moneyUSDT(max-range*i/4),5,yy+3)}
-  ctx.beginPath();data.forEach((d,i)=>i?ctx.lineTo(x(i),y(d.close)):ctx.moveTo(x(i),y(d.close)));ctx.strokeStyle="#cfd7e3";ctx.lineWidth=1.7;ctx.stroke();
-  function line(value,label,stroke,dash=[]){
-    if(!(value>0))return;ctx.save();ctx.setLineDash(dash);ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.l,y(value));ctx.lineTo(w-p.r,y(value));ctx.stroke();ctx.restore();
-    ctx.fillStyle=stroke;ctx.font="bold 9px Arial";ctx.fillText(label+" "+moneyUSDT(value),p.l+6,Math.max(12,y(value)-5));
-  }
-  line(Number(op.averageEntry||0),"COMPRA","#35d394",[5,4]);
-  (op.sellOrders||[]).filter(o=>Number(o.price)>0).forEach((o,i)=>line(Number(o.price),`VENDA ${i+1}`,"#ffb84d",[4,3]));
-  line(Number(op.currentPrice||0),"ATUAL","#f0b90b");
 
+  const cfg=JSON.parse(localStorage.getItem("criptopro_robot_config")||"{}");
+  const stopPct=Math.abs(Number(cfg.stopLoss||2.5));
+  const avg=Number(op.averageEntry||0);
+  const current=Number(op.currentPrice||0);
+  const stopPrice=avg>0?avg*(1-stopPct/100):0;
+  const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
+
+  const extra=[avg,current,stopPrice,...sellOrders.map(o=>Number(o.price||0))].filter(x=>x>0);
+  const min=Math.min(...data.map(x=>x.low),...extra);
+  const max=Math.max(...data.map(x=>x.high),...extra);
+  const range=(max-min)||1;
+  const p={l:58,r:28,t:32,b:42};
+  const plotW=w-p.l-p.r, plotH=h-p.t-p.b;
+  const x=i=>p.l+(i/(Math.max(1,data.length-1)))*plotW;
+  const y=v=>p.t+(max-v)/range*plotH;
+
+  // Grid / price scale
+  ctx.font="9px Arial";
+  for(let i=0;i<6;i++){
+    const yy=p.t+i*plotH/5;
+    ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);
+    ctx.strokeStyle="rgba(255,255,255,.06)";ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle="#778395";
+    ctx.fillText(moneyUSDT(max-range*i/5),5,yy+3);
+  }
+  // Time labels
+  ctx.fillStyle="#657184";ctx.font="8px Arial";
+  [0,Math.floor(data.length/2),data.length-1].forEach(i=>{
+    if(!data[i])return;
+    ctx.fillText(new Date(data[i].time).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),x(i)-17,h-13);
+  });
+
+  // Candles, Binance-like
+  const candleW=Math.max(3,Math.min(9,plotW/data.length*0.62));
+  data.forEach((d,i)=>{
+    const cx=x(i), yo=y(d.open), yc=y(d.close), yh=y(d.high), yl=y(d.low);
+    const up=d.close>=d.open;
+    const stroke=up?"#16c784":"#ea3943";
+    ctx.strokeStyle=stroke;ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(cx,yh);ctx.lineTo(cx,yl);ctx.stroke();
+    ctx.fillStyle=stroke;
+    const top=Math.min(yo,yc), bh=Math.max(1,Math.abs(yc-yo));
+    ctx.fillRect(cx-candleW/2,top,candleW,bh);
+  });
+
+  function line(value,label,stroke,dash=[],labelOffset=0){
+    if(!(value>0))return;
+    const yy=y(value);
+    ctx.save();
+    ctx.setLineDash(dash);
+    ctx.strokeStyle=stroke;ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);ctx.stroke();
+    ctx.restore();
+
+    ctx.font="bold 9px Arial";ctx.fillStyle=stroke;
+    const text=`${label} ${moneyUSDT(value)}`;
+    const tx=Math.min(w-155, p.l+8);
+    const ty=Math.max(13,Math.min(h-5,yy-6+labelOffset));
+    ctx.fillText(text,tx,ty);
+  }
+
+  // Main horizontal markers
+  line(avg,"COMPRA MÉDIA","#35d394",[6,4],0);
+  sellOrders.forEach((o,i)=>line(Number(o.price),`VENDA ${i+1}`,"#ffb84d",[5,4],i*12));
+  line(stopPrice,`STOP LOSS -${stopPct.toFixed(2)}%`,"#ff4d5e",[7,4],0);
+  line(current,`ATUAL ${avg?((current/avg-1)*100).toFixed(2):"0.00"}%`,"#f0b90b",[2,3],0);
+
+  // Large current-price badge inside chart
+  if(current>0){
+    const badge=`ATUAL ${moneyUSDT(current)} · ${avg?((current/avg-1)*100).toFixed(2):"0.00"}%`;
+    ctx.font="bold 10px Arial";
+    const tw=ctx.measureText(badge).width+16;
+    const bx=w-p.r-tw, by=12;
+    ctx.fillStyle="rgba(240,185,11,.12)";
+    ctx.strokeStyle="rgba(240,185,11,.45)";
+    ctx.beginPath();ctx.roundRect(bx,by,tw,22,6);ctx.fill();ctx.stroke();
+    ctx.fillStyle="#f0b90b";ctx.fillText(badge,bx+8,by+15);
+  }
+
+  // Buy marker: arrow + text immediately below the arrow
   if(op.lastBuy && Number(op.lastBuy.time)>0){
     let nearest=0,best=Infinity;
     data.forEach((d,i)=>{
       const diff=Math.abs(Number(d.time)-Number(op.lastBuy.time));
       if(diff<best){best=diff;nearest=i}
     });
-    const bx=x(nearest), by=y(Number(op.lastBuy.price||op.averageEntry||data[nearest].close));
+    const buyPrice=Number(op.lastBuy.price||avg||data[nearest].close);
+    const bx=x(nearest), by=y(buyPrice);
+    const arrowTop=Math.max(p.t+8,by-42);
+    const arrowBottom=Math.max(p.t+25,by-13);
+
     ctx.save();
     ctx.strokeStyle="#35d394";ctx.fillStyle="#35d394";ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(bx,by-28);ctx.lineTo(bx,by-7);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(bx,by-7);ctx.lineTo(bx-5,by-14);ctx.lineTo(bx+5,by-14);ctx.closePath();ctx.fill();
-    ctx.font="bold 9px Arial";ctx.fillText("COMPRA",Math.min(w-65,Math.max(p.l,bx-22)),Math.max(12,by-34));
+    ctx.beginPath();ctx.moveTo(bx,arrowTop);ctx.lineTo(bx,arrowBottom);ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx,arrowBottom+7);
+    ctx.lineTo(bx-6,arrowBottom-2);
+    ctx.lineTo(bx+6,arrowBottom-2);
+    ctx.closePath();ctx.fill();
+
+    const label="COMPRA REALIZADA";
+    ctx.font="bold 9px Arial";
+    const lw=ctx.measureText(label).width;
+    ctx.fillText(label,Math.max(p.l,Math.min(w-p.r-lw,bx-lw/2)),Math.min(h-28,arrowBottom+20));
+
+    // Small price/time info near marker
+    const info=`${moneyUSDT(buyPrice)} · ${new Date(op.lastBuy.time).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
+    ctx.font="8px Arial";ctx.fillStyle="#9ee7c6";
+    const iw=ctx.measureText(info).width;
+    ctx.fillText(info,Math.max(p.l,Math.min(w-p.r-iw,bx-iw/2)),Math.min(h-14,arrowBottom+34));
+    ctx.restore();
+  }
+
+  // Explicit sale marker: vertical line at last executed sale, if available
+  if(op.lastSell && Number(op.lastSell.time)>0){
+    let nearest=0,best=Infinity;
+    data.forEach((d,i)=>{
+      const diff=Math.abs(Number(d.time)-Number(op.lastSell.time));
+      if(diff<best){best=diff;nearest=i}
+    });
+    const sx=x(nearest), sy=y(Number(op.lastSell.price||current));
+    ctx.save();
+    ctx.strokeStyle="#ffb84d";ctx.setLineDash([2,4]);ctx.lineWidth=1.2;
+    ctx.beginPath();ctx.moveTo(sx,p.t);ctx.lineTo(sx,h-p.b);ctx.stroke();
+    ctx.fillStyle="#ffb84d";ctx.font="bold 8px Arial";
+    ctx.fillText(`VENDA REALIZADA ${moneyUSDT(Number(op.lastSell.price||0))}`,Math.max(p.l,Math.min(w-190,sx+5)),p.t+13);
+    ctx.restore();
+  }
+
+  // Stop badge
+  if(stopPrice>0){
+    const sy=y(stopPrice);
+    ctx.save();
+    ctx.fillStyle="rgba(255,77,94,.10)";
+    ctx.strokeStyle="rgba(255,77,94,.4)";
+    ctx.beginPath();ctx.roundRect(p.l+5,Math.max(p.t,sy-13),130,22,5);ctx.fill();ctx.stroke();
+    ctx.fillStyle="#ff6675";ctx.font="bold 9px Arial";
+    ctx.fillText(`🛑 STOP ${moneyUSDT(stopPrice)}`,p.l+11,Math.max(p.t+14,sy+2));
     ctx.restore();
   }
 }
 
+function renderReportAccountSelector(){
+  const s=document.getElementById("reportAccountSelector");
+  if(!s)return;
+  if(!accounts.length){
+    s.innerHTML='<option value="">Nenhuma API cadastrada</option>';
+    return;
+  }
+  s.innerHTML=accounts.map((a,i)=>`<option value="${escapeHtml(a.id)}">API ${i+1} — ${escapeHtml(a.name)}</option>`).join("");
+  const id=selectedAccountId || String(accounts[0].id);
+  s.value=id;
+  syncReportAccount(id);
+}
+function syncReportAccount(id){
+  const status=document.getElementById("reportAccountStatus");
+  if(!id)return;
+  const account=accounts.find(a=>String(a.id)===String(id));
+  if(status)status.textContent=account?"API: "+account.name:"API selecionada";
+}
 function applyReportPeriod(){
   const custom=document.getElementById("reportPeriod").value==="custom";
   document.getElementById("reportStart").style.display=custom?"block":"none";
   document.getElementById("reportEnd").style.display=custom?"block":"none";
 }
 function openReports(){
+  renderReportAccountSelector();
   document.getElementById("reportModal").classList.add("open");
   applyReportPeriod();
 }
 function closeReports(){document.getElementById("reportModal").classList.remove("open")}
 async function loadReport(){
-  if(!selectedAccountId){document.getElementById("reportResult").innerHTML='<div class="message show error">Selecione uma API primeiro.</div>';return}
+  const reportAccountId=document.getElementById("reportAccountSelector")?.value || selectedAccountId;
+  if(!reportAccountId){
+    document.getElementById("reportResult").innerHTML='<div class="message show error">Selecione uma API primeiro.</div>';
+    return;
+  }
   let start,end;
   const period=document.getElementById("reportPeriod").value;
   const now=new Date();
   if(period==="custom"){
-    start=document.getElementById("reportStart").value;end=document.getElementById("reportEnd").value;
-    if(!start||!end){document.getElementById("reportResult").innerHTML='<div class="message show error">Informe a data inicial e final.</div>';return}
+    start=document.getElementById("reportStart").value;
+    end=document.getElementById("reportEnd").value;
+    if(!start||!end){
+      document.getElementById("reportResult").innerHTML='<div class="message show error">Informe a data inicial e final.</div>';
+      return;
+    }
   }else{
     end=now.toISOString().slice(0,10);
-    const d=new Date(now);d.setDate(d.getDate()-Number(period));start=d.toISOString().slice(0,10);
+    const d=new Date(now);
+    d.setDate(d.getDate()-Number(period));
+    start=d.toISOString().slice(0,10);
   }
-  document.getElementById("reportResult").innerHTML='<div class="empty-data">Consultando os dados da Binance...</div>';
+
+  document.getElementById("reportResult").innerHTML='<div class="empty-data">Consultando os dados da Binance... Isso pode levar alguns segundos.</div>';
   try{
-    const data=await apiFetch(`/api/panel/report?account=${encodeURIComponent(selectedAccountId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    const data=await apiFetch(`/api/panel/report?account=${encodeURIComponent(reportAccountId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    if(!data || data.success===false)throw new Error(data?.message||"O backend não conseguiu gerar o relatório.");
     window.lastReport=data;
     const rows=data.trades||[];
     const buyValue=rows.filter(x=>x.side==="BUY").reduce((s,x)=>s+Number(x.quoteQty||0),0);
     const sellValue=rows.filter(x=>x.side==="SELL").reduce((s,x)=>s+Number(x.quoteQty||0),0);
     const result=sellValue-buyValue;
+    const account=accounts.find(a=>String(a.id)===String(reportAccountId));
+
     document.getElementById("reportResult").innerHTML=`
       <div class="report-summary">
+        <div class="report-box"><span>API</span><strong>${escapeHtml(account?.name||"")}</strong></div>
         <div class="report-box"><span>Período</span><strong>${formatDate(start)} → ${formatDate(end)}</strong></div>
         <div class="report-box"><span>Compras</span><strong>${moneyUSDT(buyValue)}</strong></div>
         <div class="report-box"><span>Vendas</span><strong>${moneyUSDT(sellValue)}</strong></div>
         <div class="report-box"><span>Fluxo bruto</span><strong class="${result>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(result)}</strong></div>
+        <div class="report-box"><span>Operações</span><strong>${rows.length}</strong></div>
+        <div class="report-box"><span>Compras realizadas</span><strong>${rows.filter(x=>x.side==="BUY").length}</strong></div>
+        <div class="report-box"><span>Vendas realizadas</span><strong>${rows.filter(x=>x.side==="SELL").length}</strong></div>
       </div>
-      <div class="security">ℹ️ O “fluxo bruto” é vendas menos compras no período. Ele não é o lucro líquido da estratégia; o lucro realizado deve considerar custo das posições e taxas.</div>
+      <div class="security">ℹ️ O “fluxo bruto” é vendas menos compras no período. Ele não é o lucro líquido da estratégia; o lucro realizado deve considerar o custo das posições e as taxas. O relatório está vinculado à API selecionada acima.</div>
       <table class="data-table"><thead><tr><th>Data</th><th>Ativo</th><th>Operação</th><th>Qtd.</th><th>Preço</th><th>Valor</th><th>Taxa</th></tr></thead><tbody>
       ${rows.map(x=>`<tr><td>${dateTime(x.time)}</td><td>${x.symbol}</td><td class="${x.side==="BUY"?"pnl-positive":"pnl-negative"}">${x.side==="BUY"?"COMPRA":"VENDA"}</td><td>${formatNumber(x.qty)}</td><td>${moneyUSDT(x.price)}</td><td>${moneyUSDT(x.quoteQty)}</td><td>${formatNumber(x.commission)} ${escapeHtml(x.commissionAsset||"")}</td></tr>`).join("")||'<tr><td colspan="7">Nenhuma negociação encontrada no período.</td></tr>'}
       </tbody></table>`;
-  }catch(e){document.getElementById("reportResult").innerHTML=`<div class="message show error">${escapeHtml(e.message)}<br><br>Se a rota de relatório ainda não foi instalada no backend, instale o arquivo reports.js fornecido junto deste painel.</div>`}
+  }catch(e){
+    document.getElementById("reportResult").innerHTML=`
+      <div class="message show error">
+        <strong>Erro ao gerar relatório.</strong><br><br>
+        ${escapeHtml(e.message)}
+        <br><br>
+        Verifique se <strong>backend/routes/reports.js</strong> está instalado e se o <strong>server.js</strong> contém
+        <code>app.use("/api/panel/report", reportRoutes);</code>.
+      </div>`;
+  }
 }
+
 function formatDate(s){return new Date(s+"T00:00:00").toLocaleDateString("pt-BR")}
 function printReport(){
   if(!window.lastReport){alert("Gere o relatório antes de imprimir.");return}
   const content=document.getElementById("reportResult").innerHTML;
   const w=window.open("","_blank","width=1100,height=800");
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
-  w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(selectedAccountId))?.name||"")}</p>${content}</body></html>`);
+  w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}</body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);
 }
 

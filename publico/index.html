@@ -331,6 +331,71 @@ button{cursor:pointer}
 @media(max-width:900px){.news-grid{grid-template-columns:1fr 1fr}.market7{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.news-grid{grid-template-columns:1fr}.market7{grid-template-columns:1fr 1fr}.chart-wrap{height:300px}.chart-detail{height:390px}}
 
+
+
+/* CRIPTOPRO — TERMO DE RESPONSABILIDADE */
+.robotRiskOverlay{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,.78);
+}
+.robotRiskModal{
+  width:min(680px,96vw);
+  max-height:88vh;
+  overflow:auto;
+  background:#0d1420;
+  color:#fff;
+  border:1px solid rgba(240,185,11,.28);
+  border-radius:16px;
+  box-shadow:0 20px 70px rgba(0,0,0,.5);
+}
+.robotRiskHeader{padding:20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.robotRiskTitle{font-size:17px;font-weight:900}
+.robotRiskSubtitle{font-size:11px;color:#8d99aa;margin-top:5px}
+.robotRiskBody{padding:20px;font-size:12px;line-height:1.65;color:#c9d1dc}
+.robotRiskBody p{margin:0 0 13px}
+.robotRiskWarning{
+  padding:12px;
+  border-radius:10px;
+  background:rgba(240,185,11,.08);
+  border:1px solid rgba(240,185,11,.2);
+  color:#f0c94b;
+  margin:15px 0;
+}
+.robotRiskCheck{
+  display:flex;
+  gap:9px;
+  align-items:flex-start;
+  padding:13px;
+  border-radius:10px;
+  background:rgba(35,196,131,.06);
+  border:1px solid rgba(35,196,131,.18);
+  cursor:pointer;
+}
+.robotRiskCheck input{margin-top:3px}
+.robotRiskFooter{
+  display:flex;
+  justify-content:flex-end;
+  gap:9px;
+  padding:15px 20px;
+  border-top:1px solid rgba(255,255,255,.08);
+}
+.robotRiskFooter button{
+  border:0;
+  border-radius:9px;
+  padding:10px 15px;
+  font-weight:800;
+  cursor:pointer;
+}
+.robotRiskCancel{background:#263244;color:#fff}
+.robotRiskAccept{background:#23c483;color:#07130d}
+.robotRiskAccept:disabled{opacity:.5;cursor:not-allowed}
+
 </style>
 </head>
 
@@ -645,7 +710,7 @@ button{cursor:pointer}
 
 
 <!-- TERMO DE RESPONSABILIDADE DO ROBÔ -->
-<div class="robotRiskOverlay" id="robotRiskModal">
+<div class="robotRiskOverlay" id="robotRiskModal" style="display:none;">
   <div class="robotRiskModal">
     <div class="robotRiskHeader">
       <div class="robotRiskTitle">⚠️ Termo de Responsabilidade e Ciência de Riscos</div>
@@ -1338,11 +1403,24 @@ async function startRobot(){
     alert("Salve uma configuração do robô antes de iniciar.");
     return;
   }
+
   window.robotRiskAccountId=selectedAccountId;
-  openRiskTerm();
+  window.robotRiskConfigId=
+    config.config.id ||
+    config.config.config_id ||
+    config.config.robot_config_id ||
+    null;
+
+  if(!window.robotRiskConfigId){
+    alert("Não foi possível identificar a configuração salva. Salve a configuração novamente.");
+    return;
+  }
+
+  openRiskTerm(window.robotRiskConfigId);
 }
 
-function openRiskTerm(){
+function openRiskTerm(configId){
+  if(configId) window.robotRiskConfigId=configId;
   const modal=document.getElementById("robotRiskModal");
   const check=document.getElementById("robotRiskAccepted");
   if(!modal){alert("Termo de Responsabilidade não encontrado.");return}
@@ -1367,7 +1445,7 @@ async function aceitarTermoRisco(){
     if(btn){btn.disabled=true;btn.textContent="REGISTRANDO...";}
     await apiFetch("/api/robot/risk/accept",{
       method:"POST",
-      body:JSON.stringify({accountId:selectedAccountId})
+      body:JSON.stringify({configId:window.robotRiskConfigId})
     });
     fecharTermoRisco();
     const d=await apiFetch("/api/robot/start",{
@@ -1841,19 +1919,6 @@ function printReport(){
   const w=window.open("","_blank","width=1100,height=800");
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
   w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}
-/* CRIPTOPRO — TERMO DE RESPONSABILIDADE */
-.robotRiskOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.78)}
-.robotRiskModal{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#0d1420;color:#fff;border:1px solid rgba(240,185,11,.28);border-radius:16px;box-shadow:0 20px 70px rgba(0,0,0,.5)}
-.robotRiskHeader{padding:20px;border-bottom:1px solid rgba(255,255,255,.08)}
-.robotRiskTitle{font-size:17px;font-weight:900}.robotRiskSubtitle{font-size:11px;color:#8d99aa;margin-top:5px}
-.robotRiskBody{padding:20px;font-size:12px;line-height:1.65;color:#c9d1dc}.robotRiskBody p{margin:0 0 13px}
-.robotRiskWarning{padding:12px;border-radius:10px;background:rgba(240,185,11,.08);border:1px solid rgba(240,185,11,.2);color:#f0c94b;margin:15px 0}
-.robotRiskCheck{display:flex;gap:9px;align-items:flex-start;padding:13px;border-radius:10px;background:rgba(35,196,131,.06);border:1px solid rgba(35,196,131,.18);cursor:pointer}
-.robotRiskCheck input{margin-top:3px}
-.robotRiskFooter{display:flex;justify-content:flex-end;gap:9px;padding:15px 20px;border-top:1px solid rgba(255,255,255,.08)}
-.robotRiskFooter button{border:0;border-radius:9px;padding:10px 15px;font-weight:800;cursor:pointer}
-.robotRiskCancel{background:#263244;color:#fff}.robotRiskAccept{background:#23c483;color:#07130d}.robotRiskAccept:disabled{opacity:.5;cursor:not-allowed}
-
 </style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}</body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);
 }

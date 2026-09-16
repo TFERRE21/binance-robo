@@ -9,6 +9,8 @@ const panelRoutes = require("./routes/panel");
 
 const subscriptionRoutes = require("./routes/subscription");
 
+const robotRiskRoutes = require("./routes/robotRisk");
+
 // =========================================================
 // CRIPTOPRO V7 - NOVAS ROTAS
 // =========================================================

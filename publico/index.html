@@ -1523,7 +1523,15 @@ async function aceitarTermoRisco(){
     if(!started.success)throw new Error(started.message||started.error||"Não foi possível iniciar o robô.");
 
     fecharTermoRisco();
-    await loadRobotStatus();
+
+    // O START do backend foi confirmado: atualiza os controles imediatamente.
+    atualizarCardRoboVisual(true);
+
+    // Confirma o estado persistido no servidor; se a consulta falhar,
+    // o estado visual já permanece em RODANDO porque o START foi aceito.
+    try{ await loadRobotStatus(); }catch(_e){}
+
+    atualizarCardRoboVisual(true);
     alert("Termo aceito. Robô iniciado com a configuração salva.");
   }catch(error){
     console.error("ERRO AO INICIAR ROBÔ:",error);
@@ -1533,9 +1541,26 @@ async function aceitarTermoRisco(){
   }
 }
 
+function atualizarCardRoboVisual(running){
+  const badge=document.getElementById("robotStatusBadge");
+  const txt=document.getElementById("robotStatusText");
+  const start=document.getElementById("startRobotBtn");
+  const startConfig=document.getElementById("startRobotConfigBtn");
+  const stop=document.getElementById("stopRobotBtn");
+
+  if(badge){
+    badge.textContent=running?"● RODANDO":"PARADO";
+    badge.className=running?"badge-green":"badge-yellow";
+  }
+  if(start)start.disabled=running;
+  if(startConfig)startConfig.disabled=running;
+  if(stop)stop.disabled=!running;
+  if(txt && running)txt.textContent="Robô ativo · analisando o mercado.";
+}
+
 async function stopRobot(){
   if(!selectedAccountId)return;
-  try{const d=await apiFetch('/api/robot/stop',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível parar o robô.');await loadRobotStatus();alert('Robô parado. Ordens já existentes permanecem na Binance.');}catch(e){alert(e.message||'Erro ao parar o robô.')}
+  try{const d=await apiFetch('/api/robot/stop',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível parar o robô.');atualizarCardRoboVisual(false);try{await loadRobotStatus()}catch(_e){} atualizarCardRoboVisual(false);alert('Robô parado. Ordens já existentes permanecem na Binance.');}catch(e){alert(e.message||'Erro ao parar o robô.')}
 }
 
 function showMessage(element,text,type){element.textContent=text;element.className="message show "+type}

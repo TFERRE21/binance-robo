@@ -40,6 +40,18 @@ app.use("/api/panel/report", reportRoutes);
 app.use("/api/news", newsRoutes);
 app.use("/api/robot", robotRoutes);
 
+/*
+ * CRIPTOPRO V7 - RECUPERAR ROBOS ATIVOS
+ *
+ * Ao iniciar o servidor, recupera somente os robos que estavam
+ * marcados como ativos no banco de dados.
+ *
+ * O robo antigo global nao foi alterado neste passo.
+ */
+robotEngine.resumeRunning().catch(err => {
+  console.error("ERRO AO RECUPERAR ROBOS:", err);
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());

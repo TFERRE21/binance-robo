@@ -9,6 +9,14 @@ const panelRoutes = require("./routes/panel");
 
 const subscriptionRoutes = require("./routes/subscription");
 
+// =========================================================
+// CRIPTOPRO V7 - NOVAS ROTAS
+// =========================================================
+const reportRoutes = require("./routes/reports");
+const newsRoutes = require("./routes/news");
+const robotRoutes = require("./routes/robot");
+const robotEngine = require("./services/robotEngine");
+
 const Binance = require("binance-api-node").default;
 
 const app = express();
@@ -24,6 +32,13 @@ app.use("/api/binance", binanceRoutes);
 app.use("/api/panel", panelRoutes);
 
 app.use("/api/subscription", subscriptionRoutes);
+
+// =========================================================
+// CRIPTOPRO V7 - NOVAS ROTAS
+// =========================================================
+app.use("/api/panel/report", reportRoutes);
+app.use("/api/news", newsRoutes);
+app.use("/api/robot", robotRoutes);
 
 const PORT = process.env.PORT || 3000;
 

@@ -2441,6 +2441,23 @@ section.section.compactOpen{
   }
 }
 
+
+
+/* CRIPTOPRO — CONTROLES DO ROBÔ */
+.robotControlPanel{margin:20px 0;padding:20px;border-radius:16px;background:rgba(20,20,28,.96);border:1px solid rgba(255,255,255,.12);box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.robotControlHeader{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.robotControlHeader h2{margin:0 0 5px;font-size:20px}.robotControlHeader p{margin:0;opacity:.75;font-size:13px}
+.robotStatusBadge{padding:7px 12px;border-radius:999px;font-weight:700;font-size:12px;background:#555;color:#fff}
+.robotConfigGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.robotConfigGrid label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:600}
+.robotConfigGrid input,.robotConfigGrid select{width:100%;box-sizing:border-box;padding:10px 11px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#11131a;color:inherit}
+.robotCheckLabel{justify-content:center;flex-direction:row!important;align-items:center;gap:8px!important;padding-top:18px}
+.robotCheckLabel input{width:auto}
+.robotControlActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
+.robotControlActions button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;cursor:pointer}
+#robotSaveConfigBtn{background:#fff;color:#111}#robotStartBtn{background:#18a558;color:#fff}#robotStopBtn{background:#c0392b;color:#fff}
+.robotControlActions button:disabled{opacity:.45;cursor:not-allowed}.robotConfigMessage{margin-top:12px;font-size:13px;min-height:18px}
+
 </style>
 
 /* =========================================================
@@ -2638,6 +2655,71 @@ section.section.compactOpen{
 </head>
 
 <body>
+
+<!-- CRIPTOPRO — CONFIGURAÇÃO E START DO ROBÔ -->
+<section id="robotControlPanel" class="robotControlPanel">
+  <div class="robotControlHeader">
+    <div>
+      <h2>🤖 Robô de Operações</h2>
+      <p>Configure a estratégia. Salve a configuração e use START para aceitar o termo e iniciar o robô.</p>
+    </div>
+    <span id="robotStatusBadge" class="robotStatusBadge">PARADO</span>
+  </div>
+
+  <div class="robotConfigGrid">
+    <label>Estratégia
+      <select id="robotStrategy">
+        <option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option>
+        <option value="v6">V6 — TOP 40 Volume · EMA/RSI</option>
+      </select>
+    </label>
+
+    <label>Entrada (%)
+      <input id="robotEntry" type="number" min="0" max="100" step="0.1" value="98">
+    </label>
+
+    <label>Take Profit (%)
+      <input id="robotTp" type="number" min="0.01" step="0.1" value="5">
+    </label>
+
+    <label>Stop Loss (%)
+      <input id="robotSl" type="number" min="0.01" step="0.1" value="2.5">
+    </label>
+
+    <label>Máx. operações simultâneas
+      <input id="robotMaxOps" type="number" min="1" max="3" step="1" value="3">
+    </label>
+
+    <label>Intervalo
+      <select id="robotInterval">
+        <option value="1m">1 minuto</option>
+        <option value="5m">5 minutos</option>
+        <option value="15m" selected>15 minutos</option>
+        <option value="30m">30 minutos</option>
+        <option value="1h">1 hora</option>
+      </select>
+    </label>
+
+    <label>Máx. moedas
+      <input id="robotMaxCoins" type="number" min="1" max="50" step="1" value="20">
+    </label>
+
+    <label class="robotCheckLabel">
+      <input id="robotStopLossActive" type="checkbox" checked>
+      Stop Loss ativo
+    </label>
+  </div>
+
+  <div class="robotControlActions">
+    <button id="robotSaveConfigBtn" type="button" onclick="salvarConfiguracaoRobo()">💾 SALVAR CONFIGURAÇÃO</button>
+    <button id="robotStartBtn" type="button" onclick="iniciarRoboComTermo()">▶ START ROBÔ</button>
+    <button id="robotStopBtn" type="button" onclick="pararRobo()">⏹ STOP</button>
+  </div>
+
+  <div id="robotConfigMessage" class="robotConfigMessage"></div>
+</section>
+
+
 
 <!-- =========================================================
      CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
@@ -5540,6 +5622,133 @@ async function aceitarTermoRisco(){
 
   }
 }
+
+
+/* CRIPTOPRO — FLUXO CONFIGURAR -> START -> TERMO -> ROBÔ */
+let robotCurrentConfigId = null;
+
+function robotMsg(msg, isError) {
+  const el = document.getElementById("robotConfigMessage");
+  if (el) el.textContent = msg || "";
+  if (el) el.style.opacity = isError ? "1" : ".85";
+}
+
+function robotPayloadFromForm() {
+  return {
+    strategy: document.getElementById("robotStrategy").value,
+    entryPercent: Number(document.getElementById("robotEntry").value),
+    takeProfitPercent: Number(document.getElementById("robotTp").value),
+    stopLossPercent: Number(document.getElementById("robotSl").value),
+    maxSimultaneous: Number(document.getElementById("robotMaxOps").value),
+    interval: document.getElementById("robotInterval").value,
+    maxCoins: Number(document.getElementById("robotMaxCoins").value),
+    stopLossActive: document.getElementById("robotStopLossActive").checked
+  };
+}
+
+async function salvarConfiguracaoRobo() {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    robotMsg("Faça login para configurar o robô.", true);
+    return;
+  }
+
+  const btn = document.getElementById("robotSaveConfigBtn");
+  if (btn) btn.disabled = true;
+
+  try {
+    const payload = robotPayloadFromForm();
+    const response = await fetch("/api/robot/config", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(function(){ return {}; });
+    if (!response.ok) {
+      throw new Error(data.error || data.message || ("Erro HTTP " + response.status));
+    }
+
+    robotCurrentConfigId = data.configId || data.id || (data.config && data.config.id) || null;
+    robotMsg("Configuração salva. Agora clique em START ROBÔ para aceitar o termo e iniciar.");
+    const start = document.getElementById("robotStartBtn");
+    if (start) start.disabled = false;
+  } catch (err) {
+    robotMsg("Não foi possível salvar: " + err.message, true);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function iniciarRoboComTermo() {
+  if (!robotCurrentConfigId) {
+    robotMsg("Primeiro salve a configuração do robô.", true);
+    return;
+  }
+  if (typeof abrirTermoRisco === "function") {
+    abrirTermoRisco(robotCurrentConfigId);
+  } else {
+    robotMsg("Termo de risco não está disponível. Verifique a integração do modal.", true);
+  }
+}
+
+async function iniciarRoboAposAceite() {
+  const token = localStorage.getItem("token");
+  const response = await fetch("/api/robot/start", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + token
+    },
+    body: JSON.stringify({ configId: robotCurrentConfigId })
+  });
+  const data = await response.json().catch(function(){ return {}; });
+  if (!response.ok) {
+    throw new Error(data.error || data.message || ("Erro HTTP " + response.status));
+  }
+  const badge = document.getElementById("robotStatusBadge");
+  if (badge) badge.textContent = "ATIVO";
+  robotMsg("Robô iniciado com a configuração salva.");
+}
+
+/* Faz a função de aceite existente iniciar o robô somente depois da confirmação. */
+const _aceitarTermoRiscoOriginal = window.aceitarTermoRisco;
+window.aceitarTermoRisco = async function() {
+  try {
+    if (typeof _aceitarTermoRiscoOriginal === "function") {
+      await _aceitarTermoRiscoOriginal();
+    }
+    await iniciarRoboAposAceite();
+  } catch (err) {
+    robotMsg("Não foi possível iniciar o robô: " + err.message, true);
+  }
+};
+
+async function pararRobo() {
+  const token = localStorage.getItem("token");
+  if (!token) return;
+  try {
+    const response = await fetch("/api/robot/stop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({})
+    });
+    const data = await response.json().catch(function(){ return {}; });
+    if (!response.ok) throw new Error(data.error || data.message || ("Erro HTTP " + response.status));
+    const badge = document.getElementById("robotStatusBadge");
+    if (badge) badge.textContent = "PARADO";
+    robotMsg("Robô parado.");
+  } catch (err) {
+    robotMsg("Não foi possível parar: " + err.message, true);
+  }
+}
+
 </script>
 
 /* =========================================================

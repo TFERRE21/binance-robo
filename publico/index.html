@@ -236,6 +236,42 @@ button{cursor:pointer}
   .api-selector-row{flex-direction:column}
   .api-selector select,.api-selector button{width:100%}
 }
+
+/* ===== CRIPTOPRO V4 — MÓDULOS ===== */
+.module{min-height:108px}
+.module.active-module{border-color:rgba(240,185,11,.45);background:rgba(240,185,11,.07)}
+.module.locked-module{opacity:.9}
+.module-status{display:inline-block;margin-top:7px;font-size:8px;color:#5bd69d;font-weight:900}
+.detail-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.detail-toolbar select,.detail-toolbar input{
+  height:38px;border:1px solid rgba(255,255,255,.1);border-radius:8px;
+  background:#080d14;color:#e5ebf3;padding:0 10px;font-size:10px
+}
+.asset-list{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.asset-card{border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:11px;background:rgba(255,255,255,.025);cursor:pointer}
+.asset-card:hover,.asset-card.selected{border-color:rgba(240,185,11,.4);background:rgba(240,185,11,.05)}
+.asset-name{font-size:11px;font-weight:900}.asset-meta{font-size:9px;color:#778395;margin-top:5px}
+.data-table{width:100%;border-collapse:collapse;font-size:9px}
+.data-table th,.data-table td{padding:9px 7px;border-bottom:1px solid rgba(255,255,255,.06);text-align:left}
+.data-table th{color:#778395;text-transform:uppercase;font-size:8px}
+.data-table td{color:#dbe3ed}
+.empty-data{padding:18px;text-align:center;color:#778395;font-size:10px}
+.report-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.report-actions .btn{min-width:120px}
+.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:15px}
+.report-box{border:1px solid rgba(255,255,255,.07);border-radius:9px;padding:11px;background:rgba(255,255,255,.025)}
+.report-box span{display:block;color:#778395;font-size:8px;text-transform:uppercase;margin-bottom:5px}.report-box strong{font-size:12px}
+.chart-detail{height:420px;position:relative;border:1px solid rgba(255,255,255,.06);border-radius:10px;background:#080d14;overflow:hidden}
+#detailChart{width:100%;height:100%;display:block}
+.chart-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:9px;color:#9aa6b7}
+.legend-buy{color:#35d394}.legend-sell{color:#ffb84d}.legend-now{color:#f0b90b}.legend-stop{color:#ff7272}
+.alert-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px;border:1px solid rgba(255,255,255,.07);border-radius:9px;margin-bottom:8px;background:rgba(255,255,255,.025)}
+.alert-row strong{font-size:10px}.alert-row span{font-size:9px;color:#778395}
+.badge-green,.badge-red,.badge-yellow{padding:5px 7px;border-radius:15px;font-size:8px;font-weight:900;white-space:nowrap}
+.badge-green{color:#5bd69d;background:rgba(35,196,131,.08)}.badge-red{color:#ff8a8a;background:rgba(255,75,75,.08)}.badge-yellow{color:#f0b90b;background:rgba(240,185,11,.08)}
+@media(max-width:800px){.asset-list{grid-template-columns:1fr 1fr}.report-summary{grid-template-columns:1fr 1fr}.chart-detail{height:320px}}
+@media(max-width:520px){.asset-list{grid-template-columns:1fr}.report-summary{grid-template-columns:1fr}}
+
 </style>
 </head>
 
@@ -334,18 +370,19 @@ button{cursor:pointer}
 <section>
   <div class="section-title" id="resourcesTitle">Recursos do Premium</div>
   <div class="modules">
-    <button class="module" onclick="scrollToOperation()"><div class="module-icon">⚡</div><div class="module-title">Operação</div><div class="module-desc">Acompanhe suas operações em tempo real.</div></button>
-    <button class="module" onclick="document.querySelector('.chart-card').scrollIntoView({behavior:'smooth'})"><div class="module-icon">📈</div><div class="module-title">Gráfico</div><div class="module-desc">Visualização real do BTC/USDT.</div></button>
-    <button class="module" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div><div class="module-desc">Configuração e controle da estratégia.</div></button>
-    <button class="module"><div class="module-icon">🔄</div><div class="module-title">Comparação</div><div class="module-desc">Compare desempenho entre suas contas.</div></button>
-    <button class="module"><div class="module-icon">🏆</div><div class="module-title">Performance</div><div class="module-desc">Indicadores de resultado e desempenho.</div></button>
-    <button class="module"><div class="module-icon">🪙</div><div class="module-title">Moedas</div><div class="module-desc">Acompanhe os ativos disponíveis.</div></button>
-    <button class="module"><div class="module-icon">🕒</div><div class="module-title">Atividade</div><div class="module-desc">Histórico de movimentações.</div></button>
-    <button class="module"><div class="module-icon">🔔</div><div class="module-title">Alertas</div><div class="module-desc">Alertas e acompanhamento da conta.</div></button>
-    <button class="module"><div class="module-icon">💰</div><div class="module-title">Patrimônio</div><div class="module-desc">Visão consolidada do patrimônio.</div></button>
-    <button class="module"><div class="module-icon">🔎</div><div class="module-title">Raio-X</div><div class="module-desc">Análise detalhada das posições.</div></button>
-    <button class="module"><div class="module-icon">🛡️</div><div class="module-title">Auditoria</div><div class="module-desc">Consulte registros e atividades.</div></button>
-    <button class="module"><div class="module-icon">📊</div><div class="module-title">P/L</div><div class="module-desc">Lucro e prejuízo das operações.</div></button>
+    <button class="module" data-module="operation" onclick="openModule('operation')"><div class="module-icon">⚡</div><div class="module-title">Operação</div><div class="module-desc">Acompanhe suas posições, entradas, saídas e P/L.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="chart" onclick="openModule('chart')"><div class="module-icon">📈</div><div class="module-title">Gráfico</div><div class="module-desc">Preço, compra média, ordens de venda e diferença atual.</div><span class="module-status">● TEMPO REAL</span></button>
+    <button class="module" data-module="robot" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div><div class="module-desc">Configuração de entrada, TP, SL e operações simultâneas.</div><span class="module-status">● CONFIGURÁVEL</span></button>
+    <button class="module" data-module="comparison" onclick="openModule('comparison')"><div class="module-icon">🔄</div><div class="module-title">Comparação</div><div class="module-desc">Compare patrimônio, P/L e posições entre suas APIs.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="performance" onclick="openModule('performance')"><div class="module-icon">🏆</div><div class="module-title">Performance</div><div class="module-desc">Resumo de desempenho, lucro aberto e realizado.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="coins" onclick="openModule('coins')"><div class="module-icon">🪙</div><div class="module-title">Moedas</div><div class="module-desc">Todas as moedas com saldo e valor atual.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="activity" onclick="openModule('activity')"><div class="module-icon">🕒</div><div class="module-title">Atividade</div><div class="module-desc">Últimas compras e vendas identificadas.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="alerts" onclick="openModule('alerts')"><div class="module-icon">🔔</div><div class="module-title">Alertas</div><div class="module-desc">Alertas de TP, SL, P/L e ordens abertas.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="patrimony" onclick="openModule('patrimony')"><div class="module-icon">💰</div><div class="module-title">Patrimônio</div><div class="module-desc">Composição completa do patrimônio da API.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="xray" onclick="openModule('xray')"><div class="module-icon">🔎</div><div class="module-title">Raio-X</div><div class="module-desc">Análise detalhada de cada posição aberta.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="audit" onclick="openModule('audit')"><div class="module-icon">🛡️</div><div class="module-title">Auditoria</div><div class="module-desc">Registros de ordens e movimentações disponíveis.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="pnl" onclick="openModule('pnl')"><div class="module-icon">📊</div><div class="module-title">P/L</div><div class="module-desc">Lucro e prejuízo aberto e realizado.</div><span class="module-status">● ATIVO</span></button>
+    <button class="module" data-module="reports" onclick="openReports()"><div class="module-icon">📄</div><div class="module-title">Relatórios</div><div class="module-desc">Escolha o período e gere/imprima o relatório.</div><span class="module-status">● PERÍODO</span></button>
   </div>
 </section>
 </main>
@@ -384,6 +421,73 @@ button{cursor:pointer}
 
   <div class="notice" id="securityNotice">🔒 Suas credenciais da Binance são processadas pelo servidor e não são exibidas no painel.<br><br>⚠️ Não habilite permissão de saque na API usada pelo CriptoPro.</div>
 </aside>
+</div>
+
+
+<!-- MODULE MODAL -->
+<div class="modal-bg" id="moduleModal">
+<div class="modal">
+  <div class="modal-header">
+    <div><div class="modal-title" id="moduleModalTitle">Módulo Premium</div><div class="modal-subtitle" id="moduleModalSubtitle">Dados da API selecionada</div></div>
+    <button class="close" onclick="closeModule()">×</button>
+  </div>
+  <div class="modal-body" id="moduleModalBody"></div>
+  <div class="modal-footer"><button class="btn" onclick="closeModule()">Fechar</button></div>
+</div>
+</div>
+
+<!-- REPORT MODAL -->
+<div class="modal-bg" id="reportModal">
+<div class="modal">
+  <div class="modal-header">
+    <div><div class="modal-title">📄 Relatório de operações</div><div class="modal-subtitle">Selecione a API e o período</div></div>
+    <button class="close" onclick="closeReports()">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="detail-toolbar">
+      <select id="reportPeriod" onchange="applyReportPeriod()">
+        <option value="7">Últimos 7 dias</option>
+        <option value="30" selected>Últimos 30 dias</option>
+        <option value="60">Últimos 60 dias</option>
+        <option value="90">Últimos 90 dias</option>
+        <option value="custom">Período personalizado</option>
+      </select>
+      <input id="reportStart" type="date" style="display:none">
+      <input id="reportEnd" type="date" style="display:none">
+      <button class="btn btn-primary" onclick="loadReport()">Gerar relatório</button>
+      <button class="btn" onclick="printReport()">Imprimir / PDF</button>
+    </div>
+    <div id="reportResult"><div class="empty-data">Escolha o período e clique em “Gerar relatório”.</div></div>
+  </div>
+  <div class="modal-footer"><button class="btn" onclick="closeReports()">Fechar</button></div>
+</div>
+</div>
+
+<!-- CHART DETAIL MODAL -->
+<div class="modal-bg" id="chartModal">
+<div class="modal" style="width:min(900px,100%)">
+  <div class="modal-header">
+    <div><div class="modal-title" id="chartModalTitle">📈 Gráfico da posição</div><div class="modal-subtitle" id="chartModalSubtitle">Compra média, ordens de venda e preço atual</div></div>
+    <button class="close" onclick="closeChartModal()">×</button>
+  </div>
+  <div class="modal-body">
+    <div class="detail-toolbar">
+      <select id="chartAssetSelector" onchange="loadDetailedChart(this.value)"></select>
+      <select id="chartInterval" onchange="loadDetailedChart(document.getElementById('chartAssetSelector').value)">
+        <option value="5m">5 min</option><option value="15m" selected>15 min</option><option value="1h">1 hora</option><option value="4h">4 horas</option>
+      </select>
+    </div>
+    <div class="chart-detail"><canvas id="detailChart"></canvas></div>
+    <div class="chart-legend">
+      <span class="legend-buy">● Compra / preço médio</span>
+      <span class="legend-sell">● Ordem de venda</span>
+      <span class="legend-stop">● Stop</span>
+      <span class="legend-now">● Preço atual</span>
+    </div>
+    <div id="chartDetailsInfo" style="margin-top:13px"></div>
+  </div>
+  <div class="modal-footer"><button class="btn" onclick="closeChartModal()">Fechar</button></div>
+</div>
 </div>
 
 <!-- API MODAL -->
@@ -595,22 +699,69 @@ async function loadSelectedAccount(){
     const summary=data.summary||{};
     const assets=data.ativos||[];
     let pnl=0,cost=0,positions=0;
+    const positionData=[];
 
     for(const asset of assets){
       if(asset.priceUnavailable||Number(asset.valorUSDT||0)<=0)continue;
-      const symbol=String(asset.asset||"")+"USDT";
-      if(["USDT","USDC","FDUSD","TUSD","BUSD"].includes(String(asset.asset||"").toUpperCase()))continue;
+      const assetName=String(asset.asset||"").toUpperCase();
+      if(["USDT","USDC","FDUSD","TUSD","BUSD"].includes(assetName))continue;
+      const symbol=assetName+"USDT";
       try{
-        const op=await apiFetch("/api/panel/operation/"+encodeURIComponent(selectedAccountId)+"?symbol="+encodeURIComponent(symbol));
-        if(op.operation && Number.isFinite(Number(op.operation.pnlUSDT))){
-          pnl+=Number(op.operation.pnlUSDT||0);
-          const q=Number(op.operation.totalQuantity||0);
-          const avg=Number(op.operation.averageEntry||0);
+        const opResponse=await apiFetch("/api/panel/operation/"+encodeURIComponent(selectedAccountId)+"?symbol="+encodeURIComponent(symbol));
+        const op=opResponse.operation;
+        if(op && Number(op.totalQuantity||0)>0){
+          positionData.push({
+            symbol,
+            asset:assetName,
+            quantidade:Number(op.totalQuantity||0),
+            precoMedio:Number(op.averageEntry||0),
+            precoAtual:Number(op.currentPrice||0),
+            valorAtual:Number(op.currentValue||0),
+            pnlNaoRealizado:Number(op.pnlUSDT||0),
+            pnlNaoRealizadoPct:Number(op.pnlPercentual||0),
+            tp:(op.sellOrders||[]).find(o=>Number(o.price)>0)||null,
+            sellOrders:op.sellOrders||[]
+          });
+        }
+        if(op && Number.isFinite(Number(op.pnlUSDT))){
+          pnl+=Number(op.pnlUSDT||0);
+          const q=Number(op.totalQuantity||0);
+          const avg=Number(op.averageEntry||0);
           if(q>0&&avg>0)cost+=q*avg;
           if(q>0)positions++;
         }
       }catch(e){}
     }
+
+    let historico=[];
+    try{
+      const end=new Date().toISOString().slice(0,10);
+      const d=new Date();d.setDate(d.getDate()-30);
+      const start=d.toISOString().slice(0,10);
+      const report=await apiFetch(`/api/panel/report?account=${encodeURIComponent(selectedAccountId)}&start=${start}&end=${end}`);
+      historico=(report.trades||[]).map(t=>({
+        symbol:t.symbol,
+        lado:t.side==="BUY"?"COMPRA":"VENDA",
+        qty:Number(t.qty||0),
+        price:Number(t.price||0),
+        quoteQty:Number(t.quoteQty||0),
+        commission:Number(t.commission||0),
+        commissionAsset:t.commissionAsset||"",
+        time:Number(t.time||0)
+      }));
+    }catch(e){
+      console.warn("Histórico do módulo ainda não disponível:",e.message);
+    }
+
+    selectedAccountData={
+      ...data,
+      summary,
+      ativos:assets,
+      posicoes:positionData,
+      historico,
+      pnlNaoRealizado:pnl,
+      pnlRealizado:0
+    };
 
     window.currentPnlPercent=cost>0?(pnl/cost)*100:0;
     updateCurrencyDisplays(Number(summary.patrimonioUSDT||0),pnl,Number(summary.disponivelUSDT||0));
@@ -851,10 +1002,296 @@ function changeLanguage(){
 
 document.addEventListener("click",e=>{
   if(e.target===document.getElementById("apiModal"))closeApiModal();
+  if(e.target===document.getElementById("moduleModal"))closeModule();
+  if(e.target===document.getElementById("reportModal"))closeReports();
+  if(e.target===document.getElementById("chartModal"))closeChartModal();
   if(e.target===document.getElementById("learnModal"))closeLearnApi();
   if(e.target===document.getElementById("robotModal"))closeRobot();
 });
 window.addEventListener("resize",()=>{if(selectedAccountData)loadBtcChart()});
+
+/* =====================================================
+   V4 — MÓDULOS PREMIUM
+===================================================== */
+
+function openModule(type){
+  if(type==="chart"){openDetailedChart();return;}
+  const data=selectedAccountData||{};
+  const titleMap={
+    operation:"⚡ Operação",
+    comparison:"🔄 Comparação",
+    performance:"🏆 Performance",
+    coins:"🪙 Moedas",
+    activity:"🕒 Atividade",
+    alerts:"🔔 Alertas",
+    patrimony:"💰 Patrimônio",
+    xray:"🔎 Raio-X",
+    audit:"🛡️ Auditoria",
+    pnl:"📊 P/L"
+  };
+  document.querySelectorAll(".module").forEach(x=>x.classList.remove("active-module"));
+  const btn=document.querySelector(`[data-module="${type}"]`);
+  if(btn)btn.classList.add("active-module");
+  document.getElementById("moduleModalTitle").textContent=titleMap[type]||"Módulo Premium";
+  document.getElementById("moduleModalSubtitle").textContent=
+    (data.account?.name||"API selecionada")+" · dados atualizados em tempo real";
+  document.getElementById("moduleModalBody").innerHTML=renderModule(type,data);
+  document.getElementById("moduleModal").classList.add("open");
+  if(type==="comparison")loadComparison();
+}
+function closeModule(){document.getElementById("moduleModal").classList.remove("open")}
+
+async function loadComparison(){
+  const box=document.getElementById("comparisonLive");
+  if(!box)return;
+  const rows=[];
+  for(const account of accounts){
+    try{
+      const d=await apiFetch("/api/panel/account/"+encodeURIComponent(account.id));
+      const summary=d.summary||{};
+      let pnl=0,active=0;
+      for(const a of (d.ativos||[])){
+        const asset=String(a.asset||"").toUpperCase();
+        if(["USDT","USDC","FDUSD","TUSD","BUSD"].includes(asset))continue;
+        try{
+          const o=await apiFetch("/api/panel/operation/"+encodeURIComponent(account.id)+"?symbol="+encodeURIComponent(asset+"USDT"));
+          if(o.operation){
+            pnl+=Number(o.operation.pnlUSDT||0);
+            if(Number(o.operation.totalQuantity||0)>0)active++;
+          }
+        }catch(e){}
+      }
+      rows.push({name:account.name,active:account.active,patrimonio:Number(summary.patrimonioUSDT||0),pnl,assets:(d.ativos||[]).length,positions:active});
+    }catch(e){
+      rows.push({name:account.name,active:false,error:true});
+    }
+  }
+  box.innerHTML=`<table class="data-table"><thead><tr><th>API</th><th>Status</th><th>Patrimônio</th><th>P/L</th><th>Ativos</th><th>Posições</th></tr></thead><tbody>${
+    rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${r.error?"ERRO":r.active?"ATIVA":"INATIVA"}</td><td>${r.error?"—":moneyUSDT(r.patrimonio)}</td><td class="${r.pnl>=0?"pnl-positive":"pnl-negative"}">${r.error?"—":moneyUSDT(r.pnl)}</td><td>${r.error?"—":r.assets}</td><td>${r.error?"—":r.positions}</td></tr>`).join("")
+  }</tbody></table>`;
+}
+
+function renderModule(type,data){
+  const assets=data.ativos||[];
+  const positions=(data.posicoes||[]).length?data.posicoes:[];
+  const hist=data.historico||[];
+  const patrimonio=Number(data.summary?.patrimonioUSDT||data.patrimonioUSDT||0);
+  const available=Number(data.summary?.disponivelUSDT||0);
+  const openPnl=Number(data.pnlNaoRealizado||0);
+  const realized=Number(data.pnlRealizado||0);
+
+  if(type==="operation"){
+    if(!positions.length)return '<div class="empty-data">Nenhuma posição aberta identificada nesta API.</div>';
+    return `<div class="asset-list">${positions.map(p=>positionCard(p)).join("")}</div>`;
+  }
+  if(type==="coins"){
+    return `<div class="asset-list">${assets.map(a=>`<div class="asset-card" onclick="openChartForSymbol('${escapeHtml(a.asset)}')"><div class="asset-name">${escapeHtml(a.asset)}</div><div class="asset-meta">Saldo: ${formatNumber(a.total)}</div><div class="asset-meta">Preço: ${moneyUSDT(a.precoUSDT)}</div><div class="asset-meta">Valor: ${moneyUSDT(a.valorUSDT)}</div></div>`).join("")||'<div class="empty-data">Nenhum ativo encontrado.</div>'}</div>`;
+  }
+  if(type==="activity"){
+    return `<table class="data-table"><thead><tr><th>Data</th><th>Ativo</th><th>Lado</th><th>Qtd.</th><th>Preço</th><th>Valor</th></tr></thead><tbody>${hist.slice(0,50).map(h=>`<tr><td>${dateTime(h.time)}</td><td>${h.symbol}</td><td><span class="${h.lado==="COMPRA"?"pnl-positive":"pnl-negative"}">${h.lado}</span></td><td>${formatNumber(h.qty)}</td><td>${moneyUSDT(h.price)}</td><td>${moneyUSDT(h.quoteQty||h.qty*h.price)}</td></tr>`).join("")||'<tr><td colspan="6">Nenhuma movimentação disponível.</td></tr>'}</tbody></table>`;
+  }
+  if(type==="alerts"){
+    if(!positions.length)return '<div class="empty-data">Nenhuma posição com alerta identificada.</div>';
+    return positions.map(p=>{
+      const rows=[];
+      if(p.tp)rows.push(`<div class="alert-row"><div><strong>${p.symbol} · Take Profit</strong><span>Ordem de venda aberta</span></div><b class="badge-yellow">${moneyUSDT(p.tp.price)}</b></div>`);
+      if(p.sl)rows.push(`<div class="alert-row"><div><strong>${p.symbol} · Stop Loss</strong><span>Ordem de proteção</span></div><b class="badge-red">${moneyUSDT(p.sl.stopPrice||p.sl.price)}</b></div>`);
+      const diff=p.precoMedio?((p.precoAtual/p.precoMedio)-1)*100:0;
+      rows.push(`<div class="alert-row"><div><strong>${p.symbol} · P/L</strong><span>Diferença entre compra média e preço atual</span></div><b class="${diff>=0?"badge-green":"badge-red"}">${percent(diff)}</b></div>`);
+      return rows.join("");
+    }).join("");
+  }
+  if(type==="patrimony"){
+    return `<div class="report-summary">
+      <div class="report-box"><span>Patrimônio</span><strong>${moneyUSDT(patrimonio)}</strong></div>
+      <div class="report-box"><span>Disponível</span><strong>${moneyUSDT(available)}</strong></div>
+      <div class="report-box"><span>Bloqueado</span><strong>${moneyUSDT(Number(data.summary?.bloqueadoUSDT||0))}</strong></div>
+      <div class="report-box"><span>Ativos</span><strong>${assets.length}</strong></div>
+    </div>${assets.map(a=>`<div class="alert-row"><div><strong>${a.asset}</strong><span>${formatNumber(a.total)} unidades · ${moneyUSDT(a.precoUSDT)}</span></div><b>${moneyUSDT(a.valorUSDT)}</b></div>`).join("")}`;
+  }
+  if(type==="performance"){
+    return `<div class="report-summary">
+      <div class="report-box"><span>P/L aberto</span><strong class="${openPnl>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(openPnl)}</strong></div>
+      <div class="report-box"><span>P/L realizado</span><strong class="${realized>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(realized)}</strong></div>
+      <div class="report-box"><span>P/L estimado</span><strong>${moneyUSDT(openPnl+realized)}</strong></div>
+      <div class="report-box"><span>Posições</span><strong>${positions.length}</strong></div>
+    </div><div class="empty-data">O desempenho detalhado por período está disponível no módulo Relatórios.</div>`;
+  }
+  if(type==="pnl"){
+    return `<div class="report-summary">
+      <div class="report-box"><span>Aberto</span><strong class="${openPnl>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(openPnl)}</strong></div>
+      <div class="report-box"><span>Realizado</span><strong class="${realized>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(realized)}</strong></div>
+      <div class="report-box"><span>Total estimado</span><strong class="${openPnl+realized>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(openPnl+realized)}</strong></div>
+      <div class="report-box"><span>Em R$</span><strong>${moneyBRL((openPnl+realized)*usdBrl)}</strong></div>
+    </div><table class="data-table"><thead><tr><th>Moeda</th><th>Compra</th><th>Atual</th><th>Diferença</th><th>P/L</th></tr></thead><tbody>${positions.map(p=>`<tr><td>${p.symbol}</td><td>${moneyUSDT(p.precoMedio)}</td><td>${moneyUSDT(p.precoAtual)}</td><td>${percent(p.pnlNaoRealizadoPct)}</td><td class="${p.pnlNaoRealizado>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(p.pnlNaoRealizado)}</td></tr>`).join("")||'<tr><td colspan="5">Nenhuma posição aberta.</td></tr>'}</tbody></table>`;
+  }
+  if(type==="xray"){
+    return `<table class="data-table"><thead><tr><th>Ativo</th><th>Qtd.</th><th>Entrada</th><th>Atual</th><th>Venda</th><th>Diferença</th></tr></thead><tbody>${positions.map(p=>`<tr><td>${p.symbol}</td><td>${formatNumber(p.quantidade)}</td><td>${moneyUSDT(p.precoMedio)}</td><td>${moneyUSDT(p.precoAtual)}</td><td>${p.tp?moneyUSDT(p.tp.price):"—"}</td><td class="${p.pnlNaoRealizado>=0?"pnl-positive":"pnl-negative"}">${percent(p.pnlNaoRealizadoPct)}</td></tr>`).join("")||'<tr><td colspan="6">Nenhuma posição aberta.</td></tr>'}</tbody></table>`;
+  }
+  if(type==="comparison"){
+    if(!accounts.length)return '<div class="empty-data">Nenhuma API cadastrada.</div>';
+    return `<div id="comparisonLive"><div class="empty-data">Consultando suas APIs...</div></div>`;
+  }
+  if(type==="audit"){
+    return `<div class="security">🛡️ Auditoria baseada nos dados que a Binance disponibiliza à API cadastrada. As credenciais não são exibidas.</div><table class="data-table" style="margin-top:12px"><thead><tr><th>Data</th><th>Ativo</th><th>Evento</th><th>Qtd.</th><th>Preço</th></tr></thead><tbody>${hist.slice(0,50).map(h=>`<tr><td>${dateTime(h.time)}</td><td>${h.symbol}</td><td>${h.lado}</td><td>${formatNumber(h.qty)}</td><td>${moneyUSDT(h.price)}</td></tr>`).join("")||'<tr><td colspan="5">Nenhum registro disponível.</td></tr>'}</tbody></table>`;
+  }
+  return '<div class="empty-data">Selecione um recurso para visualizar os dados.</div>';
+}
+
+function positionCard(p){
+  const diff=Number(p.pnlNaoRealizadoPct||0);
+  const cls=diff>=0?"pnl-positive":"pnl-negative";
+  return `<div class="asset-card" onclick="openChartForSymbol('${escapeHtml(p.asset)}')">
+    <div class="asset-name">${escapeHtml(p.symbol)}</div>
+    <div class="asset-meta">Quantidade: ${formatNumber(p.quantidade)}</div>
+    <div class="asset-meta">Compra média: ${moneyUSDT(p.precoMedio)}</div>
+    <div class="asset-meta">Atual: ${moneyUSDT(p.precoAtual)}</div>
+    <div class="asset-meta ${cls}">P/L: ${moneyUSDT(p.pnlNaoRealizado)} · ${percent(diff)}</div>
+    <div class="asset-meta">Venda: ${p.tp?moneyUSDT(p.tp.price):"sem ordem"}</div>
+  </div>`;
+}
+function dateTime(t){return t?new Date(Number(t)).toLocaleString("pt-BR"):"—"}
+
+function openDetailedChart(){
+  const positions=selectedAccountData?.posicoes||[];
+  const assets=positions.length?positions.map(p=>p.asset):((selectedAccountData?.ativos||[]).filter(a=>a.asset!=="USDT").map(a=>a.asset));
+  if(!assets.length){alert("Não há moedas disponíveis para exibir no gráfico.");return}
+  const s=document.getElementById("chartAssetSelector");
+  s.innerHTML=assets.map(a=>`<option value="${escapeHtml(a)}">${escapeHtml(a)}USDT</option>`).join("");
+  document.getElementById("chartModal").classList.add("open");
+  loadDetailedChart(assets[0]);
+}
+function openChartForSymbol(asset){
+  openDetailedChart();
+  setTimeout(()=>{
+    const s=document.getElementById("chartAssetSelector");
+    if([...s.options].some(o=>o.value===asset)){s.value=asset;loadDetailedChart(asset)}
+  },50);
+}
+function closeChartModal(){document.getElementById("chartModal").classList.remove("open")}
+
+async function loadDetailedChart(asset){
+  if(!asset||!selectedAccountId)return;
+  const symbol=String(asset).toUpperCase()+"USDT";
+  const interval=document.getElementById("chartInterval").value;
+  try{
+    const [klineRes,opRes,tradeInfoRes]=await Promise.all([
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=120`),
+      apiFetch(`/api/panel/operation/${encodeURIComponent(selectedAccountId)}?symbol=${encodeURIComponent(symbol)}`),
+      apiFetch(`/api/panel/report/trade-info?account=${encodeURIComponent(selectedAccountId)}&symbol=${encodeURIComponent(symbol)}`).catch(()=>({}))
+    ]);
+    if(!klineRes.ok)throw new Error("Não foi possível carregar o gráfico.");
+    const rows=await klineRes.json(), op=opRes.operation||{}, tradeInfo=tradeInfoRes||{};
+    const candles=rows.map(x=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4]}));
+    op.lastBuy=tradeInfo.lastBuy||null;
+    op.lastSell=tradeInfo.lastSell||null;
+    if(Array.isArray(tradeInfo.sellOrders)&&tradeInfo.sellOrders.length)op.sellOrders=tradeInfo.sellOrders;
+    drawDetailedChart(candles,op);
+    const diff=op.averageEntry?((op.currentPrice/op.averageEntry)-1)*100:0;
+    const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
+    document.getElementById("chartDetailsInfo").innerHTML=`
+      <div class="report-summary">
+        <div class="report-box"><span>Compra média</span><strong>${op.averageEntry?moneyUSDT(op.averageEntry):"—"}</strong></div>
+        <div class="report-box"><span>Preço atual</span><strong>${moneyUSDT(op.currentPrice)}</strong></div>
+        <div class="report-box"><span>Diferença</span><strong class="${diff>=0?"pnl-positive":"pnl-negative"}">${percent(diff)}</strong></div>
+        <div class="report-box"><span>P/L</span><strong class="${Number(op.pnlUSDT||0)>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(op.pnlUSDT||0)}</strong></div>
+        <div class="report-box"><span>Última compra</span><strong>${op.lastBuy?dateTime(op.lastBuy.time):"Não identificada"}</strong></div>
+      </div>
+      <div class="security">${sellOrders.length?`📍 Ordens de venda abertas: ${sellOrders.map(o=>moneyUSDT(o.price)).join(" · ")}`:"ℹ️ Nenhuma ordem de venda aberta foi encontrada para este ativo."}</div>`;
+    document.getElementById("chartModalTitle").textContent=`📈 ${symbol}`;
+    document.getElementById("chartModalSubtitle").textContent=`Compra média, ordens de venda e preço atual · ${interval}`;
+  }catch(e){document.getElementById("chartDetailsInfo").innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`}
+}
+
+function drawDetailedChart(data,op){
+  const canvas=document.getElementById("detailChart"),ctx=canvas.getContext("2d");
+  const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
+  canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+  const w=rect.width,h=rect.height,p={l:55,r:20,t:25,b:30};ctx.clearRect(0,0,w,h);
+  if(!data.length)return;
+  const extra=[Number(op.averageEntry||0),Number(op.currentPrice||0),...(op.sellOrders||[]).map(o=>Number(o.price||0))].filter(x=>x>0);
+  const min=Math.min(...data.map(x=>x.low),...extra),max=Math.max(...data.map(x=>x.high),...extra),range=max-min||1;
+  const x=i=>p.l+i/(data.length-1)*(w-p.l-p.r), y=v=>p.t+(max-v)/range*(h-p.t-p.b);
+  ctx.strokeStyle="rgba(255,255,255,.06)";ctx.lineWidth=1;
+  for(let i=0;i<5;i++){let yy=p.t+i*(h-p.t-p.b)/4;ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);ctx.stroke();ctx.fillStyle="#778395";ctx.font="9px Arial";ctx.fillText(moneyUSDT(max-range*i/4),5,yy+3)}
+  ctx.beginPath();data.forEach((d,i)=>i?ctx.lineTo(x(i),y(d.close)):ctx.moveTo(x(i),y(d.close)));ctx.strokeStyle="#cfd7e3";ctx.lineWidth=1.7;ctx.stroke();
+  function line(value,label,stroke,dash=[]){
+    if(!(value>0))return;ctx.save();ctx.setLineDash(dash);ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(p.l,y(value));ctx.lineTo(w-p.r,y(value));ctx.stroke();ctx.restore();
+    ctx.fillStyle=stroke;ctx.font="bold 9px Arial";ctx.fillText(label+" "+moneyUSDT(value),p.l+6,Math.max(12,y(value)-5));
+  }
+  line(Number(op.averageEntry||0),"COMPRA","#35d394",[5,4]);
+  (op.sellOrders||[]).filter(o=>Number(o.price)>0).forEach((o,i)=>line(Number(o.price),`VENDA ${i+1}`,"#ffb84d",[4,3]));
+  line(Number(op.currentPrice||0),"ATUAL","#f0b90b");
+
+  if(op.lastBuy && Number(op.lastBuy.time)>0){
+    let nearest=0,best=Infinity;
+    data.forEach((d,i)=>{
+      const diff=Math.abs(Number(d.time)-Number(op.lastBuy.time));
+      if(diff<best){best=diff;nearest=i}
+    });
+    const bx=x(nearest), by=y(Number(op.lastBuy.price||op.averageEntry||data[nearest].close));
+    ctx.save();
+    ctx.strokeStyle="#35d394";ctx.fillStyle="#35d394";ctx.lineWidth=2;
+    ctx.beginPath();ctx.moveTo(bx,by-28);ctx.lineTo(bx,by-7);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(bx,by-7);ctx.lineTo(bx-5,by-14);ctx.lineTo(bx+5,by-14);ctx.closePath();ctx.fill();
+    ctx.font="bold 9px Arial";ctx.fillText("COMPRA",Math.min(w-65,Math.max(p.l,bx-22)),Math.max(12,by-34));
+    ctx.restore();
+  }
+}
+
+function applyReportPeriod(){
+  const custom=document.getElementById("reportPeriod").value==="custom";
+  document.getElementById("reportStart").style.display=custom?"block":"none";
+  document.getElementById("reportEnd").style.display=custom?"block":"none";
+}
+function openReports(){
+  document.getElementById("reportModal").classList.add("open");
+  applyReportPeriod();
+}
+function closeReports(){document.getElementById("reportModal").classList.remove("open")}
+async function loadReport(){
+  if(!selectedAccountId){document.getElementById("reportResult").innerHTML='<div class="message show error">Selecione uma API primeiro.</div>';return}
+  let start,end;
+  const period=document.getElementById("reportPeriod").value;
+  const now=new Date();
+  if(period==="custom"){
+    start=document.getElementById("reportStart").value;end=document.getElementById("reportEnd").value;
+    if(!start||!end){document.getElementById("reportResult").innerHTML='<div class="message show error">Informe a data inicial e final.</div>';return}
+  }else{
+    end=now.toISOString().slice(0,10);
+    const d=new Date(now);d.setDate(d.getDate()-Number(period));start=d.toISOString().slice(0,10);
+  }
+  document.getElementById("reportResult").innerHTML='<div class="empty-data">Consultando os dados da Binance...</div>';
+  try{
+    const data=await apiFetch(`/api/panel/report?account=${encodeURIComponent(selectedAccountId)}&start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`);
+    window.lastReport=data;
+    const rows=data.trades||[];
+    const buyValue=rows.filter(x=>x.side==="BUY").reduce((s,x)=>s+Number(x.quoteQty||0),0);
+    const sellValue=rows.filter(x=>x.side==="SELL").reduce((s,x)=>s+Number(x.quoteQty||0),0);
+    const result=sellValue-buyValue;
+    document.getElementById("reportResult").innerHTML=`
+      <div class="report-summary">
+        <div class="report-box"><span>Período</span><strong>${formatDate(start)} → ${formatDate(end)}</strong></div>
+        <div class="report-box"><span>Compras</span><strong>${moneyUSDT(buyValue)}</strong></div>
+        <div class="report-box"><span>Vendas</span><strong>${moneyUSDT(sellValue)}</strong></div>
+        <div class="report-box"><span>Fluxo bruto</span><strong class="${result>=0?"pnl-positive":"pnl-negative"}">${moneyUSDT(result)}</strong></div>
+      </div>
+      <div class="security">ℹ️ O “fluxo bruto” é vendas menos compras no período. Ele não é o lucro líquido da estratégia; o lucro realizado deve considerar custo das posições e taxas.</div>
+      <table class="data-table"><thead><tr><th>Data</th><th>Ativo</th><th>Operação</th><th>Qtd.</th><th>Preço</th><th>Valor</th><th>Taxa</th></tr></thead><tbody>
+      ${rows.map(x=>`<tr><td>${dateTime(x.time)}</td><td>${x.symbol}</td><td class="${x.side==="BUY"?"pnl-positive":"pnl-negative"}">${x.side==="BUY"?"COMPRA":"VENDA"}</td><td>${formatNumber(x.qty)}</td><td>${moneyUSDT(x.price)}</td><td>${moneyUSDT(x.quoteQty)}</td><td>${formatNumber(x.commission)} ${escapeHtml(x.commissionAsset||"")}</td></tr>`).join("")||'<tr><td colspan="7">Nenhuma negociação encontrada no período.</td></tr>'}
+      </tbody></table>`;
+  }catch(e){document.getElementById("reportResult").innerHTML=`<div class="message show error">${escapeHtml(e.message)}<br><br>Se a rota de relatório ainda não foi instalada no backend, instale o arquivo reports.js fornecido junto deste painel.</div>`}
+}
+function formatDate(s){return new Date(s+"T00:00:00").toLocaleDateString("pt-BR")}
+function printReport(){
+  if(!window.lastReport){alert("Gere o relatório antes de imprimir.");return}
+  const content=document.getElementById("reportResult").innerHTML;
+  const w=window.open("","_blank","width=1100,height=800");
+  if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
+  w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(selectedAccountId))?.name||"")}</p>${content}</body></html>`);
+  w.document.close();w.focus();setTimeout(()=>w.print(),300);
+}
+
 
 async function init(){
   const lang=localStorage.getItem("criptopro_language");

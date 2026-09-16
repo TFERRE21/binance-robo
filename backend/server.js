@@ -9,6 +9,8 @@ const panelRoutes = require("./routes/panel");
 
 const subscriptionRoutes = require("./routes/subscription");
 
+app.use("/api/robot/risk", robotRiskRoutes.router);
+
 const robotRiskRoutes = require("./routes/robotRisk");
 
 // =========================================================

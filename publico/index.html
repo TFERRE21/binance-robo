@@ -1339,7 +1339,8 @@ function getRobotConfig(){
 function renderRobotLive(d){
   const box=document.getElementById('robotLiveContent'),badge=document.getElementById('robotLiveBadge'); if(!box)return;
   const c=d?.config, ops=(d?.operations||[]), open=ops.filter(x=>x.status==='OPEN');
-  if(badge){badge.textContent=d?.running?'● RODANDO':'PARADO';badge.className=d?.running?'operation-badge pnl-positive':'operation-badge';}
+  const liveRunning=!!d?.running || !!d?.engineRunning;
+  if(badge){badge.textContent=liveRunning?'● RODANDO':'PARADO';badge.className=liveRunning?'operation-badge pnl-positive':'operation-badge';}
   if(!c){box.innerHTML='<div class="operation-empty">Nenhuma configuração salva para a API selecionada. Abra <strong>Robô</strong> para configurar.</div>';return;}
   box.innerHTML=`<div class="report-summary">\n    <div class="report-box"><span>Estratégia</span><strong>${escapeHtml(c.strategy_version||'v7.1')}</strong></div>\n    <div class="report-box"><span>Entrada</span><strong>${Number(c.entry_percent).toFixed(1)}%</strong></div>\n    <div class="report-box"><span>Take Profit</span><strong>${Number(c.take_profit).toFixed(2)}%</strong></div>\n    <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${c.stop_loss_active?'ATIVO · ':''}${Number(c.stop_loss).toFixed(2)}%</strong></div>\n  </div>\n  <div class="security">${open.length?`🟢 ${open.length} operação(ões) aberta(s) · limite ${c.max_operations}.`:'ℹ️ Nenhuma operação do robô aberta neste momento.'} · Intervalo ${escapeHtml(c.interval)} · até ${c.max_coins} moedas.</div>\n  ${open.length?`<table class="data-table" style="margin-top:10px"><thead><tr><th>Ativo</th><th>Compra</th><th>Quantidade</th><th>Venda</th><th>Stop</th><th>Status</th></tr></thead><tbody>${open.map(o=>`<tr><td>${escapeHtml(o.symbol)}</td><td>${moneyUSDT(o.buy_price)}</td><td>${formatNumber(o.quantity)}</td><td>${moneyUSDT(o.tp_price)}</td><td class="pnl-negative">${moneyUSDT(o.stop_price)}</td><td>ABERTA</td></tr>`).join('')}</tbody></table>`:''}`;
 }
@@ -1351,7 +1352,7 @@ async function loadRobotStatus(){
     renderRobotLive(d);
     const c=d.config;
     if(c){ robotCurrentConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null; window.robotRiskConfigId=robotCurrentConfigId; }
-    const running=!!d.running;
+    const running=!!d.running || !!d.engineRunning;
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt)txt.textContent=c?`${c.strategy_version||'v7.1'} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';

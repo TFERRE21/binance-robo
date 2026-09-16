@@ -5439,11 +5439,7 @@ setInterval(
   15000
 );
 
-</script>
 
-/* =========================================================
-   CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
-========================================================= */
 
 let robotRiskConfigId = null;
 
@@ -5516,7 +5512,7 @@ async function aceitarTermoRisco(){
       throw new Error(
         data.error ||
         data.message ||
-        `Erro HTTP ${response.status}`
+        "Erro HTTP " + response.status
       );
     }
 
@@ -5544,6 +5540,11 @@ async function aceitarTermoRisco(){
 
   }
 }
+</script>
+
+/* =========================================================
+   CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
+========================================================= */
 
 </body>
 </html>

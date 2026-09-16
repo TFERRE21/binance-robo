@@ -304,6 +304,33 @@ button{cursor:pointer}
 @media(max-width:800px){.asset-list{grid-template-columns:1fr 1fr}.report-summary{grid-template-columns:1fr 1fr}.chart-detail{height:320px}}
 @media(max-width:520px){.asset-list{grid-template-columns:1fr}.report-summary{grid-template-columns:1fr}}
 
+
+/* ===== CRIPTOPRO V6 — BINANCE STYLE / JORNAL ===== */
+.news-section{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);border-radius:14px;padding:17px;margin:20px 0}
+.news-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}
+.news-title{font-size:15px;font-weight:900}
+.news-sub{font-size:9px;color:#778395;margin-top:4px}
+.news-actions{display:flex;gap:8px}
+.news-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.news-card{border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.12);border-radius:10px;padding:12px;min-height:145px}
+.news-source{font-size:8px;color:#f0b90b;font-weight:900;text-transform:uppercase;margin-bottom:7px}
+.news-card h4{font-size:11px;line-height:1.35;margin-bottom:7px}
+.news-card p{font-size:9px;color:#9aa6b7;line-height:1.45}
+.news-date{font-size:8px;color:#647082;margin-top:9px}
+.market7{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
+.market7 .report-box{min-height:65px}
+.journal-loading{padding:18px;text-align:center;color:#778395;font-size:10px}
+.tv-chart{width:100%;height:100%;background:#080d14}
+.tv-chart .tv-lightweight-charts{font-family:Arial,sans-serif}
+.chart-wrap{height:360px}
+.chart-detail{height:500px}
+#btcChart{display:none!important}
+#detailChart{display:none!important}
+.chart-tv-note{font-size:8px;color:#657184;margin-top:5px}
+.binance-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid rgba(240,185,11,.2);background:rgba(240,185,11,.05);color:#f0b90b;border-radius:12px;padding:4px 7px;font-size:8px;font-weight:900}
+@media(max-width:900px){.news-grid{grid-template-columns:1fr 1fr}.market7{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.news-grid{grid-template-columns:1fr}.market7{grid-template-columns:1fr 1fr}.chart-wrap{height:300px}.chart-detail{height:390px}}
+
 </style>
 </head>
 
@@ -388,8 +415,9 @@ button{cursor:pointer}
     </div>
     <div class="btc-price" id="btcPrice">US$ 0,00<small>carregando...</small></div>
   </div>
-  <div class="chart-wrap"><canvas id="btcChart"></canvas></div>
+  <div class="chart-wrap"><div id="btcChartTV" class="tv-chart"></div></div>
   <div class="chart-status" id="btcStatus">Conectando à Binance...</div>
+  <div class="chart-tv-note">Dados reais da Binance · candles, volume, escala de preço e atualização ao vivo.</div>
 </section>
 
 <section class="operation-card">
@@ -398,6 +426,25 @@ button{cursor:pointer}
     <div class="operation-badge" id="operationBadge">TEMPO REAL</div>
   </div>
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
+</section>
+
+<section class="news-section">
+  <div class="news-head">
+    <div>
+      <div class="news-title">📰 Jornal CriptoPro</div>
+      <div class="news-sub">Notícias do mercado cripto e panorama dos últimos 7 dias</div>
+    </div>
+    <div class="news-actions">
+      <span class="binance-chip">● ATUALIZADO</span>
+      <button class="btn" onclick="loadCryptoNews()">↻ Atualizar</button>
+    </div>
+  </div>
+  <div id="market7Summary" class="market7">
+    <div class="journal-loading">Carregando panorama de 7 dias...</div>
+  </div>
+  <div id="cryptoNewsGrid" class="news-grid">
+    <div class="journal-loading">Carregando notícias...</div>
+  </div>
 </section>
 
 <section>
@@ -516,7 +563,7 @@ button{cursor:pointer}
         <option value="5m">5 min</option><option value="15m" selected>15 min</option><option value="1h">1 hora</option><option value="4h">4 horas</option>
       </select>
     </div>
-    <div class="chart-detail"><canvas id="detailChart"></canvas></div>
+    <div class="chart-detail"><div id="detailChartTV" class="tv-chart"></div></div>
     <div class="chart-legend">
       <span class="legend-buy">▲ COMPRA REALIZADA</span>
       <span class="legend-sell">━ VENDA / ORDEM</span>
@@ -606,6 +653,7 @@ button{cursor:pointer}
 </div>
 </div>
 
+<script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 const token=localStorage.getItem("token");
 if(!token) window.location.href="/login.html";
@@ -1014,45 +1062,90 @@ async function previewSell(symbol){
   }catch(e){alert(e.message||"Não foi possível gerar a prévia da venda.")}
 }
 
+
+let btcTVChart=null, btcCandleSeries=null, btcVolumeSeries=null, btcSocket=null;
+let detailTVChart=null, detailCandleSeries=null, detailVolumeSeries=null, detailSocket=null;
+
+function tvTheme(){
+  return {
+    layout:{background:{type:'solid',color:'#080d14'},textColor:'#8b96a6'},
+    grid:{vertLines:{color:'rgba(255,255,255,.045)'},horzLines:{color:'rgba(255,255,255,.045)'}},
+    rightPriceScale:{borderColor:'rgba(255,255,255,.08)',scaleMargins:{top:.08,bottom:.16}},
+    timeScale:{borderColor:'rgba(255,255,255,.08)',timeVisible:true,secondsVisible:false},
+    crosshair:{mode:0}
+  };
+}
+function ensureTVContainer(id){
+  const el=document.getElementById(id);
+  if(!el)return null;
+  el.innerHTML='';
+  return el;
+}
+function makeTVChart(containerId, height){
+  const el=ensureTVContainer(containerId);
+  if(!el || !window.LightweightCharts) throw new Error("Biblioteca do gráfico não carregada.");
+  const chart=LightweightCharts.createChart(el,{
+    width:el.clientWidth||800,height:height||360,
+    ...tvTheme(),
+    handleScroll:{mouseWheel:true,pressedMouseMove:true,horzTouchDrag:true,vertTouchDrag:true},
+    handleScale:{mouseWheel:true,pinch:true,axisPressedMouseMove:true}
+  });
+  const candles=chart.addCandlestickSeries({
+    upColor:'#16c784',downColor:'#ea3943',
+    borderUpColor:'#16c784',borderDownColor:'#ea3943',
+    wickUpColor:'#16c784',wickDownColor:'#ea3943'
+  });
+  const volume=chart.addHistogramSeries({
+    priceFormat:{type:'volume'},priceScale:{scaleMargins:{top:.82,bottom:0}},
+    color:'rgba(240,185,11,.25)'
+  });
+  return {chart,candles,volume};
+}
+function tvRows(rows){
+  return rows.map(x=>({
+    time:Math.floor(Number(x[0])/1000),
+    open:Number(x[1]),high:Number(x[2]),low:Number(x[3]),close:Number(x[4])
+  }));
+}
+function tvVolumes(rows){
+  return rows.map(x=>({
+    time:Math.floor(Number(x[0])/1000),
+    value:Number(x[5]||0),
+    color:Number(x[4])>=Number(x[1])?'rgba(22,199,132,.28)':'rgba(234,57,67,.28)'
+  }));
+}
+function setTVSize(obj,el){
+  if(obj&&obj.chart&&el)obj.chart.applyOptions({width:el.clientWidth,height:el.clientHeight});
+}
+function closeSocket(sock){try{if(sock)sock.close()}catch(e){}}
+
 async function loadBtcChart(){
-  const canvas=document.getElementById("btcChart"), ctx=canvas.getContext("2d");
   try{
-    const r=await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=80");
+    const r=await fetch("https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=15m&limit=150");
     if(!r.ok)throw new Error("Binance indisponível");
     const rows=await r.json();
-    const candles=rows.map(x=>({time:x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4]}));
-    const last=candles[candles.length-1];
-    document.getElementById("btcPrice").innerHTML=moneyUSDT(last.close)+"<small>BTC/USDT · 15m</small>";
-    drawChart(canvas,ctx,candles);
+    if(btcTVChart) btcTVChart.chart.remove();
+    btcTVChart=makeTVChart("btcChartTV",document.getElementById("btcChartTV")?.clientHeight||360);
+    btcTVChart.candles.setData(tvRows(rows));
+    btcTVChart.volume.setData(tvVolumes(rows));
+    btcTVChart.chart.timeScale().fitContent();
+    const last=rows[rows.length-1];
+    document.getElementById("btcPrice").innerHTML=moneyUSDT(Number(last[4]))+"<small>BTC/USDT · 15m · BINANCE</small>";
     document.getElementById("btcStatus").textContent="Dados reais da Binance · atualizado agora";
+    closeSocket(btcSocket);
+    btcSocket=new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_15m");
+    btcSocket.onmessage=(ev)=>{
+      try{
+        const k=JSON.parse(ev.data).k;
+        const candle={time:Math.floor(k.t/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c};
+        btcTVChart.candles.update(candle);
+        btcTVChart.volume.update({time:Math.floor(k.t/1000),value:+k.v,color:+k.c>=+k.o?'rgba(22,199,132,.28)':'rgba(234,57,67,.28)'});
+        document.getElementById("btcPrice").innerHTML=moneyUSDT(+k.c)+"<small>BTC/USDT · 15m · AO VIVO</small>";
+      }catch(e){}
+    };
   }catch(e){
     document.getElementById("btcStatus").textContent="Não foi possível atualizar o gráfico neste momento.";
   }
-}
-
-function drawChart(canvas,ctx,data){
-  const rect=canvas.getBoundingClientRect(), dpr=window.devicePixelRatio||1;
-  canvas.width=Math.max(1,rect.width*dpr);canvas.height=Math.max(1,rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
-  const w=rect.width,h=rect.height,pad={l:48,r:12,t:15,b:28};
-  ctx.clearRect(0,0,w,h);
-  if(!data.length)return;
-  const min=Math.min(...data.map(d=>d.low)),max=Math.max(...data.map(d=>d.high)),range=max-min||1;
-  const x=i=>pad.l+(i/(data.length-1))*(w-pad.l-pad.r);
-  const y=v=>pad.t+((max-v)/range)*(h-pad.t-pad.b);
-
-  ctx.strokeStyle="rgba(255,255,255,.06)";ctx.lineWidth=1;
-  for(let i=0;i<5;i++){
-    const yy=pad.t+i*(h-pad.t-pad.b)/4;
-    ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
-    const value=max-(range*i/4);
-    ctx.fillStyle="#778395";ctx.font="9px Arial";ctx.fillText("$"+value.toLocaleString("en-US",{maximumFractionDigits:0}),4,yy+3);
-  }
-  ctx.beginPath();
-  data.forEach((d,i)=>{const xx=x(i),yy=y(d.close);i?ctx.lineTo(xx,yy):ctx.moveTo(xx,yy)});
-  ctx.strokeStyle="#f0b90b";ctx.lineWidth=2;ctx.stroke();
-
-  const last=data[data.length-1];
-  ctx.fillStyle="#f0b90b";ctx.beginPath();ctx.arc(x(data.length-1),y(last.close),3.5,0,Math.PI*2);ctx.fill();
 }
 
 function openApiModal(){renderApiSlots();document.getElementById("apiMessage").className="message";document.getElementById("apiMessage").textContent="";document.getElementById("apiModal").classList.add("open")}
@@ -1193,7 +1286,12 @@ document.addEventListener("click",e=>{
   if(e.target===document.getElementById("learnModal"))closeLearnApi();
   if(e.target===document.getElementById("robotModal"))closeRobot();
 });
-window.addEventListener("resize",()=>{if(selectedAccountData)loadBtcChart()});
+window.addEventListener("resize",()=>{
+  const b=document.getElementById("btcChartTV");
+  if(btcTVChart?.chart&&b)setTVSize(btcTVChart,b);
+  const d=document.getElementById("detailChartTV");
+  if(detailTVChart?.chart&&d)setTVSize(detailTVChart,d);
+});
 
 /* =====================================================
    V4 — MÓDULOS PREMIUM
@@ -1223,6 +1321,7 @@ function openModule(type){
   document.getElementById("moduleModalBody").innerHTML=renderModule(type,data);
   document.getElementById("moduleModal").classList.add("open");
   if(type==="comparison")loadComparison();
+  if(type==="activity")loadActivityAndNews();
 }
 function closeModule(){document.getElementById("moduleModal").classList.remove("open")}
 
@@ -1256,6 +1355,55 @@ async function loadComparison(){
   }</tbody></table>`;
 }
 
+
+async function loadActivityAndNews(){
+  const box=document.getElementById("activityLive");
+  if(!box||!selectedAccountId)return;
+  try{
+    const [activity,news]=await Promise.all([
+      apiFetch(`/api/panel/report/activity?account=${encodeURIComponent(selectedAccountId)}&days=7`),
+      fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():Promise.reject(new Error("Notícias indisponíveis")))
+    ]);
+    const rows=activity.trades||[];
+    const summary=activity.summary||{};
+    const articles=news.articles||[];
+    box.innerHTML=`
+      <div class="market7">
+        <div class="report-box"><span>Período</span><strong>Últimos 7 dias</strong></div>
+        <div class="report-box"><span>Movimentações</span><strong>${rows.length}</strong></div>
+        <div class="report-box"><span>Compras</span><strong>${summary.totalBuys||0}</strong></div>
+        <div class="report-box"><span>Vendas</span><strong>${summary.totalSells||0}</strong></div>
+      </div>
+      <h3 style="font-size:12px;margin:15px 0 9px">🕒 Atividades da API</h3>
+      <table class="data-table"><thead><tr><th>Data</th><th>Ativo</th><th>Lado</th><th>Qtd.</th><th>Preço</th><th>Valor</th></tr></thead>
+      <tbody>${rows.slice(0,50).map(h=>`<tr><td>${dateTime(h.time)}</td><td>${h.symbol}</td><td class="${h.side==="BUY"?"pnl-positive":"pnl-negative"}">${h.side==="BUY"?"COMPRA":"VENDA"}</td><td>${formatNumber(h.qty)}</td><td>${moneyUSDT(h.price)}</td><td>${moneyUSDT(h.quoteQty)}</td></tr>`).join("")||'<tr><td colspan="6">Nenhuma movimentação disponível.</td></tr>'}</tbody></table>
+      <h3 style="font-size:12px;margin:18px 0 9px">📰 Jornal CriptoPro · últimos 7 dias</h3>
+      <div class="news-grid">${articles.slice(0,6).map(n=>`<article class="news-card"><div class="news-source">${escapeHtml(n.source||"CriptoPro")}</div><h4>${escapeHtml(n.title||"")}</h4><p>${escapeHtml(n.description||"")}</p><div class="news-date">${dateTime(n.publishedAt)}</div></article>`).join("")||'<div class="empty-data">Nenhuma notícia encontrada.</div>'}</div>`;
+  }catch(e){
+    box.innerHTML=`<div class="message show error">${escapeHtml(e.message||"Não foi possível carregar as atividades.")}</div>`;
+  }
+}
+
+async function loadCryptoNews(){
+  const grid=document.getElementById("cryptoNewsGrid"), summary=document.getElementById("market7Summary");
+  if(!grid)return;
+  grid.innerHTML='<div class="journal-loading">Atualizando Jornal CriptoPro...</div>';
+  try{
+    const d=await fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():Promise.reject(new Error("Não foi possível consultar as notícias.")));
+    const a=d.articles||[];
+    grid.innerHTML=a.slice(0,6).map(n=>`<article class="news-card"><div class="news-source">${escapeHtml(n.source||"CriptoPro")}</div><h4>${escapeHtml(n.title||"")}</h4><p>${escapeHtml(n.description||"")}</p><div class="news-date">${dateTime(n.publishedAt)}</div></article>`).join("")||'<div class="empty-data">Nenhuma notícia recente encontrada.</div>';
+    const m=d.market7||{};
+    summary.innerHTML=[
+      ["BTC 7D",percent(m.btc7d)],
+      ["ETH 7D",percent(m.eth7d)],
+      ["BNB 7D",percent(m.bnb7d)],
+      ["XRP 7D",percent(m.xrp7d)]
+    ].map(x=>`<div class="report-box"><span>${x[0]}</span><strong class="${Number(String(x[1]).replace('%','').replace(',','.'))>=0?'pnl-positive':'pnl-negative'}">${x[1]}</strong></div>`).join("");
+  }catch(e){
+    grid.innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`;
+  }
+}
+
 function renderModule(type,data){
   const assets=data.ativos||[];
   const positions=(data.posicoes||[]).length?data.posicoes:[];
@@ -1273,7 +1421,7 @@ function renderModule(type,data){
     return `<div class="asset-list">${assets.map(a=>`<div class="asset-card" onclick="openChartForSymbol('${escapeHtml(a.asset)}')"><div class="asset-name">${escapeHtml(a.asset)}</div><div class="asset-meta">Saldo: ${formatNumber(a.total)}</div><div class="asset-meta">Preço: ${moneyUSDT(a.precoUSDT)}</div><div class="asset-meta">Valor: ${moneyUSDT(a.valorUSDT)}</div></div>`).join("")||'<div class="empty-data">Nenhum ativo encontrado.</div>'}</div>`;
   }
   if(type==="activity"){
-    return `<table class="data-table"><thead><tr><th>Data</th><th>Ativo</th><th>Lado</th><th>Qtd.</th><th>Preço</th><th>Valor</th></tr></thead><tbody>${hist.slice(0,50).map(h=>`<tr><td>${dateTime(h.time)}</td><td>${h.symbol}</td><td><span class="${h.lado==="COMPRA"?"pnl-positive":"pnl-negative"}">${h.lado}</span></td><td>${formatNumber(h.qty)}</td><td>${moneyUSDT(h.price)}</td><td>${moneyUSDT(h.quoteQty||h.qty*h.price)}</td></tr>`).join("")||'<tr><td colspan="6">Nenhuma movimentação disponível.</td></tr>'}</tbody></table>`;
+    return `<div id="activityLive"><div class="journal-loading">Consultando movimentações dos últimos 7 dias...</div></div>`;
   }
   if(type==="alerts"){
     if(!positions.length)return '<div class="empty-data">Nenhuma posição com alerta identificada.</div>';
@@ -1355,28 +1503,26 @@ function openChartForSymbol(asset){
 }
 function closeChartModal(){document.getElementById("chartModal").classList.remove("open")}
 
+
 async function loadDetailedChart(asset){
   if(!asset||!selectedAccountId)return;
   const symbol=String(asset).toUpperCase()+"USDT";
   const interval=document.getElementById("chartInterval").value;
   try{
     const [klineRes,opRes,tradeInfoRes]=await Promise.all([
-      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=120`),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(symbol)}&interval=${encodeURIComponent(interval)}&limit=300`),
       apiFetch(`/api/panel/operation/${encodeURIComponent(selectedAccountId)}?symbol=${encodeURIComponent(symbol)}`),
       apiFetch(`/api/panel/report/trade-info?account=${encodeURIComponent(selectedAccountId)}&symbol=${encodeURIComponent(symbol)}`).catch(()=>({}))
     ]);
-    if(!klineRes.ok)throw new Error("Não foi possível carregar o gráfico.");
+    if(!klineRes.ok)throw new Error("Não foi possível carregar os candles reais da Binance.");
     const rows=await klineRes.json(), op=opRes.operation||{}, tradeInfo=tradeInfoRes||{};
-    const candles=rows.map(x=>({
-      time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4]
-    }));
+    const candles=rows.map(x=>({time:+x[0],open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5]}));
     op.lastBuy=tradeInfo.lastBuy||null;
     op.lastSell=tradeInfo.lastSell||null;
     op.sellOrders=Array.isArray(tradeInfo.sellOrders)?tradeInfo.sellOrders:[];
-    drawDetailedChart(candles,op);
+    drawDetailedChart(candles,op,interval,symbol);
 
-    const avg=Number(op.averageEntry||0);
-    const current=Number(op.currentPrice||0);
+    const avg=Number(op.averageEntry||0), current=Number(op.currentPrice||0);
     const diff=avg>0?((current/avg)-1)*100:0;
     const sellOrders=op.sellOrders.filter(o=>Number(o.price)>0);
     const cfg=JSON.parse(localStorage.getItem("criptopro_robot_config")||"{}");
@@ -1393,167 +1539,68 @@ async function loadDetailedChart(asset){
         <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${stopPrice?moneyUSDT(stopPrice)+" · -"+stopPct.toFixed(2).replace(".",",")+"%":"—"}</strong></div>
       </div>
       <div class="security">
-        ${sellOrders.length
-          ? `📍 Venda conforme ordem aberta: ${sellOrders.map((o,i)=>`<strong>VENDA ${i+1}</strong> ${moneyUSDT(o.price)}`).join(" · ")}`
-          : "ℹ️ Nenhuma ordem de venda aberta foi encontrada para este ativo."}
-        ${stopPrice?`<br>🛑 Stop Loss visual calculado a partir da compra média e da configuração atual do robô (${stopPct.toFixed(2)}%).`:""}
+        ${sellOrders.length?`📍 Ordem de venda: ${sellOrders.map((o,i)=>`<strong>VENDA ${i+1}</strong> ${moneyUSDT(o.price)}`).join(" · ")}`:"ℹ️ Nenhuma ordem de venda aberta foi encontrada para este ativo."}
+        ${stopPrice?`<br>🛑 Stop Loss: ${moneyUSDT(stopPrice)} (${stopPct.toFixed(2)}%)`:""}
       </div>`;
     document.getElementById("chartModalTitle").textContent=`📈 ${symbol}`;
-    document.getElementById("chartModalSubtitle").textContent=`Candles Binance · compra, venda, stop e preço atual · ${interval}`;
+    document.getElementById("chartModalSubtitle").textContent=`Candles reais da Binance · compra, venda, stop e preço atual · ${interval}`;
   }catch(e){
     document.getElementById("chartDetailsInfo").innerHTML=`<div class="message show error">${escapeHtml(e.message)}</div>`;
   }
 }
 
-function drawDetailedChart(data,op){
-  const canvas=document.getElementById("detailChart"),ctx=canvas.getContext("2d");
-  const rect=canvas.getBoundingClientRect(),dpr=window.devicePixelRatio||1;
-  const w=rect.width,h=rect.height;
-  canvas.width=Math.max(1,w*dpr);canvas.height=Math.max(1,h*dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0);
-  ctx.clearRect(0,0,w,h);
-  if(!data.length)return;
-
+function drawDetailedChart(data,op,interval,symbol){
+  if(detailTVChart?.chart)detailTVChart.chart.remove();
+  closeSocket(detailSocket);
+  detailTVChart=makeTVChart("detailChartTV",document.getElementById("detailChartTV")?.clientHeight||500);
+  detailTVChart.candles.setData(data.map(d=>({time:Math.floor(d.time/1000),open:d.open,high:d.high,low:d.low,close:d.close})));
+  detailTVChart.volume.setData(data.map(d=>({time:Math.floor(d.time/1000),value:Number(d.volume||0)})));
+  const avg=Number(op.averageEntry||0), current=Number(op.currentPrice||0);
   const cfg=JSON.parse(localStorage.getItem("criptopro_robot_config")||"{}");
   const stopPct=Math.abs(Number(cfg.stopLoss||2.5));
-  const avg=Number(op.averageEntry||0);
-  const current=Number(op.currentPrice||0);
   const stopPrice=avg>0?avg*(1-stopPct/100):0;
   const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
 
-  const extra=[avg,current,stopPrice,...sellOrders.map(o=>Number(o.price||0))].filter(x=>x>0);
-  const min=Math.min(...data.map(x=>x.low),...extra);
-  const max=Math.max(...data.map(x=>x.high),...extra);
-  const range=(max-min)||1;
-  const p={l:58,r:28,t:32,b:42};
-  const plotW=w-p.l-p.r, plotH=h-p.t-p.b;
-  const x=i=>p.l+(i/(Math.max(1,data.length-1)))*plotW;
-  const y=v=>p.t+(max-v)/range*plotH;
-
-  // Grid / price scale
-  ctx.font="9px Arial";
-  for(let i=0;i<6;i++){
-    const yy=p.t+i*plotH/5;
-    ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);
-    ctx.strokeStyle="rgba(255,255,255,.06)";ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle="#778395";
-    ctx.fillText(moneyUSDT(max-range*i/5),5,yy+3);
-  }
-  // Time labels
-  ctx.fillStyle="#657184";ctx.font="8px Arial";
-  [0,Math.floor(data.length/2),data.length-1].forEach(i=>{
-    if(!data[i])return;
-    ctx.fillText(new Date(data[i].time).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}),x(i)-17,h-13);
-  });
-
-  // Candles, Binance-like
-  const candleW=Math.max(3,Math.min(9,plotW/data.length*0.62));
-  data.forEach((d,i)=>{
-    const cx=x(i), yo=y(d.open), yc=y(d.close), yh=y(d.high), yl=y(d.low);
-    const up=d.close>=d.open;
-    const stroke=up?"#16c784":"#ea3943";
-    ctx.strokeStyle=stroke;ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(cx,yh);ctx.lineTo(cx,yl);ctx.stroke();
-    ctx.fillStyle=stroke;
-    const top=Math.min(yo,yc), bh=Math.max(1,Math.abs(yc-yo));
-    ctx.fillRect(cx-candleW/2,top,candleW,bh);
-  });
-
-  function line(value,label,stroke,dash=[],labelOffset=0){
-    if(!(value>0))return;
-    const yy=y(value);
-    ctx.save();
-    ctx.setLineDash(dash);
-    ctx.strokeStyle=stroke;ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(p.l,yy);ctx.lineTo(w-p.r,yy);ctx.stroke();
-    ctx.restore();
-
-    ctx.font="bold 9px Arial";ctx.fillStyle=stroke;
-    const text=`${label} ${moneyUSDT(value)}`;
-    const tx=Math.min(w-155, p.l+8);
-    const ty=Math.max(13,Math.min(h-5,yy-6+labelOffset));
-    ctx.fillText(text,tx,ty);
-  }
-
-  // Main horizontal markers
-  line(avg,"COMPRA MÉDIA","#35d394",[6,4],0);
-  sellOrders.forEach((o,i)=>line(Number(o.price),`VENDA ${i+1}`,"#ffb84d",[5,4],i*12));
-  line(stopPrice,`STOP LOSS -${stopPct.toFixed(2)}%`,"#ff4d5e",[7,4],0);
-  line(current,`ATUAL ${avg?((current/avg-1)*100).toFixed(2):"0.00"}%`,"#f0b90b",[2,3],0);
-
-  // Large current-price badge inside chart
-  if(current>0){
-    const badge=`ATUAL ${moneyUSDT(current)} · ${avg?((current/avg-1)*100).toFixed(2):"0.00"}%`;
-    ctx.font="bold 10px Arial";
-    const tw=ctx.measureText(badge).width+16;
-    const bx=w-p.r-tw, by=12;
-    ctx.fillStyle="rgba(240,185,11,.12)";
-    ctx.strokeStyle="rgba(240,185,11,.45)";
-    ctx.beginPath();ctx.roundRect(bx,by,tw,22,6);ctx.fill();ctx.stroke();
-    ctx.fillStyle="#f0b90b";ctx.fillText(badge,bx+8,by+15);
-  }
-
-  // Buy marker: arrow + text immediately below the arrow
-  if(op.lastBuy && Number(op.lastBuy.time)>0){
-    let nearest=0,best=Infinity;
-    data.forEach((d,i)=>{
-      const diff=Math.abs(Number(d.time)-Number(op.lastBuy.time));
-      if(diff<best){best=diff;nearest=i}
+  const priceLines=[];
+  function addLine(price,title,color,lineStyle=2){
+    if(!(price>0))return;
+    const line=detailTVChart.candles.createPriceLine({
+      price,title,color,lineWidth:2,lineStyle,
+      axisLabelVisible:true,lineVisible:true
     });
-    const buyPrice=Number(op.lastBuy.price||avg||data[nearest].close);
-    const bx=x(nearest), by=y(buyPrice);
-    const arrowTop=Math.max(p.t+8,by-42);
-    const arrowBottom=Math.max(p.t+25,by-13);
-
-    ctx.save();
-    ctx.strokeStyle="#35d394";ctx.fillStyle="#35d394";ctx.lineWidth=2;
-    ctx.beginPath();ctx.moveTo(bx,arrowTop);ctx.lineTo(bx,arrowBottom);ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(bx,arrowBottom+7);
-    ctx.lineTo(bx-6,arrowBottom-2);
-    ctx.lineTo(bx+6,arrowBottom-2);
-    ctx.closePath();ctx.fill();
-
-    const label="COMPRA REALIZADA";
-    ctx.font="bold 9px Arial";
-    const lw=ctx.measureText(label).width;
-    ctx.fillText(label,Math.max(p.l,Math.min(w-p.r-lw,bx-lw/2)),Math.min(h-28,arrowBottom+20));
-
-    // Small price/time info near marker
-    const info=`${moneyUSDT(buyPrice)} · ${new Date(op.lastBuy.time).toLocaleString("pt-BR",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}`;
-    ctx.font="8px Arial";ctx.fillStyle="#9ee7c6";
-    const iw=ctx.measureText(info).width;
-    ctx.fillText(info,Math.max(p.l,Math.min(w-p.r-iw,bx-iw/2)),Math.min(h-14,arrowBottom+34));
-    ctx.restore();
+    priceLines.push(line);
   }
+  addLine(avg,"COMPRA MÉDIA","#35d394",2);
+  sellOrders.forEach((o,i)=>addLine(Number(o.price),`VENDA ${i+1}`,"#ffb84d",2));
+  addLine(stopPrice,`STOP LOSS -${stopPct.toFixed(2)}%`,"#ea3943",2);
+  addLine(current,`ATUAL ${avg?((current/avg-1)*100).toFixed(2):"0.00"}%`,"#f0b90b",0);
 
-  // Explicit sale marker: vertical line at last executed sale, if available
-  if(op.lastSell && Number(op.lastSell.time)>0){
-    let nearest=0,best=Infinity;
-    data.forEach((d,i)=>{
-      const diff=Math.abs(Number(d.time)-Number(op.lastSell.time));
-      if(diff<best){best=diff;nearest=i}
-    });
-    const sx=x(nearest), sy=y(Number(op.lastSell.price||current));
-    ctx.save();
-    ctx.strokeStyle="#ffb84d";ctx.setLineDash([2,4]);ctx.lineWidth=1.2;
-    ctx.beginPath();ctx.moveTo(sx,p.t);ctx.lineTo(sx,h-p.b);ctx.stroke();
-    ctx.fillStyle="#ffb84d";ctx.font="bold 8px Arial";
-    ctx.fillText(`VENDA REALIZADA ${moneyUSDT(Number(op.lastSell.price||0))}`,Math.max(p.l,Math.min(w-190,sx+5)),p.t+13);
-    ctx.restore();
+  const markers=[];
+  if(op.lastBuy?.time){
+    markers.push({time:Math.floor(Number(op.lastBuy.time)/1000),position:"belowBar",color:"#16c784",shape:"arrowUp",text:"COMPRA REALIZADA"});
   }
+  if(op.lastSell?.time){
+    markers.push({time:Math.floor(Number(op.lastSell.time)/1000),position:"aboveBar",color:"#f0b90b",shape:"arrowDown",text:"VENDA REALIZADA"});
+  }
+  if(markers.length){
+    markers.sort((a,b)=>a.time-b.time);
+    detailTVChart.candles.setMarkers(markers);
+  }
+  detailTVChart.chart.timeScale().fitContent();
 
-  // Stop badge
-  if(stopPrice>0){
-    const sy=y(stopPrice);
-    ctx.save();
-    ctx.fillStyle="rgba(255,77,94,.10)";
-    ctx.strokeStyle="rgba(255,77,94,.4)";
-    ctx.beginPath();ctx.roundRect(p.l+5,Math.max(p.t,sy-13),130,22,5);ctx.fill();ctx.stroke();
-    ctx.fillStyle="#ff6675";ctx.font="bold 9px Arial";
-    ctx.fillText(`🛑 STOP ${moneyUSDT(stopPrice)}`,p.l+11,Math.max(p.t+14,sy+2));
-    ctx.restore();
-  }
+  // live Binance websocket for the selected symbol
+  try{
+    const activeSymbol=String(symbol||"").toLowerCase();
+    closeSocket(detailSocket);
+    detailSocket=new WebSocket(`wss://stream.binance.com:9443/ws/${activeSymbol}@kline_${interval}`);
+    detailSocket.onmessage=(ev)=>{
+      try{
+        const k=JSON.parse(ev.data).k;
+        detailTVChart.candles.update({time:Math.floor(k.t/1000),open:+k.o,high:+k.h,low:+k.l,close:+k.c});
+        detailTVChart.volume.update({time:Math.floor(k.t/1000),value:+k.v,color:+k.c>=+k.o?'rgba(22,199,132,.28)':'rgba(234,57,67,.28)'});
+      }catch(e){}
+    };
+  }catch(e){}
 }
 
 function renderReportAccountSelector(){
@@ -1640,8 +1687,10 @@ async function loadReport(){
         <strong>Erro ao gerar relatório.</strong><br><br>
         ${escapeHtml(e.message)}
         <br><br>
-        Verifique se <strong>backend/routes/reports.js</strong> está instalado e se o <strong>server.js</strong> contém
-        <code>app.use("/api/panel/report", reportRoutes);</code>.
+        A rota esperada é <strong>/api/panel/report</strong>.<br>
+        No backend, o arquivo deve estar em <strong>backend/routes/reports.js</strong> e o server deve registrar
+        <code>app.use("/api/panel/report", reportRoutes);</code>.<br>
+        Se o backend já tiver essa rota, veja o log do container para o erro da Binance.
       </div>`;
   }
 }
@@ -1666,10 +1715,12 @@ async function init(){
   await loadExchangeRate();
   await loadAccounts();
   await loadBtcChart();
+  await loadCryptoNews();
   refreshTimer=setInterval(async()=>{
     await loadExchangeRate();
     await loadAccounts();
     await loadBtcChart();
+    await loadCryptoNews();
   },30000);
 }
 init();

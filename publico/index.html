@@ -1357,7 +1357,12 @@ async function loadRobotStatus(){
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt)txt.textContent=c?`${c.strategy_version||'v7.1'} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';
     if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
-    const sb=document.getElementById('startRobotConfigBtn'),st=document.getElementById('stopRobotBtn'); if(sb)sb.disabled=running; if(st)st.disabled=!running;
+    const sb=document.getElementById('startRobotBtn');
+    const sbConfig=document.getElementById('startRobotConfigBtn');
+    const st=document.getElementById('stopRobotBtn');
+    if(sb)sb.disabled=running;
+    if(sbConfig)sbConfig.disabled=running;
+    if(st)st.disabled=!running;
     document.getElementById('operationCount').textContent=`${(d.operations||[]).filter(x=>x.status==='OPEN').length}/${c?.max_operations||3}`;
     if(c){
       localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));

@@ -331,22 +331,6 @@ button{cursor:pointer}
 @media(max-width:900px){.news-grid{grid-template-columns:1fr 1fr}.market7{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){.news-grid{grid-template-columns:1fr}.market7{grid-template-columns:1fr 1fr}.chart-wrap{height:300px}.chart-detail{height:390px}}
 
-
-.robotConfigCard{margin:18px 0;padding:20px;border:1px solid rgba(255,255,255,.12);border-radius:16px;background:rgba(20,20,28,.96)}
-.robotConfigTitle{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
-.robotConfigTitle h3{margin:0 0 5px}.robotConfigTitle p{margin:0;opacity:.75;font-size:13px}
-.robotStatusBadge{padding:7px 12px;border-radius:999px;font-size:11px;font-weight:800;background:#555;color:#fff}
-.robotConfigGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
-.robotConfigGrid label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:700}
-.robotConfigGrid input,.robotConfigGrid select{box-sizing:border-box;width:100%;padding:10px;border-radius:9px;border:1px solid rgba(255,255,255,.15);background:#11131a;color:inherit}
-.robotCheckLabel{flex-direction:row!important;align-items:center;padding-top:20px}
-.robotCheckLabel input{width:auto}
-.robotConfigActions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}
-.robotConfigActions button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer}
-#robotSaveConfigBtn{background:#fff;color:#111}#robotStartBtn{background:#18a558;color:#fff}#robotStopBtn{background:#c0392b;color:#fff}
-.robotConfigActions button:disabled{opacity:.45;cursor:not-allowed}
-.robotConfigMessage{min-height:20px;margin-top:12px;font-size:13px}
-
 </style>
 </head>
 
@@ -473,69 +457,7 @@ button{cursor:pointer}
   <div class="modules">
     <button class="module" data-module="operation" onclick="openModule('operation')"><div class="module-icon">⚡</div><div class="module-title">Operação</div><div class="module-desc">Acompanhe suas posições, entradas, saídas e P/L.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="chart" onclick="openModule('chart')"><div class="module-icon">📈</div><div class="module-title">Gráfico</div><div class="module-desc">Preço, compra média, ordens de venda e diferença atual.</div><span class="module-status">● TEMPO REAL</span></button>
-    <button class="module" data-module="robot" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div>
-<div class="robotConfigCard" id="robotConfigCard">
-  <div class="robotConfigTitle">
-    <div>
-      <h3>🤖 Configuração do Robô</h3>
-      <p>Escolha os parâmetros, salve a configuração e depois use START para aceitar o termo e iniciar.</p>
-    </div>
-    <span id="robotStatusBadge" class="robotStatusBadge">PARADO</span>
-  </div>
-
-  <div class="robotConfigGrid">
-    <label>Estratégia
-      <select id="robotStrategy">
-        <option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option>
-        <option value="v6">V6 — TOP 40 Volume · EMA/RSI</option>
-      </select>
-    </label>
-
-    <label>Entrada (%)
-      <input id="robotEntry" type="number" min="0" max="100" step="0.1" value="98">
-    </label>
-
-    <label>Take Profit (%)
-      <input id="robotTp" type="number" min="0.01" step="0.1" value="5">
-    </label>
-
-    <label>Stop Loss (%)
-      <input id="robotSl" type="number" min="0.01" step="0.1" value="2.5">
-    </label>
-
-    <label>Máx. operações simultâneas
-      <input id="robotMaxOps" type="number" min="1" max="3" step="1" value="3">
-    </label>
-
-    <label>Intervalo
-      <select id="robotInterval">
-        <option value="1m">1 minuto</option>
-        <option value="5m">5 minutos</option>
-        <option value="15m" selected>15 minutos</option>
-        <option value="30m">30 minutos</option>
-        <option value="1h">1 hora</option>
-      </select>
-    </label>
-
-    <label>Máx. moedas
-      <input id="robotMaxCoins" type="number" min="1" max="50" step="1" value="20">
-    </label>
-
-    <label class="robotCheckLabel">
-      <input id="robotStopLossActive" type="checkbox" checked>
-      Stop Loss ativo
-    </label>
-  </div>
-
-  <div class="robotConfigActions">
-    <button id="robotSaveConfigBtn" type="button">💾 SALVAR CONFIGURAÇÃO</button>
-    <button id="robotStartBtn" type="button" disabled>▶ START ROBÔ</button>
-    <button id="robotStopBtn" type="button">⏹ STOP</button>
-  </div>
-
-  <div id="robotConfigMessage" class="robotConfigMessage"></div>
-</div>
-<span class="module-status">● CONFIGURÁVEL</span></button>
+    <button class="module" data-module="robot" onclick="openRobot()"><div class="module-icon">🤖</div><div class="module-title">Robô</div><div class="module-desc">Configuração de entrada, TP, SL e operações simultâneas.</div><span class="module-status">● CONFIGURÁVEL</span></button>
     <button class="module" data-module="comparison" onclick="openModule('comparison')"><div class="module-icon">🔄</div><div class="module-title">Comparação</div><div class="module-desc">Compare patrimônio, P/L e posições entre suas APIs.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="performance" onclick="openModule('performance')"><div class="module-icon">🏆</div><div class="module-title">Performance</div><div class="module-desc">Resumo de desempenho, lucro aberto e realizado.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="coins" onclick="openModule('coins')"><div class="module-icon">🪙</div><div class="module-title">Moedas</div><div class="module-desc">Todas as moedas com saldo e valor atual.</div><span class="module-status">● ATIVO</span></button>
@@ -719,6 +641,33 @@ button{cursor:pointer}
   </div>
   <div class="modal-footer"><button class="btn" onclick="closeLearnApi()">Fechar</button></div>
 </div>
+</div>
+
+
+<!-- TERMO DE RESPONSABILIDADE DO ROBÔ -->
+<div class="robotRiskOverlay" id="robotRiskModal">
+  <div class="robotRiskModal">
+    <div class="robotRiskHeader">
+      <div class="robotRiskTitle">⚠️ Termo de Responsabilidade e Ciência de Riscos</div>
+      <div class="robotRiskSubtitle">Leia antes de iniciar o robô com operações reais.</div>
+    </div>
+    <div class="robotRiskBody">
+      <p>Declaro que li e compreendi as informações apresentadas sobre o funcionamento da automação de operações em criptomoedas.</p>
+      <p>Estou ciente de que operações com criptoativos envolvem riscos de mercado, incluindo volatilidade, perdas financeiras, execução de ordens em condições diferentes das esperadas, slippage, falhas de conexão, indisponibilidade de serviços e outros eventos que podem afetar o resultado.</p>
+      <p>Estou ciente de que os parâmetros configurados por mim serão utilizados pelo robô conforme as regras da estratégia selecionada.</p>
+      <p>Declaro que sou responsável pelas configurações realizadas na minha conta e compreendo que resultados passados ou parâmetros configurados não garantem resultados futuros.</p>
+      <p>Confirmo que possuo conhecimento suficiente para utilizar uma ferramenta de automação de operações e que estou assumindo os riscos decorrentes da utilização da ferramenta.</p>
+      <div class="robotRiskWarning">⚠️ O robô pode enviar ordens reais para a conta Binance selecionada. Verifique cuidadosamente a conta e os parâmetros antes de continuar.</div>
+      <label class="robotRiskCheck">
+        <input type="checkbox" id="robotRiskAccepted">
+        <span>Li, compreendi e aceito o Termo de Responsabilidade e Ciência de Riscos.</span>
+      </label>
+    </div>
+    <div class="robotRiskFooter">
+      <button type="button" class="robotRiskCancel" onclick="fecharTermoRisco()">Cancelar</button>
+      <button type="button" class="robotRiskAccept" id="robotRiskAcceptBtn" onclick="aceitarTermoRisco()">ACEITAR E CONTINUAR</button>
+    </div>
+  </div>
 </div>
 
 <!-- ROBOT MODAL -->
@@ -1375,16 +1324,67 @@ async function saveRobot(){
     const d=await apiFetch('/api/robot/config',{method:'POST',body:JSON.stringify({accountId:selectedAccountId,...c})});
     if(!d.success)throw new Error(d.message||'Não foi possível salvar.');
     localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
-    showMessage(msg,"Configuração salva para esta API. Agora você pode iniciar o robô.","success");
+    showMessage(msg,"Configuração salva para esta API. Agora feche a configuração e pressione START ROBÔ.","success");
     await loadRobotStatus();
-    setTimeout(closeRobot,900);
+    setTimeout(closeRobot,1100);
   }catch(e){showMessage(msg,e.message||'Erro ao salvar configuração.',"error")}
   finally{if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Salvar configuração';}}
 }
+
 async function startRobot(){
   if(!selectedAccountId){alert('Selecione uma API e clique em Carregar painel.');return}
-  try{const d=await apiFetch('/api/robot/start',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível iniciar o robô.');await loadRobotStatus();alert('Robô iniciado para a API selecionada.');}catch(e){alert(e.message||'Erro ao iniciar o robô.')}
+  const config=await loadRobotStatus();
+  if(!config || !config.config){
+    alert("Salve uma configuração do robô antes de iniciar.");
+    return;
+  }
+  window.robotRiskAccountId=selectedAccountId;
+  openRiskTerm();
 }
+
+function openRiskTerm(){
+  const modal=document.getElementById("robotRiskModal");
+  const check=document.getElementById("robotRiskAccepted");
+  if(!modal){alert("Termo de Responsabilidade não encontrado.");return}
+  if(check)check.checked=false;
+  modal.style.display="flex";
+}
+
+function fecharTermoRisco(){
+  const modal=document.getElementById("robotRiskModal");
+  if(modal)modal.style.display="none";
+}
+
+async function aceitarTermoRisco(){
+  const check=document.getElementById("robotRiskAccepted");
+  if(!check || !check.checked){
+    alert("Marque a opção de aceite do Termo de Responsabilidade para continuar.");
+    return;
+  }
+  if(!selectedAccountId){alert("Selecione uma API Binance antes de iniciar.");return}
+  const btn=document.getElementById("robotRiskAcceptBtn");
+  try{
+    if(btn){btn.disabled=true;btn.textContent="REGISTRANDO...";}
+    await apiFetch("/api/robot/risk/accept",{
+      method:"POST",
+      body:JSON.stringify({accountId:selectedAccountId})
+    });
+    fecharTermoRisco();
+    const d=await apiFetch("/api/robot/start",{
+      method:"POST",
+      body:JSON.stringify({accountId:selectedAccountId})
+    });
+    if(!d.success)throw new Error(d.message||"Não foi possível iniciar o robô.");
+    await loadRobotStatus();
+    alert("Termo aceito e robô iniciado com a configuração salva.");
+  }catch(e){
+    console.error("ROBOT START/RISK:",e);
+    alert(e.message||"Não foi possível iniciar o robô.");
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent="ACEITAR E CONTINUAR";}
+  }
+}
+
 async function stopRobot(){
   if(!selectedAccountId)return;
   try{const d=await apiFetch('/api/robot/stop',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível parar o robô.');await loadRobotStatus();alert('Robô parado. Ordens já existentes permanecem na Binance.');}catch(e){alert(e.message||'Erro ao parar o robô.')}
@@ -1840,7 +1840,21 @@ function printReport(){
   const content=document.getElementById("reportResult").innerHTML;
   const w=window.open("","_blank","width=1100,height=800");
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
-  w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}</body></html>`);
+  w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}
+/* CRIPTOPRO — TERMO DE RESPONSABILIDADE */
+.robotRiskOverlay{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.78)}
+.robotRiskModal{width:min(680px,96vw);max-height:88vh;overflow:auto;background:#0d1420;color:#fff;border:1px solid rgba(240,185,11,.28);border-radius:16px;box-shadow:0 20px 70px rgba(0,0,0,.5)}
+.robotRiskHeader{padding:20px;border-bottom:1px solid rgba(255,255,255,.08)}
+.robotRiskTitle{font-size:17px;font-weight:900}.robotRiskSubtitle{font-size:11px;color:#8d99aa;margin-top:5px}
+.robotRiskBody{padding:20px;font-size:12px;line-height:1.65;color:#c9d1dc}.robotRiskBody p{margin:0 0 13px}
+.robotRiskWarning{padding:12px;border-radius:10px;background:rgba(240,185,11,.08);border:1px solid rgba(240,185,11,.2);color:#f0c94b;margin:15px 0}
+.robotRiskCheck{display:flex;gap:9px;align-items:flex-start;padding:13px;border-radius:10px;background:rgba(35,196,131,.06);border:1px solid rgba(35,196,131,.18);cursor:pointer}
+.robotRiskCheck input{margin-top:3px}
+.robotRiskFooter{display:flex;justify-content:flex-end;gap:9px;padding:15px 20px;border-top:1px solid rgba(255,255,255,.08)}
+.robotRiskFooter button{border:0;border-radius:9px;padding:10px 15px;font-weight:800;cursor:pointer}
+.robotRiskCancel{background:#263244;color:#fff}.robotRiskAccept{background:#23c483;color:#07130d}.robotRiskAccept:disabled{opacity:.5;cursor:not-allowed}
+
+</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}</body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);
 }
 
@@ -1864,147 +1878,6 @@ async function init(){
   },30000);
 }
 init();
-
-/* CRIPTOPRO — ETAPA 11: CONFIGURAÇÃO -> START -> TERMO -> ROBÔ */
-(function(){
-  let robotCurrentConfigId = null;
-
-  function robotMsg(msg){
-    const el=document.getElementById("robotConfigMessage");
-    if(el) el.textContent=msg||"";
-  }
-
-  function payload(){
-    return {
-      strategy: document.getElementById("robotStrategy").value,
-      entryPercent: Number(document.getElementById("robotEntry").value),
-      takeProfitPercent: Number(document.getElementById("robotTp").value),
-      stopLossPercent: Number(document.getElementById("robotSl").value),
-      maxSimultaneous: Number(document.getElementById("robotMaxOps").value),
-      interval: document.getElementById("robotInterval").value,
-      maxCoins: Number(document.getElementById("robotMaxCoins").value),
-      stopLossActive: document.getElementById("robotStopLossActive").checked
-    };
-  }
-
-  async function saveConfig(){
-    const token=localStorage.getItem("token");
-    if(!token){robotMsg("Faça login para configurar o robô.");return;}
-    const btn=document.getElementById("robotSaveConfigBtn");
-    btn.disabled=true;
-    try{
-      const r=await fetch("/api/robot/config",{
-        method:"POST",
-        headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-        body:JSON.stringify(payload())
-      });
-      const d=await r.json().catch(()=>({}));
-      if(!r.ok) throw new Error(d.error||d.message||("Erro HTTP "+r.status));
-      robotCurrentConfigId=d.configId||d.id||(d.config&&d.config.id)||null;
-      robotMsg("Configuração salva. Clique em START ROBÔ para continuar.");
-      document.getElementById("robotStartBtn").disabled=!robotCurrentConfigId;
-    }catch(e){robotMsg("Erro ao salvar configuração: "+e.message);}
-    finally{btn.disabled=false;}
-  }
-
-  function start(){
-    if(!robotCurrentConfigId){robotMsg("Salve a configuração antes de iniciar.");return;}
-    if(typeof window.abrirTermoRisco==="function"){
-      window.robotRiskConfigId=robotCurrentConfigId;
-      window.abrirTermoRisco(robotCurrentConfigId);
-    }else{
-      robotMsg("Termo de Responsabilidade não foi carregado.");
-    }
-  }
-
-  async function stop(){
-    const token=localStorage.getItem("token");
-    if(!token)return;
-    try{
-      const r=await fetch("/api/robot/stop",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},body:"{}"});
-      const d=await r.json().catch(()=>({}));
-      if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
-      document.getElementById("robotStatusBadge").textContent="PARADO";
-      robotMsg("Robô parado.");
-    }catch(e){robotMsg("Erro ao parar: "+e.message);}
-  }
-
-  document.addEventListener("DOMContentLoaded",function(){
-    document.getElementById("robotSaveConfigBtn")?.addEventListener("click",saveConfig);
-    document.getElementById("robotStartBtn")?.addEventListener("click",start);
-    document.getElementById("robotStopBtn")?.addEventListener("click",stop);
-  });
-
-  window.robotStartAfterRiskAcceptance=async function(){
-    const token=localStorage.getItem("token");
-    const id=window.robotRiskConfigId||robotCurrentConfigId;
-    if(!token||!id)throw new Error("Configuração do robô não encontrada.");
-    const r=await fetch("/api/robot/start",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({configId:id})
-    });
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
-    document.getElementById("robotStatusBadge").textContent="ATIVO";
-    robotMsg("Robô iniciado com a configuração salva.");
-  };
-})();
-
-
-let robotRiskConfigId=null;
-function abrirTermoRisco(configId){
-  robotRiskConfigId=configId;
-  window.robotRiskConfigId=configId;
-  const modal=document.getElementById("robotRiskModal");
-  const check=document.getElementById("robotRiskAccepted");
-  if(check)check.checked=false;
-  if(modal)modal.style.display="flex";
-}
-function fecharTermoRisco(){
-  const modal=document.getElementById("robotRiskModal");
-  if(modal)modal.style.display="none";
-}
-async function aceitarTermoRisco(){
-  const check=document.getElementById("robotRiskAccepted");
-  if(!check||!check.checked){alert("Marque o aceite do termo para continuar.");return;}
-  const token=localStorage.getItem("token");
-  const configId=window.robotRiskConfigId||robotRiskConfigId;
-  if(!token||!configId){alert("Configuração do robô não encontrada.");return;}
-  const btn=document.getElementById("robotRiskAcceptBtn");
-  if(btn)btn.disabled=true;
-  try{
-    const r=await fetch("/api/robot/risk/accept",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
-      body:JSON.stringify({configId:configId})
-    });
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok)throw new Error(d.error||d.message||("Erro HTTP "+r.status));
-    fecharTermoRisco();
-    if(typeof window.robotStartAfterRiskAcceptance==="function"){
-      await window.robotStartAfterRiskAcceptance();
-    }
-  }catch(e){alert("Não foi possível aceitar o termo: "+e.message);}
-  finally{if(btn)btn.disabled=false;}
-}
-
 </script>
-
-<div id="robotRiskModal" class="robotRiskOverlay" style="display:none">
-  <div class="robotRiskModal">
-    <h2>Termo de Responsabilidade e Ciência de Riscos</h2>
-    <p>Declaro que li e compreendi as informações apresentadas sobre a automação de operações em criptomoedas.</p>
-    <p>Estou ciente de que criptoativos envolvem riscos de mercado, volatilidade, perdas financeiras, slippage, falhas de conexão, indisponibilidade de serviços e outros eventos que podem afetar o resultado.</p>
-    <p>Estou ciente de que os parâmetros configurados por mim serão utilizados pelo robô conforme a estratégia selecionada.</p>
-    <p>Declaro que sou responsável pelas configurações realizadas e compreendo que resultados passados não garantem resultados futuros.</p>
-    <label><input id="robotRiskAccepted" type="checkbox"> Li, compreendi e aceito o Termo de Responsabilidade e Ciência de Riscos.</label>
-    <div class="robotRiskActions">
-      <button type="button" onclick="fecharTermoRisco()">CANCELAR</button>
-      <button id="robotRiskAcceptBtn" type="button" onclick="aceitarTermoRisco()">ACEITAR E CONTINUAR</button>
-    </div>
-  </div>
-</div>
-
 </body>
 </html>

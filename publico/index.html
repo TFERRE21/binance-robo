@@ -762,7 +762,11 @@ button{cursor:pointer}
       <div class="field"><label>Máximo de moedas analisadas</label><input id="maxCoins" type="number" min="1" max="100" value="40"></div>
     </div>
   </div>
-  <div class="modal-footer"><button class="btn" onclick="closeRobot()">Cancelar</button><button class="btn btn-primary" onclick="saveRobot()">Salvar configuração</button></div>
+  <div class="modal-footer">
+  <button class="btn" onclick="closeRobot()">Cancelar</button>
+  <button class="btn btn-primary" id="saveRobotBtn" onclick="saveRobot()">Salvar configuração</button>
+  <button class="btn btn-primary" id="startRobotConfigBtn" onclick="startRobot()" disabled>▶ Iniciar robô</button>
+</div>
 </div>
 </div>
 
@@ -1346,12 +1350,13 @@ async function loadRobotStatus(){
     const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
     renderRobotLive(d);
     const c=d.config;
+    if(c){ robotCurrentConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null; window.robotRiskConfigId=robotCurrentConfigId; }
     const running=!!d.running;
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt)txt.textContent=c?`${c.strategy_version||'v7.1'} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';
     if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
-    const sb=document.getElementById('startRobotBtn'),st=document.getElementById('stopRobotBtn'); if(sb)sb.disabled=running; if(st)st.disabled=!running;
+    const sb=document.getElementById('startRobotBtn'),st=document.getElementById('stopRobotBtn'); if(sb)sb.disabled=running||!c; if(st)st.disabled=!running;
     document.getElementById('operationCount').textContent=`${(d.operations||[]).filter(x=>x.status==='OPEN').length}/${c?.max_operations||3}`;
     if(c)localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));
     return d;
@@ -1373,52 +1378,158 @@ function openRobot(){
 function closeRobot(){document.getElementById("robotModal").classList.remove("open")}
 async function saveRobot(){
   const c={
-    entryPercent:Number(document.getElementById("entryPercent").value),takeProfit:Number(document.getElementById("takeProfit").value),stopLoss:Number(document.getElementById("stopLoss").value),
-    maxOperations:Number(document.getElementById("maxOperations").value),interval:document.getElementById("interval").value,maxCoins:Number(document.getElementById("maxCoins").value),
-    strategyVersion:document.getElementById("strategyVersion").value,stopLossActive:document.getElementById("stopLossActive").value==='true'
+    entryPercent:Number(document.getElementById("entryPercent").value),
+    takeProfit:Number(document.getElementById("takeProfit").value),
+    stopLoss:Number(document.getElementById("stopLoss").value),
+    maxOperations:Number(document.getElementById("maxOperations").value),
+    interval:document.getElementById("interval").value,
+    maxCoins:Number(document.getElementById("maxCoins").value),
+    strategyVersion:document.getElementById("strategyVersion").value,
+    stopLossActive:document.getElementById("stopLossActive").value==='true'
   };
+
   const msg=document.getElementById("robotMessage");
-  if(!selectedAccountId){showMessage(msg,"Selecione e carregue uma API antes de configurar o robô.","error");return}
-  if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return}
-  if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return}
-  if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return}
-  if(c.maxOperations<1||c.maxOperations>3){showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return}
-  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return}
-  const saveBtn=document.querySelector('#robotModal .btn-primary'); if(saveBtn){saveBtn.disabled=true;saveBtn.textContent='Salvando no servidor...';}
+
+  if(!selectedAccountId){
+    showMessage(msg,"Selecione e carregue uma API antes de configurar o robô.","error");
+    return;
+  }
+
+  if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){
+    showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;
+  }
+  if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){
+    showMessage(msg,"Informe um Take Profit válido.","error");return;
+  }
+  if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){
+    showMessage(msg,"Informe um Stop Loss válido.","error");return;
+  }
+  if(c.maxOperations<1||c.maxOperations>3){
+    showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return;
+  }
+  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){
+    showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return;
+  }
+
+  const saveBtn=document.getElementById("saveRobotBtn") ||
+    document.querySelector('#robotModal .btn-primary');
+
+  if(saveBtn){
+    saveBtn.disabled=true;
+    saveBtn.textContent='Salvando no servidor...';
+  }
+
   try{
-    const d=await apiFetch('/api/robot/config',{method:'POST',body:JSON.stringify({accountId:selectedAccountId,...c})});
+    const d=await apiFetch('/api/robot/config',{
+      method:'POST',
+      body:JSON.stringify({accountId:selectedAccountId,...c})
+    });
+
     if(!d.success)throw new Error(d.message||'Não foi possível salvar.');
+
     localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
-    showMessage(msg,"Configuração salva para esta API. Agora feche a configuração e pressione START ROBÔ.","success");
-    await loadRobotStatus();
-    setTimeout(closeRobot,1100);
-  }catch(e){showMessage(msg,e.message||'Erro ao salvar configuração.',"error")}
-  finally{if(saveBtn){saveBtn.disabled=false;saveBtn.textContent='Salvar configuração';}}
+
+    /* Guardar o ID se o endpoint retornar a configuração criada/atualizada. */
+    robotCurrentConfigId =
+      d.configId ||
+      d.id ||
+      d.config?.id ||
+      d.config?.config_id ||
+      null;
+
+    /*
+      O status é a fonte de verdade. Recarregamos para obter
+      a configuração salva e, quando disponível, seu ID.
+    */
+    const status=await loadRobotStatus();
+    const savedConfig=status && status.config ? status.config : null;
+
+    if(savedConfig){
+      robotCurrentConfigId =
+        robotCurrentConfigId ||
+        savedConfig.id ||
+        savedConfig.config_id ||
+        savedConfig.robot_config_id ||
+        null;
+    }
+
+    window.robotRiskConfigId=robotCurrentConfigId;
+
+    if(!robotCurrentConfigId){
+      /*
+        Não fechamos o modal. A configuração foi salva, mas
+        o backend ainda não devolveu um identificador para o
+        termo. Isso evita iniciar uma configuração sem vínculo.
+      */
+      showMessage(
+        msg,
+        "Configuração salva. O servidor não retornou o identificador da configuração. Atualize o painel e salve novamente antes de iniciar.",
+        "error"
+      );
+      return;
+    }
+
+    showMessage(
+      msg,
+      "Configuração salva. Agora você pode clicar em ▶ Iniciar robô. O Termo aparecerá antes do início.",
+      "success"
+    );
+
+    const startBtn=document.getElementById("startRobotConfigBtn");
+    if(startBtn)startBtn.disabled=false;
+
+    /* Também libera o botão principal quando existir. */
+    const mainStart=document.getElementById("startRobotBtn");
+    if(mainStart)mainStart.disabled=false;
+
+  }catch(e){
+    showMessage(msg,e.message||'Erro ao salvar configuração.',"error");
+  }finally{
+    if(saveBtn){
+      saveBtn.disabled=false;
+      saveBtn.textContent='Salvar configuração';
+    }
+  }
 }
 
 async function startRobot(){
   if(!selectedAccountId){
-    alert('Selecione uma API Binance e clique em Carregar painel.');
+    alert('Selecione uma API e clique em Carregar painel.');
     return;
   }
 
-  const config=await loadRobotStatus();
+  /*
+    Primeiro usa o ID obtido no salvamento. Se a página foi
+    recarregada, consulta o status para recuperar a configuração.
+  */
+  let configId=window.robotRiskConfigId||robotCurrentConfigId||null;
 
-  if(!config || !config.config){
-    alert("Salve uma configuração do robô antes de iniciar.");
+  if(!configId){
+    const config=await loadRobotStatus();
+    const c=config && config.config ? config.config : null;
+
+    if(!c){
+      alert("Salve uma configuração do robô antes de iniciar.");
+      return;
+    }
+
+    configId=c.id||c.config_id||c.robot_config_id||null;
+  }
+
+  if(!configId){
+    alert("A configuração foi salva, mas não foi possível identificar seu registro para o Termo. Salve a configuração novamente.");
     return;
   }
 
-  /* A configuração é única por usuário + conta Binance.
-     Não exigimos um configId que o backend não retorna. */
+  robotCurrentConfigId=configId;
+  window.robotRiskConfigId=configId;
   window.robotRiskAccountId=selectedAccountId;
-  window.robotRiskConfigId=null;
 
-  openRiskTerm(selectedAccountId);
+  openRiskTerm(configId);
 }
 
-function openRiskTerm(accountId){
-  if(accountId) window.robotRiskAccountId=accountId;
+function openRiskTerm(configId){
+  if(configId) window.robotRiskConfigId=configId;
   const modal=document.getElementById("robotRiskModal");
   const check=document.getElementById("robotRiskAccepted");
   if(!modal){alert("Termo de Responsabilidade não encontrado.");return}
@@ -1443,10 +1554,7 @@ async function aceitarTermoRisco(){
     if(btn){btn.disabled=true;btn.textContent="REGISTRANDO...";}
     await apiFetch("/api/robot/risk/accept",{
       method:"POST",
-      body:JSON.stringify({
-        accountId:window.robotRiskAccountId,
-        configId:window.robotRiskConfigId || null
-      })
+      body:JSON.stringify({configId:window.robotRiskConfigId})
     });
     fecharTermoRisco();
     const d=await apiFetch("/api/robot/start",{

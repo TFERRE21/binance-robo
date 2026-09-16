@@ -1385,154 +1385,74 @@ async function saveRobot(){
     interval:document.getElementById("interval").value,
     maxCoins:Number(document.getElementById("maxCoins").value),
     strategyVersion:document.getElementById("strategyVersion").value,
-    stopLossActive:document.getElementById("stopLossActive").value==='true'
+    stopLossActive:document.getElementById("stopLossActive").value==="true"
   };
-
   const msg=document.getElementById("robotMessage");
 
-  if(!selectedAccountId){
-    showMessage(msg,"Selecione e carregue uma API antes de configurar o robô.","error");
-    return;
-  }
+  if(!selectedAccountId){showMessage(msg,"Selecione uma API antes de salvar.","error");return;}
+  if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;}
+  if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return;}
+  if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return;}
+  if(c.maxOperations<1||c.maxOperations>3){showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return;}
+  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return;}
 
-  if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){
-    showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;
-  }
-  if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){
-    showMessage(msg,"Informe um Take Profit válido.","error");return;
-  }
-  if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){
-    showMessage(msg,"Informe um Stop Loss válido.","error");return;
-  }
-  if(c.maxOperations<1||c.maxOperations>3){
-    showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return;
-  }
-  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){
-    showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return;
-  }
-
-  const saveBtn=document.getElementById("saveRobotBtn") ||
-    document.querySelector('#robotModal .btn-primary');
-
-  if(saveBtn){
-    saveBtn.disabled=true;
-    saveBtn.textContent='Salvando no servidor...';
-  }
+  const saveBtn=document.getElementById("saveRobotBtn")||document.querySelector("#robotModal .btn-primary");
+  if(saveBtn){saveBtn.disabled=true;saveBtn.textContent="Salvando...";}
 
   try{
-    const d=await apiFetch('/api/robot/config',{
-      method:'POST',
+    const d=await apiFetch("/api/robot/config",{
+      method:"POST",
       body:JSON.stringify({accountId:selectedAccountId,...c})
     });
-
-    if(!d.success)throw new Error(d.message||'Não foi possível salvar.');
+    if(!d.success)throw new Error(d.message||d.error||"Não foi possível salvar.");
 
     localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
+    window.robotRiskAccountId=selectedAccountId;
+    robotCurrentConfigId=d.configId||d.id||d.config?.id||d.config?.config_id||null;
 
-    /* Guardar o ID se o endpoint retornar a configuração criada/atualizada. */
-    robotCurrentConfigId =
-      d.configId ||
-      d.id ||
-      d.config?.id ||
-      d.config?.config_id ||
-      null;
-
-    /*
-      O status é a fonte de verdade. Recarregamos para obter
-      a configuração salva e, quando disponível, seu ID.
-    */
-    const status=await loadRobotStatus();
-    const savedConfig=status && status.config ? status.config : null;
-
-    if(savedConfig){
-      robotCurrentConfigId =
-        robotCurrentConfigId ||
-        savedConfig.id ||
-        savedConfig.config_id ||
-        savedConfig.robot_config_id ||
-        null;
-    }
-
-    window.robotRiskConfigId=robotCurrentConfigId;
-
-    if(!robotCurrentConfigId){
-      /*
-        Não fechamos o modal. A configuração foi salva, mas
-        o backend ainda não devolveu um identificador para o
-        termo. Isso evita iniciar uma configuração sem vínculo.
-      */
-      showMessage(
-        msg,
-        "Configuração salva. O servidor não retornou o identificador da configuração. Atualize o painel e salve novamente antes de iniciar.",
-        "error"
-      );
-      return;
-    }
-
-    showMessage(
-      msg,
-      "Configuração salva. Agora você pode clicar em ▶ Iniciar robô. O Termo aparecerá antes do início.",
-      "success"
-    );
-
-    const startBtn=document.getElementById("startRobotConfigBtn");
+    // Mesmo que o endpoint não retorne id, o backend resolve a configuração
+    // atual por usuário + conta Binance.
+    const startBtn=document.getElementById("startRobotBtn");
     if(startBtn)startBtn.disabled=false;
 
-    /* Também libera o botão principal quando existir. */
-    const mainStart=document.getElementById("startRobotBtn");
-    if(mainStart)mainStart.disabled=false;
-
+    showMessage(msg,"✓ Configuração salva no servidor. Agora clique em ▶ Iniciar robô para abrir o Termo.","success");
   }catch(e){
-    showMessage(msg,e.message||'Erro ao salvar configuração.',"error");
+    showMessage(msg,e.message||"Erro ao salvar configuração.","error");
   }finally{
-    if(saveBtn){
-      saveBtn.disabled=false;
-      saveBtn.textContent='Salvar configuração';
-    }
+    if(saveBtn){saveBtn.disabled=false;saveBtn.textContent="Salvar configuração";}
   }
 }
 
 async function startRobot(){
   if(!selectedAccountId){
-    alert('Selecione uma API e clique em Carregar painel.');
+    alert("Selecione uma API e clique em Carregar painel.");
     return;
   }
 
-  /*
-    Primeiro usa o ID obtido no salvamento. Se a página foi
-    recarregada, consulta o status para recuperar a configuração.
-  */
-  let configId=window.robotRiskConfigId||robotCurrentConfigId||null;
+  const status=await loadRobotStatus();
+  const c=status&&status.config?status.config:null;
 
-  if(!configId){
-    const config=await loadRobotStatus();
-    const c=config && config.config ? config.config : null;
-
-    if(!c){
-      alert("Salve uma configuração do robô antes de iniciar.");
-      return;
-    }
-
-    configId=c.id||c.config_id||c.robot_config_id||null;
-  }
-
-  if(!configId){
-    alert("A configuração foi salva, mas não foi possível identificar seu registro para o Termo. Salve a configuração novamente.");
+  if(!c){
+    alert("Salve uma configuração do robô antes de iniciar.");
     return;
   }
 
-  robotCurrentConfigId=configId;
-  window.robotRiskConfigId=configId;
   window.robotRiskAccountId=selectedAccountId;
+  window.robotRiskConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null;
 
-  openRiskTerm(configId);
+  // O botão START apenas abre o termo. O robô só inicia depois do aceite.
+  openRiskTerm(window.robotRiskConfigId||selectedAccountId);
 }
 
-function openRiskTerm(configId){
-  if(configId) window.robotRiskConfigId=configId;
+function openRiskTerm(configOrAccountId){
+  if(configOrAccountId && String(configOrAccountId)!==String(selectedAccountId)){
+    window.robotRiskConfigId=String(configOrAccountId);
+  }
+  window.robotRiskAccountId=selectedAccountId;
+
   const modal=document.getElementById("robotRiskModal");
   const check=document.getElementById("robotRiskAccepted");
-  if(!modal){alert("Termo de Responsabilidade não encontrado.");return}
+  if(!modal){alert("Termo de Responsabilidade não encontrado.");return;}
   if(check)check.checked=false;
   modal.style.display="flex";
 }
@@ -1544,31 +1464,60 @@ function fecharTermoRisco(){
 
 async function aceitarTermoRisco(){
   const check=document.getElementById("robotRiskAccepted");
-  if(!check || !check.checked){
+  if(!check||!check.checked){
     alert("Marque a opção de aceite do Termo de Responsabilidade para continuar.");
     return;
   }
-  if(!selectedAccountId){alert("Selecione uma API Binance antes de iniciar.");return}
+  if(!selectedAccountId){
+    alert("Selecione uma API Binance antes de iniciar.");
+    return;
+  }
+
+  const token=localStorage.getItem("token");
+  if(!token){
+    alert("Sua sessão expirou. Faça login novamente.");
+    window.location.href="/login.html";
+    return;
+  }
+
   const btn=document.getElementById("robotRiskAcceptBtn");
   try{
     if(btn){btn.disabled=true;btn.textContent="REGISTRANDO...";}
-    await apiFetch("/api/robot/risk/accept",{
+
+    const accepted=await apiFetch("/api/robot/risk/accept",{
       method:"POST",
-      body:JSON.stringify({configId:window.robotRiskConfigId})
+      body:JSON.stringify({
+        accountId:selectedAccountId,
+        configId:window.robotRiskConfigId||null
+      })
     });
+
+    if(!accepted.success)throw new Error(accepted.message||accepted.error||"Não foi possível registrar o termo.");
+
+    if(accepted.configId){
+      robotCurrentConfigId=accepted.configId;
+      window.robotRiskConfigId=accepted.configId;
+    }
+
+    // O START só acontece aqui, depois do aceite.
+    const started=await apiFetch("/api/robot/start",{
+      method:"POST",
+      body:JSON.stringify({
+        accountId:selectedAccountId,
+        configId:robotCurrentConfigId||window.robotRiskConfigId||null
+      })
+    });
+
+    if(!started.success)throw new Error(started.message||started.error||"Não foi possível iniciar o robô.");
+
     fecharTermoRisco();
-    const d=await apiFetch("/api/robot/start",{
-      method:"POST",
-      body:JSON.stringify({accountId:selectedAccountId})
-    });
-    if(!d.success)throw new Error(d.message||"Não foi possível iniciar o robô.");
     await loadRobotStatus();
-    alert("Termo aceito e robô iniciado com a configuração salva.");
-  }catch(e){
-    console.error("ROBOT START/RISK:",e);
-    alert(e.message||"Não foi possível iniciar o robô.");
+    alert("Termo aceito. Robô iniciado com a configuração salva.");
+  }catch(error){
+    console.error("ERRO AO INICIAR ROBÔ:",error);
+    alert("Não foi possível iniciar o robô.\n\n"+error.message);
   }finally{
-    if(btn){btn.disabled=false;btn.textContent="ACEITAR E CONTINUAR";}
+    if(btn){btn.disabled=false;btn.textContent="Li, compreendi e aceito";}
   }
 }
 

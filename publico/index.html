@@ -10,9 +10,13 @@
   content="width=device-width, initial-scale=1.0"
 >
 
-<title>CriptoPro — Painel</title>
+<title>CriptoPro — Painel Premium</title>
 
 <style>
+
+/* =====================================================
+   RESET
+===================================================== */
 
 *{
   box-sizing:border-box;
@@ -20,10 +24,25 @@
   padding:0;
 }
 
+html,
 body{
-  font-family:Arial,Helvetica,sans-serif;
+  min-height:100%;
+}
+
+body{
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
   background:
-    radial-gradient(circle at top right,#17253d 0,#0a0f17 42%,#06090e 100%);
+    radial-gradient(
+      circle at top right,
+      #17253d 0,
+      #0a0f17 42%,
+      #06090e 100%
+    );
+
   color:#e8edf5;
   min-height:100vh;
 }
@@ -38,650 +57,1467 @@ button{
   cursor:pointer;
 }
 
+
+/* =====================================================
+   HEADER
+===================================================== */
+
 .header{
+
   height:72px;
-  border-bottom:1px solid rgba(255,255,255,.08);
-  background:rgba(5,9,15,.88);
-  backdrop-filter:blur(12px);
+
+  border-bottom:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(5,9,15,.92);
+
+  backdrop-filter:
+    blur(12px);
+
   display:flex;
+
   align-items:center;
+
   justify-content:space-between;
-  padding:0 28px;
+
+  padding:
+    0 28px;
+
   position:sticky;
+
   top:0;
+
   z-index:50;
 }
 
+
 .logo{
+
   font-size:22px;
+
   font-weight:900;
+
   letter-spacing:-.7px;
 }
+
 
 .logo span{
   color:#f0b90b;
 }
 
+
 .header-right{
+
   display:flex;
+
   align-items:center;
+
   gap:10px;
 }
 
+
 .status{
+
   display:flex;
+
   align-items:center;
+
   gap:7px;
+
   font-size:11px;
+
   color:#8f9aaa;
+
   margin-right:8px;
 }
 
+
 .status-dot{
+
   width:8px;
+
   height:8px;
+
   border-radius:50%;
+
   background:#23c483;
-  box-shadow:0 0 10px rgba(35,196,131,.7);
+
+  box-shadow:
+    0 0 10px rgba(35,196,131,.7);
 }
 
+
 .top-btn{
-  border:1px solid rgba(255,255,255,.1);
-  background:rgba(255,255,255,.04);
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
+  background:
+    rgba(255,255,255,.04);
+
   color:#dfe6ef;
-  padding:9px 13px;
+
+  padding:
+    9px 13px;
+
   border-radius:8px;
+
   font-size:11px;
+
   font-weight:800;
 }
 
+
 .top-btn:hover{
-  background:rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.08);
+
 }
+
 
 .logout{
   color:#ff8b8b;
 }
 
+
 .language{
+
   height:35px;
-  padding:0 10px;
-  border:1px solid rgba(255,255,255,.12);
+
+  padding:
+    0 10px;
+
+  border:
+    1px solid rgba(255,255,255,.12);
+
   border-radius:8px;
+
   color:#dbe4ed;
-  background:rgba(255,255,255,.035);
+
+  background:
+    rgba(255,255,255,.035);
+
   outline:none;
+
   cursor:pointer;
+
   font-size:10px;
+
   font-weight:800;
 }
 
+
 .language option{
+
   color:#111;
+
   background:#fff;
+
 }
+
+
+/* =====================================================
+   LAYOUT
+===================================================== */
 
 .layout{
+
   display:grid;
-  grid-template-columns:minmax(0,1fr) 300px;
-  min-height:calc(100vh - 72px);
+
+  grid-template-columns:
+    minmax(0,1fr)
+    310px;
+
+  min-height:
+    calc(100vh - 72px);
 }
 
+
 .main{
+
   padding:28px;
+
   min-width:0;
 }
 
+
 .sidebar{
-  border-left:1px solid rgba(255,255,255,.08);
-  background:rgba(7,11,18,.72);
-  padding:24px 20px;
+
+  border-left:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(7,11,18,.72);
+
+  padding:
+    24px 20px;
 }
 
+
+/* =====================================================
+   WELCOME
+===================================================== */
+
 .welcome{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:flex-start;
+
   gap:20px;
+
   margin-bottom:24px;
 }
 
+
 .welcome h1{
+
   font-size:27px;
+
   margin-bottom:7px;
 }
 
+
 .welcome p{
+
   color:#8c98a9;
+
   font-size:13px;
+
+  line-height:1.5;
 }
 
+
+/* =====================================================
+   PLAN BADGE
+===================================================== */
+
 .plan-badge{
-  border:1px solid rgba(240,185,11,.35);
-  background:rgba(240,185,11,.09);
+
+  border:
+    1px solid rgba(240,185,11,.35);
+
+  background:
+    rgba(240,185,11,.09);
+
   color:#f0b90b;
-  padding:10px 14px;
+
+  padding:
+    11px 15px;
+
   border-radius:10px;
+
   font-size:11px;
+
   font-weight:900;
+
   text-align:center;
+
   white-space:nowrap;
 }
 
+
 .plan-badge small{
+
   display:block;
+
   color:#a9b2c0;
+
   font-size:9px;
-  margin-top:4px;
+
+  margin-top:5px;
+
   font-weight:700;
 }
 
+
+#planValidity{
+
+  color:#f0b90b;
+
+  font-weight:900;
+}
+
+
+/* =====================================================
+   STATS
+===================================================== */
+
 .stats{
+
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+
+  grid-template-columns:
+    repeat(4,1fr);
+
   gap:14px;
+
   margin-bottom:24px;
 }
 
+
 .stat{
-  border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.035);
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.035);
+
   border-radius:14px;
+
   padding:17px;
+
   min-height:100px;
 }
 
+
 .stat-label{
+
   color:#7e8999;
+
   font-size:10px;
+
   text-transform:uppercase;
+
   letter-spacing:.5px;
+
   margin-bottom:12px;
 }
 
+
 .stat-value{
+
   font-size:21px;
+
   font-weight:900;
 }
 
+
 .stat-sub{
+
   margin-top:6px;
+
   font-size:10px;
+
   color:#7d8999;
 }
 
+
+/* =====================================================
+   SECTIONS
+===================================================== */
+
 .section-title{
+
   font-size:15px;
+
   font-weight:900;
+
   margin-bottom:13px;
 }
 
+
+/* =====================================================
+   ACCOUNTS
+===================================================== */
+
 .accounts{
+
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+
+  grid-template-columns:
+    repeat(3,1fr);
+
   gap:14px;
+
   margin-bottom:25px;
 }
 
+
 .account{
-  border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.035);
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.035);
+
   border-radius:14px;
+
   padding:17px;
+
   min-height:150px;
+
   transition:.2s;
 }
 
+
 .account:hover{
-  border-color:rgba(240,185,11,.25);
-  transform:translateY(-1px);
+
+  border-color:
+    rgba(240,185,11,.25);
+
+  transform:
+    translateY(-1px);
 }
 
+
 .account-top{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:center;
+
   margin-bottom:16px;
 }
 
+
 .account-name{
+
   font-size:15px;
+
   font-weight:900;
 }
 
+
 .account-status{
+
   font-size:9px;
+
   color:#23c483;
-  background:rgba(35,196,131,.08);
-  border:1px solid rgba(35,196,131,.2);
-  padding:5px 8px;
+
+  background:
+    rgba(35,196,131,.08);
+
+  border:
+    1px solid rgba(35,196,131,.2);
+
+  padding:
+    5px 8px;
+
   border-radius:20px;
 }
 
+
 .account-value{
+
   font-size:20px;
+
   font-weight:900;
+
   margin-bottom:5px;
 }
 
+
 .account-info{
+
   color:#7f8a9a;
+
   font-size:10px;
+
   margin-bottom:14px;
 }
 
+
 .account-btn{
+
   width:100%;
-  border:1px solid rgba(255,255,255,.1);
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
   background:#101722;
+
   color:#dce4ed;
+
   padding:9px;
+
   border-radius:8px;
+
   font-size:10px;
+
   font-weight:800;
 }
 
+
 .account-btn:hover{
-  border-color:rgba(240,185,11,.4);
+
+  border-color:
+    rgba(240,185,11,.4);
+
   color:#f0b90b;
 }
 
+
 .empty-account{
+
   display:flex;
+
   flex-direction:column;
+
   justify-content:center;
+
   align-items:center;
+
   text-align:center;
+
   color:#778395;
+
   min-height:150px;
 }
 
+
 .empty-account strong{
+
   color:#b9c2cf;
+
   margin-bottom:7px;
 }
 
+
+/* =====================================================
+   MODULES
+===================================================== */
+
 .modules{
+
   display:grid;
-  grid-template-columns:repeat(4,1fr);
+
+  grid-template-columns:
+    repeat(4,1fr);
+
   gap:12px;
 }
 
+
 .module{
-  border:1px solid rgba(255,255,255,.08);
-  background:rgba(255,255,255,.03);
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.03);
+
   border-radius:12px;
+
   padding:15px;
+
   text-align:left;
+
   color:#dbe3ed;
+
   transition:.2s;
 }
 
+
 .module:hover{
-  background:rgba(240,185,11,.06);
-  border-color:rgba(240,185,11,.3);
+
+  background:
+    rgba(240,185,11,.06);
+
+  border-color:
+    rgba(240,185,11,.3);
 }
 
+
 .module-icon{
+
   font-size:18px;
+
   margin-bottom:10px;
 }
 
+
 .module-title{
+
   font-size:11px;
+
   font-weight:900;
+
   margin-bottom:5px;
 }
 
+
 .module-desc{
+
   color:#778395;
+
   font-size:9px;
+
   line-height:1.4;
 }
 
-/* SIDEBAR */
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
 
 .side-title{
+
   font-size:16px;
+
   font-weight:900;
+
   margin-bottom:6px;
 }
 
+
 .side-sub{
+
   color:#778395;
+
   font-size:10px;
+
   line-height:1.5;
+
   margin-bottom:20px;
 }
 
+
 .action{
+
   width:100%;
-  border:1px solid rgba(255,255,255,.1);
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
   border-radius:13px;
+
   padding:18px;
+
   margin-bottom:12px;
+
   text-align:left;
+
   color:white;
+
   background:#101722;
+
   transition:.2s;
 }
 
+
 .action:hover{
-  transform:translateY(-1px);
+
+  transform:
+    translateY(-1px);
 }
 
+
 .action.primary{
-  background:linear-gradient(135deg,#dba900,#f0b90b);
+
+  background:
+    linear-gradient(
+      135deg,
+      #dba900,
+      #f0b90b
+    );
+
   color:#111;
+
   border-color:#f0b90b;
 }
 
+
 .action.robot{
-  background:linear-gradient(135deg,#17243a,#101722);
-  border-color:rgba(240,185,11,.28);
+
+  background:
+    linear-gradient(
+      135deg,
+      #17243a,
+      #101722
+    );
+
+  border-color:
+    rgba(240,185,11,.28);
 }
 
+
 .action-icon{
+
   font-size:24px;
+
   margin-bottom:10px;
 }
 
+
 .action-title{
+
   font-size:13px;
+
   font-weight:900;
+
   margin-bottom:5px;
 }
 
+
 .action-desc{
+
   font-size:9px;
+
   opacity:.72;
+
   line-height:1.45;
 }
 
+
+/* =====================================================
+   LIMIT BOX
+===================================================== */
+
 .limit-box{
+
   margin-top:24px;
-  border:1px solid rgba(255,255,255,.08);
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
   border-radius:12px;
+
   padding:16px;
-  background:rgba(255,255,255,.025);
+
+  background:
+    rgba(255,255,255,.025);
 }
 
+
 .limit-title{
+
   font-size:11px;
+
   font-weight:900;
+
   margin-bottom:13px;
 }
 
+
 .limit-row{
+
   display:flex;
+
   justify-content:space-between;
+
   padding:8px 0;
-  border-bottom:1px solid rgba(255,255,255,.05);
+
+  border-bottom:
+    1px solid rgba(255,255,255,.05);
+
   font-size:10px;
 }
 
+
 .limit-row:last-child{
+
   border-bottom:0;
 }
 
+
 .limit-row span:last-child{
+
   color:#f0b90b;
+
   font-weight:900;
 }
 
+
+/* =====================================================
+   NOTICE
+===================================================== */
+
 .notice{
+
   margin-top:20px;
-  border:1px solid rgba(240,185,11,.15);
-  background:rgba(240,185,11,.04);
+
+  border:
+    1px solid rgba(240,185,11,.15);
+
+  background:
+    rgba(240,185,11,.04);
+
   border-radius:10px;
+
   padding:12px;
+
   color:#8e98a8;
+
   font-size:9px;
+
   line-height:1.5;
 }
 
-/* MODAL */
+
+/* =====================================================
+   MODAL
+===================================================== */
 
 .modal-bg{
+
   position:fixed;
+
   inset:0;
-  background:rgba(0,0,0,.7);
-  backdrop-filter:blur(5px);
+
+  background:
+    rgba(0,0,0,.7);
+
+  backdrop-filter:
+    blur(5px);
+
   display:none;
+
   align-items:center;
+
   justify-content:center;
+
   padding:20px;
+
   z-index:100;
 }
 
+
 .modal-bg.open{
+
   display:flex;
 }
+
 
 .modal{
-  width:min(560px,100%);
+
+  width:
+    min(560px,100%);
+
   max-height:90vh;
+
   overflow:auto;
+
   background:#0d141e;
-  border:1px solid rgba(255,255,255,.1);
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
   border-radius:16px;
-  box-shadow:0 30px 100px rgba(0,0,0,.5);
+
+  box-shadow:
+    0 30px 100px rgba(0,0,0,.5);
 }
 
+
 .modal-header{
+
   padding:20px;
-  border-bottom:1px solid rgba(255,255,255,.08);
+
+  border-bottom:
+    1px solid rgba(255,255,255,.08);
+
   display:flex;
+
   align-items:center;
+
   justify-content:space-between;
 }
 
+
 .modal-title{
+
   font-size:16px;
+
   font-weight:900;
 }
 
-.close{
-  border:0;
-  background:transparent;
-  color:#8b96a6;
-  font-size:22px;
-}
 
-.modal-body{
-  padding:20px;
-}
+.modal-subtitle{
 
-.field{
-  margin-bottom:15px;
-}
+  color:#778395;
 
-.field label{
-  display:block;
-  color:#aeb8c7;
-  font-size:10px;
-  font-weight:800;
-  margin-bottom:7px;
-}
-
-.field input,
-.field select{
-  width:100%;
-  height:43px;
-  border:1px solid rgba(255,255,255,.1);
-  border-radius:8px;
-  background:#080d14;
-  color:#e5ebf3;
-  padding:0 12px;
-  outline:none;
-}
-
-.field input:focus,
-.field select:focus{
-  border-color:rgba(240,185,11,.55);
-}
-
-.field-help{
-  color:#6f7b8b;
   font-size:9px;
-  margin-top:6px;
-  line-height:1.4;
-}
 
-.grid2{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-
-.modal-footer{
-  padding:16px 20px 20px;
-  display:flex;
-  gap:10px;
-  justify-content:flex-end;
-}
-
-.btn{
-  border:1px solid rgba(255,255,255,.1);
-  background:#151d28;
-  color:#dfe6ef;
-  border-radius:8px;
-  padding:11px 16px;
-  font-size:10px;
-  font-weight:900;
-}
-
-.btn-primary{
-  background:#f0b90b;
-  color:#111;
-  border-color:#f0b90b;
-}
-
-.btn-danger{
-  color:#ff8d8d;
-}
-
-.message{
-  display:none;
-  padding:11px;
-  border-radius:8px;
-  font-size:10px;
-  margin-bottom:14px;
-  line-height:1.4;
-}
-
-.message.show{
-  display:block;
-}
-
-.message.success{
-  background:rgba(35,196,131,.08);
-  border:1px solid rgba(35,196,131,.2);
-  color:#6fe0ad;
-}
-
-.message.error{
-  background:rgba(255,75,75,.08);
-  border:1px solid rgba(255,75,75,.2);
-  color:#ff9292;
-}
-
-.security{
-  padding:12px;
-  border:1px solid rgba(35,196,131,.15);
-  background:rgba(35,196,131,.04);
-  border-radius:9px;
-  color:#8ca696;
-  font-size:9px;
-  line-height:1.5;
   margin-top:5px;
 }
 
-.loading{
-  color:#7c8797;
-  font-size:11px;
-  padding:20px;
-  text-align:center;
+
+.close{
+
+  border:0;
+
+  background:transparent;
+
+  color:#8b96a6;
+
+  font-size:22px;
 }
 
-.robot-highlight{
-  border:1px solid rgba(240,185,11,.18);
-  background:rgba(240,185,11,.04);
-  border-radius:10px;
-  padding:12px;
+
+.modal-body{
+
+  padding:20px;
+}
+
+
+.modal-footer{
+
+  padding:
+    16px 20px 20px;
+
+  display:flex;
+
+  gap:10px;
+
+  justify-content:flex-end;
+}
+
+
+/* =====================================================
+   FIELDS
+===================================================== */
+
+.field{
+
   margin-bottom:15px;
 }
 
-.robot-highlight strong{
+
+.field label{
+
   display:block;
-  color:#f0b90b;
+
+  color:#aeb8c7;
+
   font-size:10px;
+
+  font-weight:800;
+
+  margin-bottom:7px;
+}
+
+
+.field input,
+.field select{
+
+  width:100%;
+
+  height:43px;
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
+  border-radius:8px;
+
+  background:#080d14;
+
+  color:#e5ebf3;
+
+  padding:
+    0 12px;
+
+  outline:none;
+}
+
+
+.field input:focus,
+.field select:focus{
+
+  border-color:
+    rgba(240,185,11,.55);
+}
+
+
+.field-help{
+
+  color:#6f7b8b;
+
+  font-size:9px;
+
+  margin-top:6px;
+
+  line-height:1.4;
+}
+
+
+.grid2{
+
+  display:grid;
+
+  grid-template-columns:
+    1fr 1fr;
+
+  gap:12px;
+}
+
+
+/* =====================================================
+   BUTTONS
+===================================================== */
+
+.btn{
+
+  border:
+    1px solid rgba(255,255,255,.1);
+
+  background:#151d28;
+
+  color:#dfe6ef;
+
+  border-radius:8px;
+
+  padding:
+    11px 16px;
+
+  font-size:10px;
+
+  font-weight:900;
+}
+
+
+.btn:hover{
+
+  background:#1c2735;
+}
+
+
+.btn-primary{
+
+  background:#f0b90b;
+
+  color:#111;
+
+  border-color:#f0b90b;
+}
+
+
+.btn-primary:hover{
+
+  background:#ffca2c;
+}
+
+
+.btn:disabled{
+
+  opacity:.5;
+
+  cursor:not-allowed;
+}
+
+
+/* =====================================================
+   MESSAGES
+===================================================== */
+
+.message{
+
+  display:none;
+
+  padding:11px;
+
+  border-radius:8px;
+
+  font-size:10px;
+
+  margin-bottom:14px;
+
+  line-height:1.4;
+}
+
+
+.message.show{
+
+  display:block;
+}
+
+
+.message.success{
+
+  background:
+    rgba(35,196,131,.08);
+
+  border:
+    1px solid rgba(35,196,131,.2);
+
+  color:#6fe0ad;
+}
+
+
+.message.error{
+
+  background:
+    rgba(255,75,75,.08);
+
+  border:
+    1px solid rgba(255,75,75,.2);
+
+  color:#ff9292;
+}
+
+
+/* =====================================================
+   SECURITY
+===================================================== */
+
+.security{
+
+  padding:12px;
+
+  border:
+    1px solid rgba(35,196,131,.15);
+
+  background:
+    rgba(35,196,131,.04);
+
+  border-radius:9px;
+
+  color:#8ca696;
+
+  font-size:9px;
+
+  line-height:1.5;
+
+  margin-top:5px;
+}
+
+
+/* =====================================================
+   API SLOTS
+===================================================== */
+
+.api-slot{
+
+  border:
+    1px solid rgba(255,255,255,.08);
+
+  background:
+    rgba(255,255,255,.025);
+
+  border-radius:12px;
+
+  padding:16px;
+
+  margin-bottom:12px;
+}
+
+
+.api-slot.active{
+
+  border-color:
+    rgba(35,196,131,.25);
+
+  background:
+    rgba(35,196,131,.035);
+}
+
+
+.api-slot.empty{
+
+  border-color:
+    rgba(240,185,11,.18);
+}
+
+
+.api-slot-header{
+
+  display:flex;
+
+  justify-content:space-between;
+
+  align-items:center;
+
+  margin-bottom:13px;
+}
+
+
+.api-slot-title{
+
+  font-size:12px;
+
+  font-weight:900;
+}
+
+
+.api-slot-number{
+
+  font-size:9px;
+
+  color:#f0b90b;
+
+  font-weight:900;
+
+  margin-top:4px;
+}
+
+
+.api-slot-status{
+
+  font-size:8px;
+
+  font-weight:900;
+
+  padding:
+    5px 8px;
+
+  border-radius:20px;
+}
+
+
+.api-slot-status.connected{
+
+  color:#5bd69d;
+
+  background:
+    rgba(35,196,131,.08);
+
+  border:
+    1px solid rgba(35,196,131,.2);
+}
+
+
+.api-slot-status.available{
+
+  color:#f0b90b;
+
+  background:
+    rgba(240,185,11,.08);
+
+  border:
+    1px solid rgba(240,185,11,.2);
+}
+
+
+.api-account-name{
+
+  font-size:14px;
+
+  font-weight:900;
+
   margin-bottom:5px;
 }
 
-.robot-highlight span{
-  color:#8894a4;
+
+.api-account-info{
+
+  color:#7c8797;
+
   font-size:9px;
+
+  margin-bottom:13px;
+}
+
+
+.api-add-btn{
+
+  width:100%;
+
+  border:
+    1px solid rgba(240,185,11,.3);
+
+  background:
+    rgba(240,185,11,.07);
+
+  color:#f0b90b;
+
+  border-radius:8px;
+
+  padding:10px;
+
+  font-size:10px;
+
+  font-weight:900;
+}
+
+
+.api-add-btn:hover{
+
+  background:
+    rgba(240,185,11,.12);
+}
+
+
+.api-form{
+
+  margin-top:12px;
+
+  padding-top:12px;
+
+  border-top:
+    1px solid rgba(255,255,255,.06);
+}
+
+
+/* =====================================================
+   ROBÔ
+===================================================== */
+
+.robot-highlight{
+
+  border:
+    1px solid rgba(240,185,11,.18);
+
+  background:
+    rgba(240,185,11,.04);
+
+  border-radius:10px;
+
+  padding:12px;
+
+  margin-bottom:15px;
+}
+
+
+.robot-highlight strong{
+
+  display:block;
+
+  color:#f0b90b;
+
+  font-size:10px;
+
+  margin-bottom:5px;
+}
+
+
+.robot-highlight span{
+
+  color:#8894a4;
+
+  font-size:9px;
+
   line-height:1.4;
 }
+
+
+/* =====================================================
+   LOADING
+===================================================== */
+
+.loading{
+
+  color:#7c8797;
+
+  font-size:11px;
+
+  padding:20px;
+
+  text-align:center;
+}
+
+
+/* =====================================================
+   RESPONSIVO
+===================================================== */
 
 @media(max-width:1100px){
 
   .layout{
+
     grid-template-columns:1fr;
+
   }
+
 
   .sidebar{
+
     border-left:0;
-    border-top:1px solid rgba(255,255,255,.08);
+
+    border-top:
+      1px solid rgba(255,255,255,.08);
+
   }
+
 
   .stats{
-    grid-template-columns:repeat(2,1fr);
+
+    grid-template-columns:
+      repeat(2,1fr);
+
   }
+
 
   .accounts{
-    grid-template-columns:1fr 1fr;
+
+    grid-template-columns:
+      1fr 1fr;
+
   }
 
+
   .modules{
-    grid-template-columns:repeat(3,1fr);
+
+    grid-template-columns:
+      repeat(3,1fr);
+
   }
 
 }
 
+
 @media(max-width:700px){
 
   .header{
-    padding:0 14px;
+
+    padding:
+      0 14px;
+
   }
+
 
   .header .status{
+
     display:none;
+
   }
+
 
   .main{
+
     padding:18px;
+
   }
+
 
   .welcome{
+
     flex-direction:column;
+
   }
+
 
   .stats{
-    grid-template-columns:1fr 1fr;
+
+    grid-template-columns:
+      1fr 1fr;
+
   }
+
 
   .accounts{
+
     grid-template-columns:1fr;
+
   }
+
 
   .modules{
-    grid-template-columns:1fr 1fr;
+
+    grid-template-columns:
+      1fr 1fr;
+
   }
 
+
   .grid2{
+
     grid-template-columns:1fr;
+
+  }
+
+
+  .plan-badge{
+
+    white-space:normal;
+
   }
 
 }
@@ -690,172 +1526,289 @@ button{
 
 </head>
 
+
 <body>
+
+
+<!-- =====================================================
+     HEADER
+===================================================== -->
 
 <header class="header">
 
+
   <div class="logo">
+
     Cripto<span>Pro</span>
+
   </div>
+
 
   <div class="header-right">
 
+
     <div class="status">
+
       <span class="status-dot"></span>
+
       ONLINE
+
     </div>
+
 
     <button
       class="top-btn"
       onclick="voltarPlanos()"
     >
+
       ← Voltar
+
     </button>
+
 
     <select
       class="language"
       id="language"
       onchange="changeLanguage()"
     >
-      <option value="en">🇺🇸 EN</option>
-      <option value="pt" selected>🇧🇷 PT</option>
+
+      <option value="en">
+        🇺🇸 EN
+      </option>
+
+      <option
+        value="pt"
+        selected
+      >
+        🇧🇷 PT
+      </option>
+
     </select>
+
 
     <button
       class="top-btn logout"
       onclick="logout()"
     >
+
       ↪ Sair
+
     </button>
+
 
   </div>
 
 </header>
 
 
+
 <div class="layout">
 
+
+<!-- =====================================================
+     MAIN
+===================================================== -->
 
 <main class="main">
 
 
   <section class="welcome">
 
+
     <div>
+
 
       <h1 id="welcomeTitle">
         Olá!
       </h1>
 
+
       <p id="welcomeText">
+
         Este é o seu painel individual da Binance.
         Suas contas ficam separadas de outros usuários.
+
       </p>
 
+
     </div>
+
 
     <div class="plan-badge">
 
+
       PREMIUM
 
+
       <small>
-        3 contas Binance · 3 operações simultâneas
+
+        3 contas Binance ·
+        3 operações simultâneas
+
       </small>
 
+
+      <small id="planValidity">
+
+        Validade: carregando...
+
+      </small>
+
+
     </div>
+
 
   </section>
 
 
+
+  <!-- ===================================================
+       ESTATÍSTICAS
+  ==================================================== -->
+
   <section class="stats">
+
 
     <div class="stat">
 
+
       <div class="stat-label">
+
         Patrimônio
+
       </div>
+
 
       <div
         class="stat-value"
         id="totalPatrimonio"
       >
+
         US$ 0,00
+
       </div>
 
+
       <div class="stat-sub">
+
         Somatório das contas
+
       </div>
+
 
     </div>
 
 
+
     <div class="stat">
 
+
       <div class="stat-label">
+
         P/L aberto
+
       </div>
+
 
       <div
         class="stat-value"
         id="totalPnl"
       >
+
         US$ 0,00
+
       </div>
 
+
       <div class="stat-sub">
+
         Resultado das operações
+
       </div>
+
 
     </div>
 
 
+
     <div class="stat">
 
+
       <div class="stat-label">
+
         Contas Binance
+
       </div>
+
 
       <div
         class="stat-value"
         id="accountCount"
       >
+
         0/3
+
       </div>
 
+
       <div class="stat-sub">
+
         Limite Premium
+
       </div>
+
 
     </div>
 
 
+
     <div class="stat">
 
+
       <div class="stat-label">
+
         Operações simultâneas
+
       </div>
+
 
       <div
         class="stat-value"
         id="operationCount"
       >
+
         0/3
+
       </div>
+
 
       <div class="stat-sub">
+
         Configuração do robô
+
       </div>
 
+
     </div>
+
 
   </section>
 
 
+
+  <!-- ===================================================
+       CONTAS
+  ==================================================== -->
+
   <section>
 
+
     <div class="section-title">
+
       Minhas contas Binance
+
     </div>
+
 
     <div
       class="accounts"
@@ -863,26 +1816,40 @@ button{
     >
 
       <div class="loading">
+
         Carregando suas contas...
+
       </div>
 
     </div>
 
+
   </section>
 
 
+
+  <!-- ===================================================
+       RECURSOS
+  ==================================================== -->
+
   <section>
 
+
     <div class="section-title">
+
       Recursos do Premium
+
     </div>
+
 
     <div class="modules">
 
 
       <button class="module">
 
-        <div class="module-icon">⚡</div>
+        <div class="module-icon">
+          ⚡
+        </div>
 
         <div class="module-title">
           Operação
@@ -895,9 +1862,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">📈</div>
+        <div class="module-icon">
+          📈
+        </div>
 
         <div class="module-title">
           Gráfico
@@ -910,12 +1880,15 @@ button{
       </button>
 
 
+
       <button
         class="module"
         onclick="openRobot()"
       >
 
-        <div class="module-icon">🤖</div>
+        <div class="module-icon">
+          🤖
+        </div>
 
         <div class="module-title">
           Robô
@@ -928,9 +1901,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🔄</div>
+        <div class="module-icon">
+          🔄
+        </div>
 
         <div class="module-title">
           Comparação
@@ -943,9 +1919,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🏆</div>
+        <div class="module-icon">
+          🏆
+        </div>
 
         <div class="module-title">
           Performance
@@ -958,9 +1937,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🪙</div>
+        <div class="module-icon">
+          🪙
+        </div>
 
         <div class="module-title">
           Moedas
@@ -973,9 +1955,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🕒</div>
+        <div class="module-icon">
+          🕒
+        </div>
 
         <div class="module-title">
           Atividade
@@ -988,9 +1973,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🔔</div>
+        <div class="module-icon">
+          🔔
+        </div>
 
         <div class="module-title">
           Alertas
@@ -1003,9 +1991,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">💰</div>
+        <div class="module-icon">
+          💰
+        </div>
 
         <div class="module-title">
           Patrimônio
@@ -1018,9 +2009,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🔎</div>
+        <div class="module-icon">
+          🔎
+        </div>
 
         <div class="module-title">
           Raio-X
@@ -1033,9 +2027,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">🛡️</div>
+        <div class="module-icon">
+          🛡️
+        </div>
 
         <div class="module-title">
           Auditoria
@@ -1048,9 +2045,12 @@ button{
       </button>
 
 
+
       <button class="module">
 
-        <div class="module-icon">📊</div>
+        <div class="module-icon">
+          📊
+        </div>
 
         <div class="module-title">
           P/L
@@ -1065,112 +2065,194 @@ button{
 
     </div>
 
+
   </section>
 
 
 </main>
 
 
+
+<!-- =====================================================
+     SIDEBAR
+===================================================== -->
+
 <aside class="sidebar">
 
 
   <div class="side-title">
+
     Controles Premium
+
   </div>
+
 
   <div class="side-sub">
+
     Gerencie suas contas Binance e configure
     o comportamento do seu robô.
+
   </div>
 
+
+
+  <!-- API -->
 
   <button
     class="action primary"
     onclick="openApiModal()"
   >
 
+
     <div class="action-icon">
       🔑
     </div>
 
+
     <div class="action-title">
-      Adicionar API Binance
+
+      APIs Binance
+
     </div>
 
+
     <div class="action-desc">
-      Cadastre uma nova conta Binance.
-      Seu plano Premium permite até 3 contas.
+
+      Cadastre e gerencie até 3 contas Binance
+      independentes no seu plano Premium.
+
     </div>
+
 
   </button>
 
+
+
+  <!-- ROBÔ -->
 
   <button
     class="action robot"
     onclick="openRobot()"
   >
 
+
     <div class="action-icon">
       🤖
     </div>
 
+
     <div class="action-title">
+
       Configurar Robô
+
     </div>
 
+
     <div class="action-desc">
+
       Configure entrada, Take Profit,
       Stop Loss, operações simultâneas
       e parâmetros de análise.
+
     </div>
+
 
   </button>
 
 
+
+  <!-- LIMITES -->
+
   <div class="limit-box">
 
+
     <div class="limit-title">
+
       Seu plano Premium
+
     </div>
 
 
     <div class="limit-row">
-      <span>Contas Binance</span>
-      <span id="limitAccounts">0/3</span>
+
+      <span>
+        Contas Binance
+      </span>
+
+      <span id="limitAccounts">
+        0/3
+      </span>
+
     </div>
 
 
     <div class="limit-row">
-      <span>Operações simultâneas</span>
-      <span id="limitOperations">3</span>
+
+      <span>
+        Operações simultâneas
+      </span>
+
+      <span id="limitOperations">
+        3
+      </span>
+
     </div>
 
 
     <div class="limit-row">
-      <span>Acompanhamento</span>
-      <span>ATIVO</span>
+
+      <span>
+        Acompanhamento
+      </span>
+
+      <span>
+        ATIVO
+      </span>
+
     </div>
 
 
     <div class="limit-row">
-      <span>Monitoramento</span>
-      <span>ATIVO</span>
+
+      <span>
+        Monitoramento
+      </span>
+
+      <span>
+        ATIVO
+      </span>
+
     </div>
 
 
     <div class="limit-row">
-      <span>Indicadores</span>
-      <span>ATIVO</span>
+
+      <span>
+        Indicadores
+      </span>
+
+      <span>
+        ATIVO
+      </span>
+
     </div>
 
 
     <div class="limit-row">
-      <span>Histórico</span>
-      <span>ATIVO</span>
+
+      <span>
+        Histórico
+      </span>
+
+      <span>
+        ATIVO
+      </span>
+
     </div>
 
 
   </div>
+
 
 
   <div class="notice">
@@ -1188,8 +2270,9 @@ button{
 </div>
 
 
+
 <!-- =====================================================
-     MODAL API BINANCE
+     MODAL — APIs BINANCE
 ===================================================== -->
 
 <div
@@ -1197,23 +2280,45 @@ button{
   id="apiModal"
 >
 
+
   <div class="modal">
 
 
     <div class="modal-header">
 
-      <div class="modal-title">
-        Adicionar conta Binance
+
+      <div>
+
+
+        <div class="modal-title">
+
+          APIs Binance
+
+        </div>
+
+
+        <div class="modal-subtitle">
+
+          Plano Premium — até 3 contas Binance
+
+        </div>
+
+
       </div>
+
 
       <button
         class="close"
         onclick="closeApiModal()"
       >
+
         ×
+
       </button>
 
+
     </div>
+
 
 
     <div class="modal-body">
@@ -1225,59 +2330,19 @@ button{
       ></div>
 
 
-      <div class="field">
-
-        <label>
-          Nome da conta
-        </label>
-
-        <input
-          id="apiName"
-          type="text"
-          placeholder="Ex.: Minha Binance"
-        >
-
-      </div>
-
-
-      <div class="field">
-
-        <label>
-          API Key
-        </label>
-
-        <input
-          id="apiKey"
-          type="password"
-          autocomplete="off"
-          placeholder="Digite sua API Key"
-        >
-
-      </div>
-
-
-      <div class="field">
-
-        <label>
-          API Secret
-        </label>
-
-        <input
-          id="apiSecret"
-          type="password"
-          autocomplete="off"
-          placeholder="Digite seu API Secret"
-        >
-
-      </div>
+      <div id="apiSlots"></div>
 
 
       <div class="security">
 
-        🔐 A API Key e o API Secret são enviados
-        somente ao servidor autenticado.
-        Antes de salvar, o sistema testa a conexão
-        com a Binance.
+        🔐 As API Keys são enviadas somente ao
+        servidor autenticado. O sistema testa a
+        conexão com a Binance antes de cadastrar.
+
+        <br><br>
+
+        ⚠️ Por segurança, recomendamos criar as
+        APIs da Binance sem permissão de saque.
 
       </div>
 
@@ -1285,33 +2350,32 @@ button{
     </div>
 
 
+
     <div class="modal-footer">
+
 
       <button
         class="btn"
         onclick="closeApiModal()"
       >
-        Cancelar
+
+        Fechar
+
       </button>
 
-      <button
-        class="btn btn-primary"
-        id="saveApiBtn"
-        onclick="saveApi()"
-      >
-        Testar e salvar
-      </button>
 
     </div>
 
 
   </div>
 
+
 </div>
 
 
+
 <!-- =====================================================
-     MODAL ROBÔ
+     MODAL — ROBÔ
 ===================================================== -->
 
 <div
@@ -1319,23 +2383,45 @@ button{
   id="robotModal"
 >
 
+
   <div class="modal">
 
 
     <div class="modal-header">
 
-      <div class="modal-title">
-        Configurar Robô Premium
+
+      <div>
+
+
+        <div class="modal-title">
+
+          Configurar Robô Premium
+
+        </div>
+
+
+        <div class="modal-subtitle">
+
+          Estratégia individual da sua conta
+
+        </div>
+
+
       </div>
+
 
       <button
         class="close"
         onclick="closeRobot()"
       >
+
         ×
+
       </button>
 
+
     </div>
+
 
 
     <div class="modal-body">
@@ -1349,17 +2435,25 @@ button{
 
       <div class="robot-highlight">
 
+
         <strong>
+
           CONFIGURAÇÃO PREMIUM
+
         </strong>
 
+
         <span>
+
           Você pode definir a estratégia do robô
           respeitando o limite de até 3 operações
           simultâneas do seu plano.
+
         </span>
 
+
       </div>
+
 
 
       <div class="grid2">
@@ -1367,9 +2461,13 @@ button{
 
         <div class="field">
 
+
           <label>
+
             % de entrada
+
           </label>
+
 
           <input
             id="entryPercent"
@@ -1377,20 +2475,30 @@ button{
             min="1"
             max="100"
             step="0.1"
+            value="90"
           >
 
+
           <div class="field-help">
+
             Percentual do saldo destinado à entrada.
+
           </div>
+
 
         </div>
 
 
+
         <div class="field">
 
+
           <label>
+
             Take Profit (%)
+
           </label>
+
 
           <input
             id="takeProfit"
@@ -1398,11 +2506,16 @@ button{
             min="0.1"
             max="100"
             step="0.1"
+            value="3.5"
           >
 
+
           <div class="field-help">
+
             Percentual desejado para saída com lucro.
+
           </div>
+
 
         </div>
 
@@ -1410,14 +2523,19 @@ button{
       </div>
 
 
+
       <div class="grid2">
 
 
         <div class="field">
 
+
           <label>
+
             Stop Loss (%)
+
           </label>
+
 
           <input
             id="stopLoss"
@@ -1425,45 +2543,67 @@ button{
             min="0.1"
             max="100"
             step="0.1"
+            value="2.5"
           >
 
+
           <div class="field-help">
+
             Limite percentual de perda.
+
           </div>
+
 
         </div>
 
 
+
         <div class="field">
 
+
           <label>
+
             Operações simultâneas
+
           </label>
 
+
           <select id="maxOperations">
+
 
             <option value="1">
               1 operação
             </option>
 
+
             <option value="2">
               2 operações
             </option>
 
-            <option value="3">
+
+            <option
+              value="3"
+              selected
+            >
               3 operações
             </option>
 
+
           </select>
 
+
           <div class="field-help">
+
             Máximo permitido pelo Premium: 3.
+
           </div>
+
 
         </div>
 
 
       </div>
+
 
 
       <div class="grid2">
@@ -1471,49 +2611,70 @@ button{
 
         <div class="field">
 
+
           <label>
+
             Intervalo de análise
+
           </label>
 
+
           <select id="interval">
+
 
             <option value="1m">
               1 minuto
             </option>
 
-            <option value="5m" selected>
+
+            <option
+              value="5m"
+              selected
+            >
               5 minutos
             </option>
+
 
             <option value="15m">
               15 minutos
             </option>
 
+
             <option value="30m">
               30 minutos
             </option>
+
 
             <option value="1h">
               1 hora
             </option>
 
+
           </select>
+
 
         </div>
 
 
+
         <div class="field">
 
+
           <label>
+
             Máximo de moedas analisadas
+
           </label>
+
 
           <input
             id="maxCoins"
             type="number"
             min="1"
             max="100"
+            value="40"
           >
+
 
         </div>
 
@@ -1521,13 +2682,14 @@ button{
       </div>
 
 
+
       <div class="security">
 
-        ⚠️ Nesta primeira etapa, estas configurações
-        ficam salvas no navegador deste usuário.
-        O motor do robô ainda precisa ser ligado
-        a essas configurações no backend antes de
-        operar automaticamente com dinheiro real.
+        ⚠️ A configuração desta tela é salva
+        localmente nesta primeira etapa.
+        O motor do robô deverá ser ligado ao
+        backend antes de executar operações
+        automaticamente.
 
       </div>
 
@@ -1535,34 +2697,44 @@ button{
     </div>
 
 
+
     <div class="modal-footer">
+
 
       <button
         class="btn"
         onclick="closeRobot()"
       >
+
         Cancelar
+
       </button>
+
 
       <button
         class="btn btn-primary"
         onclick="saveRobot()"
       >
+
         Salvar configuração
+
       </button>
+
 
     </div>
 
 
   </div>
 
+
 </div>
+
 
 
 <script>
 
 /* =====================================================
-   AUTENTICAÇÃO
+   TOKEN
 ===================================================== */
 
 const token =
@@ -1578,33 +2750,36 @@ if(!token){
 
 
 /* =====================================================
-   CONFIGURAÇÃO PADRÃO
+   CONFIGURAÇÃO PADRÃO DO ROBÔ
 ===================================================== */
 
 const defaultRobotConfig = {
 
-  entryPercent: 90,
+  entryPercent:90,
 
-  takeProfit: 3.5,
+  takeProfit:3.5,
 
-  stopLoss: 2.5,
+  stopLoss:2.5,
 
-  maxOperations: 3,
+  maxOperations:3,
 
-  interval: "5m",
+  interval:"5m",
 
-  maxCoins: 40
+  maxCoins:40
 
 };
 
 
 /* =====================================================
-   REQUISIÇÃO AUTENTICADA
+   API AUTENTICADA
 ===================================================== */
 
-async function apiFetch(url, options = {}){
+async function apiFetch(
+  url,
+  options={}
+){
 
-  const headers = {
+  const headers={
 
     ...(options.headers || {}),
 
@@ -1616,6 +2791,7 @@ async function apiFetch(url, options = {}){
 
   };
 
+
   const response =
     await fetch(
       url,
@@ -1626,7 +2802,9 @@ async function apiFetch(url, options = {}){
     );
 
 
-  if(response.status === 401){
+  if(
+    response.status === 401
+  ){
 
     logout();
 
@@ -1637,16 +2815,17 @@ async function apiFetch(url, options = {}){
   }
 
 
-  let data = null;
+  let data={};
+
 
   try{
 
     data =
       await response.json();
 
-  }catch(e){
+  }catch(error){
 
-    data = {};
+    data={};
 
   }
 
@@ -1654,8 +2833,10 @@ async function apiFetch(url, options = {}){
   if(!response.ok){
 
     throw new Error(
+
       data.message ||
       "Erro ao processar solicitação."
+
     );
 
   }
@@ -1700,7 +2881,10 @@ async function loadUser(){
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "ERRO USUÁRIO:",
+      error
+    );
 
   }
 
@@ -1708,7 +2892,7 @@ async function loadUser(){
 
 
 /* =====================================================
-   VERIFICAR ASSINATURA
+   ASSINATURA
 ===================================================== */
 
 async function loadSubscription(){
@@ -1723,7 +2907,9 @@ async function loadSubscription(){
 
     if(
       !data.active ||
-      String(data.plan).toLowerCase()
+      String(
+        data.plan || ""
+      ).toLowerCase()
       !== "premium"
     ){
 
@@ -1731,20 +2917,27 @@ async function loadSubscription(){
         "Seu plano não possui acesso a este painel Premium."
       );
 
+
       window.location.href =
         "/planos.html";
+
 
       return false;
 
     }
 
 
+    /* ==========================================
+       LIMITES
+    ========================================== */
+
     const operations =
       Number(
         data.operacoesSimultaneas || 3
       );
 
-    const accounts =
+
+    const accountsLimit =
       Number(
         data.contasBinance || 3
       );
@@ -1763,9 +2956,59 @@ async function loadSubscription(){
 
 
     document.getElementById(
+      "accountCount"
+    ).textContent =
+      "0/" + accountsLimit;
+
+
+    document.getElementById(
       "limitAccounts"
     ).textContent =
-      "0/" + accounts;
+      "0/" + accountsLimit;
+
+
+    /* ==========================================
+       VALIDADE
+    ========================================== */
+
+    const validity =
+      document.getElementById(
+        "planValidity"
+      );
+
+
+    if(
+      validity &&
+      data.expires_at
+    ){
+
+      const expiration =
+        new Date(
+          data.expires_at
+        );
+
+
+      const formatted =
+        expiration.toLocaleDateString(
+          "pt-BR",
+          {
+            day:"2-digit",
+            month:"2-digit",
+            year:"numeric"
+          }
+        );
+
+
+      validity.textContent =
+        "Válido até " +
+        formatted;
+
+    }else{
+
+      validity.textContent =
+        "Validade não informada";
+
+    }
 
 
     return true;
@@ -1773,7 +3016,16 @@ async function loadSubscription(){
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "ERRO ASSINATURA:",
+      error
+    );
+
+
+    /*
+      Não redirecionamos automaticamente
+      em caso de erro de comunicação.
+    */
 
     return true;
 
@@ -1786,7 +3038,7 @@ async function loadSubscription(){
    CONTAS BINANCE
 ===================================================== */
 
-let accounts = [];
+let accounts=[];
 
 
 async function loadAccounts(){
@@ -1818,10 +3070,21 @@ async function loadAccounts(){
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "ERRO CONTAS:",
+      error
+    );
 
-    container.innerHTML =
-      '<div class="loading">Não foi possível carregar suas contas.</div>';
+
+    container.innerHTML = `
+
+      <div class="loading">
+
+        Não foi possível carregar suas contas Binance.
+
+      </div>
+
+    `;
 
   }
 
@@ -1840,23 +3103,19 @@ function renderAccounts(){
     );
 
 
-  container.innerHTML = "";
-
-
-  const count =
-    accounts.length;
+  container.innerHTML="";
 
 
   document.getElementById(
     "accountCount"
   ).textContent =
-    count + "/3";
+    accounts.length + "/3";
 
 
   document.getElementById(
     "limitAccounts"
   ).textContent =
-    count + "/3";
+    accounts.length + "/3";
 
 
   if(!accounts.length){
@@ -1870,8 +3129,8 @@ function renderAccounts(){
         </strong>
 
         <span>
-          Clique em "Adicionar API Binance"
-          para começar.
+          Clique em "APIs Binance"
+          para adicionar sua primeira conta.
         </span>
 
       </div>
@@ -1884,8 +3143,7 @@ function renderAccounts(){
 
 
   accounts.forEach(
-
-    account => {
+    function(account){
 
       const card =
         document.createElement(
@@ -1902,31 +3160,49 @@ function renderAccounts(){
         <div class="account-top">
 
           <div class="account-name">
+
             ${escapeHtml(account.name)}
+
           </div>
 
+
           <div class="account-status">
-            ${account.active ? "ATIVA" : "INATIVA"}
+
+            ${
+              account.active
+                ? "ATIVA"
+                : "INATIVA"
+            }
+
           </div>
 
         </div>
+
 
         <div
           class="account-value"
           id="value-${account.id}"
         >
+
           Carregando...
+
         </div>
 
+
         <div class="account-info">
+
           Conta Binance individual
+
         </div>
+
 
         <button
           class="account-btn"
           onclick="openAccount(${account.id})"
         >
+
           Abrir painel da conta →
+
         </button>
 
       `;
@@ -1942,14 +3218,13 @@ function renderAccounts(){
       );
 
     }
-
   );
 
 }
 
 
 /* =====================================================
-   DADOS DE CADA CONTA
+   DADOS DA CONTA
 ===================================================== */
 
 async function loadAccountData(id){
@@ -1958,7 +3233,8 @@ async function loadAccountData(id){
 
     const data =
       await apiFetch(
-        "/api/panel/account/" + id
+        "/api/panel/account/" +
+        id
       );
 
 
@@ -1978,15 +3254,20 @@ async function loadAccountData(id){
 
       element.textContent =
         "US$ " +
-        formatNumber(value);
+        formatNumber(
+          value
+        );
 
     }
 
 
-    updateTotal();
-
-
   }catch(error){
+
+    console.error(
+      "ERRO CONTA:",
+      error
+    );
+
 
     const element =
       document.getElementById(
@@ -2003,16 +3284,19 @@ async function loadAccountData(id){
 
   }
 
+
+  updateTotal();
+
 }
 
 
 /* =====================================================
-   TOTAL
+   TOTAL PATRIMÔNIO
 ===================================================== */
 
 async function updateTotal(){
 
-  let total = 0;
+  let total=0;
 
 
   for(
@@ -2034,7 +3318,14 @@ async function updateTotal(){
           data.summary?.patrimonioUSDT || 0
         );
 
-    }catch(e){}
+
+    }catch(error){
+
+      console.error(
+        error
+      );
+
+    }
 
   }
 
@@ -2054,14 +3345,6 @@ async function updateTotal(){
 
 function openAccount(id){
 
-  /*
-    A rota abaixo será o ponto de entrada
-    para o painel individual da conta.
-
-    Por enquanto abrimos o painel principal
-    e armazenamos a conta selecionada.
-  */
-
   localStorage.setItem(
     "selected_binance_account",
     String(id)
@@ -2076,47 +3359,26 @@ function openAccount(id){
 
 
 /* =====================================================
-   MODAL API
+   API MODAL
 ===================================================== */
 
 function openApiModal(){
 
-  if(accounts.length >= 3){
+  renderApiSlots();
 
-    alert(
-      "Seu plano Premium permite até 3 contas Binance."
+
+  const message =
+    document.getElementById(
+      "apiMessage"
     );
 
-    return;
 
-  }
-
-
-  document.getElementById(
-    "apiMessage"
-  ).className =
+  message.className =
     "message";
 
 
-  document.getElementById(
-    "apiMessage"
-  ).textContent =
+  message.textContent =
     "";
-
-
-  document.getElementById(
-    "apiName"
-  ).value = "";
-
-
-  document.getElementById(
-    "apiKey"
-  ).value = "";
-
-
-  document.getElementById(
-    "apiSecret"
-  ).value = "";
 
 
   document.getElementById(
@@ -2140,26 +3402,341 @@ function closeApiModal(){
 
 
 /* =====================================================
+   RENDERIZAR 3 APIS
+===================================================== */
+
+function renderApiSlots(){
+
+  const container =
+    document.getElementById(
+      "apiSlots"
+    );
+
+
+  container.innerHTML="";
+
+
+  for(
+    let i=0;
+    i<3;
+    i++
+  ){
+
+    const account =
+      accounts[i];
+
+
+    const slot =
+      document.createElement(
+        "div"
+      );
+
+
+    /* ==============================================
+       API JÁ CADASTRADA
+    ============================================== */
+
+    if(account){
+
+      slot.className =
+        "api-slot active";
+
+
+      slot.innerHTML = `
+
+        <div class="api-slot-header">
+
+
+          <div>
+
+            <div class="api-slot-title">
+
+              API BINANCE ${i+1}
+
+            </div>
+
+
+            <div class="api-slot-number">
+
+              CONTA ${i+1} DE 3
+
+            </div>
+
+          </div>
+
+
+          <div class="api-slot-status connected">
+
+            ✓ CONECTADA
+
+          </div>
+
+
+        </div>
+
+
+        <div class="api-account-name">
+
+          ${escapeHtml(account.name)}
+
+        </div>
+
+
+        <div class="api-account-info">
+
+          Conta Binance vinculada ao seu usuário.
+
+        </div>
+
+
+        <button
+          class="account-btn"
+          onclick="openAccount(${account.id})"
+        >
+
+          Abrir conta →
+
+        </button>
+
+      `;
+
+    }
+
+
+    /* ==============================================
+       API DISPONÍVEL
+    ============================================== */
+
+    else{
+
+      slot.className =
+        "api-slot empty";
+
+
+      slot.innerHTML = `
+
+        <div class="api-slot-header">
+
+
+          <div>
+
+            <div class="api-slot-title">
+
+              API BINANCE ${i+1}
+
+            </div>
+
+
+            <div class="api-slot-number">
+
+              CONTA ${i+1} DE 3
+
+            </div>
+
+          </div>
+
+
+          <div class="api-slot-status available">
+
+            DISPONÍVEL
+
+          </div>
+
+
+        </div>
+
+
+        <div class="api-account-name">
+
+          Nenhuma conta cadastrada
+
+        </div>
+
+
+        <div class="api-account-info">
+
+          Adicione uma conta Binance neste espaço.
+
+        </div>
+
+
+        <button
+          class="api-add-btn"
+          onclick="showApiForm(${i})"
+        >
+
+          + Cadastrar API ${i+1}
+
+        </button>
+
+
+        <div
+          class="api-form"
+          id="api-form-${i}"
+          style="display:none;"
+        >
+
+
+          <div class="field">
+
+            <label>
+              Nome da conta
+            </label>
+
+
+            <input
+              id="api-name-${i}"
+              type="text"
+              placeholder="Ex.: Binance Principal"
+            >
+
+          </div>
+
+
+
+          <div class="field">
+
+            <label>
+              API Key
+            </label>
+
+
+            <input
+              id="api-key-${i}"
+              type="password"
+              autocomplete="off"
+              placeholder="Digite sua API Key"
+            >
+
+          </div>
+
+
+
+          <div class="field">
+
+            <label>
+              API Secret
+            </label>
+
+
+            <input
+              id="api-secret-${i}"
+              type="password"
+              autocomplete="off"
+              placeholder="Digite seu API Secret"
+            >
+
+          </div>
+
+
+
+          <button
+            class="btn btn-primary"
+            style="width:100%;"
+            onclick="saveApiSlot(${i})"
+          >
+
+            Testar e cadastrar API ${i+1}
+
+          </button>
+
+
+        </div>
+
+      `;
+
+    }
+
+
+    container.appendChild(
+      slot
+    );
+
+  }
+
+}
+
+
+/* =====================================================
+   MOSTRAR FORMULÁRIO API
+===================================================== */
+
+function showApiForm(index){
+
+  const form =
+    document.getElementById(
+      "api-form-" + index
+    );
+
+
+  if(!form){
+
+    return;
+
+  }
+
+
+  form.style.display =
+    "block";
+
+
+  const button =
+    form.parentElement
+      .querySelector(
+        ".api-add-btn"
+      );
+
+
+  if(button){
+
+    button.style.display =
+      "none";
+
+  }
+
+}
+
+
+/* =====================================================
    SALVAR API
 ===================================================== */
 
-async function saveApi(){
+async function saveApiSlot(index){
+
+  if(accounts.length >= 3){
+
+    showMessage(
+
+      document.getElementById(
+        "apiMessage"
+      ),
+
+      "Seu plano Premium já possui as 3 contas Binance cadastradas.",
+
+      "error"
+
+    );
+
+    return;
+
+  }
+
 
   const name =
     document.getElementById(
-      "apiName"
+      "api-name-" + index
     ).value.trim();
 
 
   const apiKey =
     document.getElementById(
-      "apiKey"
+      "api-key-" + index
     ).value.trim();
 
 
   const apiSecret =
     document.getElementById(
-      "apiSecret"
+      "api-secret-" + index
     ).value.trim();
 
 
@@ -2169,18 +3746,20 @@ async function saveApi(){
     );
 
 
-  const button =
-    document.getElementById(
-      "saveApiBtn"
-    );
-
-
-  if(!name || !apiKey || !apiSecret){
+  if(
+    !name ||
+    !apiKey ||
+    !apiSecret
+  ){
 
     showMessage(
+
       message,
+
       "Preencha o nome, API Key e API Secret.",
+
       "error"
+
     );
 
     return;
@@ -2188,7 +3767,13 @@ async function saveApi(){
   }
 
 
-  button.disabled = true;
+  const button =
+    document.querySelector(
+      `#api-form-${index} .btn-primary`
+    );
+
+
+  button.disabled=true;
 
   button.textContent =
     "Testando Binance...";
@@ -2197,24 +3782,30 @@ async function saveApi(){
   try{
 
 
-    /* ============================================
+    /* ==========================================
        TESTAR CREDENCIAIS
-    ============================================ */
+    ========================================== */
 
     const test =
       await apiFetch(
+
         "/api/binance/test-credentials",
+
         {
+
           method:"POST",
 
-          body:JSON.stringify({
+          body:
+            JSON.stringify({
 
-            apiKey,
-            apiSecret
+              apiKey,
 
-          })
+              apiSecret
+
+            })
 
         }
+
       );
 
 
@@ -2224,8 +3815,10 @@ async function saveApi(){
     ){
 
       throw new Error(
+
         test.message ||
-        "A API não foi validada."
+        "Não foi possível validar a API."
+
       );
 
     }
@@ -2237,7 +3830,9 @@ async function saveApi(){
     ){
 
       throw new Error(
+
         "A API foi autenticada, mas não possui permissão de negociação."
+
       );
 
     }
@@ -2247,82 +3842,101 @@ async function saveApi(){
       "Salvando...";
 
 
-    /* ============================================
-       SALVAR NO BANCO
-    ============================================ */
+    /* ==========================================
+       SALVAR
+    ========================================== */
 
     const saved =
       await apiFetch(
+
         "/api/binance/accounts",
+
         {
+
           method:"POST",
 
-          body:JSON.stringify({
+          body:
+            JSON.stringify({
 
-            name,
-            apiKey,
-            apiSecret
+              name,
 
-          })
+              apiKey,
+
+              apiSecret
+
+            })
 
         }
+
       );
 
 
     if(!saved.success){
 
       throw new Error(
+
         saved.message ||
-        "Não foi possível salvar a conta."
+        "Não foi possível cadastrar a API."
+
       );
 
     }
 
 
     showMessage(
+
       message,
-      "Conta Binance adicionada com sucesso!",
+
+      `API Binance ${index+1} cadastrada com sucesso!`,
+
       "success"
+
     );
-
-
-    document.getElementById(
-      "apiKey"
-    ).value = "";
-
-
-    document.getElementById(
-      "apiSecret"
-    ).value = "";
 
 
     await loadAccounts();
 
 
     setTimeout(
-      closeApiModal,
-      1000
+
+      function(){
+
+        renderApiSlots();
+
+      },
+
+      700
+
     );
 
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "ERRO API:",
+      error
+    );
 
 
     showMessage(
+
       message,
+
       error.message ||
-      "Erro ao adicionar conta Binance.",
+      "Erro ao cadastrar API Binance.",
+
       "error"
+
     );
+
 
   }finally{
 
-    button.disabled = false;
+    button.disabled=false;
 
     button.textContent =
-      "Testar e salvar";
+      "Testar e cadastrar API " +
+      (index+1);
 
   }
 
@@ -2330,7 +3944,7 @@ async function saveApi(){
 
 
 /* =====================================================
-   ROBÔ
+   CONFIGURAÇÃO ROBÔ
 ===================================================== */
 
 function getRobotConfig(){
@@ -2357,17 +3971,26 @@ function getRobotConfig(){
 
   }catch(error){
 
-    console.error(error);
+    console.error(
+      "ERRO CONFIG:",
+      error
+    );
 
   }
 
 
   return {
+
     ...defaultRobotConfig
+
   };
 
 }
 
+
+/* =====================================================
+   ABRIR ROBÔ
+===================================================== */
 
 function openRobot(){
 
@@ -2397,8 +4020,13 @@ function openRobot(){
     "maxOperations"
   ).value =
     Math.min(
-      Number(config.maxOperations) || 3,
+
+      Number(
+        config.maxOperations
+      ) || 3,
+
       3
+
     );
 
 
@@ -2421,6 +4049,12 @@ function openRobot(){
 
 
   document.getElementById(
+    "robotMessage"
+  ).textContent =
+    "";
+
+
+  document.getElementById(
     "robotModal"
   ).classList.add(
     "open"
@@ -2428,6 +4062,10 @@ function openRobot(){
 
 }
 
+
+/* =====================================================
+   FECHAR ROBÔ
+===================================================== */
 
 function closeRobot(){
 
@@ -2441,7 +4079,7 @@ function closeRobot(){
 
 
 /* =====================================================
-   SALVAR CONFIGURAÇÃO DO ROBÔ
+   SALVAR ROBÔ
 ===================================================== */
 
 function saveRobot(){
@@ -2499,15 +4137,21 @@ function saveRobot(){
 
 
   if(
-    !Number.isFinite(entryPercent) ||
+    !Number.isFinite(
+      entryPercent
+    ) ||
     entryPercent <= 0 ||
     entryPercent > 100
   ){
 
     showMessage(
+
       message,
-      "Informe uma porcentagem de entrada entre 0 e 100.",
+
+      "A entrada deve estar entre 0 e 100%.",
+
       "error"
+
     );
 
     return;
@@ -2516,14 +4160,20 @@ function saveRobot(){
 
 
   if(
-    !Number.isFinite(takeProfit) ||
+    !Number.isFinite(
+      takeProfit
+    ) ||
     takeProfit <= 0
   ){
 
     showMessage(
+
       message,
+
       "Informe um Take Profit válido.",
+
       "error"
+
     );
 
     return;
@@ -2532,14 +4182,20 @@ function saveRobot(){
 
 
   if(
-    !Number.isFinite(stopLoss) ||
+    !Number.isFinite(
+      stopLoss
+    ) ||
     stopLoss <= 0
   ){
 
     showMessage(
+
       message,
+
       "Informe um Stop Loss válido.",
+
       "error"
+
     );
 
     return;
@@ -2553,9 +4209,13 @@ function saveRobot(){
   ){
 
     showMessage(
+
       message,
-      "O Premium permite de 1 até 3 operações simultâneas.",
+
+      "O Premium permite até 3 operações simultâneas.",
+
       "error"
+
     );
 
     return;
@@ -2564,15 +4224,21 @@ function saveRobot(){
 
 
   if(
-    !Number.isFinite(maxCoins) ||
+    !Number.isFinite(
+      maxCoins
+    ) ||
     maxCoins < 1 ||
     maxCoins > 100
   ){
 
     showMessage(
+
       message,
+
       "O número de moedas deve estar entre 1 e 100.",
+
       "error"
+
     );
 
     return;
@@ -2580,7 +4246,7 @@ function saveRobot(){
   }
 
 
-  const config = {
+  const config={
 
     entryPercent,
 
@@ -2598,27 +4264,44 @@ function saveRobot(){
 
 
   localStorage.setItem(
+
     "criptopro_robot_config",
-    JSON.stringify(config)
+
+    JSON.stringify(
+      config
+    )
+
   );
 
 
   document.getElementById(
     "operationCount"
   ).textContent =
-    "0/" + maxOperations;
+    "0/" +
+    maxOperations;
 
 
   showMessage(
+
     message,
+
     "Configuração do robô salva neste navegador.",
+
     "success"
+
   );
 
 
   setTimeout(
-    closeRobot,
+
+    function(){
+
+      closeRobot();
+
+    },
+
     900
+
   );
 
 }
@@ -2637,6 +4320,7 @@ function showMessage(
   element.textContent =
     text;
 
+
   element.className =
     "message show " +
     type;
@@ -2645,32 +4329,68 @@ function showMessage(
 
 
 /* =====================================================
-   UTILITÁRIOS
+   FORMATAÇÃO
 ===================================================== */
 
-function formatNumber(value){
+function formatNumber(
+  value
+){
 
   return Number(
     value || 0
   ).toLocaleString(
+
     "en-US",
+
     {
+
       minimumFractionDigits:2,
+
       maximumFractionDigits:2
+
     }
+
   );
 
 }
 
 
-function escapeHtml(value){
+/* =====================================================
+   SEGURANÇA HTML
+===================================================== */
 
-  return String(value || "")
-    .replace(/&/g,"&amp;")
-    .replace(/</g,"&lt;")
-    .replace(/>/g,"&gt;")
-    .replace(/"/g,"&quot;")
-    .replace(/'/g,"&#039;");
+function escapeHtml(
+  value
+){
+
+  return String(
+    value || ""
+  )
+
+  .replace(
+    /&/g,
+    "&amp;"
+  )
+
+  .replace(
+    /</g,
+    "&lt;"
+  )
+
+  .replace(
+    />/g,
+    "&gt;"
+  )
+
+  .replace(
+    /"/g,
+    "&quot;"
+  )
+
+  .replace(
+    /'/g,
+    "&#039;"
+  );
 
 }
 
@@ -2693,13 +4413,16 @@ function logout(){
     "token"
   );
 
+
   localStorage.removeItem(
     "user"
   );
 
+
   localStorage.removeItem(
     "selected_binance_account"
   );
+
 
   window.location.href =
     "/login.html";
@@ -2719,18 +4442,18 @@ function changeLanguage(){
     ).value;
 
 
-  /*
-    Estrutura preparada para o
-    sistema PT/EN existente.
-  */
-
   localStorage.setItem(
+
     "criptopro_language",
+
     language
+
   );
 
 
-  if(language === "en"){
+  if(
+    language === "en"
+  ){
 
     document.getElementById(
       "welcomeText"
@@ -2754,7 +4477,9 @@ function changeLanguage(){
 ===================================================== */
 
 document.addEventListener(
+
   "click",
+
   function(event){
 
     if(
@@ -2781,6 +4506,7 @@ document.addEventListener(
     }
 
   }
+
 );
 
 
@@ -2791,6 +4517,7 @@ document.addEventListener(
 async function init(){
 
   await loadUser();
+
 
   const active =
     await loadSubscription();

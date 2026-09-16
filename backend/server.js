@@ -54,6 +54,13 @@ app.use("/api/subscription", subscriptionRoutes);
 // =========================================================
 app.use("/api/panel/report", reportRoutes);
 app.use("/api/news", newsRoutes);
+
+app.use(
+  "/api/robot/start",
+  authMiddleware,
+  robotRiskRoutes.riskMiddleware
+);
+
 app.use("/api/robot", robotRoutes);
 
 /*

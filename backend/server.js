@@ -2446,6 +2446,125 @@ section.section.compactOpen{
 
 <body>
 
+<!-- =========================================================
+     CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
+========================================================= -->
+
+<div id="robotRiskModal" class="robotRiskOverlay" style="display:none;">
+
+  <div class="robotRiskModal">
+
+    <div class="robotRiskHeader">
+      <div>
+        <div class="robotRiskTitle">
+          ⚠️ Termo de Responsabilidade e Ciência de Riscos
+        </div>
+
+        <div class="robotRiskSubtitle">
+          Leia atentamente antes de iniciar o robô.
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="robotRiskClose"
+        onclick="fecharTermoRisco()"
+      >
+        ✕
+      </button>
+    </div>
+
+
+    <div class="robotRiskBody">
+
+      <p>
+        Declaro que li e compreendi as informações apresentadas
+        sobre o funcionamento da automação de operações em
+        criptoativos.
+      </p>
+
+      <p>
+        Estou ciente de que operações com criptoativos envolvem
+        riscos de mercado, incluindo volatilidade, perdas
+        financeiras, execução de ordens em condições diferentes
+        das esperadas, slippage, falhas de conexão,
+        indisponibilidade de serviços e outros eventos que podem
+        afetar o resultado das operações.
+      </p>
+
+      <p>
+        Estou ciente de que os parâmetros configurados por mim
+        serão utilizados pelo robô conforme as regras da estratégia
+        selecionada.
+      </p>
+
+      <p>
+        Declaro que sou responsável pelas configurações realizadas
+        na minha conta e compreendo que resultados passados,
+        estratégias ou parâmetros configurados não garantem
+        resultados futuros.
+      </p>
+
+      <p>
+        Confirmo que possuo conhecimento suficiente para utilizar
+        uma ferramenta de automação de operações e que estou
+        assumindo os riscos decorrentes da utilização da ferramenta.
+      </p>
+
+
+      <div class="robotRiskWarning">
+        <strong>⚠️ ATENÇÃO</strong>
+
+        <span>
+          O robô pode enviar ordens reais para a conta Binance
+          vinculada. O uso da ferramenta pode resultar em perdas
+          financeiras.
+        </span>
+      </div>
+
+
+      <label class="robotRiskCheck">
+
+        <input
+          type="checkbox"
+          id="robotRiskAccepted"
+        >
+
+        <span>
+          Li, compreendi e aceito o Termo de Responsabilidade
+          e Ciência de Riscos.
+        </span>
+
+      </label>
+
+    </div>
+
+
+    <div class="robotRiskFooter">
+
+      <button
+        type="button"
+        class="robotRiskCancel"
+        onclick="fecharTermoRisco()"
+      >
+        Cancelar
+      </button>
+
+      <button
+        type="button"
+        id="robotRiskAcceptBtn"
+        class="robotRiskAccept"
+        onclick="aceitarTermoRisco()"
+      >
+        ✓ Aceitar e Continuar
+      </button>
+
+    </div>
+
+  </div>
+
+</div>
+
 <header class="header">
   <div class="brand">
     <div class="logo">🤖</div>

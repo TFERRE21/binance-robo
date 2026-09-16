@@ -5441,6 +5441,110 @@ setInterval(
 
 </script>
 
+/* =========================================================
+   CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
+========================================================= */
+
+let robotRiskConfigId = null;
+
+function abrirTermoRisco(configId){
+  robotRiskConfigId = configId || null;
+
+  const modal = document.getElementById("robotRiskModal");
+  const checkbox = document.getElementById("robotRiskAccepted");
+
+  if(!modal) return;
+
+  if(checkbox){
+    checkbox.checked = false;
+  }
+
+  modal.style.display = "flex";
+}
+
+function fecharTermoRisco(){
+  const modal = document.getElementById("robotRiskModal");
+
+  if(modal){
+    modal.style.display = "none";
+  }
+}
+
+async function aceitarTermoRisco(){
+
+  const checkbox = document.getElementById("robotRiskAccepted");
+
+  if(!checkbox || !checkbox.checked){
+    alert(
+      "Para continuar, você precisa marcar a opção confirmando que leu, compreendeu e aceita o Termo de Responsabilidade e Ciência de Riscos."
+    );
+    return;
+  }
+
+  const token = localStorage.getItem("token");
+
+  if(!token){
+    alert("Sua sessão expirou. Faça login novamente.");
+    window.location.href = "/login.html";
+    return;
+  }
+
+  const button = document.getElementById("robotRiskAcceptBtn");
+
+  try{
+
+    if(button){
+      button.disabled = true;
+      button.textContent = "Salvando...";
+    }
+
+    const response = await fetch("/api/robot/risk/accept", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token
+      },
+      body: JSON.stringify({
+        configId: robotRiskConfigId
+      })
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if(!response.ok){
+
+      throw new Error(
+        data.error ||
+        data.message ||
+        `Erro HTTP ${response.status}`
+      );
+    }
+
+    fecharTermoRisco();
+
+    alert(
+      "Termo aceito com sucesso. Agora você pode iniciar o robô."
+    );
+
+  }catch(error){
+
+    console.error("Erro ao aceitar termo:", error);
+
+    alert(
+      "Não foi possível registrar o termo.\n\n" +
+      error.message
+    );
+
+  }finally{
+
+    if(button){
+      button.disabled = false;
+      button.textContent = "Li, compreendi e aceito";
+    }
+
+  }
+}
+
 </body>
 </html>
   `);

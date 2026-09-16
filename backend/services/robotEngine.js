@@ -203,6 +203,24 @@ async function start(userId,accountId){
   const c=await getConfig(userId,accountId);
   if(!c)throw new Error('Configure o robô antes de iniciar');
 
+  const key=`${userId}:${accountId}`;
+
+  // Se um runner anterior ainda estiver encerrando após o STOP,
+  // aguarda ele sair do mapa antes de criar o novo runner.
+  const oldRunner=runners.get(key);
+  if(oldRunner){
+    oldRunner.stop=true;
+
+    const deadline=Date.now()+20000;
+    while(runners.has(key) && Date.now()<deadline){
+      await sleep(250);
+    }
+
+    if(runners.has(key)){
+      throw new Error('O robô anterior ainda está encerrando. Aguarde alguns segundos e tente novamente.');
+    }
+  }
+
   await db.query(
     `UPDATE robot_configs
      SET running=true,updated_at=NOW()
@@ -210,23 +228,49 @@ async function start(userId,accountId){
     [userId,accountId]
   );
 
-  // Inicia o runner específico desta conta.
   loop(userId,String(accountId));
 
-  // Garante que o runner foi registrado antes de responder ao frontend.
-  await sleep(100);
+  // Confirma que o novo runner foi criado.
+  await sleep(150);
 
   const status=await getStatus(userId,accountId);
 
-  if(!status.running){
-    throw new Error('O servidor não conseguiu manter o robô ativo para esta conta.');
+  if(!status.engineRunning){
+    throw new Error('A configuração foi ativada, mas o motor do robô não iniciou.');
   }
 
   return status;
 }
-async function stop(userId,accountId){ await ensureSchema(); const key=`${userId}:${accountId}`; const r=runners.get(key); if(r)r.stop=true; await db.query(`UPDATE robot_configs SET running=false,updated_at=NOW() WHERE user_id=$1 AND account_id=$2`,[userId,accountId]); return getStatus(userId,accountId); }
+
+async function stop(userId,accountId){
+  await ensureSchema();
+
+  const key=`${userId}:${accountId}`;
+  const runner=runners.get(key);
+
+  // Sinaliza parada, mas NÃO remove o runner manualmente.
+  // O próprio loop fará runners.delete(key) no finally.
+  if(runner)runner.stop=true;
+
+  await db.query(
+    `UPDATE robot_configs
+     SET running=false,updated_at=NOW()
+     WHERE user_id=$1 AND account_id=$2`,
+    [userId,accountId]
+  );
+
+  // Aguarda o runner terminar para que um novo START possa ocorrer
+  // sem corrida entre o runner antigo e o novo.
+  const deadline=Date.now()+20000;
+  while(runners.has(key) && Date.now()<deadline){
+    await sleep(250);
+  }
+
+  return getStatus(userId,accountId);
+}
+
 async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ loop(x.user_id,String(x.account_id)); } }
 
-async function getStatus(userId,accountId){ await ensureSchema(); const c=await getConfig(userId,accountId); const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason FROM robot_operations WHERE user_id=$1 AND account_id=$2 ORDER BY id DESC LIMIT 20`,[userId,accountId]); return {success:true,config:c,running:!!c?.running,engineRunning:runners.has(`${userId}:${accountId}`),operations:r.rows}; }
+async function getStatus(userId,accountId){ await ensureSchema(); const c=await getConfig(userId,accountId); const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason FROM robot_operations WHERE user_id=$1 AND account_id=$2 ORDER BY id DESC LIMIT 20`,[userId,accountId]); const engineRunning=runners.has(`${userId}:${accountId}`); return {success:true,config:c,running:!!c?.running || engineRunning,engineRunning,operations:r.rows}; }
 
 module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning};

@@ -2442,6 +2442,199 @@ section.section.compactOpen{
 }
 
 </style>
+
+/* =========================================================
+   CRIPTOPRO — TERMO DE RESPONSABILIDADE DO ROBÔ
+========================================================= */
+
+.robotRiskOverlay{
+  position:fixed;
+  inset:0;
+  z-index:9999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(0,0,0,.78);
+  backdrop-filter:blur(8px);
+}
+
+.robotRiskModal{
+  width:min(680px,100%);
+  max-height:90vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid #344765;
+  border-radius:20px;
+  background:linear-gradient(145deg,#101c30,#08111e);
+  box-shadow:0 30px 90px rgba(0,0,0,.65);
+}
+
+.robotRiskHeader{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:15px;
+  padding:22px 24px;
+  border-bottom:1px solid #1d2c44;
+  background:rgba(12,22,38,.95);
+}
+
+.robotRiskTitle{
+  color:#fff;
+  font-size:18px;
+  font-weight:950;
+  line-height:1.3;
+}
+
+.robotRiskSubtitle{
+  margin-top:5px;
+  color:#71809a;
+  font-size:10px;
+}
+
+.robotRiskClose{
+  width:34px;
+  height:34px;
+  flex:none;
+  border:1px solid #293951;
+  border-radius:9px;
+  background:#0b1524;
+  color:#9aa8bd;
+  font-size:15px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.robotRiskClose:hover{
+  color:#fff;
+  border-color:#516583;
+}
+
+.robotRiskBody{
+  overflow-y:auto;
+  padding:22px 24px;
+  color:#b7c3d5;
+  font-size:12px;
+  line-height:1.65;
+}
+
+.robotRiskBody p{
+  margin:0 0 15px;
+}
+
+.robotRiskWarning{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin:18px 0;
+  padding:15px;
+  border:1px solid #6a5215;
+  border-radius:12px;
+  background:#302508;
+  color:#d8c38b;
+  font-size:11px;
+}
+
+.robotRiskWarning strong{
+  color:#ffc85a;
+  font-size:12px;
+}
+
+.robotRiskCheck{
+  display:flex;
+  align-items:flex-start;
+  gap:11px;
+  margin-top:20px;
+  padding:15px;
+  border:1px solid #293951;
+  border-radius:12px;
+  background:#0a1422;
+  color:#e7edf7;
+  font-size:11px;
+  font-weight:800;
+  cursor:pointer;
+}
+
+.robotRiskCheck input{
+  width:18px;
+  height:18px;
+  flex:none;
+  margin:1px 0 0;
+  accent-color:#4aa8ff;
+  cursor:pointer;
+}
+
+.robotRiskFooter{
+  display:flex;
+  justify-content:flex-end;
+  gap:10px;
+  padding:17px 24px;
+  border-top:1px solid #1d2c44;
+  background:#091321;
+}
+
+.robotRiskFooter button{
+  border:1px solid #293951;
+  border-radius:10px;
+  padding:11px 17px;
+  font-size:11px;
+  font-weight:900;
+  cursor:pointer;
+}
+
+.robotRiskCancel{
+  background:#111c2d;
+  color:#9aa8bd;
+}
+
+.robotRiskCancel:hover{
+  color:#fff;
+}
+
+.robotRiskAccept{
+  background:linear-gradient(135deg,#176f55,#20a879);
+  border-color:#20a879 !important;
+  color:#fff;
+}
+
+.robotRiskAccept:hover{
+  filter:brightness(1.12);
+  transform:translateY(-1px);
+}
+
+@media(max-width:600px){
+
+  .robotRiskOverlay{
+    padding:10px;
+  }
+
+  .robotRiskModal{
+    max-height:94vh;
+    border-radius:16px;
+  }
+
+  .robotRiskHeader{
+    padding:17px;
+  }
+
+  .robotRiskBody{
+    padding:18px;
+    font-size:11px;
+  }
+
+  .robotRiskFooter{
+    padding:14px 17px;
+    flex-direction:column-reverse;
+  }
+
+  .robotRiskFooter button{
+    width:100%;
+  }
+
+}
+
 </head>
 
 <body>

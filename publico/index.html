@@ -1358,7 +1358,10 @@ async function loadRobotStatus(){
     if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
     const sb=document.getElementById('startRobotConfigBtn'),st=document.getElementById('stopRobotBtn'); if(sb)sb.disabled=running; if(st)st.disabled=!running;
     document.getElementById('operationCount').textContent=`${(d.operations||[]).filter(x=>x.status==='OPEN').length}/${c?.max_operations||3}`;
-    if(c)localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));
+    if(c){
+      localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));
+      localStorage.setItem("criptopro_robot_saved_"+String(selectedAccountId),"1");
+    }
     return d;
   }catch(e){console.warn('ROBÔ STATUS:',e);}
 }
@@ -1407,6 +1410,7 @@ async function saveRobot(){
     if(!d.success)throw new Error(d.message||d.error||"Não foi possível salvar.");
 
     localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
+    localStorage.setItem("criptopro_robot_saved_"+String(selectedAccountId),"1");
     window.robotRiskAccountId=selectedAccountId;
     robotCurrentConfigId=d.configId||d.id||d.config?.id||d.config?.config_id||null;
 
@@ -1429,19 +1433,21 @@ async function startRobot(){
     return;
   }
 
-  const status=await loadRobotStatus();
-  const c=status&&status.config?status.config:null;
+  // Depois de salvar, a configuração fica vinculada ao usuário + conta.
+  // Não dependemos de um configId retornado pelo endpoint.
+  const savedKey="criptopro_robot_saved_"+String(selectedAccountId);
+  const saved=localStorage.getItem(savedKey);
 
-  if(!c){
+  if(saved!=="1"){
     alert("Salve uma configuração do robô antes de iniciar.");
     return;
   }
 
   window.robotRiskAccountId=selectedAccountId;
-  window.robotRiskConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null;
+  window.robotRiskConfigId=null;
 
-  // O botão START apenas abre o termo. O robô só inicia depois do aceite.
-  openRiskTerm(window.robotRiskConfigId||selectedAccountId);
+  // START abre o termo. O robô só é iniciado depois do aceite.
+  openRiskTerm(selectedAccountId);
 }
 
 function openRiskTerm(configOrAccountId){

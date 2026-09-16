@@ -5,48 +5,29 @@ const authRoutes = require("./routes/auth");
 const binanceRoutes = require("./routes/binance");
 const panelRoutes = require("./routes/panel");
 const subscriptionRoutes = require("./routes/subscription");
-
-const robotRiskRoutes = require("./routes/robotRisk");
-
-const authMiddleware = require("./middleware/auth");
-
-// ============================================================
-// ROTAS PRINCIPAIS
-// ============================================================
-
-app.use("/api/auth", authRoutes);
-app.use("/api/binance", binanceRoutes);
-app.use("/api/panel", panelRoutes);
-app.use("/api/subscription", subscriptionRoutes);
-
-// ============================================================
-// TERMO DE RESPONSABILIDADE DO ROBÔ
-// ============================================================
-
-app.use("/api/robot/risk", robotRiskRoutes.router);
-
-// =========================================================
-// CRIPTOPRO V7 - NOVAS ROTAS
-// =========================================================
 const reportRoutes = require("./routes/reports");
 const newsRoutes = require("./routes/news");
 const robotRoutes = require("./routes/robot");
+const robotRiskRoutes = require("./routes/robotRisk");
 const robotEngine = require("./services/robotEngine");
 
+const authMiddleware = require("./middleware/auth");
 const Binance = require("binance-api-node").default;
 
 const app = express();
 
+// =========================================================
+// MIDDLEWARES
+// =========================================================
 app.use(express.json());
-
 app.use(express.static(path.join(__dirname, "../publico")));
 
+// =========================================================
+// ROTAS PRINCIPAIS
+// =========================================================
 app.use("/api/auth", authRoutes);
-
 app.use("/api/binance", binanceRoutes);
-
 app.use("/api/panel", panelRoutes);
-
 app.use("/api/subscription", subscriptionRoutes);
 
 // =========================================================
@@ -55,6 +36,13 @@ app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/panel/report", reportRoutes);
 app.use("/api/news", newsRoutes);
 
+// =========================================================
+// TERMO DE RESPONSABILIDADE DO ROBÔ
+// =========================================================
+app.use("/api/robot/risk", robotRiskRoutes.router);
+
+// O START passa primeiro pela autenticação e pela validação
+// do termo de responsabilidade vinculado à configuração atual.
 app.use(
   "/api/robot/start",
   authMiddleware,
@@ -76,8 +64,6 @@ robotEngine.resumeRunning().catch(err => {
 });
 
 const PORT = process.env.PORT || 3000;
-
-app.use(express.json());
 
 /*
 =========================================================

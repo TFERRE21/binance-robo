@@ -1,6 +1,6 @@
 const Binance = require("binance-api-node").default;
 
-const db = require("../database");
+const db = require("./db");
 const cryptoService = require("../services/cryptoService");
 
 // ============================================================

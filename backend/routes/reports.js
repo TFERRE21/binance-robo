@@ -5,7 +5,7 @@ const router = express.Router();
 
 const authMiddleware = require("../middleware/auth");
 const cryptoService = require("../services/cryptoService");
-const db = require("../database");
+const db = require("../services/db");
 
 // ============================================================
 // FUNÇÕES AUXILIARES

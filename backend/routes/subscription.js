@@ -1,22 +1,23 @@
 const express = require("express");
 const db = require("../services/db");
 const authMiddleware = require("../middleware/auth");
+const Stripe = require("stripe");
 
 const router = express.Router();
 
 // ============================================================
-// STRIPE — CHECKOUT DE TESTE (MANTENDO ASAAS INTACTO)
+// STRIPE — ÚNICO GATEWAY DE PAGAMENTO
 // ============================================================
 
-const Stripe = require("stripe");
+const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 
-const STRIPE_SECRET_KEY =
-  process.env.STRIPE_SECRET_KEY;
+const stripe = STRIPE_SECRET_KEY
+  ? new Stripe(STRIPE_SECRET_KEY)
+  : null;
 
-const stripe =
-  STRIPE_SECRET_KEY
-    ? new Stripe(STRIPE_SECRET_KEY)
-    : null;
+const BASE_URL =
+  process.env.BASE_URL ||
+  "https://site--painel-binance--clbfrw28wcz.code.run";
 
 const STRIPE_PRICE_BASICO =
   process.env.STRIPE_PRICE_BASICO;
@@ -26,6 +27,36 @@ const STRIPE_PRICE_PROFISSIONAL =
 
 const STRIPE_PRICE_PREMIUM =
   process.env.STRIPE_PRICE_PREMIUM;
+
+// ============================================================
+// PLANOS
+// ============================================================
+
+const PLANOS = {
+  basico: {
+    nome: "Básico",
+    valor: 49.90,
+    operacoesSimultaneas: 1,
+    contasBinance: 1,
+    robos: 1
+  },
+
+  profissional: {
+    nome: "Profissional",
+    valor: 99.90,
+    operacoesSimultaneas: 2,
+    contasBinance: 2,
+    robos: 2
+  },
+
+  premium: {
+    nome: "Premium",
+    valor: 199.90,
+    operacoesSimultaneas: 3,
+    contasBinance: 3,
+    robos: 5
+  }
+};
 
 function stripePriceId(plan) {
   const prices = {
@@ -37,114 +68,16 @@ function stripePriceId(plan) {
   return prices[plan] || null;
 }
 
-
-const ASAAS_API_URL =
-  process.env.ASAAS_API_URL || "https://api.asaas.com/v3";
-
-const ASAAS_API_KEY =
-  process.env.ASAAS_API_KEY;
-
-const ASAAS_WEBHOOK_TOKEN =
-  process.env.ASAAS_WEBHOOK_TOKEN;
-
-const BASE_URL =
-  process.env.BASE_URL ||
-  "https://site--painel-binance--clbfrw28wcz.code.run";
-
-// ============================================================
-// PLANOS
-// ============================================================
-
-const PLANOS = {
-  basico: {
-    nome: "Básico",
-    valor: 49.90,
-    operacoesSimultaneas: 1,
-    contasBinance: 1
-  },
-
-  profissional: {
-    nome: "Profissional",
-    valor: 99.90,
-    operacoesSimultaneas: 2,
-    contasBinance: 2
-  },
-
-  premium: {
-    nome: "Premium",
-    valor: 199.90,
-    operacoesSimultaneas: 3,
-    contasBinance: 3
-  }
-};
-
-// ============================================================
-// ASAAS
-// ============================================================
-
-async function asaasRequest(endpoint, options = {}) {
-  if (!ASAAS_API_KEY) {
-    throw new Error("ASAAS_API_KEY não configurada no servidor.");
-  }
-
-  const response = await fetch(
-    `${ASAAS_API_URL}${endpoint}`,
-    {
-      method: options.method || "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "access_token": ASAAS_API_KEY,
-        ...(options.headers || {})
-      },
-      body: options.body || undefined
-    }
-  );
-
-  const text = await response.text();
-
-  let data = {};
-
-  try {
-    data = text ? JSON.parse(text) : {};
-  } catch {
-    data = { raw: text };
-  }
-
-  if (!response.ok) {
-    console.error("ERRO API ASAAS:", {
-      status: response.status,
-      endpoint,
-      data
-    });
-
-    const error = new Error(
-      data?.errors?.[0]?.description ||
-      data?.message ||
-      `Erro Asaas HTTP ${response.status}`
-    );
-
-    error.status = response.status;
-    error.data = data;
-
-    throw error;
-  }
-
-  return data;
-}
-
 // ============================================================
 // UTILITÁRIOS
 // ============================================================
 
-function somenteNumeros(valor) {
-  return String(valor || "").replace(/\D/g, "");
+function getUserId(req) {
+  return req.user?.id || req.user?.userId || null;
 }
 
-function dataAsaas() {
-  const data = new Date();
-  data.setDate(data.getDate() + 1);
-  return data.toISOString().slice(0, 10);
+function somenteNumeros(valor) {
+  return String(valor || "").replace(/\D/g, "");
 }
 
 function adicionarUmMes(data) {
@@ -153,46 +86,53 @@ function adicionarUmMes(data) {
   return novaData;
 }
 
-function gerarLinkCheckout(checkoutId) {
-  return `https://asaas.com/checkoutSession/show?id=${encodeURIComponent(checkoutId)}`;
+function getStripeSignature(req) {
+  return req.headers["stripe-signature"];
 }
 
 // ============================================================
-// TESTE
+// TESTE DO SERVIÇO
 // ============================================================
 
 router.get("/teste", (req, res) => {
   return res.json({
     ok: true,
     service: "subscription",
-    provider: "ASAAS"
+    provider: "STRIPE"
   });
 });
 
+router.get("/teste-stripe", authMiddleware, async (req, res) => {
+  try {
+    if (!stripe) {
+      return res.status(500).json({
+        ok: false,
+        provider: "STRIPE",
+        configured: false,
+        error: "STRIPE_SECRET_KEY não configurada no servidor."
+      });
+    }
 
-router.get("/teste-stripe", authMiddleware, (req, res) => {
-  return res.json({
-    ok: true,
-    provider: "STRIPE",
-    configured: Boolean(stripe),
-    prices: {
+    const prices = {
       basico: Boolean(STRIPE_PRICE_BASICO),
       profissional: Boolean(STRIPE_PRICE_PROFISSIONAL),
       premium: Boolean(STRIPE_PRICE_PREMIUM)
-    }
-  });
-});
+    };
 
-// ============================================================
-// COMPATIBILIDADE MERCADO PAGO
-// ============================================================
+    return res.json({
+      ok: true,
+      provider: "STRIPE",
+      configured: true,
+      prices
+    });
+  } catch (error) {
+    console.error("ERRO TESTE STRIPE:", error);
 
-router.get("/teste-mercadopago", (req, res) => {
-  return res.json({
-    ok: true,
-    message: "Rota antiga mantida apenas para compatibilidade.",
-    provider: "MERCADO_PAGO"
-  });
+    return res.status(500).json({
+      ok: false,
+      error: "Erro ao testar Stripe."
+    });
+  }
 });
 
 // ============================================================
@@ -207,443 +147,10 @@ router.get("/plans", (req, res) => {
 });
 
 // ============================================================
-// SELECIONAR PLANO
+// STRIPE — CHECKOUT
 // ============================================================
 
 router.post("/select", authMiddleware, async (req, res) => {
-  let subscriptionId = null;
-
-  try {
-    const userId =
-      req.user?.id ||
-      req.user?.userId;
-
-    if (!userId) {
-      return res.status(401).json({
-        ok: false,
-        error: "Usuário não autenticado."
-      });
-    }
-
-    const plan =
-      String(req.body?.plan || "")
-        .trim()
-        .toLowerCase();
-
-    const customerData =
-      req.body?.customerData || {};
-
-    if (!PLANOS[plan]) {
-      return res.status(400).json({
-        ok: false,
-        error: "Plano inválido."
-      });
-    }
-
-    const nome =
-      String(customerData.name || "")
-        .trim();
-
-    const email =
-      String(customerData.email || "")
-        .trim();
-
-    const cpfCnpj =
-      somenteNumeros(
-        customerData.cpfCnpj ||
-        customerData.cpf ||
-        customerData.cnpj
-      );
-
-    const telefone =
-      somenteNumeros(
-        customerData.phone ||
-        customerData.telefone ||
-        customerData.mobilePhone
-      );
-
-    if (!nome) {
-      return res.status(400).json({
-        ok: false,
-        error: "Nome é obrigatório."
-      });
-    }
-
-    if (!email) {
-      return res.status(400).json({
-        ok: false,
-        error: "E-mail é obrigatório."
-      });
-    }
-
-    if (!cpfCnpj) {
-      return res.status(400).json({
-        ok: false,
-        error: "CPF/CNPJ é obrigatório."
-      });
-    }
-
-    if (!telefone) {
-      return res.status(400).json({
-        ok: false,
-        error: "Telefone é obrigatório."
-      });
-    }
-
-    // --------------------------------------------------------
-    // USUÁRIO
-    // --------------------------------------------------------
-
-    const userResult = await db.query(
-      `
-      SELECT id, name, email, active
-      FROM users
-      WHERE id = $1
-      LIMIT 1
-      `,
-      [userId]
-    );
-
-    if (userResult.rows.length === 0) {
-      return res.status(404).json({
-        ok: false,
-        error: "Usuário não encontrado."
-      });
-    }
-
-    const user = userResult.rows[0];
-
-    if (user.active === false) {
-      return res.status(403).json({
-        ok: false,
-        error: "Usuário inativo."
-      });
-    }
-
-    // --------------------------------------------------------
-    // ASSINATURA ATIVA
-    // --------------------------------------------------------
-
-    const activeResult = await db.query(
-      `
-      SELECT *
-      FROM subscriptions
-      WHERE user_id = $1
-        AND status = 'ACTIVE'
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [userId]
-    );
-
-    if (activeResult.rows.length > 0) {
-      return res.status(400).json({
-        ok: false,
-        error: "Você já possui uma assinatura ativa."
-      });
-    }
-
-    // --------------------------------------------------------
-    // CHECKOUT PENDENTE RECENTE
-    // --------------------------------------------------------
-
-    const pendingResult = await db.query(
-      `
-      SELECT *
-      FROM subscriptions
-      WHERE user_id = $1
-        AND status = 'PENDING'
-        AND payment_provider = 'ASAAS'
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [userId]
-    );
-
-    if (pendingResult.rows.length > 0) {
-      const pending = pendingResult.rows[0];
-
-      if (
-        pending.external_payment_id &&
-        pending.created_at
-      ) {
-        const criadoEm =
-          new Date(pending.created_at);
-
-        const minutos =
-          (Date.now() - criadoEm.getTime()) / 60000;
-
-        if (Number.isFinite(minutos) && minutos <= 60) {
-          return res.json({
-            ok: true,
-            paymentUrl:
-              gerarLinkCheckout(
-                pending.external_payment_id
-              ),
-            checkoutId:
-              pending.external_payment_id,
-            subscriptionId:
-              pending.id,
-            reused: true
-          });
-        }
-
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET status = 'EXPIRED',
-              updated_at = NOW()
-          WHERE id = $1
-          `,
-          [pending.id]
-        );
-      }
-    }
-
-    const plano = PLANOS[plan];
-
-    // --------------------------------------------------------
-    // CRIAR ASSINATURA LOCAL
-    // --------------------------------------------------------
-
-    const insertResult = await db.query(
-      `
-      INSERT INTO subscriptions (
-        user_id,
-        plan,
-        status,
-        amount,
-        payment_provider,
-        payment_method,
-        created_at,
-        updated_at
-      )
-      VALUES (
-        $1,
-        $2,
-        'PENDING',
-        $3,
-        'ASAAS',
-        'CREDIT_CARD',
-        NOW(),
-        NOW()
-      )
-      RETURNING id
-      `,
-      [
-        userId,
-        plan,
-        plano.valor
-      ]
-    );
-
-    subscriptionId =
-      insertResult.rows[0].id;
-
-    // --------------------------------------------------------
-    // CHECKOUT ASAAS
-    // --------------------------------------------------------
-
-    const checkoutPayload = {
-      billingTypes: [
-        "CREDIT_CARD"
-      ],
-
-      chargeTypes: [
-        "RECURRENT"
-      ],
-
-      minutesToExpire: 60,
-
-      externalReference:
-        String(subscriptionId),
-
-      callback: {
-        successUrl:
-          `${BASE_URL}/pagamento-sucesso.html`,
-
-        cancelUrl:
-          `${BASE_URL}/planos.html`,
-
-        expiredUrl:
-          `${BASE_URL}/planos.html`
-      },
-
-      items: [
-        {
-          name:
-            `CriptoPro ${plano.nome}`,
-
-          description:
-            `Assinatura mensal CriptoPro ${plano.nome}`,
-
-          quantity: 1,
-
-          value:
-            plano.valor
-        }
-      ],
-
-      // IMPORTANTE:
-      // No Checkout do Asaas o campo correto é "phone".
-      customerData: {
-        name:
-          nome,
-
-        email:
-          email,
-
-        cpfCnpj:
-          cpfCnpj,
-
-        phone:
-          telefone
-      },
-
-      subscription: {
-        cycle:
-          "MONTHLY",
-
-        nextDueDate:
-          dataAsaas()
-      }
-    };
-
-    console.log(
-      "CRIANDO CHECKOUT ASAAS:",
-      {
-        plan,
-        subscriptionId,
-        customerData: {
-          name: nome,
-          email,
-          cpfCnpj,
-          phone: telefone
-        }
-      }
-    );
-
-    const checkout =
-      await asaasRequest(
-        "/checkouts",
-        {
-          method: "POST",
-          body:
-            JSON.stringify(
-              checkoutPayload
-            )
-        }
-      );
-
-    console.log(
-      "CHECKOUT ASAAS CRIADO:",
-      {
-        id:
-          checkout.id,
-
-        status:
-          checkout.status,
-
-        link:
-          checkout.link
-      }
-    );
-
-    if (!checkout.id) {
-      throw new Error(
-        "O Asaas não retornou o ID do checkout."
-      );
-    }
-
-    // --------------------------------------------------------
-    // SALVAR CHECKOUT
-    // --------------------------------------------------------
-
-    await db.query(
-      `
-      UPDATE subscriptions
-      SET
-        external_payment_id = $1,
-        payment_provider = 'ASAAS',
-        payment_method = 'CREDIT_CARD',
-        updated_at = NOW()
-      WHERE id = $2
-      `,
-      [
-        checkout.id,
-        subscriptionId
-      ]
-    );
-
-    // --------------------------------------------------------
-    // RESPOSTA
-    // --------------------------------------------------------
-
-    return res.json({
-      ok: true,
-      plan,
-      planName:
-        plano.nome,
-      amount:
-        plano.valor,
-      subscriptionId,
-      checkoutId:
-        checkout.id,
-      paymentUrl:
-        gerarLinkCheckout(
-          checkout.id
-        )
-    });
-
-  } catch (error) {
-    console.error(
-      "ERRO AO SELECIONAR PLANO:",
-      error
-    );
-
-    // Se criamos uma assinatura local mas
-    // o checkout falhou, ela não deve ficar
-    // eternamente como PENDING.
-    if (subscriptionId) {
-      try {
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET status = 'CANCELLED',
-              updated_at = NOW()
-          WHERE id = $1
-            AND status = 'PENDING'
-          `,
-          [subscriptionId]
-        );
-      } catch (dbError) {
-        console.error(
-          "ERRO AO CANCELAR PENDING APÓS FALHA:",
-          dbError
-        );
-      }
-    }
-
-    return res.status(
-      error.status || 500
-    ).json({
-      ok: false,
-      error:
-        error.message ||
-        "Erro ao criar checkout."
-    });
-  }
-});
-
-
-// ============================================================
-// STRIPE — SELECIONAR PLANO / CHECKOUT
-// ============================================================
-// Rota separada para testes.
-// A rota /select da ASAAS permanece intacta.
-// ============================================================
-
-router.post("/select-stripe", authMiddleware, async (req, res) => {
   let subscriptionId = null;
 
   try {
@@ -654,9 +161,7 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
       });
     }
 
-    const userId =
-      req.user?.id ||
-      req.user?.userId;
+    const userId = getUserId(req);
 
     if (!userId) {
       return res.status(401).json({
@@ -665,13 +170,11 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
       });
     }
 
-    const plan =
-      String(req.body?.plan || "")
-        .trim()
-        .toLowerCase();
+    const plan = String(req.body?.plan || "")
+      .trim()
+      .toLowerCase();
 
-    const customerData =
-      req.body?.customerData || {};
+    const customerData = req.body?.customerData || {};
 
     if (!PLANOS[plan]) {
       return res.status(400).json({
@@ -680,8 +183,7 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
       });
     }
 
-    const priceId =
-      stripePriceId(plan);
+    const priceId = stripePriceId(plan);
 
     if (!priceId) {
       return res.status(500).json({
@@ -691,20 +193,14 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
       });
     }
 
-    const nome =
-      String(customerData.name || "")
-        .trim();
+    const nome = String(customerData.name || "").trim();
+    const email = String(customerData.email || "").trim().toLowerCase();
 
-    const email =
-      String(customerData.email || "")
-        .trim();
-
-    const telefone =
-      somenteNumeros(
-        customerData.phone ||
-        customerData.telefone ||
-        customerData.mobilePhone
-      );
+    const telefone = somenteNumeros(
+      customerData.phone ||
+      customerData.telefone ||
+      customerData.mobilePhone
+    );
 
     if (!nome) {
       return res.status(400).json({
@@ -774,7 +270,7 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
     }
 
     // --------------------------------------------------------
-    // PENDING STRIPE RECENTE
+    // CHECKOUT STRIPE PENDENTE
     // --------------------------------------------------------
 
     const pendingResult = await db.query(
@@ -792,23 +288,14 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
     );
 
     if (pendingResult.rows.length > 0) {
-      const pending =
-        pendingResult.rows[0];
+      const pending = pendingResult.rows[0];
 
-      if (
-        pending.external_payment_id &&
-        pending.created_at
-      ) {
-        const criadoEm =
-          new Date(pending.created_at);
-
+      if (pending.external_payment_id && pending.created_at) {
+        const criadoEm = new Date(pending.created_at);
         const minutos =
           (Date.now() - criadoEm.getTime()) / 60000;
 
-        if (
-          Number.isFinite(minutos) &&
-          minutos <= 60
-        ) {
+        if (Number.isFinite(minutos) && minutos <= 60) {
           try {
             const existingSession =
               await stripe.checkout.sessions.retrieve(
@@ -822,17 +309,13 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
             ) {
               return res.json({
                 ok: true,
+                provider: "STRIPE",
                 plan,
-                planName:
-                  PLANOS[plan].nome,
-                amount:
-                  PLANOS[plan].valor,
-                subscriptionId:
-                  pending.id,
-                checkoutId:
-                  existingSession.id,
-                paymentUrl:
-                  existingSession.url,
+                planName: PLANOS[plan].nome,
+                amount: PLANOS[plan].valor,
+                subscriptionId: pending.id,
+                checkoutId: existingSession.id,
+                paymentUrl: existingSession.url,
                 reused: true
               });
             }
@@ -857,132 +340,99 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
       }
     }
 
-    const plano =
-      PLANOS[plan];
+    const plano = PLANOS[plan];
 
     // --------------------------------------------------------
-    // CRIAR ASSINATURA LOCAL
+    // ASSINATURA LOCAL
     // --------------------------------------------------------
 
-    const insertResult =
-      await db.query(
-        `
-        INSERT INTO subscriptions (
-          user_id,
-          plan,
-          status,
-          amount,
-          payment_provider,
-          payment_method,
-          created_at,
-          updated_at
-        )
-        VALUES (
-          $1,
-          $2,
-          'PENDING',
-          $3,
-          'STRIPE',
-          'CREDIT_CARD',
-          NOW(),
-          NOW()
-        )
-        RETURNING id
-        `,
-        [
-          userId,
-          plan,
-          plano.valor
-        ]
-      );
-
-    subscriptionId =
-      insertResult.rows[0].id;
-
-    // --------------------------------------------------------
-    // CHECKOUT STRIPE
-    // --------------------------------------------------------
-    // Neste primeiro teste usamos cartão.
-    // O webhook Stripe será implementado em uma etapa separada.
-    // --------------------------------------------------------
-
-    const session =
-      await stripe.checkout.sessions.create({
-        mode: "subscription",
-
-        line_items: [
-          {
-            price: priceId,
-            quantity: 1
-          }
-        ],
-
-        customer_email:
-          email,
-
-        client_reference_id:
-          String(subscriptionId),
-
-        metadata: {
-          user_id:
-            String(userId),
-
-          subscription_id:
-            String(subscriptionId),
-
-          plan:
-            plan
-        },
-
-        subscription_data: {
-          metadata: {
-            user_id:
-              String(userId),
-
-            subscription_id:
-              String(subscriptionId),
-
-            plan:
-              plan
-          }
-        },
-
-        success_url:
-          `${BASE_URL}/pagamento-sucesso.html?session_id={CHECKOUT_SESSION_ID}`,
-
-        cancel_url:
-          `${BASE_URL}/planos.html`,
-
-        payment_method_types: [
-          "card"
-        ],
-
-        locale: "auto"
-      });
-
-    console.log(
-      "CHECKOUT STRIPE CRIADO:",
-      {
-        id:
-          session.id,
-
-        status:
-          session.status,
-
-        url:
-          session.url,
-
+    const insertResult = await db.query(
+      `
+      INSERT INTO subscriptions (
+        user_id,
         plan,
-        subscriptionId,
-        priceId
-      }
+        status,
+        amount,
+        payment_provider,
+        payment_method,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        'PENDING',
+        $3,
+        'STRIPE',
+        'CREDIT_CARD',
+        NOW(),
+        NOW()
+      )
+      RETURNING id
+      `,
+      [userId, plan, plano.valor]
     );
+
+    subscriptionId = insertResult.rows[0].id;
+
+    // --------------------------------------------------------
+    // STRIPE CHECKOUT
+    // --------------------------------------------------------
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1
+        }
+      ],
+
+      customer_email: email,
+
+      client_reference_id: String(subscriptionId),
+
+      metadata: {
+        user_id: String(userId),
+        subscription_id: String(subscriptionId),
+        plan
+      },
+
+      subscription_data: {
+        metadata: {
+          user_id: String(userId),
+          subscription_id: String(subscriptionId),
+          plan
+        }
+      },
+
+      success_url:
+        `${BASE_URL}/pagamento-sucesso.html?session_id={CHECKOUT_SESSION_ID}`,
+
+      cancel_url:
+        `${BASE_URL}/planos.html`,
+
+      payment_method_types: [
+        "card"
+      ],
+
+      locale: "auto"
+    });
 
     if (!session.id || !session.url) {
       throw new Error(
         "O Stripe não retornou o ID ou URL do checkout."
       );
     }
+
+    console.log("CHECKOUT STRIPE CRIADO:", {
+      id: session.id,
+      status: session.status,
+      plan,
+      subscriptionId,
+      priceId
+    });
 
     // --------------------------------------------------------
     // SALVAR CHECKOUT
@@ -998,36 +448,22 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
         updated_at = NOW()
       WHERE id = $2
       `,
-      [
-        session.id,
-        subscriptionId
-      ]
+      [session.id, subscriptionId]
     );
-
-    // --------------------------------------------------------
-    // RESPOSTA
-    // --------------------------------------------------------
 
     return res.json({
       ok: true,
       provider: "STRIPE",
       plan,
-      planName:
-        plano.nome,
-      amount:
-        plano.valor,
+      planName: plano.nome,
+      amount: plano.valor,
       subscriptionId,
-      checkoutId:
-        session.id,
-      paymentUrl:
-        session.url
+      checkoutId: session.id,
+      paymentUrl: session.url
     });
 
   } catch (error) {
-    console.error(
-      "ERRO AO CRIAR CHECKOUT STRIPE:",
-      error
-    );
+    console.error("ERRO AO CRIAR CHECKOUT STRIPE:", error);
 
     if (subscriptionId) {
       try {
@@ -1043,7 +479,7 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
         );
       } catch (dbError) {
         console.error(
-          "ERRO AO CANCELAR PENDING STRIPE APÓS FALHA:",
+          "ERRO AO CANCELAR PENDING STRIPE:",
           dbError
         );
       }
@@ -1063,14 +499,25 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
 });
 
 // ============================================================
-// STATUS
+// ALIAS — MANTÉM COMPATIBILIDADE COM FRONTEND
+// ============================================================
+
+router.post("/select-stripe", authMiddleware, async (req, res) => {
+  // Reaproveita a mesma implementação do endpoint /select.
+  // O alias será substituído abaixo pelo mesmo handler.
+  return res.status(307).set(
+    "Location",
+    "/api/subscription/select"
+  ).end();
+});
+
+// ============================================================
+// STATUS DA ASSINATURA
 // ============================================================
 
 router.get("/status", authMiddleware, async (req, res) => {
   try {
-    const userId =
-      req.user?.id ||
-      req.user?.userId;
+    const userId = getUserId(req);
 
     if (!userId) {
       return res.status(401).json({
@@ -1098,21 +545,15 @@ router.get("/status", authMiddleware, async (req, res) => {
       });
     }
 
-    const assinatura =
-      result.rows[0];
+    const assinatura = result.rows[0];
 
     if (
       assinatura.status === "ACTIVE" &&
       assinatura.expires_at
     ) {
-      const expiracao =
-        new Date(
-          assinatura.expires_at
-        );
+      const expiracao = new Date(assinatura.expires_at);
 
-      if (
-        expiracao <= new Date()
-      ) {
+      if (expiracao <= new Date()) {
         await db.query(
           `
           UPDATE subscriptions
@@ -1123,245 +564,276 @@ router.get("/status", authMiddleware, async (req, res) => {
           [assinatura.id]
         );
 
-        assinatura.status =
-          "EXPIRED";
+        assinatura.status = "EXPIRED";
       }
     }
 
-    const plano =
-      PLANOS[assinatura.plan];
+    const plano = PLANOS[assinatura.plan];
 
     return res.json({
       ok: true,
-
-      active:
-        assinatura.status ===
-        "ACTIVE",
-
-      status:
-        assinatura.status,
-
-      plan:
-        assinatura.plan,
-
-      planName:
-        plano?.nome ||
-        assinatura.plan,
-
-      amount:
-        assinatura.amount,
-
+      active: assinatura.status === "ACTIVE",
+      status: assinatura.status,
+      plan: assinatura.plan,
+      planName: plano?.nome || assinatura.plan,
+      amount: assinatura.amount,
       operacoesSimultaneas:
-        plano?.operacoesSimultaneas ||
-        0,
-
+        plano?.operacoesSimultaneas || 0,
       contasBinance:
-        plano?.contasBinance ||
-        0,
-
-      started_at:
-        assinatura.started_at,
-
-      expires_at:
-        assinatura.expires_at,
-
-      subscriptionId:
-        assinatura.id
+        plano?.contasBinance || 0,
+      robos:
+        plano?.robos || 0,
+      started_at: assinatura.started_at,
+      expires_at: assinatura.expires_at,
+      subscriptionId: assinatura.id,
+      paymentProvider:
+        assinatura.payment_provider || "STRIPE"
     });
 
   } catch (error) {
-    console.error(
-      "ERRO AO CONSULTAR ASSINATURA:",
-      error
-    );
+    console.error("ERRO AO CONSULTAR ASSINATURA:", error);
 
     return res.status(500).json({
       ok: false,
-      error:
-        "Erro ao consultar assinatura."
+      error: "Erro ao consultar assinatura."
     });
   }
 });
 
 // ============================================================
-// LOCALIZAR ASSINATURA PELO EVENTO ASAAS
+// WEBHOOK STRIPE
+// ============================================================
+//
+// IMPORTANTE:
+// Esta rota precisa receber o corpo RAW da requisição para que
+// stripe.webhooks.constructEvent() consiga validar a assinatura.
+//
+// No server.js, esta rota deve ser registrada ANTES de:
+// app.use(express.json())
+//
+// Exemplo:
+// app.post(
+//   "/api/subscription/webhook/stripe",
+//   express.raw({ type: "application/json" }),
+//   subscriptionRouter
+// )
+//
+// Se o router já estiver montado com express.json() antes,
+// a assinatura do webhook poderá falhar.
 // ============================================================
 
-async function encontrarAssinaturaLocal(evento) {
-  const payment =
-    evento?.payment || {};
+async function processarWebhookStripe(req, res) {
+  if (!stripe) {
+    return res.status(500).json({
+      ok: false,
+      error: "STRIPE_SECRET_KEY não configurada."
+    });
+  }
 
-  const checkout =
-    evento?.checkout || {};
+  const webhookSecret =
+    process.env.STRIPE_WEBHOOK_SECRET;
 
-  const subscription =
-    evento?.subscription || {};
+  if (!webhookSecret) {
+    console.error(
+      "STRIPE_WEBHOOK_SECRET não configurado."
+    );
 
-  const externalReference =
-    checkout.externalReference ||
-    payment.externalReference ||
-    subscription.externalReference;
+    return res.status(500).json({
+      ok: false,
+      error: "Webhook Stripe não configurado no servidor."
+    });
+  }
 
-  const checkoutId =
-    checkout.id;
+  const signature = getStripeSignature(req);
 
-  const asaasSubscriptionId =
-    subscription.id ||
-    payment.subscription;
+  if (!signature) {
+    return res.status(400).json({
+      ok: false,
+      error: "Assinatura Stripe ausente."
+    });
+  }
 
-  // ----------------------------------------------------------
-  // 1. EXTERNAL REFERENCE
-  // ----------------------------------------------------------
+  let event;
 
-  if (externalReference) {
-    const result =
-      await db.query(
+  try {
+    event = stripe.webhooks.constructEvent(
+      req.body,
+      signature,
+      webhookSecret
+    );
+  } catch (error) {
+    console.error(
+      "WEBHOOK STRIPE — assinatura inválida:",
+      error.message
+    );
+
+    return res.status(400).json({
+      ok: false,
+      error: "Assinatura do webhook inválida."
+    });
+  }
+
+  console.log(
+    "WEBHOOK STRIPE:",
+    event.type,
+    event.id
+  );
+
+  try {
+    const object = event.data?.object || {};
+
+    const metadata =
+      object.metadata || {};
+
+    const metadataSubscriptionId =
+      metadata.subscription_id ||
+      null;
+
+    const metadataUserId =
+      metadata.user_id ||
+      null;
+
+    let subscriptionId =
+      metadataSubscriptionId;
+
+    // --------------------------------------------------------
+    // checkout.session.completed
+    // --------------------------------------------------------
+
+    if (
+      event.type === "checkout.session.completed"
+    ) {
+      if (!subscriptionId && object.client_reference_id) {
+        subscriptionId =
+          object.client_reference_id;
+      }
+
+      if (!subscriptionId) {
+        console.warn(
+          "Webhook Stripe: subscription_id não encontrado no checkout."
+        );
+
+        return res.json({
+          ok: true,
+          ignored: true
+        });
+      }
+
+      const localResult = await db.query(
         `
         SELECT *
         FROM subscriptions
         WHERE id = $1
         LIMIT 1
         `,
-        [externalReference]
+        [subscriptionId]
       );
 
-    if (result.rows.length > 0) {
-      return result.rows[0];
-    }
-  }
+      if (localResult.rows.length === 0) {
+        console.warn(
+          "Webhook Stripe: assinatura local não encontrada:",
+          subscriptionId
+        );
 
-  // ----------------------------------------------------------
-  // 2. CHECKOUT ID
-  // ----------------------------------------------------------
+        return res.json({
+          ok: true,
+          ignored: true
+        });
+      }
 
-  if (checkoutId) {
-    const result =
+      const assinatura = localResult.rows[0];
+
+      const stripeSubscriptionId =
+        typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id || null;
+
+      // Não ativamos aqui somente pela existência da sessão.
+      // A confirmação de pagamento/subscription será processada
+      // pelos eventos de pagamento abaixo.
       await db.query(
         `
-        SELECT *
-        FROM subscriptions
-        WHERE external_payment_id = $1
-        LIMIT 1
+        UPDATE subscriptions
+        SET
+          external_payment_id =
+            COALESCE($1, external_payment_id),
+          external_subscription_id =
+            COALESCE($2, external_subscription_id),
+          updated_at = NOW()
+        WHERE id = $3
         `,
-        [checkoutId]
+        [
+          object.id || null,
+          stripeSubscriptionId,
+          assinatura.id
+        ]
       );
 
-    if (result.rows.length > 0) {
-      return result.rows[0];
-    }
-  }
-
-  // ----------------------------------------------------------
-  // 3. ASSINATURA ASAAS
-  // ----------------------------------------------------------
-
-  if (asaasSubscriptionId) {
-    const result =
-      await db.query(
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE external_subscription_id = $1
-        LIMIT 1
-        `,
-        [asaasSubscriptionId]
+      console.log(
+        `Checkout Stripe concluído para assinatura local ${assinatura.id}`
       );
-
-    if (result.rows.length > 0) {
-      return result.rows[0];
-    }
-  }
-
-  return null;
-}
-
-// ============================================================
-// PROCESSAR WEBHOOK ASAAS
-// ============================================================
-
-async function processarWebhookAsaas(req, res) {
-  try {
-    const tokenRecebido =
-      req.headers["asaas-access-token"];
-
-    if (
-      !ASAAS_WEBHOOK_TOKEN ||
-      tokenRecebido !== ASAAS_WEBHOOK_TOKEN
-    ) {
-      console.warn(
-        "Webhook Asaas recusado: token inválido."
-      );
-
-      return res.status(401).json({
-        ok: false,
-        error: "Não autorizado."
-      });
     }
 
-    const evento =
-      req.body || {};
+    // --------------------------------------------------------
+    // invoice.paid
+    // --------------------------------------------------------
 
-    console.log(
-      "WEBHOOK ASAAS:",
-      evento.event
-    );
+    else if (event.type === "invoice.paid") {
+      let localResult = null;
 
-    const assinatura =
-      await encontrarAssinaturaLocal(
-        evento
-      );
+      if (subscriptionId) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [subscriptionId]
+        );
+      }
 
-    if (!assinatura) {
-      console.warn(
-        "Assinatura local não encontrada:",
-        {
-          event:
-            evento.event,
+      const stripeSubscriptionId =
+        typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id || null;
 
-          payment:
-            evento.payment?.id,
+      if (
+        (!localResult || localResult.rows.length === 0) &&
+        stripeSubscriptionId
+      ) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_subscription_id = $1
+          LIMIT 1
+          `,
+          [stripeSubscriptionId]
+        );
+      }
 
-          checkout:
-            evento.checkout?.id,
+      if (!localResult || localResult.rows.length === 0) {
+        console.warn(
+          "Webhook Stripe invoice.paid: assinatura não encontrada.",
+          {
+            subscriptionId,
+            stripeSubscriptionId,
+            userId: metadataUserId
+          }
+        );
 
-          subscription:
-            evento.subscription?.id ||
-            evento.payment?.subscription
-        }
-      );
+        return res.json({
+          ok: true,
+          ignored: true
+        });
+      }
 
-      return res.json({
-        ok: true,
-        ignored: true
-      });
-    }
+      const assinatura = localResult.rows[0];
 
-    const event =
-      evento.event;
+      const agora = new Date();
 
-    // ========================================================
-    // CHECKOUT PAGO
-    // ========================================================
-
-    if (
-      event === "CHECKOUT_PAID"
-    ) {
-      const agora =
-        new Date();
-
-      const expiresAt =
-        assinatura.expires_at
-          ? new Date(
-              assinatura.expires_at
-            )
-          : adicionarUmMes(
-              agora
-            );
-
-      const asaasSubscriptionId =
-        evento.subscription?.id ||
-        evento.checkout?.subscription ||
-        null;
+      const expiresAt = adicionarUmMes(agora);
 
       await db.query(
         `
@@ -1369,339 +841,264 @@ async function processarWebhookAsaas(req, res) {
         SET
           status = 'ACTIVE',
           started_at =
-            COALESCE(
-              started_at,
-              NOW()
-            ),
+            COALESCE(started_at, NOW()),
           expires_at = $1,
           external_subscription_id =
-            COALESCE(
-              $2,
-              external_subscription_id
-            ),
+            COALESCE($2, external_subscription_id),
           updated_at = NOW()
         WHERE id = $3
         `,
         [
           expiresAt.toISOString(),
-          asaasSubscriptionId,
+          stripeSubscriptionId,
           assinatura.id
         ]
       );
 
       console.log(
-        `Assinatura ${assinatura.id} ativada via CHECKOUT_PAID`
+        `Assinatura ${assinatura.id} ATIVADA via Stripe invoice.paid`
       );
     }
 
-    // ========================================================
-    // ASSINATURA CRIADA
-    // ========================================================
+    // --------------------------------------------------------
+    // invoice.payment_failed
+    // --------------------------------------------------------
 
     else if (
-      event === "SUBSCRIPTION_CREATED"
+      event.type === "invoice.payment_failed"
     ) {
-      const asaasSubscriptionId =
-        evento.subscription?.id;
+      let localResult = null;
 
-      if (asaasSubscriptionId) {
-        await db.query(
+      if (subscriptionId) {
+        localResult = await db.query(
           `
-          UPDATE subscriptions
-          SET
-            external_subscription_id = $1,
-            updated_at = NOW()
-          WHERE id = $2
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+          LIMIT 1
           `,
-          [
-            asaasSubscriptionId,
-            assinatura.id
-          ]
-        );
-
-        console.log(
-          `Assinatura Asaas ${asaasSubscriptionId} vinculada à local ${assinatura.id}`
+          [subscriptionId]
         );
       }
-    }
 
-    // ========================================================
-    // PAGAMENTO RECEBIDO
-    // ========================================================
-
-    else if (
-      event === "PAYMENT_RECEIVED"
-    ) {
-      const payment =
-        evento.payment || {};
-
-      const dueDate =
-        payment.dueDate;
-
-      const novaData =
-        dueDate
-          ? adicionarUmMes(
-              new Date(dueDate)
-            )
-          : adicionarUmMes(
-              new Date()
-            );
-
-      const atual =
-        assinatura.expires_at
-          ? new Date(
-              assinatura.expires_at
-            )
-          : null;
-
-      const novaDataFinal =
-        !atual ||
-        novaData > atual
-          ? novaData
-          : atual;
-
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'ACTIVE',
-          expires_at = $1,
-          external_subscription_id =
-            COALESCE(
-              $2,
-              external_subscription_id
-            ),
-          updated_at = NOW()
-        WHERE id = $3
-        `,
-        [
-          novaDataFinal.toISOString(),
-          payment.subscription || null,
-          assinatura.id
-        ]
-      );
-
-      console.log(
-        `Pagamento recebido para assinatura ${assinatura.id}`
-      );
-    }
-
-    // ========================================================
-    // PAGAMENTO CONFIRMADO
-    // ========================================================
-
-    else if (
-      event === "PAYMENT_CONFIRMED"
-    ) {
-      // Mantido como fallback.
-      // O CHECKOUT_PAID é o evento usado
-      // para ativar a contratação inicial.
+      const stripeSubscriptionId =
+        typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id || null;
 
       if (
-        assinatura.status ===
-        "PENDING"
+        (!localResult || localResult.rows.length === 0) &&
+        stripeSubscriptionId
       ) {
-        const expiresAt =
-          assinatura.expires_at
-            ? new Date(
-                assinatura.expires_at
-              )
-            : adicionarUmMes(
-                new Date()
-              );
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_subscription_id = $1
+          LIMIT 1
+          `,
+          [stripeSubscriptionId]
+        );
+      }
+
+      if (localResult && localResult.rows.length > 0) {
+        const assinatura = localResult.rows[0];
 
         await db.query(
           `
           UPDATE subscriptions
           SET
-            status = 'ACTIVE',
-            started_at =
-              COALESCE(
-                started_at,
-                NOW()
-              ),
-            expires_at = $1,
-            external_subscription_id =
-              COALESCE(
-                $2,
-                external_subscription_id
-              ),
+            status = 'PENDING',
             updated_at = NOW()
-          WHERE id = $3
+          WHERE id = $1
           `,
-          [
-            expiresAt.toISOString(),
-            evento.payment?.subscription ||
-              null,
-            assinatura.id
-          ]
+          [assinatura.id]
         );
 
         console.log(
-          `Pagamento confirmado para assinatura ${assinatura.id}`
+          `Pagamento Stripe falhou para assinatura ${assinatura.id}`
         );
       }
     }
 
-    // ========================================================
-    // PAGAMENTO EM ATRASO
-    // ========================================================
+    // --------------------------------------------------------
+    // customer.subscription.deleted
+    // --------------------------------------------------------
 
     else if (
-      event === "PAYMENT_OVERDUE"
+      event.type === "customer.subscription.deleted"
     ) {
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'PENDING',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [assinatura.id]
-      );
+      const stripeSubscriptionId =
+        object.id || null;
 
-      console.log(
-        `Pagamento em atraso: assinatura ${assinatura.id}`
-      );
+      let localResult = null;
+
+      if (subscriptionId) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [subscriptionId]
+        );
+      }
+
+      if (
+        (!localResult || localResult.rows.length === 0) &&
+        stripeSubscriptionId
+      ) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_subscription_id = $1
+          LIMIT 1
+          `,
+          [stripeSubscriptionId]
+        );
+      }
+
+      if (localResult && localResult.rows.length > 0) {
+        const assinatura = localResult.rows[0];
+
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET
+            status = 'CANCELLED',
+            updated_at = NOW()
+          WHERE id = $1
+          `,
+          [assinatura.id]
+        );
+
+        console.log(
+          `Assinatura ${assinatura.id} cancelada via Stripe`
+        );
+      }
     }
 
-    // ========================================================
-    // CHECKOUT CANCELADO
-    // ========================================================
+    // --------------------------------------------------------
+    // customer.subscription.updated
+    // --------------------------------------------------------
 
     else if (
-      event === "CHECKOUT_CANCELED"
+      event.type === "customer.subscription.updated"
     ) {
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'CANCELLED',
-          updated_at = NOW()
-        WHERE id = $1
-          AND status = 'PENDING'
-        `,
-        [assinatura.id]
-      );
-    }
+      const stripeSubscriptionId =
+        object.id || null;
 
-    // ========================================================
-    // CHECKOUT EXPIRADO
-    // ========================================================
+      let localResult = null;
 
-    else if (
-      event === "CHECKOUT_EXPIRED"
-    ) {
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'EXPIRED',
-          updated_at = NOW()
-        WHERE id = $1
-          AND status = 'PENDING'
-        `,
-        [assinatura.id]
-      );
-    }
+      if (subscriptionId) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [subscriptionId]
+        );
+      }
 
-    // ========================================================
-    // ASSINATURA INATIVADA / EXCLUÍDA
-    // ========================================================
+      if (
+        (!localResult || localResult.rows.length === 0) &&
+        stripeSubscriptionId
+      ) {
+        localResult = await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE external_subscription_id = $1
+          LIMIT 1
+          `,
+          [stripeSubscriptionId]
+        );
+      }
 
-    else if (
-      event ===
-        "SUBSCRIPTION_INACTIVATED" ||
-      event ===
-        "SUBSCRIPTION_DELETED"
-    ) {
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'CANCELLED',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [assinatura.id]
-      );
+      if (localResult && localResult.rows.length > 0) {
+        const assinatura = localResult.rows[0];
 
-      console.log(
-        `Assinatura ${assinatura.id} cancelada`
-      );
-    }
+        const stripeStatus =
+          object.status;
 
-    // ========================================================
-    // ESTORNO / CHARGEBACK
-    // ========================================================
-
-    else if (
-      event ===
-        "PAYMENT_REFUNDED" ||
-      event ===
-        "PAYMENT_CHARGEBACK_REQUESTED"
-    ) {
-      await db.query(
-        `
-        UPDATE subscriptions
-        SET
-          status = 'CANCELLED',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [assinatura.id]
-      );
-
-      console.log(
-        `Pagamento estornado/chargeback: ${assinatura.id}`
-      );
-    }
-
-    else {
-      console.log(
-        `Evento Asaas sem ação específica: ${event}`
-      );
+        if (
+          stripeStatus === "canceled" ||
+          stripeStatus === "unpaid"
+        ) {
+          await db.query(
+            `
+            UPDATE subscriptions
+            SET
+              status = 'CANCELLED',
+              updated_at = NOW()
+            WHERE id = $1
+            `,
+            [assinatura.id]
+          );
+        } else if (
+          stripeStatus === "active"
+        ) {
+          await db.query(
+            `
+            UPDATE subscriptions
+            SET
+              status = 'ACTIVE',
+              external_subscription_id =
+                COALESCE($1, external_subscription_id),
+              updated_at = NOW()
+            WHERE id = $2
+            `,
+            [
+              stripeSubscriptionId,
+              assinatura.id
+            ]
+          );
+        }
+      }
     }
 
     return res.json({
-      ok: true
+      ok: true,
+      received: true,
+      event: event.type
     });
 
   } catch (error) {
     console.error(
-      "ERRO AO PROCESSAR WEBHOOK ASAAS:",
+      "ERRO AO PROCESSAR WEBHOOK STRIPE:",
       error
     );
 
     return res.status(500).json({
       ok: false,
-      error:
-        "Erro interno ao processar webhook."
+      error: "Erro interno ao processar webhook Stripe."
     });
   }
 }
 
 // ============================================================
-// WEBHOOK PRINCIPAL
+// ROTA WEBHOOK
 // ============================================================
 
 router.post(
-  "/webhook/asaas",
-  processarWebhookAsaas
+  "/webhook/stripe",
+  processarWebhookStripe
 );
 
 // ============================================================
-// ALIAS
+// ALIAS / COMPATIBILIDADE
 // ============================================================
 
-router.post(
-  "/webhook",
-  processarWebhookAsaas
-);
-
-// ============================================================
-// EXPORT
-// ============================================================
+router.get("/teste-mercadopago", (req, res) => {
+  return res.json({
+    ok: true,
+    message: "Gateway antigo não utilizado. Stripe é o gateway atual.",
+    provider: "STRIPE"
+  });
+});
 
 module.exports = router;

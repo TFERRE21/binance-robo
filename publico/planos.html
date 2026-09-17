@@ -367,6 +367,15 @@ main{
   margin-bottom:4px;
 }
 
+.access-status.active{
+  border-color:rgba(34,197,94,.35);
+  background:rgba(34,197,94,.07);
+}
+
+.access-status.active strong{
+  color:var(--green);
+}
+
 .access-btn{
   width:100%;
   min-height:48px;
@@ -788,6 +797,7 @@ footer{
           <li data-i18n="basicF1">Dashboard da conta</li>
           <li data-i18n="basicF2">Conexão com a Binance</li>
           <li data-i18n="basicF3">1 conta Binance</li>
+          <li data-i18n="basicRobots">1 robô disponível</li>
           <li data-i18n="basicF4">Automação básica</li>
           <li data-i18n="basicF5">Até 1 operação simultânea</li>
           <li data-i18n="basicF6">Configuração básica do robô</li>
@@ -835,6 +845,7 @@ footer{
 
         <ul class="features">
           <li data-i18n="proF1">Até 2 contas Binance</li>
+          <li data-i18n="proRobots">2 robôs disponíveis</li>
           <li data-i18n="proF2">Até 2 operações simultâneas</li>
           <li data-i18n="proF3">Automação avançada</li>
           <li data-i18n="proF4">Configuração avançada do robô</li>
@@ -884,6 +895,7 @@ footer{
 
         <ul class="features">
           <li data-i18n="premiumF1">Maior quantidade de contas Binance</li>
+          <li data-i18n="premiumRobots">5 robôs disponíveis</li>
           <li data-i18n="premiumF2">Até 3 operações simultâneas</li>
           <li data-i18n="premiumF3">Automação completa</li>
           <li data-i18n="premiumF4">Todos os parâmetros disponíveis</li>
@@ -918,9 +930,9 @@ footer{
         O painel operacional é liberado somente após a confirmação do pagamento e da assinatura ativa.
       </p>
 
-      <div class="access-status">
-        <strong data-i18n="accessStatusTitle">Painel bloqueado</strong>
-        <span data-i18n="accessStatusText">
+      <div class="access-status" id="accessStatusBox">
+        <strong id="accessStatusTitle" data-i18n="accessStatusTitle">Painel bloqueado</strong>
+        <span id="accessStatusText" data-i18n="accessStatusText">
           Escolha um plano e conclua a assinatura para liberar o acesso.
         </span>
       </div>
@@ -963,6 +975,9 @@ footer{
           </tr>
           <tr>
             <td data-i18n="accounts">Contas Binance</td><td>1</td><td class="highlight">2</td><td data-i18n="moreLimit">Maior limite*</td>
+          </tr>
+          <tr>
+            <td data-i18n="robots">Robôs disponíveis</td><td>1</td><td class="highlight">2</td><td>5</td>
           </tr>
           <tr>
             <td data-i18n="simultaneous">Operações simultâneas</td><td>1</td><td class="highlight">2</td><td>3</td>
@@ -1210,6 +1225,7 @@ const TRANSLATIONS = {
     basicF1:"Account dashboard",
     basicF2:"Binance connection",
     basicF3:"1 Binance account",
+    basicRobots:"1 robot available",
     basicF4:"Basic automation",
     basicF5:"Up to 1 simultaneous operation",
     basicF6:"Basic robot configuration",
@@ -1227,6 +1243,7 @@ const TRANSLATIONS = {
     proDescription:"More control over your settings and operations.",
     basicPlus:"Everything in Basic +",
     proF1:"Up to 2 Binance accounts",
+    proRobots:"2 robots available",
     proF2:"Up to 2 simultaneous operations",
     proF3:"Advanced automation",
     proF4:"Advanced robot configuration",
@@ -1247,6 +1264,7 @@ const TRANSLATIONS = {
     premiumDescription:"The complete plan for those who want the maximum number of features.",
     proPlus:"Everything in Professional +",
     premiumF1:"Higher Binance account limit",
+    premiumRobots:"5 robots available",
     premiumF2:"Up to 3 simultaneous operations",
     premiumF3:"Complete automation",
     premiumF4:"All available parameters",
@@ -1265,12 +1283,15 @@ const TRANSLATIONS = {
     accessTitle:"Panel access",
     accessDescription:"The operational panel is unlocked only after payment confirmation and an active subscription.",
     accessStatusTitle:"Panel locked",
+    accessActiveTitle:"ACCESS GRANTED",
+    accessActiveText:"Your Professional plan is active. Your operational panel is available.",
     accessStatusText:"Choose a plan and complete the subscription to unlock access.",
     accessButton:"Access panel",
 
     compareTitle:"Compare plans",
     compareDescription:"See exactly what changes from one plan to another.",
     resource:"Feature",
+    robots:"Available robots",
     basicNameTable:"Basic",
     proNameTable:"Professional",
     premiumNameTable:"Premium",
@@ -1353,6 +1374,7 @@ const TRANSLATIONS = {
     basicF1:"Dashboard da conta",
     basicF2:"Conexão com a Binance",
     basicF3:"1 conta Binance",
+    basicRobots:"1 robô disponível",
     basicF4:"Automação básica",
     basicF5:"Até 1 operação simultânea",
     basicF6:"Configuração básica do robô",
@@ -1370,6 +1392,7 @@ const TRANSLATIONS = {
     proDescription:"Mais controle sobre suas configurações e operações.",
     basicPlus:"Tudo do Básico +:",
     proF1:"Até 2 contas Binance",
+    proRobots:"2 robôs disponíveis",
     proF2:"Até 2 operações simultâneas",
     proF3:"Automação avançada",
     proF4:"Configuração avançada do robô",
@@ -1390,6 +1413,7 @@ const TRANSLATIONS = {
     premiumDescription:"O plano completo para quem quer o máximo de recursos.",
     proPlus:"Tudo do Profissional +:",
     premiumF1:"Maior quantidade de contas Binance",
+    premiumRobots:"5 robôs disponíveis",
     premiumF2:"Até 3 operações simultâneas",
     premiumF3:"Automação completa",
     premiumF4:"Todos os parâmetros disponíveis",
@@ -1408,12 +1432,15 @@ const TRANSLATIONS = {
     accessTitle:"Acesso ao painel",
     accessDescription:"O painel operacional é liberado somente após a confirmação do pagamento e da assinatura ativa.",
     accessStatusTitle:"Painel bloqueado",
+    accessActiveTitle:"ACESSO LIBERADO",
+    accessActiveText:"Seu plano {PLAN} está ativo. Seu painel operacional está disponível.",
     accessStatusText:"Escolha um plano e conclua a assinatura para liberar o acesso.",
     accessButton:"Acessar painel",
 
     compareTitle:"Compare os planos",
     compareDescription:"Veja exatamente o que muda de um plano para o outro.",
     resource:"Recurso",
+    robots:"Robôs disponíveis",
     basicNameTable:"Básico",
     proNameTable:"Profissional",
     premiumNameTable:"Premium",
@@ -1842,25 +1869,91 @@ async function continuarCheckout(){
   }
 }
 
-function atualizarBotaoAcesso(){
+async function atualizarBotaoAcesso(){
 
   const button =
     document.getElementById("accessButton");
 
-  if(!button){
+  const statusBox =
+    document.getElementById("accessStatusBox");
+
+  const statusTitle =
+    document.getElementById("accessStatusTitle");
+
+  const statusText =
+    document.getElementById("accessStatusText");
+
+  if(!button || !statusBox || !statusTitle || !statusText){
     return;
   }
 
   const token =
     localStorage.getItem("token");
 
-  button.disabled =
-    !token;
+  const t =
+    TRANSLATIONS[currentLanguage];
 
-  button.classList.toggle(
-    "ready",
-    Boolean(token)
-  );
+  if(!token){
+    button.disabled = false;
+    button.classList.remove("ready");
+    statusBox.classList.remove("active");
+    statusTitle.textContent = t.accessStatusTitle;
+    statusText.textContent = t.accessStatusText;
+    button.textContent = t.accessButton;
+    return;
+  }
+
+  try{
+    const response =
+      await fetch("/api/subscription/status",{
+        headers:{
+          "Authorization":"Bearer " + token
+        }
+      });
+
+    const data =
+      await response.json().catch(function(){
+        return {};
+      });
+
+    if(response.ok && data.active){
+      const planName =
+        data.planName ||
+        data.plan ||
+        "";
+
+      statusBox.classList.add("active");
+      statusTitle.textContent =
+        t.accessActiveTitle;
+
+      statusText.textContent =
+        t.accessActiveText.replace(
+          "{PLAN}",
+          planName
+        );
+
+      button.disabled = false;
+      button.classList.add("ready");
+      button.textContent =
+        currentLanguage === "en"
+          ? "✓ ACCESS GRANTED"
+          : "✓ ACESSO LIBERADO";
+
+      return;
+    }
+  }catch(error){
+    console.warn(
+      "Não foi possível consultar a assinatura:",
+      error
+    );
+  }
+
+  button.disabled = false;
+  button.classList.remove("ready");
+  statusBox.classList.remove("active");
+  statusTitle.textContent = t.accessStatusTitle;
+  statusText.textContent = t.accessStatusText;
+  button.textContent = t.accessButton;
 }
 
 async function acessarPainel(){

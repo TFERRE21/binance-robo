@@ -1318,7 +1318,8 @@ function updateRobotApiAccessState(){
   const alertEl=document.getElementById("robotApiAlert");
 
   if(alertEl){
-    alertEl.hidden=hasApi;
+    /* O aviso permanece sempre visível. Apenas muda de estado quando uma API é selecionada. */
+    alertEl.hidden=false;
     alertEl.classList.toggle("api-ok",hasApi);
     alertEl.innerHTML=hasApi
       ? '<div class="robot-api-icon">🟢</div><div><strong>API Binance configurada</strong>API selecionada e disponível para iniciar os robôs.</div>'

@@ -4,6 +4,40 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
+// ============================================================
+// STRIPE — CHECKOUT DE TESTE (MANTENDO ASAAS INTACTO)
+// ============================================================
+
+const Stripe = require("stripe");
+
+const STRIPE_SECRET_KEY =
+  process.env.STRIPE_SECRET_KEY;
+
+const stripe =
+  STRIPE_SECRET_KEY
+    ? new Stripe(STRIPE_SECRET_KEY)
+    : null;
+
+const STRIPE_PRICE_BASICO =
+  process.env.STRIPE_PRICE_BASICO;
+
+const STRIPE_PRICE_PROFISSIONAL =
+  process.env.STRIPE_PRICE_PROFISSIONAL;
+
+const STRIPE_PRICE_PREMIUM =
+  process.env.STRIPE_PRICE_PREMIUM;
+
+function stripePriceId(plan) {
+  const prices = {
+    basico: STRIPE_PRICE_BASICO,
+    profissional: STRIPE_PRICE_PROFISSIONAL,
+    premium: STRIPE_PRICE_PREMIUM
+  };
+
+  return prices[plan] || null;
+}
+
+
 const ASAAS_API_URL =
   process.env.ASAAS_API_URL || "https://api.asaas.com/v3";
 
@@ -132,6 +166,20 @@ router.get("/teste", (req, res) => {
     ok: true,
     service: "subscription",
     provider: "ASAAS"
+  });
+});
+
+
+router.get("/teste-stripe", authMiddleware, (req, res) => {
+  return res.json({
+    ok: true,
+    provider: "STRIPE",
+    configured: Boolean(stripe),
+    prices: {
+      basico: Boolean(STRIPE_PRICE_BASICO),
+      profissional: Boolean(STRIPE_PRICE_PROFISSIONAL),
+      premium: Boolean(STRIPE_PRICE_PREMIUM)
+    }
   });
 });
 
@@ -583,6 +631,433 @@ router.post("/select", authMiddleware, async (req, res) => {
       error:
         error.message ||
         "Erro ao criar checkout."
+    });
+  }
+});
+
+
+// ============================================================
+// STRIPE — SELECIONAR PLANO / CHECKOUT
+// ============================================================
+// Rota separada para testes.
+// A rota /select da ASAAS permanece intacta.
+// ============================================================
+
+router.post("/select-stripe", authMiddleware, async (req, res) => {
+  let subscriptionId = null;
+
+  try {
+    if (!stripe) {
+      return res.status(500).json({
+        ok: false,
+        error: "STRIPE_SECRET_KEY não configurada no servidor."
+      });
+    }
+
+    const userId =
+      req.user?.id ||
+      req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: "Usuário não autenticado."
+      });
+    }
+
+    const plan =
+      String(req.body?.plan || "")
+        .trim()
+        .toLowerCase();
+
+    const customerData =
+      req.body?.customerData || {};
+
+    if (!PLANOS[plan]) {
+      return res.status(400).json({
+        ok: false,
+        error: "Plano inválido."
+      });
+    }
+
+    const priceId =
+      stripePriceId(plan);
+
+    if (!priceId) {
+      return res.status(500).json({
+        ok: false,
+        error:
+          `Price ID do plano ${PLANOS[plan].nome} não configurado no servidor.`
+      });
+    }
+
+    const nome =
+      String(customerData.name || "")
+        .trim();
+
+    const email =
+      String(customerData.email || "")
+        .trim();
+
+    const telefone =
+      somenteNumeros(
+        customerData.phone ||
+        customerData.telefone ||
+        customerData.mobilePhone
+      );
+
+    if (!nome) {
+      return res.status(400).json({
+        ok: false,
+        error: "Nome é obrigatório."
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        error: "E-mail é obrigatório."
+      });
+    }
+
+    // --------------------------------------------------------
+    // USUÁRIO
+    // --------------------------------------------------------
+
+    const userResult = await db.query(
+      `
+      SELECT id, name, email, active
+      FROM users
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "Usuário não encontrado."
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.active === false) {
+      return res.status(403).json({
+        ok: false,
+        error: "Usuário inativo."
+      });
+    }
+
+    // --------------------------------------------------------
+    // ASSINATURA ATIVA
+    // --------------------------------------------------------
+
+    const activeResult = await db.query(
+      `
+      SELECT *
+      FROM subscriptions
+      WHERE user_id = $1
+        AND status = 'ACTIVE'
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (activeResult.rows.length > 0) {
+      return res.status(400).json({
+        ok: false,
+        error: "Você já possui uma assinatura ativa."
+      });
+    }
+
+    // --------------------------------------------------------
+    // PENDING STRIPE RECENTE
+    // --------------------------------------------------------
+
+    const pendingResult = await db.query(
+      `
+      SELECT *
+      FROM subscriptions
+      WHERE user_id = $1
+        AND status = 'PENDING'
+        AND payment_provider = 'STRIPE'
+        AND plan = $2
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId, plan]
+    );
+
+    if (pendingResult.rows.length > 0) {
+      const pending =
+        pendingResult.rows[0];
+
+      if (
+        pending.external_payment_id &&
+        pending.created_at
+      ) {
+        const criadoEm =
+          new Date(pending.created_at);
+
+        const minutos =
+          (Date.now() - criadoEm.getTime()) / 60000;
+
+        if (
+          Number.isFinite(minutos) &&
+          minutos <= 60
+        ) {
+          try {
+            const existingSession =
+              await stripe.checkout.sessions.retrieve(
+                pending.external_payment_id
+              );
+
+            if (
+              existingSession &&
+              existingSession.status === "open" &&
+              existingSession.url
+            ) {
+              return res.json({
+                ok: true,
+                plan,
+                planName:
+                  PLANOS[plan].nome,
+                amount:
+                  PLANOS[plan].valor,
+                subscriptionId:
+                  pending.id,
+                checkoutId:
+                  existingSession.id,
+                paymentUrl:
+                  existingSession.url,
+                reused: true
+              });
+            }
+          } catch (stripeError) {
+            console.warn(
+              "Não foi possível reutilizar Checkout Stripe pendente:",
+              stripeError.message
+            );
+          }
+        }
+
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET status = 'EXPIRED',
+              updated_at = NOW()
+          WHERE id = $1
+            AND status = 'PENDING'
+          `,
+          [pending.id]
+        );
+      }
+    }
+
+    const plano =
+      PLANOS[plan];
+
+    // --------------------------------------------------------
+    // CRIAR ASSINATURA LOCAL
+    // --------------------------------------------------------
+
+    const insertResult =
+      await db.query(
+        `
+        INSERT INTO subscriptions (
+          user_id,
+          plan,
+          status,
+          amount,
+          payment_provider,
+          payment_method,
+          created_at,
+          updated_at
+        )
+        VALUES (
+          $1,
+          $2,
+          'PENDING',
+          $3,
+          'STRIPE',
+          'CREDIT_CARD',
+          NOW(),
+          NOW()
+        )
+        RETURNING id
+        `,
+        [
+          userId,
+          plan,
+          plano.valor
+        ]
+      );
+
+    subscriptionId =
+      insertResult.rows[0].id;
+
+    // --------------------------------------------------------
+    // CHECKOUT STRIPE
+    // --------------------------------------------------------
+    // Neste primeiro teste usamos cartão.
+    // O webhook Stripe será implementado em uma etapa separada.
+    // --------------------------------------------------------
+
+    const session =
+      await stripe.checkout.sessions.create({
+        mode: "subscription",
+
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1
+          }
+        ],
+
+        customer_email:
+          email,
+
+        client_reference_id:
+          String(subscriptionId),
+
+        metadata: {
+          user_id:
+            String(userId),
+
+          subscription_id:
+            String(subscriptionId),
+
+          plan:
+            plan
+        },
+
+        subscription_data: {
+          metadata: {
+            user_id:
+              String(userId),
+
+            subscription_id:
+              String(subscriptionId),
+
+            plan:
+              plan
+          }
+        },
+
+        success_url:
+          `${BASE_URL}/pagamento-sucesso.html?session_id={CHECKOUT_SESSION_ID}`,
+
+        cancel_url:
+          `${BASE_URL}/planos.html`,
+
+        payment_method_types: [
+          "card"
+        ],
+
+        locale: "auto"
+      });
+
+    console.log(
+      "CHECKOUT STRIPE CRIADO:",
+      {
+        id:
+          session.id,
+
+        status:
+          session.status,
+
+        url:
+          session.url,
+
+        plan,
+        subscriptionId,
+        priceId
+      }
+    );
+
+    if (!session.id || !session.url) {
+      throw new Error(
+        "O Stripe não retornou o ID ou URL do checkout."
+      );
+    }
+
+    // --------------------------------------------------------
+    // SALVAR CHECKOUT
+    // --------------------------------------------------------
+
+    await db.query(
+      `
+      UPDATE subscriptions
+      SET
+        external_payment_id = $1,
+        payment_provider = 'STRIPE',
+        payment_method = 'CREDIT_CARD',
+        updated_at = NOW()
+      WHERE id = $2
+      `,
+      [
+        session.id,
+        subscriptionId
+      ]
+    );
+
+    // --------------------------------------------------------
+    // RESPOSTA
+    // --------------------------------------------------------
+
+    return res.json({
+      ok: true,
+      provider: "STRIPE",
+      plan,
+      planName:
+        plano.nome,
+      amount:
+        plano.valor,
+      subscriptionId,
+      checkoutId:
+        session.id,
+      paymentUrl:
+        session.url
+    });
+
+  } catch (error) {
+    console.error(
+      "ERRO AO CRIAR CHECKOUT STRIPE:",
+      error
+    );
+
+    if (subscriptionId) {
+      try {
+        await db.query(
+          `
+          UPDATE subscriptions
+          SET status = 'CANCELLED',
+              updated_at = NOW()
+          WHERE id = $1
+            AND status = 'PENDING'
+          `,
+          [subscriptionId]
+        );
+      } catch (dbError) {
+        console.error(
+          "ERRO AO CANCELAR PENDING STRIPE APÓS FALHA:",
+          dbError
+        );
+      }
+    }
+
+    return res.status(
+      error.statusCode ||
+      error.status ||
+      500
+    ).json({
+      ok: false,
+      error:
+        error.message ||
+        "Erro ao criar checkout Stripe."
     });
   }
 });

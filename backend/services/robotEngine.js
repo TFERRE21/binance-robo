@@ -602,7 +602,7 @@ async function loop(userId,accountId,robotId=1){
       try{
         const strategy=strategyInfo(String(config.strategy_version||'premium'));
 
-        robotLog(userId,account.id,
+        robotLog(userId,account.id,robotId,
           `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | simultâneas=${config.max_operations}`
         );
 
@@ -702,7 +702,7 @@ async function stop(userId,accountId,robotId=1){
 
   await db.query(
     `UPDATE robot_configs SET running=false,updated_at=NOW()
-     WHERE user_id=$1 AND account_id=$2`,
+     WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,
     [userId,accountId,robotId]
   );
 
@@ -714,9 +714,9 @@ async function stop(userId,accountId,robotId=1){
     `INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,'INFO',$4)`,
     [userId,accountId,robotId,`ROBO DESLIGADO | estratégia=${strategyInfo(String(cfg?.strategy_version||'premium')).name} | comando PARAR ROBÔ confirmado`]
   );
-  console.log(`[ROBO] DESLIGADO | usuário=${userId} | conta=${accountId}`);
+  console.log(`[ROBO] ROBÔ ${robotId} DESLIGADO | usuário=${userId} | conta=${accountId} | estratégia=${strategyInfo(String(cfg?.strategy_version||'premium')).name}`);
 
-  return getStatus(userId,accountId);
+  return getStatus(userId,accountId,robotId);
 }
 async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
 

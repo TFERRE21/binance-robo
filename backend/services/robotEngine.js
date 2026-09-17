@@ -74,6 +74,14 @@ function roundPrice(v,tick){ return roundDown(v,tick); }
 function ema(values,period){ if(values.length<period)return null; let x=values.slice(0,period).reduce((a,b)=>a+num(b),0)/period; const k=2/(period+1); for(let i=period;i<values.length;i++) x=(num(values[i])-x)*k+x; return x; }
 function rsi(values,period=14){ if(values.length<period+1)return null; let g=0,l=0; for(let i=values.length-period;i<values.length;i++){const d=num(values[i])-num(values[i-1]); if(d>0)g+=d; else l-=d;} if(l===0)return 100; return 100-100/(1+g/l); }
 function errText(e){ return e?.body ? (typeof e.body==='string'?e.body:JSON.stringify(e.body)) : (e?.message||String(e)); }
+function robotLog(userId,accountId,message){
+  console.log(`[ROBO] usuário=${userId} | conta=${accountId} | ${message}`);
+}
+function fmtNum(v){
+  const n=Number(v);
+  return Number.isFinite(n)?n.toFixed(4):String(v??'-');
+}
+
 
 async function ensureSchema(){
   if(schemaReady)return;
@@ -194,6 +202,7 @@ async function top20(client,exchangeInfo,maxCoins){
   const response=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false',{headers:{'User-Agent':'CriptoPro/1.0'}});
   if(!response.ok) throw new Error(`CoinGecko HTTP ${response.status}`);
   const coins=await response.json(); const out=[];
+  console.log(`[ROBO] SCANNER V7.1 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas.`);
   for(const coin of coins){
     if(out.length>=maxCoins)break;
     const base=String(coin.symbol||'').toUpperCase();
@@ -316,6 +325,7 @@ async function monitorOpenOps(userId,account,config){
 
 async function topVolumePairs(client,maxCoins){
   const tickers=await client.dailyStats();
+  console.log(`[ROBO] SCANNER V6 | Binance retornou ${Array.isArray(tickers)?tickers.length:0} pares.`);
   return tickers
     .filter(t=>{
       const symbol=String(t.symbol||'').toUpperCase();
@@ -326,75 +336,47 @@ async function topVolumePairs(client,maxCoins){
     .slice(0,num(maxCoins));
 }
 
-async function scanByProfile(userId,account,config,version){
+async function scanByProfile(userId,account,config){
   const client=clientFor(account);
-  const strategy=strategyInfo(version);
-  const count=await openCount(userId,account.id);
-  if(count>=num(config.max_operations))
-    return {message:`Limite de ${config.max_operations} operações atingido`};
+  const info=await client.exchangeInfo();
+  const version=String(config.strategy_version||'v7.1').toLowerCase();
 
-  if(strategy.mode==='volume'){
-    const pairs=await topVolumePairs(client,num(config.max_coins));
-    for(const p of pairs){
-      if(await existingSymbol(userId,account.id,p.symbol))continue;
+  robotLog(userId,account.id,`ANÁLISE INICIADA | estratégia=${version} | intervalo=${config.interval} | máximo moedas=${config.max_coins}`);
 
-      const rows=await client.candles({symbol:p.symbol,interval:config.interval,limit:100});
-      if(!rows||rows.length<50)continue;
-
-      const closes=rows.map(x=>num(x.close));
-      const volumes=rows.map(x=>num(x.volume));
-      const e9=ema(closes.slice(-20),9);
-      const e21=ema(closes.slice(-30),21);
-      const r=rsi(closes,14);
-      const price=closes.at(-1);
-      const volume=volumes.at(-1);
-      const avg=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
-
-      let score=0;
-      if(e9>e21)score+=2;
-      if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
-      if(price>e9)score++;
-      if(volume>avg)score++;
-      if(price>=e21)score++;
-
-      if(score<strategy.scoreMin)continue;
-
-      const current=await openCount(userId,account.id);
-      if(current>=num(config.max_operations))break;
-
-      try{
-        return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)};
-      }catch(e){
-        console.error(`ROBOT ${version.toUpperCase()} BUY ${p.symbol}:`,errText(e));
-      }
-    }
-    return {message:'Nenhum setup aprovado'};
+  if(version==='v6'){
+    return scanV6(userId,account,config,client,info);
   }
 
-  const ex=await client.exchangeInfo();
+  const pairs=await top20(client,info,Number(config.max_coins));
+  robotLog(userId,account.id,`V7.1 | ${pairs.length} moedas selecionadas para análise.`);
+
   const market=await marketFilter(client);
-  if(!market.favoravel)return {message:'Mercado não favorável'};
-  if(market.score<strategy.marketMinScore)return {message:`Mercado abaixo do filtro da estratégia (${market.score})`};
+  robotLog(userId,account.id,`V7.1 | BTC | score=${fmtNum(market.score)} | favorável=${market.favoravel?'SIM':'NÃO'} | quente=${market.quente?'SIM':'NÃO'}`);
 
-  const pairs=await top20(client,ex,num(config.max_coins));
+  if(!market.favoravel){
+    robotLog(userId,account.id,"V7.1 | SEM COMPRA | filtro do mercado BTC não aprovado.");
+    return [];
+  }
+
+  const setups=[];
   for(const p of pairs){
-    if(await existingSymbol(userId,account.id,p.symbol))continue;
-
-    const setup=await analyze(client,p.symbol,market,config.interval,version);
-    if(!setup.valid)continue;
-
-    const current=await openCount(userId,account.id);
-    if(current>=num(config.max_operations))break;
-
     try{
-      return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)};
+      const setup=await evaluateSymbol(client,p.symbol,config,market);
+      if(setup.valid){
+        robotLog(userId,account.id,`V7.1 | ${p.symbol} APROVADA | score=${fmtNum(setup.score)} | RSI=${fmtNum(setup.rsi)} | entrada=${fmtNum(setup.entry)}`);
+        setups.push({...p,...setup});
+      }else{
+        robotLog(userId,account.id,`V7.1 | ${p.symbol} REJEITADA | ${setup.reason||'filtros não atendidos'} | score=${fmtNum(setup.score)} | RSI=${fmtNum(setup.rsi)}`);
+      }
     }catch(e){
-      console.error(`ROBOT ${version.toUpperCase()} BUY ${p.symbol}:`,errText(e));
+      robotLog(userId,account.id,`V7.1 | ${p.symbol} ERRO | ${errText(e)}`);
     }
   }
-  return {message:'Nenhum setup aprovado'};
-}
 
+  setups.sort((a,b)=>Number(b.score||0)-Number(a.score||0));
+  robotLog(userId,account.id,`V7.1 | RESULTADO | aprovadas=${setups.length} | rejeitadas=${pairs.length-setups.length}`);
+  return setups;
+}
 async function scanV6(userId,account,config){
   return scanByProfile(userId,account,config,'medio');
 }

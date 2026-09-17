@@ -460,6 +460,25 @@ input.plan-locked,
 select.plan-locked{
   opacity:.48;
 }
+
+/* =========================================================
+   ETAPA 17 — 5 ROBÔS INDEPENDENTES
+========================================================= */
+.robot-multi-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.robot-slot-card{border:1px solid rgba(240,185,11,.18);border-radius:12px;padding:10px;background:rgba(240,185,11,.025)}
+.robot-slot-card.locked{opacity:.48;filter:grayscale(.75)}
+.robot-slot-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.robot-slot-title{font-size:10px;font-weight:900}
+.robot-slot-sub{font-size:8px;color:#778395;margin-top:3px}
+.robot-slot-meta{font-size:8px;color:#9aa6b7;margin-top:7px;line-height:1.45}
+.robot-slot-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.robot-slot-actions .btn{font-size:8px;padding:7px 9px}
+.robot-slot-status{font-size:8px;font-weight:900;border-radius:20px;padding:5px 8px}
+.robot-slot-status.running{color:#00e68a;background:rgba(0,230,138,.08)}
+.robot-slot-status.stopped{color:#f0b90b;background:rgba(240,185,11,.08)}
+.robot-slot-status.locked{color:#718096;background:rgba(113,128,150,.08)}
+.robot-selected{border-color:rgba(240,185,11,.65)!important;box-shadow:0 0 0 1px rgba(240,185,11,.15)}
+
 </style>
 </head>
 
@@ -638,14 +657,10 @@ select.plan-locked{
 
   <div class="robot-control-card" id="robotControlCard" style="margin-top:10px;border:1px solid rgba(240,185,11,.22);border-radius:12px;padding:12px;background:rgba(240,185,11,.035)">
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
-      <div><div style="font-size:10px;font-weight:900" id="robotStatusTitle">Robô</div><div style="font-size:8px;color:#778395;margin-top:3px" id="robotStatusText">Configuração não carregada.</div></div>
-      <span class="badge-yellow" id="robotStatusBadge">PARADO</span>
+      <div><div style="font-size:10px;font-weight:900">🤖 Seus robôs</div><div style="font-size:8px;color:#778395;margin-top:3px">Cada robô possui configuração e START/STOP independentes.</div></div>
+      <span class="badge-yellow" id="robotSlotsCount">0/0</span>
     </div>
-    <div id="robotSavedInfo" style="font-size:8px;color:#8f9aab;margin-top:9px"></div>
-    <div style="display:flex;gap:7px;margin-top:10px;flex-wrap:wrap">
-      <button class="btn btn-primary" id="startRobotBtn" onclick="startRobot()">▶ Iniciar robô</button>
-      <button class="btn" id="stopRobotBtn" onclick="stopRobot()" disabled>■ Parar robô</button>
-    </div>
+    <div class="robot-multi-list" id="robotSlotsList"></div>
   </div>
 
   <div class="limit-box">
@@ -816,7 +831,7 @@ select.plan-locked{
 <div class="modal-bg" id="robotModal">
 <div class="modal">
   <div class="modal-header">
-    <div><div class="modal-title">Configurar Robô Premium</div><div class="modal-subtitle">Estratégia individual da sua conta</div></div>
+    <div><div class="modal-title">Configurar Robô 1</div><div class="modal-subtitle">Estratégia individual da sua conta</div></div>
     <button class="close" onclick="closeRobot()">×</button>
   </div>
   <div class="modal-body">
@@ -1260,7 +1275,7 @@ async function loadSelectedAccount(){
       statusEl.classList.remove("pending-account");
     }
 
-    await loadRobotStatus();
+    await loadRobotInstances();
 
     await renderOperation(assets);
 
@@ -1550,51 +1565,122 @@ function renderRobotLive(d){
   }
 }
 
-async function refreshRobotPlanCount(){
-  const el=document.getElementById("limitRobots");
-  if(!el || !currentPlanRules) return;
-  let running=0;
-  for(const account of accounts||[]){
-    try{
-      const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(account.id)}`);
-      if(d && (d.running||d.engineRunning)) running++;
-    }catch(_e){}
-  }
-  el.dataset.live="1";
-  el.textContent=`${running}/${currentPlanRules.robots}`;
+
+let activeRobotId=1;
+let robotInstancesCache=[];
+let robotPollTimer=null;
+
+const ROBOT_NAMES={
+  1:"Básico",
+  2:"Médio",
+  3:"Premium",
+  4:"Avançado",
+  5:"Elite"
+};
+
+function robotStrategyLabel(key){
+  const map={basico:"Básico",medio:"Médio",premium:"Premium",avancado:"Avançado",elite:"Elite","v7.1":"Premium",v6:"Médio"};
+  return map[String(key||"").toLowerCase()]||"Sem configuração";
 }
-async function loadRobotStatus(){
-  if(!selectedAccountId){refreshRobotPlanCount();return;}
+
+function robotSlotCard(item){
+  const id=Number(item.robotId);
+  const locked=!currentPlanRules || id>Number(currentPlanRules.robots||1);
+  const running=!!item.running||!!item.engineRunning;
+  const c=item.config;
+  const strategy=c?robotStrategyLabel(c.strategy_version):"Sem configuração";
+  const meta=c
+    ? `${strategy} · ${c.interval} · ${Number(c.max_operations||1)} operação(ões) · ${Number(c.max_coins||0)} moedas`
+    : "Configure este robô para começar.";
+  const selected=id===activeRobotId;
+  return `<div class="robot-slot-card ${locked?"locked":""} ${selected?"robot-selected":""}" data-robot-slot="${id}">
+    <div class="robot-slot-head">
+      <div><div class="robot-slot-title">🤖 Robô ${id} · ${ROBOT_NAMES[id]||"Automação"}</div><div class="robot-slot-sub">${locked?"Bloqueado pelo seu plano":meta}</div></div>
+      <span class="robot-slot-status ${locked?"locked":running?"running":"stopped"}">${locked?"🔒 BLOQUEADO":running?"● RODANDO":"PARADO"}</span>
+    </div>
+    ${!locked?`<div class="robot-slot-meta">${c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"Nenhuma configuração salva."}</div>
+    <div class="robot-slot-actions">
+      <button class="btn" onclick="openRobot(${id})">⚙ Configurar</button>
+      <button class="btn btn-primary" onclick="startRobot(${id})" ${running||!c?"disabled":""}>▶ Iniciar</button>
+      <button class="btn" onclick="stopRobot(${id})" ${!running?"disabled":""}>■ Parar</button>
+    </div>`:""}
+  </div>`;
+}
+
+function renderRobotSlots(list){
+  const el=document.getElementById("robotSlotsList");
+  if(!el)return;
+  const max=Number(currentPlanRules?.robots||1);
+  const normalized=[];
+  for(let i=1;i<=max;i++){
+    normalized.push(list.find(x=>Number(x.robotId)===i)||{robotId:i,config:null,running:false,engineRunning:false,operations:[],robotLogs:[]});
+  }
+  robotInstancesCache=normalized;
+  el.innerHTML=normalized.map(robotSlotCard).join("");
+  const count=normalized.filter(x=>x.running||x.engineRunning).length;
+  const countEl=document.getElementById("robotSlotsCount");
+  if(countEl)countEl.textContent=`${count}/${max}`;
+  const limit=document.getElementById("limitRobots");
+  if(limit)limit.textContent=`${count}/${max}`;
+}
+
+function selectedRobotData(){
+  return robotInstancesCache.find(x=>Number(x.robotId)===Number(activeRobotId))||null;
+}
+
+async function loadRobotInstances(){
+  if(!selectedAccountId || !currentPlanRules)return null;
   try{
-    const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
+    const d=await apiFetch(`/api/robot/instances?account=${encodeURIComponent(selectedAccountId)}`);
+    if(!d.success)throw new Error(d.message||"Não foi possível carregar os robôs.");
+    renderRobotSlots(Array.isArray(d.robots)?d.robots:[]);
+    const selected=selectedRobotData();
+    if(selected)renderRobotLive(selected);
+    return d;
+  }catch(e){
+    console.warn("ROBÔS:",e);
+    return null;
+  }
+}
+
+async function refreshRobotPlanCount(){
+  await loadRobotInstances();
+}
+
+async function loadRobotStatus(robotId=activeRobotId){
+  if(!selectedAccountId)return;
+  activeRobotId=Number(robotId)||1;
+  try{
+    const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);
     renderRobotLive(d);
     const c=d.config;
-    if(c){ robotCurrentConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null; window.robotRiskConfigId=robotCurrentConfigId; }
-    const running=!!d.running || !!d.engineRunning;
-    refreshRobotPlanCount().catch(()=>{});
+    if(c){ robotCurrentConfigId=c.id||c.config_id||robotCurrentConfigId||null; }
+    const running=!!d.running||!!d.engineRunning;
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
-    if(txt){const n={basico:"Básico",medio:"Médio",premium:"Premium",avancado:"Avançado",elite:"Elite","v7.1":"Premium",v6:"Médio"};const k=String(c?.strategy_version||"premium").toLowerCase();txt.textContent=c?`${n[k]||k} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';}
-    if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
-    const sb=document.getElementById('startRobotBtn');
-    const sbConfig=document.getElementById('startRobotConfigBtn');
-    const st=document.getElementById('stopRobotBtn');
-    if(sb)sb.disabled=running;
-    if(sbConfig)sbConfig.disabled=running;
-    if(st)st.disabled=!running;
-    document.getElementById('operationCount').textContent=`${(d.operations||[]).filter(x=>x.status==='OPEN').length}/${c?.max_operations||3}`;
-    if(c){
-      localStorage.setItem('criptopro_robot_config',JSON.stringify({entryPercent:Number(c.entry_percent),takeProfit:Number(c.take_profit),stopLoss:Number(c.stop_loss),maxOperations:Number(c.max_operations),interval:c.interval,maxCoins:Number(c.max_coins),strategyVersion:c.strategy_version,stopLossActive:!!c.stop_loss_active}));
-      localStorage.setItem("criptopro_robot_saved_"+String(selectedAccountId),"1");
-    }
+    if(txt){txt.textContent=c?`${robotStrategyLabel(c.strategy_version)} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:"Configure este robô para esta API.";}
+    if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"";
+    const sb=document.getElementById("startRobotBtn"); const st=document.getElementById("stopRobotBtn");
+    if(sb)sb.disabled=running||!c; if(st)st.disabled=!running;
+    renderRobotSlotsFromSingle(d);
     return d;
-  }catch(e){console.warn('ROBÔ STATUS:',e);}
+  }catch(e){console.warn("ROBÔ STATUS:",e);}
 }
-async function openRobot(){
+
+function renderRobotSlotsFromSingle(d){
+  const existing=robotInstancesCache.slice();
+  const i=existing.findIndex(x=>Number(x.robotId)===Number(activeRobotId));
+  const item={robotId:activeRobotId,config:d.config,running:!!d.running,engineRunning:!!d.engineRunning,operations:d.operations||[],robotLogs:d.robotLogs||[]};
+  if(i>=0)existing[i]=item; else existing.push(item);
+  renderRobotSlots(existing);
+}
+
+async function openRobot(robotId=1){
+  activeRobotId=Number(robotId)||1;
   let c=getRobotConfig();
   try{
     if(selectedAccountId){
-      const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
+      const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);
       if(d?.config){
         c={
           entryPercent:Number(d.config.entry_percent),
@@ -1606,24 +1692,29 @@ async function openRobot(){
           strategyVersion:String(d.config.strategy_version||"premium"),
           stopLossActive:d.config.stop_loss_active!==false
         };
-        if(c.strategyVersion==="v7.1")c.strategyVersion="premium";
-        if(c.strategyVersion==="v6")c.strategyVersion="medio";
-        localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
       }
     }
   }catch(_e){}
   document.getElementById("entryPercent").value=c.entryPercent;
   document.getElementById("takeProfit").value=c.takeProfit;
   document.getElementById("stopLoss").value=c.stopLoss;
-  document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||3,3);
-  document.getElementById("interval").value=c.interval||'15m';
-  document.getElementById("maxCoins").value=c.maxCoins||20;
-  document.getElementById("strategyVersion").value=c.strategyVersion||'premium';
-  document.getElementById("stopLossActive").value=(c.stopLossActive===false?'false':'true');
-  document.getElementById("robotMessage").className="message";document.getElementById("robotMessage").textContent="";
+  document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||1,Number(currentPlanRules?.maxOperations||3));
+  document.getElementById("interval").value=c.interval||"15m";
+  document.getElementById("maxCoins").value=Math.min(Number(c.maxCoins)||20,Number(currentPlanRules?.maxCoins||20));
+  document.getElementById("strategyVersion").value=c.strategyVersion||"premium";
+  document.getElementById("stopLossActive").value=c.stopLossActive===false?"false":"true";
+  const title=document.querySelector("#robotModal .modal-title");
+  if(title)title.textContent=`Configurar Robô ${activeRobotId} · ${ROBOT_NAMES[activeRobotId]||""}`;
+  const save=document.getElementById("saveRobotBtn"), start=document.getElementById("startRobotConfigBtn");
+  if(save)save.disabled=false;
+  if(start)start.disabled=!!selectedRobotData()?.running;
+  const msg=document.getElementById("robotMessage");
+  if(msg){msg.className="message";msg.textContent="";}
   document.getElementById("robotModal").classList.add("open");
 }
+
 function closeRobot(){document.getElementById("robotModal").classList.remove("open")}
+
 async function saveRobot(){
   const c={
     entryPercent:Number(document.getElementById("entryPercent").value),
@@ -1636,35 +1727,25 @@ async function saveRobot(){
     stopLossActive:document.getElementById("stopLossActive").value==="true"
   };
   const msg=document.getElementById("robotMessage");
-
   if(!selectedAccountId){showMessage(msg,"Selecione uma API antes de salvar.","error");return;}
+  const rules=currentPlanRules||{};
   if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;}
   if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return;}
   if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return;}
-  if(c.maxOperations<1||c.maxOperations>3){showMessage(msg,"O Premium permite até 3 operações simultâneas.","error");return;}
-  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>50){showMessage(msg,"O número de moedas deve estar entre 1 e 50.","error");return;}
+  if(c.maxOperations<1||c.maxOperations>Number(rules.maxOperations||3)){showMessage(msg,`Seu plano permite até ${rules.maxOperations||3} operação(ões).`,"error");return;}
+  if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>Number(rules.maxCoins||20)){showMessage(msg,`Seu plano permite analisar até ${rules.maxCoins||20} moedas.`,"error");return;}
 
-  const saveBtn=document.getElementById("saveRobotBtn")||document.querySelector("#robotModal .btn-primary");
+  const saveBtn=document.getElementById("saveRobotBtn");
   if(saveBtn){saveBtn.disabled=true;saveBtn.textContent="Salvando...";}
-
   try{
-    const d=await apiFetch("/api/robot/config",{
-      method:"POST",
-      body:JSON.stringify({accountId:selectedAccountId,...c})
-    });
+    const d=await apiFetch("/api/robot/config",{method:"POST",body:JSON.stringify({accountId:selectedAccountId,robotId:activeRobotId,...c})});
     if(!d.success)throw new Error(d.message||d.error||"Não foi possível salvar.");
-
-    localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
-    localStorage.setItem("criptopro_robot_saved_"+String(selectedAccountId),"1");
-    window.robotRiskAccountId=selectedAccountId;
-    robotCurrentConfigId=d.configId||d.id||d.config?.id||d.config?.config_id||null;
-
-    // Mesmo que o endpoint não retorne id, o backend resolve a configuração
-    // atual por usuário + conta Binance.
+    robotCurrentConfigId=d.configId||d.id||d.config?.id||null;
+    if(saveBtn)saveBtn.disabled=false;
     const startBtn=document.getElementById("startRobotConfigBtn");
     if(startBtn)startBtn.disabled=false;
-
-    showMessage(msg,"✓ Configuração salva no servidor. Agora clique em ▶ Iniciar robô para abrir o Termo.","success");
+    showMessage(msg,`✓ Configuração salva para o Robô ${activeRobotId}. Agora clique em ▶ Iniciar robô para abrir o Termo.`,"success");
+    await loadRobotInstances();
   }catch(e){
     showMessage(msg,e.message||"Erro ao salvar configuração.","error");
   }finally{
@@ -1672,134 +1753,69 @@ async function saveRobot(){
   }
 }
 
-async function startRobot(){
-  if(!selectedAccountId){
-    alert("Selecione uma API e clique em Carregar painel.");
-    return;
-  }
-
-  // Depois de salvar, a configuração fica vinculada ao usuário + conta.
-  // Não dependemos de um configId retornado pelo endpoint.
-  const savedKey="criptopro_robot_saved_"+String(selectedAccountId);
-  const saved=localStorage.getItem(savedKey);
-
-  if(saved!=="1"){
-    alert("Salve uma configuração do robô antes de iniciar.");
-    return;
-  }
-
+async function startRobot(robotId=activeRobotId){
+  activeRobotId=Number(robotId)||1;
+  if(!selectedAccountId){alert("Selecione uma API e carregue o painel.");return;}
+  let d;
+  try{d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);}
+  catch(e){alert(e.message);return;}
+  if(!d?.config){alert(`Salve a configuração do Robô ${activeRobotId} antes de iniciar.`);return;}
+  robotCurrentConfigId=d.config.id||null;
   window.robotRiskAccountId=selectedAccountId;
-  window.robotRiskConfigId=null;
-
-  // START abre o termo. O robô só é iniciado depois do aceite.
-  openRiskTerm(selectedAccountId);
+  window.robotRiskConfigId=robotCurrentConfigId;
+  openRiskTerm(activeRobotId);
 }
 
-function openRiskTerm(configOrAccountId){
-  if(configOrAccountId && String(configOrAccountId)!==String(selectedAccountId)){
-    window.robotRiskConfigId=String(configOrAccountId);
-  }
+function openRiskTerm(robotOrAccountId){
+  const robotId=Number(robotOrAccountId)||activeRobotId||1;
+  activeRobotId=robotId;
   window.robotRiskAccountId=selectedAccountId;
-
-  const modal=document.getElementById("robotRiskModal");
-  const check=document.getElementById("robotRiskAccepted");
+  window.robotRiskRobotId=robotId;
+  window.robotRiskConfigId=robotCurrentConfigId||null;
+  const modal=document.getElementById("robotRiskModal"),check=document.getElementById("robotRiskAccepted");
   if(!modal){alert("Termo de Responsabilidade não encontrado.");return;}
   if(check)check.checked=false;
   modal.style.display="flex";
 }
 
-function fecharTermoRisco(){
-  const modal=document.getElementById("robotRiskModal");
-  if(modal)modal.style.display="none";
-}
+function fecharTermoRisco(){const modal=document.getElementById("robotRiskModal");if(modal)modal.style.display="none"}
 
 async function aceitarTermoRisco(){
   const check=document.getElementById("robotRiskAccepted");
-  if(!check||!check.checked){
-    alert("Marque a opção de aceite do Termo de Responsabilidade para continuar.");
-    return;
-  }
-  if(!selectedAccountId){
-    alert("Selecione uma API Binance antes de iniciar.");
-    return;
-  }
-
-  const token=localStorage.getItem("token");
-  if(!token){
-    alert("Sua sessão expirou. Faça login novamente.");
-    window.location.href="/login.html";
-    return;
-  }
-
+  if(!check?.checked){alert("Marque a opção de aceite do Termo de Responsabilidade para continuar.");return;}
+  if(!selectedAccountId){alert("Selecione uma API Binance antes de iniciar.");return;}
+  const token=localStorage.getItem("token");if(!token){alert("Sua sessão expirou. Faça login novamente.");window.location.href="/login.html";return;}
   const btn=document.getElementById("robotRiskAcceptBtn");
   try{
     if(btn){btn.disabled=true;btn.textContent="REGISTRANDO...";}
-
-    const accepted=await apiFetch("/api/robot/risk/accept",{
-      method:"POST",
-      body:JSON.stringify({
-        accountId:selectedAccountId,
-        configId:window.robotRiskConfigId||null
-      })
-    });
-
+    const accepted=await apiFetch("/api/robot/risk/accept",{method:"POST",body:JSON.stringify({accountId:selectedAccountId,robotId:activeRobotId,configId:window.robotRiskConfigId||null})});
     if(!accepted.success)throw new Error(accepted.message||accepted.error||"Não foi possível registrar o termo.");
-
-    if(accepted.configId){
-      robotCurrentConfigId=accepted.configId;
-      window.robotRiskConfigId=accepted.configId;
-    }
-
-    // O START só acontece aqui, depois do aceite.
-    const started=await apiFetch("/api/robot/start",{
-      method:"POST",
-      body:JSON.stringify({
-        accountId:selectedAccountId,
-        configId:robotCurrentConfigId||window.robotRiskConfigId||null
-      })
-    });
-
+    robotCurrentConfigId=accepted.configId||robotCurrentConfigId;
+    const started=await apiFetch("/api/robot/start",{method:"POST",body:JSON.stringify({accountId:selectedAccountId,robotId:activeRobotId,configId:robotCurrentConfigId||null})});
     if(!started.success)throw new Error(started.message||started.error||"Não foi possível iniciar o robô.");
-
     fecharTermoRisco();
+    alert(`Termo aceito. Robô ${activeRobotId} iniciado com a configuração salva.`);
+    await loadRobotInstances();
+    await loadRobotStatus(activeRobotId);
+  }catch(error){console.error("ERRO AO INICIAR ROBÔ:",error);alert("Não foi possível iniciar o robô.\n\n"+error.message);}
+  finally{if(btn){btn.disabled=false;btn.textContent="Li, compreendi e aceito";}}
+}
 
-    // O START do backend foi confirmado: atualiza os controles imediatamente.
-    atualizarCardRoboVisual(true);
-
-    // Confirma o estado persistido no servidor; se a consulta falhar,
-    // o estado visual já permanece em RODANDO porque o START foi aceito.
-    try{ await loadRobotStatus(); }catch(_e){}
-
-    atualizarCardRoboVisual(true);
-    alert("Termo aceito. Robô iniciado com a configuração salva.");
-  }catch(error){
-    console.error("ERRO AO INICIAR ROBÔ:",error);
-    alert("Não foi possível iniciar o robô.\n\n"+error.message);
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent="Li, compreendi e aceito";}
-  }
+async function stopRobot(robotId=activeRobotId){
+  activeRobotId=Number(robotId)||1;
+  if(!selectedAccountId)return;
+  try{
+    const d=await apiFetch("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId:selectedAccountId,robotId:activeRobotId})});
+    if(!d.success)throw new Error(d.message||"Não foi possível parar o robô.");
+    await loadRobotInstances();
+    await loadRobotStatus(activeRobotId);
+    alert(`Robô ${activeRobotId} parado.`);
+  }catch(e){alert(e.message||"Erro ao parar o robô.");}
 }
 
 function atualizarCardRoboVisual(running){
-  const badge=document.getElementById("robotStatusBadge");
-  const txt=document.getElementById("robotStatusText");
-  const start=document.getElementById("startRobotBtn");
-  const startConfig=document.getElementById("startRobotConfigBtn");
-  const stop=document.getElementById("stopRobotBtn");
-
-  if(badge){
-    badge.textContent=running?"● RODANDO":"PARADO";
-    badge.className=running?"badge-green":"badge-yellow";
-  }
-  if(start)start.disabled=running;
-  if(startConfig)startConfig.disabled=running;
-  if(stop)stop.disabled=!running;
-  if(txt && running)txt.textContent="Robô ativo · analisando o mercado.";
-}
-
-async function stopRobot(){
-  if(!selectedAccountId)return;
-  try{const d=await apiFetch('/api/robot/stop',{method:'POST',body:JSON.stringify({accountId:selectedAccountId})});if(!d.success)throw new Error(d.message||'Não foi possível parar o robô.');atualizarCardRoboVisual(false);try{await loadRobotStatus()}catch(_e){} atualizarCardRoboVisual(false);alert('Robô parado. Ordens já existentes permanecem na Binance.');}catch(e){alert(e.message||'Erro ao parar o robô.')}
+  const item=selectedRobotData();
+  if(item){item.running=running;item.engineRunning=running;renderRobotSlots(robotInstancesCache);}
 }
 
 function showMessage(element,text,type){element.textContent=text;element.className="message show "+type}
@@ -2341,7 +2357,7 @@ async function init(){
     await loadRobotStatus();
   },30000);
   if(robotLogTimer)clearInterval(robotLogTimer);
-  robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotStatus();}catch(_e){}}},3000);
+  robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
 init();
 </script>

@@ -217,10 +217,15 @@ async function ensureSchema(){
       ON robot_logs(user_id,account_id,created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_robot_configs_user_account
       ON robot_configs(user_id,account_id);
-    -- Permite até 5 robôs independentes por usuário/conta.
+    -- Migração da versão antiga (1 robô) para 5 robôs independentes.
+    -- A versão antiga possuía uma UNIQUE(user_id,account_id), que impede
+    -- cadastrar o Robô 2, Robô 3, etc. Essa restrição precisa ser removida.
     UPDATE robot_configs
       SET robot_id=COALESCE(robot_id,1)
       WHERE robot_id IS NULL;
+
+    ALTER TABLE robot_configs
+      DROP CONSTRAINT IF EXISTS robot_configs_user_id_account_id_key;
 
     ALTER TABLE robot_configs DROP CONSTRAINT IF EXISTS robot_configs_pkey;
     ALTER TABLE robot_configs ADD CONSTRAINT robot_configs_pkey PRIMARY KEY(user_id,account_id,robot_id);
@@ -256,6 +261,7 @@ async function ensureSchema(){
       updated_at=COALESCE(updated_at,NOW())
   `);
 
+  console.log('[ROBO] SCHEMA OK | 5 robôs independentes habilitados | UNIQUE antiga user_id+account_id removida');
   schemaReady=true;
 }
 async function getAccount(userId,accountId){

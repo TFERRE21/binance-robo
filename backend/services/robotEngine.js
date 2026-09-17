@@ -358,6 +358,9 @@ async function buy(userId,account,config,symbol){
   let tpOrder=null;
   try{
     tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
+    robotLog(userId,account.id,
+      `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${num(config.take_profit)}%`
+    );
   }catch(e){
     // Se o TP não puder ser criado, não deixamos a posição sem registro.
     // O monitor poderá atuar pelo stop, mas o evento fica explícito no log.
@@ -372,7 +375,10 @@ async function buy(userId,account,config,symbol){
   );
 
   robotLog(userId,account.id,
-    `COMPRA EXECUTADA | ${symbol} | preço=${buyPrice} | quantidade=${qty} | TP=${tp} (+${num(config.take_profit)}%) | SL=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
+    `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preço=${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT`
+  );
+  robotLog(userId,account.id,
+    `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder.orderId} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
   return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder.orderId,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
@@ -569,6 +575,10 @@ async function start(userId,accountId){
     [userId,accountId]
   );
 
+  await db.query(
+    `INSERT INTO robot_logs(user_id,account_id,level,message) VALUES($1,$2,'INFO',$3)`,
+    [userId,accountId,`ROBO VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | configuração ativa | entrada=${num(c.entry_percent)}% | TP=${num(c.take_profit)}% | SL=${c.stop_loss_active?'ATIVO':'DESATIVADO'} | intervalo=${c.interval}`]
+  );
   console.log(`[ROBO] VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | usuário=${userId} | conta=${accountId}`);
 
   loop(userId,String(accountId));
@@ -598,6 +608,11 @@ async function stop(userId,accountId){
   const deadline=Date.now()+20000;
   while(runners.has(key)&&Date.now()<deadline)await sleep(250);
 
+  const cfg=await getConfig(userId,accountId);
+  await db.query(
+    `INSERT INTO robot_logs(user_id,account_id,level,message) VALUES($1,$2,'INFO',$3)`,
+    [userId,accountId,`ROBO DESLIGADO | estratégia=${strategyInfo(String(cfg?.strategy_version||'premium')).name} | comando PARAR ROBÔ confirmado`]
+  );
   console.log(`[ROBO] DESLIGADO | usuário=${userId} | conta=${accountId}`);
 
   return getStatus(userId,accountId);

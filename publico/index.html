@@ -862,6 +862,7 @@ select.plan-locked{
   </div>
   <div class="modal-footer">
   <button class="btn" onclick="closeRobot()">Cancelar</button>
+  <button class="btn" id="stopRobotConfigBtn" onclick="stopRobot()" disabled>■ Parar robô</button>
   <button class="btn btn-primary" id="saveRobotBtn" onclick="saveRobot()">Salvar configuração</button>
   <button class="btn btn-primary" id="startRobotConfigBtn" onclick="startRobot()" disabled>▶ Iniciar robô</button>
 </div>
@@ -1602,7 +1603,7 @@ function robotSlotCard(item){
     <div class="robot-slot-actions">
       <button class="btn" onclick="openRobot(${id})">⚙ Configurar</button>
       <button class="btn btn-primary" onclick="startRobot(${id})" ${running||!c?"disabled":""}>▶ Iniciar</button>
-      <button class="btn" onclick="stopRobot(${id})" ${!running?"disabled":""}>■ Parar</button>
+      <button class="btn" onclick="stopRobot(${id})" ${!running?"disabled":""}>■ Parar robô</button>
     </div>`:""}
   </div>`;
 }
@@ -1660,8 +1661,14 @@ async function loadRobotStatus(robotId=activeRobotId){
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt){txt.textContent=c?`${robotStrategyLabel(c.strategy_version)} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:"Configure este robô para esta API.";}
     if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"";
-    const sb=document.getElementById("startRobotBtn"); const st=document.getElementById("stopRobotBtn");
-    if(sb)sb.disabled=running||!c; if(st)st.disabled=!running;
+    const sb=document.getElementById("startRobotBtn");
+    const sbModal=document.getElementById("startRobotConfigBtn");
+    const st=document.getElementById("stopRobotBtn");
+    const stModal=document.getElementById("stopRobotConfigBtn");
+    if(sb)sb.disabled=running||!c;
+    if(sbModal)sbModal.disabled=running||!c;
+    if(st)st.disabled=!running;
+    if(stModal)stModal.disabled=!running;
     renderRobotSlotsFromSingle(d);
     return d;
   }catch(e){console.warn("ROBÔ STATUS:",e);}

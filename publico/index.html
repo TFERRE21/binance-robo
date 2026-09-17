@@ -354,6 +354,11 @@ button{cursor:pointer}
 .news-card h4{font-size:11px;line-height:1.35;margin-bottom:7px}
 .news-card p{font-size:9px;color:#9aa6b7;line-height:1.45}
 .news-date{font-size:8px;color:#647082;margin-top:9px}
+.news-link{color:#f0b90b;text-decoration:none;font-weight:800;margin-left:4px}
+.news-link:hover{text-decoration:underline}
+.news-card h4{font-size:12px;line-height:1.45;margin-bottom:8px}
+.news-card p{font-size:10px;color:#9aa6b7;line-height:1.55;margin:0}
+.news-date{font-size:8px;color:#647082;margin-top:11px}
 .market7{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:12px}
 .market7 .report-box{min-height:65px}
 .journal-loading{padding:18px;text-align:center;color:#778395;font-size:10px}
@@ -1793,24 +1798,82 @@ async function loadActivityAndNews(){
   }
 }
 
+function formatNewsDate(t){
+  const text=dateTime(t);
+  return text==="Data não disponível" ? "Data não disponível" : text;
+}
+
+function renderJournalArticle(n){
+  const source=escapeHtml(n.source||"CriptoPro");
+  const title=escapeHtml(n.title||"Notícia sem título");
+  const description=escapeHtml(n.description||"");
+  const url=n.url?String(n.url):"";
+  const safeUrl=/^https?:\/\//i.test(url)?escapeHtml(url):"";
+
+  return `<article class="news-card">
+    <div class="news-source">${source}</div>
+    <h4>${title}</h4>
+    ${description?`<p>${description}</p>`:""}
+    <div class="news-date">
+      ${formatNewsDate(n.publishedAt)}
+      ${safeUrl?` · <a class="news-link" href="${safeUrl}" target="_blank" rel="noopener noreferrer">Ler notícia ↗</a>`:""}
+    </div>
+  </article>`;
+}
+
 async function loadCryptoNews(){
-  const grid=document.getElementById("cryptoNewsGrid"), summary=document.getElementById("market7Summary");
+  const grid=document.getElementById("cryptoNewsGrid");
+  const summary=document.getElementById("market7Summary");
   if(!grid)return;
+
   grid.innerHTML='<div class="journal-loading">Atualizando Jornal CriptoPro...</div>';
+  if(summary)summary.innerHTML='<div class="journal-loading">Atualizando panorama de 7 dias...</div>';
+
   try{
-    const d=await fetch("/api/news/crypto?days=7").then(r=>r.ok?r.json():Promise.reject(new Error("Não foi possível consultar as notícias.")));
-    const a=d.articles||[];
-    grid.innerHTML=a.slice(0,6).map(n=>`<article class="news-card"><div class="news-source">${escapeHtml(n.source||"CriptoPro")}</div><h4>${escapeHtml(n.title||"")}</h4><p>${escapeHtml(n.description||"")}</p><div class="news-date">${dateTime(n.publishedAt)} ${n.url?` · <a href="${escapeHtml(n.url)}" target="_blank" rel="noopener">Abrir fonte</a>`:''}</div></article>`).join("")||'<div class="empty-data">O feed jornalístico não retornou artigos agora. O panorama de mercado dos últimos 7 dias continua disponível abaixo.</div>';
+    const response=await fetch("/api/news/crypto?days=7",{cache:"no-store"});
+    const d=await response.json().catch(()=>({}));
+
+    if(!response.ok || d.success===false){
+      throw new Error(d.message||"Não foi possível consultar o Jornal CriptoPro.");
+    }
+
+    const articles=Array.isArray(d.articles)?d.articles:[];
+    grid.innerHTML=articles.length
+      ? articles.slice(0,12).map(renderJournalArticle).join("")
+      : '<div class="empty-data">Nenhuma notícia encontrada nos últimos 7 dias.</div>';
+
     const m=d.market7||{};
-    summary.innerHTML=[
-      ["BTC 7D",percent(m.btc7d)],
-      ["ETH 7D",percent(m.eth7d)],
-      ["BNB 7D",percent(m.bnb7d)],
-      ["XRP 7D",percent(m.xrp7d)]
-    ].map(x=>`<div class="report-box"><span>${x[0]}</span><strong class="${Number(String(x[1]).replace('%','').replace(',','.'))>=0?'pnl-positive':'pnl-negative'}">${x[1]}</strong></div>`).join("");
+    const marketItems=[
+      ["BTC 7D",m.btc7d],
+      ["ETH 7D",m.eth7d],
+      ["BNB 7D",m.bnb7d],
+      ["XRP 7D",m.xrp7d]
+    ];
+
+    if(summary){
+      summary.innerHTML=marketItems.map(([label,value])=>{
+        const n=Number(value);
+        const valid=Number.isFinite(n);
+        const cls=valid && n>=0 ? "pnl-positive" : "pnl-negative";
+        const shown=valid
+          ? `${n>=0?"+":""}${n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}%`
+          : "—";
+        return `<div class="report-box">
+          <span>${label}</span>
+          <strong class="${valid?cls:""}">${shown}</strong>
+        </div>`;
+      }).join("");
+    }
+
+    const updated=document.querySelector(".news-actions .binance-chip");
+    if(updated){
+      updated.textContent="● ATUALIZADO "+new Date(d.updatedAt||Date.now()).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+    }
   }catch(e){
-    grid.innerHTML='<div class="empty-data">Jornal temporariamente sem feed de notícias. Os dados de mercado continuam disponíveis.</div>';
-    if(summary)summary.innerHTML='<div class="report-box"><span>Status</span><strong>Mercado Binance ativo</strong></div>';
+    grid.innerHTML=`<div class="empty-data">Jornal temporariamente indisponível. ${escapeHtml(e.message||"Tente novamente.")}</div>`;
+    if(summary){
+      summary.innerHTML='<div class="report-box"><span>Status</span><strong>Sem dados</strong></div>';
+    }
   }
 }
 
@@ -1893,7 +1956,14 @@ function positionCard(p){
     <div class="asset-meta">Venda: ${p.tp?moneyUSDT(p.tp.price):"sem ordem"}</div>
   </div>`;
 }
-function dateTime(t){return t?new Date(Number(t)).toLocaleString("pt-BR"):"—"}
+function dateTime(t){
+  if(t===null || t===undefined || t==="") return "—";
+  const d = typeof t === "number"
+    ? new Date(t)
+    : (/^\\d+$/.test(String(t)) ? new Date(Number(t)) : new Date(String(t)));
+  if(Number.isNaN(d.getTime())) return "Data não disponível";
+  return d.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+}
 
 function openDetailedChart(){
   const positions=selectedAccountData?.posicoes||[];

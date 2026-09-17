@@ -8,6 +8,62 @@ let schemaReady = false;
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
 const BLOCKED = new Set(['TRX']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
+const STRATEGIES = {
+  basico: {
+    name:'Básico',
+    description:'Mais oportunidades; filtros técnicos essenciais.',
+    mode:'volume',
+    scoreMin:5,
+    rsiMin:40,
+    rsiMax:65,
+    requirePullback:false,
+    marketMinScore:0
+  },
+  medio: {
+    name:'Médio',
+    description:'Equilíbrio entre seletividade e frequência.',
+    mode:'volume',
+    scoreMin:6,
+    rsiMin:45,
+    rsiMax:60,
+    requirePullback:false,
+    marketMinScore:0
+  },
+  premium: {
+    name:'Premium',
+    description:'Filtros de tendência e mercado; maior seletividade.',
+    mode:'marketcap',
+    scoreMin:7,
+    rsiMin:40,
+    rsiMax:65,
+    requirePullback:false,
+    marketMinScore:2
+  },
+  avancado: {
+    name:'Avançado',
+    description:'Mais seletivo; exige confirmação adicional do mercado.',
+    mode:'marketcap',
+    scoreMin:8,
+    rsiMin:45,
+    rsiMax:62,
+    requirePullback:false,
+    marketMinScore:3
+  },
+  elite: {
+    name:'Elite',
+    description:'Máxima seletividade; foco em setups mais filtrados.',
+    mode:'marketcap',
+    scoreMin:9,
+    rsiMin:48,
+    rsiMax:58,
+    requirePullback:true,
+    marketMinScore:4
+  }
+};
+function strategyInfo(version){
+  return STRATEGIES[String(version||'premium')] || STRATEGIES.premium;
+}
+
 
 function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
@@ -105,21 +161,63 @@ async function marketFilter(client){
   }catch(e){ return {favoravel:false,quente:false,score:0,error:errText(e)}; }
 }
 
-async function analyze(client,symbol,market,interval){
-  const rows=await client.candles({symbol,interval,limit:120}); const closed=rows.slice(0,-1); if(closed.length<50)return {valid:false,reason:'Poucos candles'};
-  const closes=closed.map(x=>num(x.close)),opens=closed.map(x=>num(x.open)),highs=closed.map(x=>num(x.high)),lows=closed.map(x=>num(x.low)),volumes=closed.map(x=>num(x.volume));
-  const e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes,14),last=closes.length-1,p=closes[last],o=opens[last]; let score=0;
-  if(e9>e21)score+=2; if(r>=40&&r<=65)score++; if(r>68)return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
-  const dist=(p-e21)/e21; if(dist>0.04)return {valid:false,reason:'Preço esticado'}; if(Math.abs(dist)<=0.025)score++;
-  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length); const vr=avgVol?volumes[last]/avgVol:0; if(vr>=0.8)score++; if(p>o)score++;
-  const minLow=Math.min(...lows.slice(-6)); const pull=Math.abs((minLow-e21)/e21)<=0.025&&p>=e21*0.995&&p<=e21*1.04;
-  const maxHigh=Math.max(...highs.slice(-11,-1)); const breakout=p>maxHigh&&vr>=1.3&&dist<=0.04;
-  let entry=null; if(pull){score++;entry='PULLBACK';}else if(breakout&&!market.quente){score++;entry='BREAKOUT';}
-  if(market.quente&&entry!=='PULLBACK')return {valid:false,reason:'Mercado aquecido'};
-  if(score<7||!entry)return {valid:false,reason:`Score ${score}/12`};
-  const price= num((await client.prices({symbol}))[symbol]); return {valid:price>0,price,score,rsi:r,e9,e21,entry,reason:price>0?'':'Preço inválido'};
-}
+async function analyze(client,symbol,market,interval,version='premium'){
+  const strategy=strategyInfo(version);
+  const rows=await client.candles({symbol,interval,limit:120});
+  const closed=rows.slice(0,-1);
+  if(closed.length<50)return {valid:false,reason:'Poucos candles'};
 
+  const closes=closed.map(x=>num(x.close));
+  const opens=closed.map(x=>num(x.open));
+  const highs=closed.map(x=>num(x.high));
+  const lows=closed.map(x=>num(x.low));
+  const volumes=closed.map(x=>num(x.volume));
+
+  const e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes,14);
+  const last=closes.length-1,p=closes[last],o=opens[last];
+  let score=0;
+
+  if(e9>e21)score+=2;
+  if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
+  if(r>strategy.rsiMax+5)return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
+
+  const dist=(p-e21)/e21;
+  if(dist>0.04)return {valid:false,reason:'Preço esticado'};
+  if(Math.abs(dist)<=0.025)score++;
+
+  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length);
+  const vr=avgVol?volumes[last]/avgVol:0;
+  if(vr>=0.8)score++;
+  if(p>o)score++;
+
+  const minLow=Math.min(...lows.slice(-6));
+  const pull=Math.abs((minLow-e21)/e21)<=0.025&&p>=e21*0.995&&p<=e21*1.04;
+  const maxHigh=Math.max(...highs.slice(-11,-1));
+  const breakout=p>maxHigh&&vr>=1.3&&dist<=0.04;
+
+  let entry=null;
+  if(pull) { score++; entry='PULLBACK'; }
+  else if(breakout && !market.quente) { score++; entry='BREAKOUT'; }
+
+  if(strategy.requirePullback && entry!=='PULLBACK')
+    return {valid:false,reason:'Estratégia exige PULLBACK'};
+
+  if(market.quente && entry!=='PULLBACK')
+    return {valid:false,reason:'Mercado aquecido'};
+
+  if(market.score < strategy.marketMinScore)
+    return {valid:false,reason:`Mercado abaixo do filtro da estratégia (${market.score})`};
+
+  if(score<strategy.scoreMin || !entry)
+    return {valid:false,reason:`Score ${score} abaixo de ${strategy.scoreMin}`};
+
+  const price=num((await client.prices({symbol}))[symbol]);
+  return {
+    valid:price>0,price,score,rsi:r,e9,e21,entry,
+    strategy:version,
+    reason:price>0?'':'Preço inválido'
+  };
+}
 async function openCount(userId,accountId){ await ensureSchema(); const r=await db.query(`SELECT COUNT(*)::int AS count FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND status='OPEN'`,[userId,accountId]); return num(r.rows[0]?.count); }
 async function existingSymbol(userId,accountId,symbol){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND symbol=$3 AND status='OPEN' LIMIT 1`,[userId,accountId,symbol]); return !!r.rows.length; }
 
@@ -158,29 +256,99 @@ async function monitorOpenOps(userId,account,config){
   }
 }
 
-async function scanV6(userId,account,config){
-  const client=clientFor(account); const tickers=await client.dailyStats();
-  const pairs=tickers.filter(t=>String(t.symbol||'').endsWith('USDT')&&!isStable(String(t.symbol).replace(/USDT$/,''))&&!isLeveraged(String(t.symbol).replace(/USDT$/,''))).sort((a,b)=>num(b.quoteVolume)-num(a.quoteVolume)).slice(0,num(config.max_coins));
+async function topVolumePairs(client,maxCoins){
+  const tickers=await client.dailyStats();
+  return tickers
+    .filter(t=>{
+      const symbol=String(t.symbol||'').toUpperCase();
+      const base=symbol.endsWith('USDT')?symbol.slice(0,-4):'';
+      return symbol.endsWith('USDT') && base && !isStable(base) && !isLeveraged(base) && !BLOCKED.has(base);
+    })
+    .sort((a,b)=>num(b.quoteVolume)-num(a.quoteVolume))
+    .slice(0,num(maxCoins));
+}
+
+async function scanByProfile(userId,account,config,version){
+  const client=clientFor(account);
+  const strategy=strategyInfo(version);
+  const count=await openCount(userId,account.id);
+  if(count>=num(config.max_operations))
+    return {message:`Limite de ${config.max_operations} operações atingido`};
+
+  if(strategy.mode==='volume'){
+    const pairs=await topVolumePairs(client,num(config.max_coins));
+    for(const p of pairs){
+      if(await existingSymbol(userId,account.id,p.symbol))continue;
+
+      const rows=await client.candles({symbol:p.symbol,interval:config.interval,limit:100});
+      if(!rows||rows.length<50)continue;
+
+      const closes=rows.map(x=>num(x.close));
+      const volumes=rows.map(x=>num(x.volume));
+      const e9=ema(closes.slice(-20),9);
+      const e21=ema(closes.slice(-30),21);
+      const r=rsi(closes,14);
+      const price=closes.at(-1);
+      const volume=volumes.at(-1);
+      const avg=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
+
+      let score=0;
+      if(e9>e21)score+=2;
+      if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
+      if(price>e9)score++;
+      if(volume>avg)score++;
+      if(price>=e21)score++;
+
+      if(score<strategy.scoreMin)continue;
+
+      const current=await openCount(userId,account.id);
+      if(current>=num(config.max_operations))break;
+
+      try{
+        return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)};
+      }catch(e){
+        console.error(`ROBOT ${version.toUpperCase()} BUY ${p.symbol}:`,errText(e));
+      }
+    }
+    return {message:'Nenhum setup aprovado'};
+  }
+
+  const ex=await client.exchangeInfo();
+  const market=await marketFilter(client);
+  if(!market.favoravel)return {message:'Mercado não favorável'};
+  if(market.score<strategy.marketMinScore)return {message:`Mercado abaixo do filtro da estratégia (${market.score})`};
+
+  const pairs=await top20(client,ex,num(config.max_coins));
   for(const p of pairs){
     if(await existingSymbol(userId,account.id,p.symbol))continue;
-    const rows=await client.candles({symbol:p.symbol,interval:config.interval,limit:100}); if(!rows||rows.length<50)continue;
-    const closes=rows.map(x=>num(x.close)),volumes=rows.map(x=>num(x.volume)); const e9=ema(closes.slice(-20),9),e21=ema(closes.slice(-30),21),r=rsi(closes,14),price=closes.at(-1),volume=volumes.at(-1),avg=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/20;
-    if(!(e9>e21&&r>45&&r<60&&price>e9&&volume>avg))continue;
-    const current=await openCount(userId,account.id); if(current>=num(config.max_operations))break;
-    try{return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)}}catch(e){console.error(`ROBOT V6 BUY ${p.symbol}:`,errText(e));}
+
+    const setup=await analyze(client,p.symbol,market,config.interval,version);
+    if(!setup.valid)continue;
+
+    const current=await openCount(userId,account.id);
+    if(current>=num(config.max_operations))break;
+
+    try{
+      return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)};
+    }catch(e){
+      console.error(`ROBOT ${version.toUpperCase()} BUY ${p.symbol}:`,errText(e));
+    }
   }
   return {message:'Nenhum setup aprovado'};
 }
 
-async function scan(userId,account,config){
-  if(String(config.strategy_version||'v7.1')==='v6')return scanV6(userId,account,config);
-  const client=clientFor(account); const ex=await client.exchangeInfo(); const market=await marketFilter(client); if(!market.favoravel)return {message:'Mercado não favorável'};
-  const count=await openCount(userId,account.id); if(count>=num(config.max_operations))return {message:`Limite de ${config.max_operations} operações atingido`};
-  const pairs=await top20(client,ex,num(config.max_coins));
-  for(const p of pairs){ if(await existingSymbol(userId,account.id,p.symbol))continue; const setup=await analyze(client,p.symbol,market,config.interval); if(!setup.valid)continue; const current=await openCount(userId,account.id); if(current>=num(config.max_operations))break; try{return {message:'Operação aberta',operation:await buy(userId,account,config,p.symbol)}}catch(e){console.error(`ROBOT BUY ${p.symbol}:`,errText(e));} }
-  return {message:'Nenhum setup aprovado'};
+async function scanV6(userId,account,config){
+  return scanByProfile(userId,account,config,'medio');
 }
+async function scan(userId,account,config){
+  const version=String(config.strategy_version||'premium');
 
+  if(version==='v6')return scanByProfile(userId,account,config,'medio');
+  if(STRATEGIES[version])return scanByProfile(userId,account,config,version);
+
+  // Compatibilidade com configurações antigas.
+  return scanByProfile(userId,account,config,'premium');
+}
 async function loop(userId,accountId){
   const key=`${userId}:${accountId}`; if(runners.has(key))return;
   const runner={stop:false}; runners.set(key,runner);
@@ -204,72 +372,56 @@ async function start(userId,accountId){
   if(!c)throw new Error('Configure o robô antes de iniciar');
 
   const key=`${userId}:${accountId}`;
-
-  // Se um runner anterior ainda estiver encerrando após o STOP,
-  // aguarda ele sair do mapa antes de criar o novo runner.
   const oldRunner=runners.get(key);
+
   if(oldRunner){
     oldRunner.stop=true;
-
     const deadline=Date.now()+20000;
-    while(runners.has(key) && Date.now()<deadline){
-      await sleep(250);
-    }
-
-    if(runners.has(key)){
+    while(runners.has(key)&&Date.now()<deadline)await sleep(250);
+    if(runners.has(key))
       throw new Error('O robô anterior ainda está encerrando. Aguarde alguns segundos e tente novamente.');
-    }
   }
 
   await db.query(
-    `UPDATE robot_configs
-     SET running=true,updated_at=NOW()
+    `UPDATE robot_configs SET running=true,updated_at=NOW()
      WHERE user_id=$1 AND account_id=$2`,
     [userId,accountId]
   );
 
-  loop(userId,String(accountId));
+  console.log(`[ROBO] VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | usuário=${userId} | conta=${accountId}`);
 
-  // Confirma que o novo runner foi criado.
+  loop(userId,String(accountId));
   await sleep(150);
 
   const status=await getStatus(userId,accountId);
-
   if(!status.engineRunning){
+    await db.query(`UPDATE robot_configs SET running=false,updated_at=NOW() WHERE user_id=$1 AND account_id=$2`,[userId,accountId]);
     throw new Error('A configuração foi ativada, mas o motor do robô não iniciou.');
   }
 
   return status;
 }
-
 async function stop(userId,accountId){
   await ensureSchema();
 
   const key=`${userId}:${accountId}`;
   const runner=runners.get(key);
-
-  // Sinaliza parada, mas NÃO remove o runner manualmente.
-  // O próprio loop fará runners.delete(key) no finally.
   if(runner)runner.stop=true;
 
   await db.query(
-    `UPDATE robot_configs
-     SET running=false,updated_at=NOW()
+    `UPDATE robot_configs SET running=false,updated_at=NOW()
      WHERE user_id=$1 AND account_id=$2`,
     [userId,accountId]
   );
 
-  // Aguarda o runner terminar para que um novo START possa ocorrer
-  // sem corrida entre o runner antigo e o novo.
   const deadline=Date.now()+20000;
-  while(runners.has(key) && Date.now()<deadline){
-    await sleep(250);
-  }
+  while(runners.has(key)&&Date.now()<deadline)await sleep(250);
+
+  console.log(`[ROBO] DESLIGADO | usuário=${userId} | conta=${accountId}`);
 
   return getStatus(userId,accountId);
 }
-
-async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ loop(x.user_id,String(x.account_id)); } }
+async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id)); } }
 
 async function getStatus(userId,accountId){ await ensureSchema(); const c=await getConfig(userId,accountId); const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason FROM robot_operations WHERE user_id=$1 AND account_id=$2 ORDER BY id DESC LIMIT 20`,[userId,accountId]); const engineRunning=runners.has(`${userId}:${accountId}`); return {success:true,config:c,running:!!c?.running || engineRunning,engineRunning,operations:r.rows}; }
 

@@ -438,6 +438,28 @@ button{cursor:pointer}
 .robotRiskAccept{background:#23c483;color:#07130d}
 .robotRiskAccept:disabled{opacity:.5;cursor:not-allowed}
 
+
+/* =========================================================
+   CRIPTOPRO — BLOQUEIO VISUAL POR PLANO
+========================================================= */
+.plan-locked{
+  opacity:.42 !important;
+  filter:grayscale(1);
+  cursor:not-allowed !important;
+}
+.plan-locked-label{
+  font-size:8px;
+  color:#7f8da3;
+  margin-top:5px;
+}
+select option:disabled{
+  color:#687386;
+  background:#111722;
+}
+input.plan-locked,
+select.plan-locked{
+  opacity:.48;
+}
 </style>
 </head>
 
@@ -616,7 +638,7 @@ button{cursor:pointer}
 
   <div class="robot-control-card" id="robotControlCard" style="margin-top:10px;border:1px solid rgba(240,185,11,.22);border-radius:12px;padding:12px;background:rgba(240,185,11,.035)">
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
-      <div><div style="font-size:10px;font-weight:900" id="robotStatusTitle">Robô Premium</div><div style="font-size:8px;color:#778395;margin-top:3px" id="robotStatusText">Configuração não carregada.</div></div>
+      <div><div style="font-size:10px;font-weight:900" id="robotStatusTitle">Robô</div><div style="font-size:8px;color:#778395;margin-top:3px" id="robotStatusText">Configuração não carregada.</div></div>
       <span class="badge-yellow" id="robotStatusBadge">PARADO</span>
     </div>
     <div id="robotSavedInfo" style="font-size:8px;color:#8f9aab;margin-top:9px"></div>
@@ -629,7 +651,7 @@ button{cursor:pointer}
   <div class="limit-box">
     <div class="limit-title" id="limitTitle">Seu plano Premium</div>
     <div class="limit-row"><span id="limitAccountsLabel">Contas Binance</span><span id="limitAccounts">0/3</span></div>
-    <div class="limit-row"><span id="limitOperationsLabel">Operações simultâneas</span><span id="limitOperations">3</span></div>
+    <div class="limit-row"><span id="limitOperationsLabel">Operações simultâneas</span><span id="limitOperations">3</span></div><div class="limit-row"><span id="limitRobotsLabel">Robôs ativos</span><span id="limitRobots">0/5</span></div>
     <div class="limit-row"><span>Acompanhamento</span><span>ATIVO</span></div>
     <div class="limit-row"><span>Monitoramento</span><span>ATIVO</span></div>
     <div class="limit-row"><span>Indicadores</span><span>ATIVO</span></div>
@@ -799,14 +821,14 @@ button{cursor:pointer}
   </div>
   <div class="modal-body">
     <div class="message" id="robotMessage"></div>
-    <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
+    <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO DO SEU PLANO — limites definidos pela assinatura ativa. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
     <div class="grid2">
       <div class="field"><label>Versão da estratégia</label><select id="strategyVersion">
-          <option value="basico">Básico — TOP Volume · EMA/RSI · mais oportunidades</option>
-          <option value="medio">Médio — TOP Volume · EMA9/EMA21 · equilíbrio</option>
-          <option value="premium" selected>Premium — TOP Market Cap · Score mínimo 7</option>
-          <option value="avancado">Avançado — Market Cap · Score mínimo 8</option>
-          <option value="elite">Elite — máxima seletividade · Score mínimo 9 + Pullback</option>
+          <option value="basico" data-plan-level="1">Básico — TOP Volume · EMA/RSI · mais oportunidades</option>
+          <option value="medio" data-plan-level="2">Médio — TOP Volume · EMA9/EMA21 · equilíbrio</option>
+          <option value="premium" data-plan-level="3">Premium — TOP Market Cap · Score mínimo 7</option>
+          <option value="avancado" data-plan-level="4">Avançado — Market Cap · Score mínimo 8</option>
+          <option value="elite" data-plan-level="5">Elite — máxima seletividade · Score mínimo 9 + Pullback</option>
         </select><div class="field-help">Escolha uma das 5 estratégias. Os indicadores utilizados aparecem no log em tempo real.</div></div>
       <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
     </div>
@@ -867,18 +889,117 @@ async function loadUser(){
   }catch(e){console.error(e)}
 }
 
+
+const PLAN_RULES={
+  basico:{
+    name:"Básico",
+    strategyLevel:1,
+    robots:1,
+    operations:1,
+    accounts:1,
+    maxCoins:20,
+    stopLoss:false
+  },
+  profissional:{
+    name:"Profissional",
+    strategyLevel:3,
+    robots:2,
+    operations:2,
+    accounts:2,
+    maxCoins:40,
+    stopLoss:true
+  },
+  premium:{
+    name:"Premium",
+    strategyLevel:5,
+    robots:5,
+    operations:3,
+    accounts:3,
+    maxCoins:100,
+    stopLoss:true
+  }
+};
+let currentPlanCode="premium";
+let currentPlanRules=PLAN_RULES.premium;
+
+function applyPlanFeatures(planCode){
+  currentPlanCode=String(planCode||"").toLowerCase();
+  currentPlanRules=PLAN_RULES[currentPlanCode]||PLAN_RULES.basico;
+
+  const strategy=document.getElementById("strategyVersion");
+  if(strategy){
+    [...strategy.options].forEach(option=>{
+      const level=Number(option.dataset.planLevel||1);
+      option.disabled=level>currentPlanRules.strategyLevel;
+      option.classList.toggle("plan-locked",option.disabled);
+    });
+
+    const current=[...strategy.options].find(o=>!o.disabled && o.value===strategy.value);
+    if(!current){
+      const first=[...strategy.options].find(o=>!o.disabled);
+      if(first) strategy.value=first.value;
+    }
+  }
+
+  const stopLoss=document.getElementById("stopLossActive");
+  if(stopLoss){
+    stopLoss.disabled=!currentPlanRules.stopLoss;
+    stopLoss.classList.toggle("plan-locked",!currentPlanRules.stopLoss);
+    if(!currentPlanRules.stopLoss) stopLoss.value="false";
+  }
+
+  const maxOperations=document.getElementById("maxOperations");
+  if(maxOperations){
+    [...maxOperations.options].forEach(option=>{
+      const n=Number(option.value);
+      option.disabled=n>currentPlanRules.operations;
+      option.classList.toggle("plan-locked",option.disabled);
+    });
+    if(Number(maxOperations.value)>currentPlanRules.operations){
+      maxOperations.value=String(currentPlanRules.operations);
+    }
+  }
+
+  const maxCoins=document.getElementById("maxCoins");
+  if(maxCoins){
+    maxCoins.max=String(currentPlanRules.maxCoins);
+    maxCoins.classList.remove("plan-locked");
+    if(Number(maxCoins.value)>currentPlanRules.maxCoins){
+      maxCoins.value=String(currentPlanRules.maxCoins);
+    }
+  }
+
+  const title=document.getElementById("limitTitle");
+  if(title) title.textContent=`Seu plano ${currentPlanRules.name}`;
+
+  const operations=document.getElementById("limitOperations");
+  if(operations) operations.textContent=String(currentPlanRules.operations);
+
+  const accounts=document.getElementById("limitAccounts");
+  if(accounts) accounts.textContent=`${Math.min(accounts.length||0,currentPlanRules.accounts)}/${currentPlanRules.accounts}`;
+
+  const robots=document.getElementById("limitRobots");
+  if(robots && !robots.dataset.live) robots.textContent=`0/${currentPlanRules.robots}`;
+
+  const help=document.querySelector("#strategyVersion")?.parentElement?.querySelector(".field-help");
+  if(help) help.textContent=`Seu plano ${currentPlanRules.name} libera até ${currentPlanRules.strategyLevel} nível(is) de estratégia. Opções bloqueadas ficam cinza.`;
+}
+
 async function loadSubscription(){
   try{
     const data=await apiFetch("/api/subscription/status");
-    if(!data.active||String(data.plan||"").toLowerCase()!=="premium"){
-      alert("Seu plano não possui acesso a este painel Premium.");
+    if(!data.active){
+      alert("Sua assinatura não está ativa. Escolha ou regularize um plano para acessar o painel.");
       window.location.href="/planos.html"; return false;
     }
-    const operations=Number(data.operacoesSimultaneas||3);
-    const accountsLimit=Number(data.contasBinance||3);
+    const plan=String(data.plan||"basico").toLowerCase();
+    applyPlanFeatures(plan);
+    const operations=currentPlanRules.operations;
+    const accountsLimit=currentPlanRules.accounts;
     document.getElementById("limitOperations").textContent=operations;
     document.getElementById("operationCount").textContent="0/"+operations;
     document.getElementById("limitAccounts").textContent="0/"+accountsLimit;
+    document.getElementById("limitRobots").textContent="0/"+currentPlanRules.robots;
     if(data.expires_at){
       document.getElementById("planValidity").textContent="Válido até "+new Date(data.expires_at).toLocaleDateString("pt-BR");
     }else document.getElementById("planValidity").textContent="Validade não informada";
@@ -917,7 +1038,7 @@ async function loadAccounts(){
   try{
     const data=await apiFetch("/api/binance/accounts");
     accounts=data.accounts||[];
-    document.getElementById("limitAccounts").textContent=accounts.length+"/3";
+    document.getElementById("limitAccounts").textContent=Math.min(accounts.length,currentPlanRules.accounts)+"/"+currentPlanRules.accounts;
     renderAccountSelector();
     renderApiSlots();
     renderReportAccountSelector();
@@ -1428,14 +1549,29 @@ function renderRobotLive(d){
     logBox.scrollTop=logBox.scrollHeight;
   }
 }
+
+async function refreshRobotPlanCount(){
+  const el=document.getElementById("limitRobots");
+  if(!el || !currentPlanRules) return;
+  let running=0;
+  for(const account of accounts||[]){
+    try{
+      const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(account.id)}`);
+      if(d && (d.running||d.engineRunning)) running++;
+    }catch(_e){}
+  }
+  el.dataset.live="1";
+  el.textContent=`${running}/${currentPlanRules.robots}`;
+}
 async function loadRobotStatus(){
-  if(!selectedAccountId)return;
+  if(!selectedAccountId){refreshRobotPlanCount();return;}
   try{
     const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
     renderRobotLive(d);
     const c=d.config;
     if(c){ robotCurrentConfigId=c.id||c.config_id||c.robot_config_id||robotCurrentConfigId||null; window.robotRiskConfigId=robotCurrentConfigId; }
     const running=!!d.running || !!d.engineRunning;
+    refreshRobotPlanCount().catch(()=>{});
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt){const n={basico:"Básico",medio:"Médio",premium:"Premium",avancado:"Avançado",elite:"Elite","v7.1":"Premium",v6:"Médio"};const k=String(c?.strategy_version||"premium").toLowerCase();txt.textContent=c?`${n[k]||k} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';}

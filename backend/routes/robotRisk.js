@@ -1,390 +1,174 @@
 const express = require("express");
+const crypto = require("crypto");
+const db = require("../services/db");
+const authMiddleware = require("../middleware/auth");
+const robotEngine = require("../services/robotEngine");
 
 const router = express.Router();
+const TERM_VERSION = "1.1";
 
-const authMiddleware = require("../middleware/auth");
-const db = require("../services/db");
+function robotIdFrom(req) {
+  const raw = req.body?.robotId ?? req.query?.robotId ?? 1;
+  const id = Number(raw);
+  return Number.isInteger(id) && id >= 1 && id <= 5 ? id : 1;
+}
 
-const TERM_VERSION = "1.0";
+function accountIdFrom(req) {
+  return String(req.body?.accountId ?? req.query?.account ?? "").trim();
+}
 
-function getAccountId(req) {
-  return Number(
-    req.body.accountId ||
-    req.body.account ||
-    req.query.accountId ||
-    req.query.account
-  );
+function getClientIp(req) {
+  return String(
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
+    req.socket?.remoteAddress ||
+    ""
+  ).slice(0,120);
+}
+
+function buildConfigSignature(config) {
+  const payload = {
+    id: config?.id || null,
+    robot_id: Number(config?.robot_id || 1),
+    strategy_version: String(config?.strategy_version || ""),
+    entry_percent: Number(config?.entry_percent || 0),
+    take_profit: Number(config?.take_profit || 0),
+    stop_loss: Number(config?.stop_loss || 0),
+    stop_loss_active: Boolean(config?.stop_loss_active),
+    max_operations: Number(config?.max_operations || 0),
+    interval: String(config?.interval || ""),
+    max_coins: Number(config?.max_coins || 0)
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
 async function ensureRiskTable() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS robot_risk_acceptances (
-      id SERIAL PRIMARY KEY,
+      id BIGSERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       account_id INTEGER NOT NULL,
-      robot_config_id INTEGER NOT NULL,
+      robot_id INTEGER NOT NULL DEFAULT 1,
+      robot_config_id BIGINT,
       term_version VARCHAR(20) NOT NULL,
-      config_signature TEXT NOT NULL,
-      accepted_at TIMESTAMP NOT NULL DEFAULT NOW(),
-      ip_address VARCHAR(100),
+      config_signature VARCHAR(128) NOT NULL,
+      accepted_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      ip_address VARCHAR(120),
       user_agent TEXT
-    )
-  `);
-
-  await db.query(`
-    CREATE INDEX IF NOT EXISTS idx_robot_risk_user_account
-    ON robot_risk_acceptances(user_id, account_id)
-  `);
-
-  await db.query(`
-    CREATE INDEX IF NOT EXISTS idx_robot_risk_config
-    ON robot_risk_acceptances(robot_config_id, term_version)
-  `);
-}
-
-function getClientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-
-  if (forwarded) {
-    return String(forwarded).split(",")[0].trim();
-  }
-
-  return req.ip || null;
-}
-
-function buildConfigSignature(config) {
-  return [
-    Number(config.id),
-    config.strategy_version,
-    Number(config.entry_percent),
-    Number(config.take_profit_percent),
-    Number(config.stop_loss_percent),
-    Boolean(config.stop_loss_active),
-    Number(config.max_operations),
-    config.interval,
-    Number(config.max_coins)
-  ].join("|");
-}
-
-async function getUserAccount(userId, accountId) {
-  const result = await db.query(
-    `
-      SELECT id, user_id, name, active
-      FROM binance_accounts
-      WHERE id = $1
-        AND user_id = $2
-      LIMIT 1
-    `,
-    [accountId, userId]
-  );
-
-  return result.rows[0] || null;
-}
-
-async function getRobotConfig(userId, accountId) {
-  const result = await db.query(
-    `
-      SELECT
-        id,
-        user_id,
-        account_id,
-        strategy_version,
-        entry_percent,
-        take_profit_percent,
-        stop_loss_percent,
-        stop_loss_active,
-        max_operations,
-        interval,
-        max_coins,
-        running,
-        created_at,
-        updated_at
-      FROM robot_configs
-      WHERE user_id = $1
-        AND account_id = $2
-      LIMIT 1
-    `,
-    [userId, accountId]
-  );
-
-  return result.rows[0] || null;
-}
-
-const riskMiddleware = async (req, res, next) => {
-  try {
-    await ensureRiskTable();
-
-    const accountId = getAccountId(req);
-
-    if (!Number.isInteger(accountId) || accountId <= 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Conta Binance não informada."
-      });
-    }
-
-    const config = await getRobotConfig(
-      req.user.id,
-      accountId
     );
+    ALTER TABLE robot_risk_acceptances
+      ADD COLUMN IF NOT EXISTS robot_id INTEGER NOT NULL DEFAULT 1;
+    CREATE INDEX IF NOT EXISTS idx_robot_risk_user_account_robot
+      ON robot_risk_acceptances(user_id,account_id,robot_id,accepted_at DESC);
+  `);
+}
 
-    if (!config) {
-      return res.status(400).json({
-        success: false,
-        error: "Configure o robô antes de iniciar."
-      });
-    }
+async function getAccount(userId,accountId) {
+  const r=await db.query(
+    `SELECT id,user_id,active FROM binance_accounts WHERE id=$1 AND user_id=$2`,
+    [accountId,userId]
+  );
+  return r.rows[0]||null;
+}
 
-    const signature = buildConfigSignature(config);
+async function currentConfig(userId,accountId,robotId) {
+  return robotEngine.getConfig(userId,accountId,robotId);
+}
 
-    const result = await db.query(
-      `
-        SELECT
-          id,
-          term_version,
-          accepted_at
-        FROM robot_risk_acceptances
-        WHERE user_id = $1
-          AND account_id = $2
-          AND robot_config_id = $3
-          AND term_version = $4
-          AND config_signature = $5
-        ORDER BY accepted_at DESC
-        LIMIT 1
-      `,
+async function hasAcceptance(userId,accountId,robotId,config) {
+  if(!config) return false;
+  const signature=buildConfigSignature(config);
+  const r=await db.query(
+    `SELECT id,accepted_at,term_version
+       FROM robot_risk_acceptances
+      WHERE user_id=$1 AND account_id=$2 AND robot_id=$3
+        AND robot_config_id=$4 AND term_version=$5 AND config_signature=$6
+      ORDER BY accepted_at DESC LIMIT 1`,
+    [userId,accountId,robotId,config.id,TERM_VERSION,signature]
+  );
+  return r.rows[0]||null;
+}
+
+router.post("/accept", authMiddleware, async (req,res)=>{
+  try{
+    await ensureRiskTable();
+    const accountId=accountIdFrom(req);
+    const robotId=robotIdFrom(req);
+    if(!accountId) return res.status(400).json({success:false,message:"Conta Binance não informada."});
+
+    const account=await getAccount(req.user.id,accountId);
+    if(!account) return res.status(404).json({success:false,message:"Conta Binance não encontrada."});
+
+    const config=await currentConfig(req.user.id,accountId,robotId);
+    if(!config) return res.status(400).json({success:false,message:"Salve a configuração deste robô antes de aceitar o termo."});
+
+    const signature=buildConfigSignature(config);
+    const result=await db.query(
+      `INSERT INTO robot_risk_acceptances
+       (user_id,account_id,robot_id,robot_config_id,term_version,config_signature,accepted_at,ip_address,user_agent)
+       VALUES($1,$2,$3,$4,$5,$6,NOW(),$7,$8)
+       RETURNING id,accepted_at`,
       [
-        req.user.id,
-        accountId,
-        config.id,
-        TERM_VERSION,
-        signature
+        req.user.id,accountId,robotId,config.id,TERM_VERSION,signature,
+        getClientIp(req),String(req.headers["user-agent"]||"").slice(0,1000)
       ]
     );
 
-    if (!result.rows.length) {
-      return res.status(403).json({
-        success: false,
-        code: "RISK_TERM_REQUIRED",
-        error:
-          "É necessário aceitar o Termo de Responsabilidade e Ciência de Riscos antes de iniciar o robô."
-      });
-    }
-
-    req.robotRiskAcceptance = result.rows[0];
-
-    next();
-  } catch (error) {
-    console.error(
-      "ERRO AO VALIDAR TERMO DE RISCO:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      error: "Erro ao validar o termo de responsabilidade."
+    return res.json({
+      success:true,
+      robotId,
+      configId:config.id,
+      termVersion:TERM_VERSION,
+      acceptanceId:result.rows[0].id,
+      acceptedAt:result.rows[0].accepted_at
     });
+  }catch(error){
+    console.error("ROBOT RISK ACCEPT:",error);
+    return res.status(500).json({success:false,message:error.message||"Não foi possível registrar o termo."});
   }
-};
+});
 
-// ============================================================
-// POST /api/robot/risk/accept
-// Registra o aceite do termo para a configuração atual.
-// ============================================================
-
-router.post(
-  "/accept",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      await ensureRiskTable();
-
-      const accountId = getAccountId(req);
-
-      if (!Number.isInteger(accountId) || accountId <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: "Conta Binance não informada."
-        });
-      }
-
-      const account = await getUserAccount(
-        req.user.id,
-        accountId
-      );
-
-      if (!account) {
-        return res.status(404).json({
-          success: false,
-          error:
-            "Conta Binance não encontrada ou não pertence ao usuário."
-        });
-      }
-
-      if (!account.active) {
-        return res.status(400).json({
-          success: false,
-          error: "A conta Binance está desativada."
-        });
-      }
-
-      const config = await getRobotConfig(
-        req.user.id,
-        accountId
-      );
-
-      if (!config) {
-        return res.status(400).json({
-          success: false,
-          error:
-            "Configure e salve o robô antes de aceitar o termo."
-        });
-      }
-
-      const signature = buildConfigSignature(config);
-
-      const result = await db.query(
-        `
-          INSERT INTO robot_risk_acceptances (
-            user_id,
-            account_id,
-            robot_config_id,
-            term_version,
-            config_signature,
-            accepted_at,
-            ip_address,
-            user_agent
-          )
-          VALUES (
-            $1,
-            $2,
-            $3,
-            $4,
-            $5,
-            NOW(),
-            $6,
-            $7
-          )
-          RETURNING
-            id,
-            user_id,
-            account_id,
-            robot_config_id,
-            term_version,
-            accepted_at
-        `,
-        [
-          req.user.id,
-          accountId,
-          config.id,
-          TERM_VERSION,
-          signature,
-          getClientIp(req),
-          req.headers["user-agent"] || null
-        ]
-      );
-
-      return res.json({
-        success: true,
-        message:
-          "Termo de Responsabilidade e Ciência de Riscos aceito com sucesso.",
-        acceptance: result.rows[0]
-      });
-    } catch (error) {
-      console.error(
-        "ERRO AO REGISTRAR ACEITE DO TERMO:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        error: "Erro ao registrar o aceite do termo."
-      });
-    }
+router.get("/status", authMiddleware, async (req,res)=>{
+  try{
+    await ensureRiskTable();
+    const accountId=accountIdFrom(req);
+    const robotId=robotIdFrom(req);
+    if(!accountId) return res.status(400).json({success:false,message:"Conta Binance não informada."});
+    const config=await currentConfig(req.user.id,accountId,robotId);
+    const acceptance=await hasAcceptance(req.user.id,accountId,robotId,config);
+    return res.json({
+      success:true,
+      robotId,
+      configId:config?.id||null,
+      accepted:!!acceptance,
+      acceptance:acceptance||null,
+      termVersion:TERM_VERSION
+    });
+  }catch(error){
+    console.error("ROBOT RISK STATUS:",error);
+    return res.status(500).json({success:false,message:error.message||"Não foi possível consultar o termo."});
   }
-);
+});
 
-// ============================================================
-// GET /api/robot/risk/status
-// Consulta se a configuração atual possui aceite válido.
-// ============================================================
+async function riskMiddleware(req,res,next){
+  try{
+    await ensureRiskTable();
+    const accountId=accountIdFrom(req);
+    const robotId=robotIdFrom(req);
+    if(!accountId) return res.status(400).json({success:false,message:"Conta Binance não informada."});
 
-router.get(
-  "/status",
-  authMiddleware,
-  async (req, res) => {
-    try {
-      await ensureRiskTable();
+    const config=await currentConfig(req.user.id,accountId,robotId);
+    if(!config) return res.status(400).json({success:false,message:"Salve a configuração deste robô antes de iniciar."});
 
-      const accountId = getAccountId(req);
+    const acceptance=await hasAcceptance(req.user.id,accountId,robotId,config);
+    if(!acceptance) return res.status(403).json({success:false,message:"É necessário aceitar o Termo de Responsabilidade deste robô antes de iniciar.",robotId,configId:config.id});
 
-      if (!Number.isInteger(accountId) || accountId <= 0) {
-        return res.status(400).json({
-          success: false,
-          error: "Conta Binance não informada."
-        });
-      }
-
-      const config = await getRobotConfig(
-        req.user.id,
-        accountId
-      );
-
-      if (!config) {
-        return res.json({
-          success: true,
-          accepted: false,
-          termVersion: TERM_VERSION
-        });
-      }
-
-      const signature = buildConfigSignature(config);
-
-      const result = await db.query(
-        `
-          SELECT
-            id,
-            term_version,
-            accepted_at
-          FROM robot_risk_acceptances
-          WHERE user_id = $1
-            AND account_id = $2
-            AND robot_config_id = $3
-            AND term_version = $4
-            AND config_signature = $5
-          ORDER BY accepted_at DESC
-          LIMIT 1
-        `,
-        [
-          req.user.id,
-          accountId,
-          config.id,
-          TERM_VERSION,
-          signature
-        ]
-      );
-
-      return res.json({
-        success: true,
-        accepted: result.rows.length > 0,
-        termVersion: TERM_VERSION,
-        acceptance: result.rows[0] || null
-      });
-    } catch (error) {
-      console.error(
-        "ERRO AO CONSULTAR STATUS DO TERMO:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-        error:
-          "Erro ao consultar o aceite do termo."
-      });
-    }
+    req.robotId=robotId;
+    req.robotConfig=config;
+    return next();
+  }catch(error){
+    console.error("ROBOT RISK MIDDLEWARE:",error);
+    return res.status(500).json({success:false,message:error.message||"Não foi possível validar o termo."});
   }
-);
+}
 
-module.exports = {
-  router,
-  riskMiddleware
-};
+module.exports={router,riskMiddleware};

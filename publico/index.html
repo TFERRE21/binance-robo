@@ -746,7 +746,13 @@ button{cursor:pointer}
     <div class="message" id="robotMessage"></div>
     <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
     <div class="grid2">
-      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion"><option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option><option value="v6">V6 — TOP 40 Volume · EMA/RSI</option></select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
+      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion">
+          <option value="basico">Básico — mais oportunidades · filtros essenciais</option>
+          <option value="medio">Médio — equilíbrio entre frequência e filtros</option>
+          <option value="premium" selected>Premium — maior seletividade</option>
+          <option value="avancado">Avançado — filtros adicionais</option>
+          <option value="elite">Elite — máxima seletividade</option>
+        </select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
       <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
     </div>
     <div class="grid2">

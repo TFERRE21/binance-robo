@@ -2,560 +2,196 @@ const express = require("express");
 
 const router = express.Router();
 
-// ============================================================
-// CONFIGURAÇÃO
-// ============================================================
-
-const REQUEST_TIMEOUT = 10000;
-
-const RSS_SOURCES = [
-  {
-    name: "Google News",
-    url:
-      "https://news.google.com/rss/search?q=crypto%20OR%20bitcoin%20OR%20ethereum&hl=pt-BR&gl=BR&ceid=BR:pt-419"
-  },
-  {
-    name: "Cointelegraph",
-    url:
-      "https://cointelegraph.com/rss"
-  }
-];
-
-const BINANCE_SYMBOLS = [
-  "BTCUSDT",
-  "ETHUSDT",
-  "BNBUSDT",
-  "XRPUSDT"
-];
-
-// ============================================================
-// FETCH COM TIMEOUT
-// ============================================================
-
-async function fetchWithTimeout(
-  url,
-  options = {},
-  timeout = REQUEST_TIMEOUT
-) {
-  const controller =
-    new AbortController();
-
-  const timer = setTimeout(
-    () => controller.abort(),
-    timeout
-  );
-
-  try {
-    const response =
-      await fetch(url, {
-        ...options,
-        signal:
-          controller.signal
-      });
-
-    return response;
-  } finally {
-    clearTimeout(timer);
-  }
+function decodeEntities(value) {
+  return String(value || "")
+    .replace(/&#(\d+);/g, (_, n) => {
+      try { return String.fromCodePoint(Number(n)); } catch { return ""; }
+    })
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => {
+      try { return String.fromCodePoint(parseInt(n, 16)); } catch { return ""; }
+    })
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;/gi, "'")
+    .replace(/&#39;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&nbsp;/gi, " ");
 }
 
-// ============================================================
-// ESCAPAR HTML
-// ============================================================
-
-function escapeHtml(value) {
-  return String(value || "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// ============================================================
-// REMOVER TAGS HTML
-// ============================================================
-
-function stripHtml(value) {
-  return String(value || "")
-    .replace(
-      /<[^>]*>/g,
-      " "
-    )
-    .replace(
-      /\s+/g,
-      " "
-    )
+function cleanText(value) {
+  return decodeEntities(value)
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
-// ============================================================
-// EXTRAIR TAG XML
-// ============================================================
-
-function extractTag(
-  xml,
-  tag
-) {
-  const regex =
-    new RegExp(
-      `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`,
-      "i"
-    );
-
-  const match =
-    xml.match(regex);
-
-  if (!match) {
-    return "";
-  }
-
-  return match[1]
-    .replace(
-      /<!\[CDATA\[([\s\S]*?)\]\]>/gi,
-      "$1"
-    )
-    .trim();
-}
-
-// ============================================================
-// EXTRAIR ATRIBUTO XML
-// ============================================================
-
-function extractAttribute(
-  xml,
-  tag,
-  attribute
-) {
-  const regex =
-    new RegExp(
-      `<${tag}[^>]*${attribute}=["']([^"']+)["'][^>]*>`,
-      "i"
-    );
-
-  const match =
-    xml.match(regex);
-
-  return match
-    ? match[1]
-    : "";
-}
-
-// ============================================================
-// PARSER RSS
-// ============================================================
-
-function parseRss(
-  xml,
-  sourceName
-) {
+function parseRss(xml, source) {
   const items = [];
-
-  const matches =
-    xml.match(
-      /<item[\s\S]*?<\/item>/gi
-    ) || [];
+  const matches = xml.match(/<item[\s\S]*?<\/item>/gi) || [];
 
   for (const item of matches) {
-    const title =
-      stripHtml(
-        extractTag(
-          item,
-          "title"
-        )
+    const get = (tag) => {
+      const re = new RegExp(
+        `<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`,
+        "i"
       );
+      const match = item.match(re);
+      return cleanText(match ? match[1] : "");
+    };
 
-    const link =
-      extractTag(
-        item,
-        "link"
-      );
+    const title = get("title");
+    const description = get("description");
+    const pubDate = get("pubDate");
+    const link = get("link");
 
-    const pubDate =
-      extractTag(
-        item,
-        "pubDate"
-      );
+    if (!title) continue;
 
-    const description =
-      stripHtml(
-        extractTag(
-          item,
-          "description"
-        )
-      );
-
-    const image =
-      extractAttribute(
-        item,
-        "media:content",
-        "url"
-      ) ||
-      extractAttribute(
-        item,
-        "media:thumbnail",
-        "url"
-      );
-
-    if (!title) {
-      continue;
-    }
+    const parsed = Date.parse(pubDate);
+    const publishedAt = Number.isFinite(parsed) ? parsed : null;
 
     items.push({
+      source,
       title,
-      link,
-      description,
-      publishedAt:
-        pubDate
-          ? new Date(
-              pubDate
-            ).toISOString()
-          : null,
-      source:
-        sourceName,
-      image:
-        image || null
+      description: description.slice(0, 320),
+      publishedAt,
+      url: link
     });
   }
 
   return items;
 }
 
-// ============================================================
-// BUSCAR RSS
-// ============================================================
-
-async function fetchRssSource(
-  source
-) {
-  try {
-    const response =
-      await fetchWithTimeout(
-        source.url,
-        {
-          headers: {
-            "User-Agent":
-              "CriptoPro/1.0"
-          }
-        }
-      );
-
-    if (!response.ok) {
-      throw new Error(
-        `HTTP ${response.status}`
-      );
+async function getFeed(url, source) {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 CriptoPro/1.0",
+      "Accept": "application/rss+xml,application/xml,text/xml,*/*"
     }
+  });
 
-    const xml =
-      await response.text();
-
-    return parseRss(
-      xml,
-      source.name
-    );
-  } catch (error) {
-    console.error(
-      `Erro RSS ${source.name}:`,
-      error.message
-    );
-
-    return [];
+  if (!response.ok) {
+    throw new Error(`${source}: HTTP ${response.status}`);
   }
+
+  return parseRss(await response.text(), source);
 }
 
-// ============================================================
-// FILTRAR POR DATA
-// ============================================================
+async function market7(symbol) {
+  const url =
+    `https://api.binance.com/api/v3/klines?symbol=${symbol}` +
+    `&interval=1d&limit=8`;
 
-function filterByDays(
-  articles,
-  days
-) {
-  const limit =
-    Date.now() -
-    days *
-      24 *
-      60 *
-      60 *
-      1000;
+  const response = await fetch(url, {
+    headers: { "User-Agent": "CriptoPro/1.0" }
+  });
 
-  return articles.filter(
-    (article) => {
-      if (
-        !article.publishedAt
-      ) {
-        return true;
+  if (!response.ok) {
+    throw new Error(`Binance ${symbol}: HTTP ${response.status}`);
+  }
+
+  const rows = await response.json();
+
+  if (!Array.isArray(rows) || rows.length < 2) return null;
+
+  // Primeiro candle aberto e último candle fechado/disponível.
+  const firstOpen = Number(rows[0][1]);
+  const lastClose = Number(rows[rows.length - 1][4]);
+
+  if (!Number.isFinite(firstOpen) || firstOpen <= 0) return null;
+  if (!Number.isFinite(lastClose) || lastClose <= 0) return null;
+
+  return ((lastClose / firstOpen) - 1) * 100;
+}
+
+router.get("/crypto", async (req, res) => {
+  try {
+    const days = Math.min(7, Math.max(1, Number(req.query.days || 7)));
+    const cutoff = Date.now() - days * 86400000;
+
+    const sources = [
+      [
+        "https://news.google.com/rss/search?q=bitcoin%20OR%20ethereum%20OR%20binance%20OR%20crypto&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+        "Google News · Cripto"
+      ],
+      [
+        "https://news.google.com/rss/search?q=criptomoedas%20OR%20Bitcoin%20OR%20Ethereum&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+        "Google News · Cripto BR"
+      ],
+      [
+        "https://cointelegraph.com/rss",
+        "Cointelegraph"
+      ]
+    ];
+
+    const feedResults = await Promise.allSettled(
+      sources.map(([url, source]) => getFeed(url, source))
+    );
+
+    let articles = [];
+
+    for (const result of feedResults) {
+      if (result.status === "fulfilled") {
+        articles.push(...result.value);
       }
-
-      const time =
-        new Date(
-          article.publishedAt
-        ).getTime();
-
-      return (
-        Number.isFinite(time) &&
-        time >= limit
-      );
     }
-  );
-}
 
-// ============================================================
-// REMOVER DUPLICADOS
-// ============================================================
-
-function deduplicateArticles(
-  articles
-) {
-  const seen =
-    new Set();
-
-  const result = [];
-
-  for (const article of articles) {
-    const key =
-      (
-        article.link ||
-        article.title
+    articles = articles
+      .filter(article =>
+        article.publishedAt !== null &&
+        article.publishedAt >= cutoff
       )
-        .toLowerCase()
-        .trim();
+      .sort((a, b) => b.publishedAt - a.publishedAt)
+      .filter((article, index, arr) => {
+        const key = article.title.toLowerCase();
+        return index === arr.findIndex(
+          x => x.title.toLowerCase() === key
+        );
+      })
+      .slice(0, 18);
 
-    if (seen.has(key)) {
-      continue;
-    }
+    const symbols = [
+      "BTCUSDT",
+      "ETHUSDT",
+      "BNBUSDT",
+      "XRPUSDT"
+    ];
 
-    seen.add(key);
-
-    result.push(article);
-  }
-
-  return result;
-}
-
-// ============================================================
-// BUSCAR DADOS DA BINANCE
-// ============================================================
-
-async function fetchBinanceMarket(
-  symbol
-) {
-  try {
-    const tickerResponse =
-      await fetchWithTimeout(
-        `https://api.binance.com/api/v3/ticker/24hr?symbol=${symbol}`
-      );
-
-    if (!tickerResponse.ok) {
-      throw new Error(
-        `Ticker HTTP ${tickerResponse.status}`
-      );
-    }
-
-    const ticker =
-      await tickerResponse.json();
-
-    return {
-      symbol,
-      price:
-        Number(
-          ticker.lastPrice || 0
-        ),
-      changePercent:
-        Number(
-          ticker.priceChangePercent ||
-            0
-        ),
-      high:
-        Number(
-          ticker.highPrice || 0
-        ),
-      low:
-        Number(
-          ticker.lowPrice || 0
-        ),
-      volume:
-        Number(
-          ticker.volume || 0
-        ),
-      quoteVolume:
-        Number(
-          ticker.quoteVolume || 0
-        )
-    };
-  } catch (error) {
-    console.error(
-      `Erro Binance ${symbol}:`,
-      error.message
+    const marketResults = await Promise.allSettled(
+      symbols.map(market7)
     );
 
-    return null;
+    const value = (result) =>
+      result.status === "fulfilled" && Number.isFinite(Number(result.value))
+        ? Number(result.value)
+        : null;
+
+    return res.json({
+      success: true,
+      updatedAt: Date.now(),
+      days,
+      feedsOk: feedResults.filter(
+        result => result.status === "fulfilled"
+      ).length,
+      market7: {
+        btc7d: value(marketResults[0]),
+        eth7d: value(marketResults[1]),
+        bnb7d: value(marketResults[2]),
+        xrp7d: value(marketResults[3])
+      },
+      articles
+    });
+  } catch (error) {
+    console.error("ERRO JORNAL CRIPTOPRO:", error);
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error.message ||
+        "Não foi possível atualizar o Jornal CriptoPro."
+    });
   }
-}
-
-// ============================================================
-// GET /api/news/crypto
-// ============================================================
-
-router.get(
-  "/crypto",
-  async (req, res) => {
-    try {
-      let days =
-        Number(
-          req.query.days || 7
-        );
-
-      if (
-        !Number.isFinite(days)
-      ) {
-        days = 7;
-      }
-
-      days = Math.min(
-        Math.max(days, 1),
-        30
-      );
-
-      // ======================================================
-      // RSS EM PARALELO
-      // ======================================================
-
-      const rssResults =
-        await Promise.allSettled(
-          RSS_SOURCES.map(
-            fetchRssSource
-          )
-        );
-
-      let articles = [];
-
-      for (const result of rssResults) {
-        if (
-          result.status ===
-          "fulfilled"
-        ) {
-          articles.push(
-            ...result.value
-          );
-        }
-      }
-
-      // ======================================================
-      // FILTRO E ORDENAÇÃO
-      // ======================================================
-
-      articles =
-        filterByDays(
-          articles,
-          days
-        );
-
-      articles =
-        deduplicateArticles(
-          articles
-        );
-
-      articles.sort(
-        (a, b) => {
-          const dateA =
-            a.publishedAt
-              ? new Date(
-                  a.publishedAt
-                ).getTime()
-              : 0;
-
-          const dateB =
-            b.publishedAt
-              ? new Date(
-                  b.publishedAt
-                ).getTime()
-              : 0;
-
-          return (
-            dateB - dateA
-          );
-        }
-      );
-
-      // ======================================================
-      // LIMITAR NOTÍCIAS
-      // ======================================================
-
-      articles =
-        articles.slice(
-          0,
-          40
-        );
-
-      // ======================================================
-      // MERCADO BINANCE
-      // ======================================================
-
-      const marketResults =
-        await Promise.allSettled(
-          BINANCE_SYMBOLS.map(
-            fetchBinanceMarket
-          )
-        );
-
-      const market = [];
-
-      for (
-        const result of
-        marketResults
-      ) {
-        if (
-          result.status ===
-            "fulfilled" &&
-          result.value
-        ) {
-          market.push(
-            result.value
-          );
-        }
-      }
-
-      // ======================================================
-      // RESPOSTA
-      // ======================================================
-
-      return res.json({
-        success: true,
-
-        generatedAt:
-          new Date().toISOString(),
-
-        days,
-
-        articles,
-
-        market,
-
-        sources:
-          RSS_SOURCES.map(
-            (source) =>
-              source.name
-          )
-      });
-    } catch (error) {
-      console.error(
-        "ERRO AO BUSCAR NOTÍCIAS:",
-        error
-      );
-
-      return res.status(500).json({
-        success: false,
-
-        error:
-          "Não foi possível consultar as notícias.",
-
-        articles: [],
-
-        market: []
-      });
-    }
-  }
-);
+});
 
 module.exports = router;

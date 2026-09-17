@@ -676,7 +676,7 @@ select.plan-locked{
   </div>
 
   <div class="plan-badge">
-    PREMIUM
+    <span id="planNameText">PREMIUM</span>
     <small id="planLimitsText">3 contas Binance · 3 operações simultâneas</small>
     <small id="planValidity">Validade: carregando...</small>
   </div>
@@ -971,7 +971,7 @@ select.plan-locked{
 <div class="modal-bg" id="apiModal">
 <div class="modal">
   <div class="modal-header">
-    <div><div class="modal-title">APIs Binance</div><div class="modal-subtitle">Plano Premium — até 3 contas Binance</div></div>
+    <div><div class="modal-title">APIs Binance</div><div class="modal-subtitle" id="apiModalSubtitle">Plano Premium — até 3 contas Binance</div></div>
     <button class="close" onclick="closeApiModal()">×</button>
   </div>
   <div class="modal-body">
@@ -1070,7 +1070,7 @@ select.plan-locked{
     </div>
     <div class="grid2">
       <div class="field"><label>Stop Loss (%)</label><input id="stopLoss" type="number" min="0.1" max="100" step="0.1" value="2.5"><div class="field-help">Limite percentual de perda.</div></div>
-      <div class="field"><label>Operações simultâneas</label><select id="maxOperations"><option value="1">1 operação</option><option value="2">2 operações</option><option value="3" selected>3 operações</option></select><div class="field-help">Máximo permitido pelo Premium: 3.</div></div>
+      <div class="field"><label>Operações simultâneas</label><select id="maxOperations"><option value="1">1 operação</option><option value="2">2 operações</option><option value="3">3 operações</option></select><div class="field-help">Máximo permitido pelo Premium: 3.</div></div>
     </div>
     <div class="grid2">
       <div class="field"><label>Intervalo de análise</label><select id="interval"><option value="1m">1 minuto</option><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option><option value="1h">1 hora</option></select></div>
@@ -1159,6 +1159,27 @@ function applyPlanFeatures(planCode){
   currentPlanCode=String(planCode||"").toLowerCase();
   currentPlanRules=PLAN_RULES[currentPlanCode]||PLAN_RULES.basico;
 
+  const planNameEl=document.getElementById("planNameText");
+  if(planNameEl) planNameEl.textContent=String(currentPlanRules.name||"Básico").toUpperCase();
+
+  const planLimitsEl=document.getElementById("planLimitsText");
+  if(planLimitsEl) planLimitsEl.textContent=`${currentPlanRules.accounts} conta${currentPlanRules.accounts===1?"":"s"} Binance · ${currentPlanRules.operations} operaç${currentPlanRules.operations===1?"ão":"ões"} simultânea${currentPlanRules.operations===1?"":"s"}`;
+
+  const operationsSubEl=document.getElementById("operationsSub");
+  if(operationsSubEl) operationsSubEl.textContent=`Limite do ${currentPlanRules.name}`;
+
+  const resourcesTitleEl=document.getElementById("resourcesTitle");
+  if(resourcesTitleEl) resourcesTitleEl.textContent=`Recursos do ${currentPlanRules.name}`;
+
+  const controlsTitleEl=document.getElementById("controlsTitle");
+  if(controlsTitleEl) controlsTitleEl.textContent=`Controles ${currentPlanRules.name}`;
+
+  const apiActionDescEl=document.getElementById("apiActionDesc");
+  if(apiActionDescEl) apiActionDescEl.textContent=`Cadastre e gerencie até ${currentPlanRules.accounts} conta${currentPlanRules.accounts===1?"":"s"} Binance independente${currentPlanRules.accounts===1?"":"s"}.`;
+
+  const apiModalSubtitleEl=document.getElementById("apiModalSubtitle");
+  if(apiModalSubtitleEl) apiModalSubtitleEl.textContent=`Plano ${currentPlanRules.name} — até ${currentPlanRules.accounts} conta${currentPlanRules.accounts===1?"":"s"} Binance`;
+
   const strategy=document.getElementById("strategyVersion");
   if(strategy){
     [...strategy.options].forEach(option=>{
@@ -1193,6 +1214,9 @@ function applyPlanFeatures(planCode){
     }
   }
 
+  const maxOperationsHelp=maxOperations?.parentElement?.querySelector(".field-help");
+  if(maxOperationsHelp) maxOperationsHelp.textContent=`Máximo permitido pelo ${currentPlanRules.name}: ${currentPlanRules.operations}.`;
+
   const maxCoins=document.getElementById("maxCoins");
   if(maxCoins){
     maxCoins.max=String(currentPlanRules.maxCoins);
@@ -1208,8 +1232,8 @@ function applyPlanFeatures(planCode){
   const operations=document.getElementById("limitOperations");
   if(operations) operations.textContent=String(currentPlanRules.operations);
 
-  const accounts=document.getElementById("limitAccounts");
-  if(accounts) accounts.textContent=`${Math.min(accounts.length||0,currentPlanRules.accounts)}/${currentPlanRules.accounts}`;
+  const accountsLimitEl=document.getElementById("limitAccounts");
+  if(accountsLimitEl) accountsLimitEl.textContent=`${Math.min(accounts.length,currentPlanRules.accounts)}/${currentPlanRules.accounts}`;
 
   const robots=document.getElementById("limitRobots");
   if(robots && !robots.dataset.live) robots.textContent=`0/${currentPlanRules.robots}`;
@@ -1227,6 +1251,7 @@ async function loadSubscription(){
     }
     const plan=String(data.plan||"basico").toLowerCase();
     applyPlanFeatures(plan);
+    renderApiSlots();
     const operations=currentPlanRules.operations;
     const accountsLimit=currentPlanRules.accounts;
     document.getElementById("limitOperations").textContent=operations;
@@ -1722,9 +1747,16 @@ function closeApiModal(){document.getElementById("apiModal").classList.remove("o
 
 function renderApiSlots(){
   const container=document.getElementById("apiSlots");container.innerHTML="";
+  const maxAccounts=Number(currentPlanRules?.accounts||1);
   for(let i=0;i<3;i++){
     const account=accounts[i],slot=document.createElement("div");
-    if(account){
+    if(i>=maxAccounts){
+      slot.className="api-slot empty plan-locked";
+      slot.innerHTML=`
+        <div class="api-slot-header"><div><div class="api-slot-title">API BINANCE ${i+1}</div><div class="api-slot-number">NÃO DISPONÍVEL NO PLANO</div></div><div class="api-slot-status available">🔒 BLOQUEADA</div></div>
+        <div class="api-account-name">Recurso bloqueado</div>
+        <div class="api-account-info">Seu plano ${escapeHtml(currentPlanRules.name)} permite até ${maxAccounts} conta${maxAccounts===1?"":"s"} Binance.</div>`;
+    }else if(account){
       slot.className="api-slot active";
       slot.innerHTML=`
         <div class="api-slot-header"><div><div class="api-slot-title">API BINANCE ${i+1}</div><div class="api-slot-number">CONTA ${i+1} DE 3</div></div><div class="api-slot-status connected">✓ CONECTADA</div></div>
@@ -1756,7 +1788,9 @@ function showApiForm(index){
 }
 
 async function saveApiSlot(index){
-  if(accounts.length>=3){showMessage(document.getElementById("apiMessage"),"Seu plano Premium já possui as 3 contas Binance cadastradas.","error");return}
+  const maxAccounts=Number(currentPlanRules?.accounts||1);
+  if(accounts.length>=maxAccounts){showMessage(document.getElementById("apiMessage"),`Seu plano ${currentPlanRules.name} já possui o limite de ${maxAccounts} conta${maxAccounts===1?"":"s"} Binance cadastrada${maxAccounts===1?"":"s"}.`,"error");return}
+  if(index>=maxAccounts){showMessage(document.getElementById("apiMessage"),`A API Binance ${index+1} não está disponível no plano ${currentPlanRules.name}.`,"error");return}
   const name=document.getElementById("api-name-"+index).value.trim();
   const apiKey=document.getElementById("api-key-"+index).value.trim();
   const apiSecret=document.getElementById("api-secret-"+index).value.trim();
@@ -1954,11 +1988,14 @@ async function openRobot(robotId=1){
   document.getElementById("entryPercent").value=c.entryPercent;
   document.getElementById("takeProfit").value=c.takeProfit;
   document.getElementById("stopLoss").value=c.stopLoss;
-  document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||1,Number(currentPlanRules?.maxOperations||3));
+  document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||1,Number(currentPlanRules?.operations||1));
   document.getElementById("interval").value=c.interval||"15m";
   document.getElementById("maxCoins").value=Math.min(Number(c.maxCoins)||20,Number(currentPlanRules?.maxCoins||20));
-  document.getElementById("strategyVersion").value=c.strategyVersion||"premium";
-  document.getElementById("stopLossActive").value=c.stopLossActive===false?"false":"true";
+  const strategySelect=document.getElementById("strategyVersion");
+  const requestedStrategy=c.strategyVersion||"premium";
+  const requestedOption=strategySelect ? [...strategySelect.options].find(o=>o.value===requestedStrategy && !o.disabled) : null;
+  if(strategySelect) strategySelect.value=requestedOption ? requestedStrategy : ([...strategySelect.options].find(o=>!o.disabled)?.value||"basico");
+  document.getElementById("stopLossActive").value=(currentPlanRules?.stopLoss && c.stopLossActive!==false)?"true":"false";
   const title=document.querySelector("#robotModal .modal-title");
   if(title)title.textContent=`Configurar Robô ${activeRobotId} · ${ROBOT_NAMES[activeRobotId]||""}`;
   const save=document.getElementById("saveRobotBtn"), start=document.getElementById("startRobotConfigBtn");
@@ -1988,7 +2025,7 @@ async function saveRobot(){
   if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;}
   if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return;}
   if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return;}
-  if(c.maxOperations<1||c.maxOperations>Number(rules.maxOperations||3)){showMessage(msg,`Seu plano permite até ${rules.maxOperations||3} operação(ões).`,"error");return;}
+  if(c.maxOperations<1||c.maxOperations>Number(rules.operations||1)){showMessage(msg,`Seu plano permite até ${rules.operations||1} operação(ões).`,"error");return;}
   if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>Number(rules.maxCoins||20)){showMessage(msg,`Seu plano permite analisar até ${rules.maxCoins||20} moedas.`,"error");return;}
 
   const saveBtn=document.getElementById("saveRobotBtn");
@@ -2100,9 +2137,9 @@ function changeLanguage(){
   document.getElementById("pnlLabel").textContent=en?"Open P/L":"P/L aberto";
   document.getElementById("availableLabel").textContent=en?"Available balance":"Saldo disponível";
   document.getElementById("operationsLabel").textContent=en?"Simultaneous operations":"Operações simultâneas";
-  document.getElementById("operationsSub").textContent=en?"Premium limit":"Limite do Premium";
-  document.getElementById("resourcesTitle").textContent=en?"Premium Resources":"Recursos do Premium";
-  document.getElementById("controlsTitle").textContent=en?"Premium Controls":"Controles Premium";
+  document.getElementById("operationsSub").textContent=en?`Limit of ${currentPlanRules.name}`:`Limite do ${currentPlanRules.name}`;
+  document.getElementById("resourcesTitle").textContent=en?`${currentPlanRules.name} Resources`:`Recursos do ${currentPlanRules.name}`;
+  document.getElementById("controlsTitle").textContent=en?`${currentPlanRules.name} Controls`:`Controles ${currentPlanRules.name}`;
   document.getElementById("learnActionTitle").textContent=en?"Learn how to register API":"Aprenda a cadastrar API";
   document.getElementById("learnActionDesc").textContent=en?"Portuguese video, English video and step-by-step guide.":"Vídeo em português, vídeo em inglês e passo a passo.";
 }

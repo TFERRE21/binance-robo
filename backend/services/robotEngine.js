@@ -134,6 +134,7 @@ async function ensureSchema(){
     CREATE TABLE IF NOT EXISTS robot_configs (
       user_id INTEGER NOT NULL,
       account_id INTEGER NOT NULL,
+      robot_id INTEGER NOT NULL DEFAULT 1,
       strategy_version VARCHAR(40) NOT NULL DEFAULT 'v7.1',
       entry_percent NUMERIC(8,3) NOT NULL DEFAULT 98,
       take_profit NUMERIC(8,3) NOT NULL DEFAULT 5,
@@ -151,6 +152,7 @@ async function ensureSchema(){
       id BIGSERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       account_id INTEGER NOT NULL,
+      robot_id INTEGER NOT NULL DEFAULT 1,
       symbol VARCHAR(30) NOT NULL,
       buy_order_id VARCHAR(80),
       tp_order_id VARCHAR(80),
@@ -169,6 +171,7 @@ async function ensureSchema(){
       id BIGSERIAL PRIMARY KEY,
       user_id INTEGER NOT NULL,
       account_id INTEGER NOT NULL,
+      robot_id INTEGER NOT NULL DEFAULT 1,
       level VARCHAR(12) NOT NULL DEFAULT 'INFO',
       message TEXT NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -194,6 +197,7 @@ async function ensureSchema(){
 
     -- Migração de robot_operations de versões antigas.
     ALTER TABLE robot_operations
+      ADD COLUMN IF NOT EXISTS robot_id INTEGER NOT NULL DEFAULT 1,
       ADD COLUMN IF NOT EXISTS buy_order_id VARCHAR(80),
       ADD COLUMN IF NOT EXISTS tp_order_id VARCHAR(80),
       ADD COLUMN IF NOT EXISTS buy_price NUMERIC(30,12),
@@ -214,6 +218,10 @@ async function ensureSchema(){
     CREATE INDEX IF NOT EXISTS idx_robot_configs_user_account
       ON robot_configs(user_id,account_id);
     -- Permite até 5 robôs independentes por usuário/conta.
+    UPDATE robot_configs
+      SET robot_id=COALESCE(robot_id,1)
+      WHERE robot_id IS NULL;
+
     ALTER TABLE robot_configs DROP CONSTRAINT IF EXISTS robot_configs_pkey;
     ALTER TABLE robot_configs ADD CONSTRAINT robot_configs_pkey PRIMARY KEY(user_id,account_id,robot_id);
 
@@ -223,6 +231,12 @@ async function ensureSchema(){
       ON robot_operations(user_id,account_id,robot_id,status);
     CREATE INDEX IF NOT EXISTS idx_robot_logs_user_account_robot_created
       ON robot_logs(user_id,account_id,robot_id,created_at DESC);
+  `);
+
+  // Garante que registros antigos também pertençam ao Robô 1.
+  await db.query(`
+    UPDATE robot_operations SET robot_id=COALESCE(robot_id,1) WHERE robot_id IS NULL;
+    UPDATE robot_logs SET robot_id=COALESCE(robot_id,1) WHERE robot_id IS NULL;
   `);
 
   // Garante valores padrão em registros antigos que eventualmente tenham

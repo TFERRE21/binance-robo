@@ -60,6 +60,39 @@ const STRATEGIES = {
     marketMinScore:4
   }
 };
+
+const PLAN_ROBOT_RULES={
+  basico:{name:'Básico',maxRobots:1,maxOperations:1,strategyLevel:1,maxCoins:20,stopLoss:false},
+  profissional:{name:'Profissional',maxRobots:2,maxOperations:2,strategyLevel:3,maxCoins:40,stopLoss:true},
+  premium:{name:'Premium',maxRobots:5,maxOperations:3,strategyLevel:5,maxCoins:100,stopLoss:true}
+};
+
+function strategyLevel(version){
+  const levels={basico:1,medio:2,premium:3,avancado:4,elite:5};
+  return levels[String(version||'premium').toLowerCase()]||1;
+}
+
+async function getUserPlanRules(userId){
+  const r=await db.query(
+    `SELECT plan FROM subscriptions
+     WHERE user_id=$1 AND status='ACTIVE'
+     ORDER BY created_at DESC LIMIT 1`,
+    [userId]
+  );
+  const plan=String(r.rows[0]?.plan||'').toLowerCase();
+  return PLAN_ROBOT_RULES[plan]||null;
+}
+
+async function getRunningRobotCount(userId){
+  const r=await db.query(
+    `SELECT COUNT(*)::int AS total
+     FROM robot_configs
+     WHERE user_id=$1 AND running=true`,
+    [userId]
+  );
+  return Number(r.rows[0]?.total||0);
+}
+
 function strategyInfo(version){
   return STRATEGIES[String(version||'premium')] || STRATEGIES.premium;
 }
@@ -209,6 +242,25 @@ async function getConfig(userId,accountId){
 }
 async function saveConfig(userId,accountId,c){
   await ensureSchema();
+
+  const planRules=await getUserPlanRules(userId);
+  if(!planRules) throw new Error('Assinatura ativa não encontrada.');
+
+  if(strategyLevel(c.strategyVersion)>planRules.strategyLevel){
+    throw new Error(`A estratégia ${strategyInfo(c.strategyVersion).name} não está liberada no plano ${planRules.name}.`);
+  }
+
+  if(Number(c.maxOperations)>planRules.maxOperations){
+    throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
+  }
+
+  if(Number(c.maxCoins)>planRules.maxCoins){
+    throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
+  }
+
+  if(Boolean(c.stopLossActive) && !planRules.stopLoss){
+    throw new Error(`Stop Loss está disponível a partir do plano Profissional.`);
+  }
   const r=await db.query(`INSERT INTO robot_configs(user_id,account_id,strategy_version,entry_percent,take_profit,stop_loss,stop_loss_active,max_operations,interval,max_coins,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW()) ON CONFLICT(user_id,account_id) DO UPDATE SET strategy_version=EXCLUDED.strategy_version,entry_percent=EXCLUDED.entry_percent,take_profit=EXCLUDED.take_profit,stop_loss=EXCLUDED.stop_loss,stop_loss_active=EXCLUDED.stop_loss_active,max_operations=EXCLUDED.max_operations,interval=EXCLUDED.interval,max_coins=EXCLUDED.max_coins,updated_at=NOW() RETURNING *`,[userId,accountId,c.strategyVersion,c.entryPercent,c.takeProfit,c.stopLoss,c.stopLossActive,c.maxOperations,c.interval,c.maxCoins]);
   return r.rows[0];
 }
@@ -558,6 +610,21 @@ async function start(userId,accountId){
   const c=await getConfig(userId,accountId);
   if(!c)throw new Error('Configure o robô antes de iniciar');
 
+  const planRules=await getUserPlanRules(userId);
+  if(!planRules)throw new Error('Assinatura ativa não encontrada.');
+
+  if(strategyLevel(c.strategy_version)>planRules.strategyLevel){
+    throw new Error(`A estratégia ${strategyInfo(c.strategy_version).name} não está liberada no plano ${planRules.name}.`);
+  }
+
+  if(Number(c.max_operations)>planRules.maxOperations){
+    throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
+  }
+
+  if(Boolean(c.stop_loss_active) && !planRules.stopLoss){
+    throw new Error('Stop Loss está disponível a partir do plano Profissional.');
+  }
+
   const key=`${userId}:${accountId}`;
   const oldRunner=runners.get(key);
 
@@ -567,6 +634,11 @@ async function start(userId,accountId){
     while(runners.has(key)&&Date.now()<deadline)await sleep(250);
     if(runners.has(key))
       throw new Error('O robô anterior ainda está encerrando. Aguarde alguns segundos e tente novamente.');
+  }
+
+  const runningRobots=await getRunningRobotCount(userId);
+  if(!oldRunner && runningRobots>=planRules.maxRobots){
+    throw new Error(`Limite de robôs atingido: seu plano ${planRules.name} permite até ${planRules.maxRobots} robô(s) ativo(s).`);
   }
 
   await db.query(

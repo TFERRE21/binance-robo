@@ -48,6 +48,42 @@ button{cursor:pointer}
 .welcome{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:20px}
 .welcome h1{font-size:27px;margin-bottom:7px}
 .welcome p{color:#8c98a9;font-size:13px;line-height:1.5}
+/* Aviso de API necessária para o robô */
+.robot-api-alert{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  max-width:520px;
+  margin:0 auto;
+  padding:10px 14px;
+  border:1px solid rgba(240,185,11,.38);
+  border-radius:11px;
+  background:rgba(240,185,11,.07);
+  color:#d7dee9;
+  font-size:11px;
+  line-height:1.4;
+  box-shadow:0 0 18px rgba(240,185,11,.04);
+}
+.robot-api-alert .robot-api-icon{
+  font-size:19px;
+  flex:0 0 auto;
+}
+.robot-api-alert strong{
+  color:#f0b90b;
+  display:block;
+  margin-bottom:2px;
+}
+.robot-api-alert.api-ok{
+  border-color:rgba(0,224,150,.28);
+  background:rgba(0,224,150,.055);
+}
+.robot-api-alert.api-ok strong{
+  color:#00e096;
+}
+.robot-api-alert[hidden]{
+  display:none;
+}
+
 .plan-badge{
   border:1px solid rgba(240,185,11,.35);background:rgba(240,185,11,.09);
   color:#f0b90b;padding:11px 15px;border-radius:10px;font-size:11px;
@@ -630,6 +666,15 @@ select.plan-locked{
     <h1 id="welcomeTitle">Olá!</h1>
     <p id="welcomeText">Este é o seu painel individual da Binance. Suas contas ficam separadas de outros usuários.</p>
   </div>
+
+  <div class="robot-api-alert" id="robotApiAlert">
+    <div class="robot-api-icon">⚠️</div>
+    <div>
+      <strong>API Binance necessária</strong>
+      Cadastre e selecione uma API Binance antes de iniciar qualquer robô.
+    </div>
+  </div>
+
   <div class="plan-badge">
     PREMIUM
     <small id="planLimitsText">3 contas Binance · 3 operações simultâneas</small>
@@ -1268,6 +1313,34 @@ function renderAccountSelector(){
   document.getElementById("selectedAccountText").textContent=account?"Conta carregada: "+account.name:"Nenhuma API selecionada.";
 }
 
+function updateRobotApiAccessState(){
+  const hasApi=!!selectedAccountId;
+  const alertEl=document.getElementById("robotApiAlert");
+
+  if(alertEl){
+    alertEl.hidden=hasApi;
+    alertEl.classList.toggle("api-ok",hasApi);
+    alertEl.innerHTML=hasApi
+      ? '<div class="robot-api-icon">🟢</div><div><strong>API Binance configurada</strong>API selecionada e disponível para iniciar os robôs.</div>'
+      : '<div class="robot-api-icon">⚠️</div><div><strong>API Binance necessária</strong>Cadastre e selecione uma API Binance antes de iniciar qualquer robô.</div>';
+  }
+
+  document.querySelectorAll('button[onclick^="startRobot("]').forEach(btn=>{
+    const m=btn.getAttribute("onclick")?.match(/startRobot\((\d+)\)/);
+    if(!m)return;
+    const item=robotInstancesCache.find(x=>Number(x.robotId)===Number(m[1]));
+    const locked=!hasApi || !item?.config || !!item?.running || !!item?.engineRunning;
+    btn.disabled=locked;
+  });
+
+  const startMain=document.getElementById("startRobotBtn");
+  const startModal=document.getElementById("startRobotConfigBtn");
+  const running=!!selectedRobotData()?.running || !!selectedRobotData()?.engineRunning;
+  const hasConfig=!!selectedRobotData()?.config;
+  if(startMain)startMain.disabled=!hasApi || !hasConfig || running;
+  if(startModal)startModal.disabled=!hasApi || !hasConfig || running;
+}
+
 function prepareAccount(id){
   if(!id)return;
   const account=accounts.find(a=>String(a.id)===String(id));
@@ -1279,6 +1352,7 @@ function prepareAccount(id){
   text.classList.add("pending-account");
   const btn=document.getElementById("loadPanelBtn");
   if(btn)btn.disabled=false;
+  updateRobotApiAccessState();
 }
 
 async function loadPendingAccount(){
@@ -1295,6 +1369,7 @@ async function loadPendingAccount(){
     if(btn)btn.disabled=false;
   }
   document.getElementById("selectedAccountText").classList.remove("pending-account");
+  updateRobotApiAccessState();
 }
 
 async function selectAccount(id){
@@ -1774,7 +1849,7 @@ function robotSlotCard(item){
     ${!locked?`<div class="robot-slot-meta">${c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"Nenhuma configuração salva."}</div>
     <div class="robot-slot-actions">
       <button class="btn" onclick="openRobot(${id})">⚙ Configurar</button>
-      <button class="btn btn-primary" onclick="startRobot(${id})" ${running||!c?"disabled":""}>▶ Iniciar</button>
+      <button class="btn btn-primary" onclick="startRobot(${id})" ${running||!c||!selectedAccountId?"disabled":""}>▶ Iniciar</button>
       <button class="btn" onclick="stopRobot(${id})" ${!running?"disabled":""}>■ Parar robô</button>
     </div>`:""}
   </div>`;
@@ -1795,6 +1870,7 @@ function renderRobotSlots(list){
   if(countEl)countEl.textContent=`${count}/${max}`;
   const limit=document.getElementById("limitRobots");
   if(limit)limit.textContent=`${count}/${max}`;
+  updateRobotApiAccessState();
 }
 
 function selectedRobotData(){
@@ -1934,7 +2010,11 @@ async function saveRobot(){
 
 async function startRobot(robotId=activeRobotId){
   activeRobotId=Number(robotId)||1;
-  if(!selectedAccountId){alert("Selecione uma API e carregue o painel.");return;}
+  if(!selectedAccountId){
+    alert("⚠️ Antes de iniciar o robô, cadastre e selecione uma API Binance e clique em “Carregar painel”.");
+    updateRobotApiAccessState();
+    return;
+  }
   let d;
   try{d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);}
   catch(e){alert(e.message);return;}
@@ -1999,6 +2079,8 @@ function atualizarCardRoboVisual(running){
 
 function showMessage(element,text,type){element.textContent=text;element.className="message show "+type}
 function scrollToOperation(){document.querySelector(".operation-card").scrollIntoView({behavior:"smooth"})}
+updateRobotApiAccessState();
+
 function voltarPlanos(){window.location.href="/planos.html"}
 function logout(){
   localStorage.removeItem("token");localStorage.removeItem("user");localStorage.removeItem("selected_binance_account");

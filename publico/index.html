@@ -497,6 +497,14 @@ button{cursor:pointer}
   <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
   <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
 </section>
+<section class="operation-card" id="robotRealtimeLogCard" style="margin-top:14px">
+  <div class="operation-head">
+    <div class="operation-title">📡 LOG DO ROBÔ — TEMPO REAL</div>
+    <div class="operation-badge" id="robotLogBadge">AGUARDANDO</div>
+  </div>
+  <div id="robotStrategyInfo" class="security" style="margin-bottom:10px">Estratégia: — · Indicadores: —</div>
+  <div id="robotRealtimeLog" style="height:280px;overflow:auto;background:#060a10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.55"><div style="color:#718096">Aguardando dados do robô...</div></div>
+</section>
 
 <section class="news-section">
   <div class="news-head">
@@ -746,13 +754,7 @@ button{cursor:pointer}
     <div class="message" id="robotMessage"></div>
     <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
     <div class="grid2">
-      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion">
-          <option value="basico">Básico — mais oportunidades · filtros essenciais</option>
-          <option value="medio">Médio — equilíbrio entre frequência e filtros</option>
-          <option value="premium" selected>Premium — maior seletividade</option>
-          <option value="avancado">Avançado — filtros adicionais</option>
-          <option value="elite">Elite — máxima seletividade</option>
-        </select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
+      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion"><option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option><option value="v6">V6 — TOP 40 Volume · EMA/RSI</option></select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
       <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
     </div>
     <div class="grid2">
@@ -787,6 +789,7 @@ let selectedAccountId=localStorage.getItem("selected_binance_account")||"";
 let selectedAccountData=null;
 let usdBrl=0;
 let refreshTimer=null;
+let robotLogTimer=null;
 
 async function apiFetch(url,options={}){
   const headers={...(options.headers||{}),"Authorization":"Bearer "+token,"Content-Type":"application/json"};
@@ -1343,14 +1346,29 @@ function getRobotConfig(){
   try{const saved=localStorage.getItem("criptopro_robot_config");return saved?{...defaultRobotConfig,...JSON.parse(saved)}:{...defaultRobotConfig};}catch(e){return {...defaultRobotConfig}}
 }
 function renderRobotLive(d){
-  const box=document.getElementById('robotLiveContent'),badge=document.getElementById('robotLiveBadge'); if(!box)return;
-  const c=d?.config, ops=(d?.operations||[]), open=ops.filter(x=>x.status==='OPEN');
-  const liveRunning=!!d?.running || !!d?.engineRunning;
-  if(badge){badge.textContent=liveRunning?'● RODANDO':'PARADO';badge.className=liveRunning?'operation-badge pnl-positive':'operation-badge';}
-  if(!c){box.innerHTML='<div class="operation-empty">Nenhuma configuração salva para a API selecionada. Abra <strong>Robô</strong> para configurar.</div>';return;}
-  box.innerHTML=`<div class="report-summary">\n    <div class="report-box"><span>Estratégia</span><strong>${escapeHtml(c.strategy_version||'v7.1')}</strong></div>\n    <div class="report-box"><span>Entrada</span><strong>${Number(c.entry_percent).toFixed(1)}%</strong></div>\n    <div class="report-box"><span>Take Profit</span><strong>${Number(c.take_profit).toFixed(2)}%</strong></div>\n    <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${c.stop_loss_active?'ATIVO · ':''}${Number(c.stop_loss).toFixed(2)}%</strong></div>\n  </div>\n  <div class="security">${open.length?`🟢 ${open.length} operação(ões) aberta(s) · limite ${c.max_operations}.`:'ℹ️ Nenhuma operação do robô aberta neste momento.'} · Intervalo ${escapeHtml(c.interval)} · até ${c.max_coins} moedas.</div>\n  ${open.length?`<table class="data-table" style="margin-top:10px"><thead><tr><th>Ativo</th><th>Compra</th><th>Quantidade</th><th>Venda</th><th>Stop</th><th>Status</th></tr></thead><tbody>${open.map(o=>`<tr><td>${escapeHtml(o.symbol)}</td><td>${moneyUSDT(o.buy_price)}</td><td>${formatNumber(o.quantity)}</td><td>${moneyUSDT(o.tp_price)}</td><td class="pnl-negative">${moneyUSDT(o.stop_price)}</td><td>ABERTA</td></tr>`).join('')}</tbody></table>`:''}`;
+  const box=document.getElementById('robotLiveContent'),badge=document.getElementById('robotLiveBadge');
+  const logBox=document.getElementById('robotRealtimeLog'),logBadge=document.getElementById('robotLogBadge'),strategyBox=document.getElementById('robotStrategyInfo');
+  if(!box)return;
+  const c=d?.config,ops=d?.operations||[],open=ops.filter(x=>x.status==='OPEN');
+  const running=!!d?.running||!!d?.engineRunning;
+  const names={basico:'Básico',medio:'Médio',premium:'Premium',avancado:'Avançado',elite:'Elite','v7.1':'Premium',v6:'Médio'};
+  const key=String(c?.strategy_version||'premium').toLowerCase(),name=names[key]||key.toUpperCase();
+  if(badge){badge.textContent=running?'● RODANDO':'PARADO';badge.className=running?'operation-badge pnl-positive':'operation-badge'}
+  if(logBadge){logBadge.textContent=running?'● AO VIVO':'AGUARDANDO';logBadge.className=running?'operation-badge pnl-positive':'operation-badge'}
+  if(strategyBox)strategyBox.innerHTML=c?`<strong>Estratégia: ${escapeHtml(name)}</strong> · EMA9 + EMA21 · RSI14 · Volume relativo · Pullback/Breakout · Filtro BTC 1D/4H`:'Estratégia: — · Indicadores: —';
+  if(!c)box.innerHTML='<div class="operation-empty">Nenhuma configuração salva para a API selecionada. Abra <strong>Robô</strong> para configurar.</div>';
+  else box.innerHTML=`<div class="report-summary">
+    <div class="report-box"><span>Estratégia</span><strong>${escapeHtml(name)}</strong></div>
+    <div class="report-box"><span>Entrada</span><strong>${Number(c.entry_percent).toFixed(1)}%</strong></div>
+    <div class="report-box"><span>Take Profit</span><strong>${Number(c.take_profit).toFixed(2)}%</strong></div>
+    <div class="report-box"><span>Stop Loss</span><strong class="pnl-negative">${c.stop_loss_active?'ATIVO · ':''}${Number(c.stop_loss).toFixed(2)}%</strong></div>
+  </div><div class="security">${open.length?`🟢 ${open.length} operação(ões) aberta(s) · limite ${c.max_operations}.`:'ℹ️ Nenhuma operação do robô aberta neste momento.'} · Intervalo ${escapeHtml(c.interval)} · até ${c.max_coins} moedas.</div>`;
+  if(logBox){
+    const logs=Array.isArray(d?.robotLogs)?d.robotLogs:[];
+    logBox.innerHTML=logs.length?logs.map(l=>{const ts=new Date(l.created_at).toLocaleTimeString('pt-BR');const cls=l.level==='ERROR'?'pnl-negative':(String(l.message).includes('APROVADA')?'pnl-positive':'');return `<div class="${cls}" style="border-bottom:1px solid rgba(255,255,255,.045);padding:3px 0"><span style="color:#64748b">[${ts}]</span> ${escapeHtml(l.message)}</div>`}).join(''):'<div style="color:#718096">Nenhum evento registrado ainda.</div>';
+    logBox.scrollTop=logBox.scrollHeight;
+  }
 }
-
 async function loadRobotStatus(){
   if(!selectedAccountId)return;
   try{
@@ -2042,6 +2060,8 @@ async function init(){
     await loadCryptoNews();
     await loadRobotStatus();
   },30000);
+  if(robotLogTimer)clearInterval(robotLogTimer);
+  robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotStatus();}catch(_e){}}},3000);
 }
 init();
 </script>

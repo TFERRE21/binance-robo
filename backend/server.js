@@ -17,6 +17,17 @@ const Binance = require("binance-api-node").default;
 const app = express();
 
 // =========================================================
+// WEBHOOK STRIPE — RAW BODY
+// =========================================================
+// A Stripe precisa do corpo bruto para validar a assinatura.
+// Este middleware fica antes do express.json() e somente no
+// endpoint do webhook, sem interferir nas demais rotas.
+app.use(
+  "/api/subscription/webhook/stripe",
+  express.raw({ type: "application/json" })
+);
+
+// =========================================================
 // MIDDLEWARES
 // =========================================================
 app.use(express.json());

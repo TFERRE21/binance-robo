@@ -308,18 +308,103 @@ async function openCount(userId,accountId){ await ensureSchema(); const r=await 
 async function existingSymbol(userId,accountId,symbol){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND symbol=$3 AND status='OPEN' LIMIT 1`,[userId,accountId,symbol]); return !!r.rows.length; }
 
 async function buy(userId,account,config,symbol){
-  const client=clientFor(account); const info=await client.exchangeInfo(); const si=info.symbols.find(s=>s.symbol===symbol); if(!si)throw new Error('Par não encontrado');
-  const lot=si.filters.find(f=>f.filterType==='LOT_SIZE'), pf=si.filters.find(f=>f.filterType==='PRICE_FILTER'), nf=si.filters.find(f=>f.filterType==='NOTIONAL'||f.filterType==='MIN_NOTIONAL');
-  const step=num(lot?.stepSize),tick=num(pf?.tickSize),minNot=num(nf?.minNotional); const ac=await client.accountInfo(); const usdt=num(ac.balances.find(b=>b.asset==='USDT')?.free); const price=num((await client.prices({symbol}))[symbol]);
-  const value=usdt*(num(config.entry_percent)/100); let qty=roundDown(value/price,step); if(qty<=0||qty*price<minNot)throw new Error('Saldo/valor mínimo insuficiente');
-  const order=await client.order({symbol,side:'BUY',type:'MARKET',quantity:qty}); await sleep(1200);
-  let executedQty=num(order.executedQty)||qty; let buyValue=num(order.cummulativeQuoteQty)||0; let buyPrice=buyValue>0?buyValue/executedQty:price;
-  if(Array.isArray(order.fills)&&order.fills.length){let q=0,v=0; for(const f of order.fills){q+=num(f.qty);v+=num(f.qty)*num(f.price);} if(q>0){executedQty=q;buyPrice=v/q;}}
-  const ac2=await client.accountInfo(); const asset=symbol.replace(/USDT$/,''); const free=num(ac2.balances.find(b=>b.asset===asset)?.free); qty=roundDown(Math.min(executedQty,free||executedQty),step); if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
-  const tp=roundPrice(buyPrice*(1+num(config.take_profit)/100),tick); const stop=roundPrice(buyPrice*(1-num(config.stop_loss)/100),tick);
-  const tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
-  await db.query(`INSERT INTO robot_operations(user_id,account_id,symbol,buy_order_id,tp_order_id,buy_price,quantity,tp_price,stop_price,status,opened_at,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'OPEN',NOW(),NOW())`,[userId,account.id,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]);
+  const client=clientFor(account);
+  const info=await client.exchangeInfo();
+  const si=info.symbols.find(s=>s.symbol===symbol);
+  if(!si)throw new Error('Par não encontrado');
+
+  const lot=si.filters.find(f=>f.filterType==='LOT_SIZE');
+  const pf=si.filters.find(f=>f.filterType==='PRICE_FILTER');
+  const nf=si.filters.find(f=>f.filterType==='NOTIONAL'||f.filterType==='MIN_NOTIONAL');
+  const step=num(lot?.stepSize),tick=num(pf?.tickSize),minNot=num(nf?.minNotional);
+
+  const ac=await client.accountInfo();
+  const usdt=num(ac.balances.find(b=>b.asset==='USDT')?.free);
+  const price=num((await client.prices({symbol}))[symbol]);
+
+  if(!(usdt>0))throw new Error('Saldo USDT disponível é zero');
+  if(!(price>0))throw new Error('Preço atual inválido');
+
+  const value=usdt*(num(config.entry_percent)/100);
+  let qty=roundDown(value/price,step);
+
+  if(qty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(qty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor=${(qty*price).toFixed(4)} USDT | mínimo=${minNot}`);
+
+  robotLog(userId,account.id,`ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | valor≈${(qty*price).toFixed(4)} USDT`);
+
+  const order=await client.order({symbol,side:'BUY',type:'MARKET',quantity:qty});
+  await sleep(1200);
+
+  let executedQty=num(order.executedQty)||qty;
+  let buyValue=num(order.cummulativeQuoteQty)||0;
+  let buyPrice=buyValue>0?buyValue/executedQty:price;
+
+  if(Array.isArray(order.fills)&&order.fills.length){
+    let q=0,v=0;
+    for(const f of order.fills){q+=num(f.qty);v+=num(f.qty)*num(f.price);}
+    if(q>0){executedQty=q;buyPrice=v/q;}
+  }
+
+  const ac2=await client.accountInfo();
+  const asset=symbol.replace(/USDT$/,'');
+  const free=num(ac2.balances.find(b=>b.asset===asset)?.free);
+  qty=roundDown(Math.min(executedQty,free||executedQty),step);
+  if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
+
+  const tp=roundPrice(buyPrice*(1+num(config.take_profit)/100),tick);
+  const stop=roundPrice(buyPrice*(1-num(config.stop_loss)/100),tick);
+
+  let tpOrder=null;
+  try{
+    tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
+  }catch(e){
+    // Se o TP não puder ser criado, não deixamos a posição sem registro.
+    // O monitor poderá atuar pelo stop, mas o evento fica explícito no log.
+    robotLog(userId,account.id,`COMPRA EXECUTADA | ${symbol} | mas TAKE PROFIT não foi criado | ${errText(e)}`,'ERROR');
+    throw e;
+  }
+
+  await db.query(
+    `INSERT INTO robot_operations(user_id,account_id,symbol,buy_order_id,tp_order_id,buy_price,quantity,tp_price,stop_price,status,opened_at,updated_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'OPEN',NOW(),NOW())`,
+    [userId,account.id,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]
+  );
+
+  robotLog(userId,account.id,
+    `COMPRA EXECUTADA | ${symbol} | preço=${buyPrice} | quantidade=${qty} | TP=${tp} (+${num(config.take_profit)}%) | SL=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
+  );
+
   return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder.orderId,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
+}
+
+async function executeApprovedSetups(userId,account,config,setups){
+  const limit=Math.max(1,Number(config.max_operations)||1);
+  let open=await openCount(userId,account.id);
+
+  if(open>=limit){
+    robotLog(userId,account.id,`ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas já abertas.`);
+    return;
+  }
+
+  for(const setup of setups){
+    if(open>=limit)break;
+
+    if(await existingSymbol(userId,account.id,setup.symbol)){
+      robotLog(userId,account.id,`${setup.symbol} | NÃO COMPRAR | já existe operação aberta nesse ativo.`);
+      continue;
+    }
+
+    try{
+      const result=await buy(userId,account,config,setup.symbol);
+      open++;
+      robotLog(userId,account.id,
+        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId} | próxima saída automática no TP${config.stop_loss_active?' ou SL':''}.`
+      );
+    }catch(e){
+      robotLog(userId,account.id,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${errText(e)}`,'ERROR');
+    }
+  }
 }
 
 async function monitorOpenOps(userId,account,config){
@@ -332,11 +417,13 @@ async function monitorOpenOps(userId,account,config){
         const ex=await client.exchangeInfo(); const si=ex.symbols.find(s=>s.symbol===op.symbol); const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE'); const qty=roundDown(num(op.quantity),num(lot?.stepSize));
         if(qty>0) await client.order({symbol:op.symbol,side:'SELL',type:'MARKET',quantity:qty});
         await db.query(`UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='STOP',updated_at=NOW() WHERE id=$1`,[op.id]);
+        robotLog(userId,account.id,`SAÍDA AUTOMÁTICA | ${op.symbol} | STOP LOSS acionado | preço=${price} | stop=${op.stop_price}`);
         continue;
       }
       let ord=null; try{ord=await client.getOrder({symbol:op.symbol,orderId:op.tp_order_id});}catch(_){ }
       if(ord && String(ord.status).toUpperCase()==='FILLED'){
         await db.query(`UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,[op.id]);
+        robotLog(userId,account.id,`SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT executado | preço≈${price} | alvo=${op.tp_price}`);
       }
     }catch(e){ console.error(`ROBOT OP ${op.symbol}:`,errText(e)); }
   }
@@ -412,19 +499,47 @@ async function scan(userId,account,config){
 }
 
 async function loop(userId,accountId){
-  const key=`${userId}:${accountId}`; if(runners.has(key))return;
-  const runner={stop:false}; runners.set(key,runner);
+  const key=`${userId}:${accountId}`;
+  if(runners.has(key))return;
+
+  const runner={stop:false};
+  runners.set(key,runner);
+
   try{
     while(!runner.stop){
-      const account=await getAccount(userId,accountId); const config=await getConfig(userId,accountId); if(!account||!config||!config.running){break;}
+      const account=await getAccount(userId,accountId);
+      const config=await getConfig(userId,accountId);
+
+      if(!account||!config||!config.running)break;
+
       try{
-        robotLog(userId,account.id,`CICLO DE BUSCA | estratégia=${strategyInfo(String(config.strategy_version||'premium')).name}`);
+        const strategy=strategyInfo(String(config.strategy_version||'premium'));
+
+        robotLog(userId,account.id,
+          `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | simultâneas=${config.max_operations}`
+        );
+
+        // 1) Primeiro administra posições que já existem.
         await monitorOpenOps(userId,account,config);
-        await scan(userId,account,config);
-      }catch(e){ robotLog(userId,account.id,`ERRO NO CICLO | ${errText(e)}`,'ERROR'); }
+
+        // 2) Depois procura novos setups conforme a estratégia escolhida.
+        const setups=await scan(userId,account,config);
+
+        // 3) Executa as entradas aprovadas respeitando o limite configurado.
+        if(setups.length){
+          await executeApprovedSetups(userId,account,config,setups);
+        }else{
+          robotLog(userId,account.id,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
+        }
+      }catch(e){
+        robotLog(userId,account.id,`ERRO NO CICLO | ${errText(e)}`,'ERROR');
+      }
+
       await sleep(15000);
     }
-  }finally{runners.delete(key);}
+  }finally{
+    runners.delete(key);
+  }
 }
 
 async function start(userId,accountId){

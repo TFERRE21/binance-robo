@@ -120,6 +120,43 @@ button{cursor:pointer}
 .pnl-negative{color:#ff7272!important}
 .pnl-neutral{color:#dfe6ef!important}
 
+/* WORKSPACE DO ROBÔ — mapa à esquerda + informações/log à direita */
+.robot-workspace{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 390px;
+  gap:14px;
+  align-items:start;
+  margin-bottom:20px;
+}
+.robot-map-column{min-width:0}
+.robot-live-column{
+  min-width:0;
+  position:sticky;
+  top:18px;
+  max-height:calc(100vh - 100px);
+  overflow:auto;
+  padding-right:2px;
+}
+.robot-live-column .chart-card{margin-bottom:0}
+.robot-live-column .operation-card{margin-bottom:14px}
+#robotRealtimeLogCard{margin-top:0!important}
+#robotRealtimeLog{
+  height:calc(100vh - 360px)!important;
+  min-height:360px;
+  max-height:620px;
+}
+@media(max-width:1100px){
+  .robot-workspace{grid-template-columns:minmax(0,1fr) 330px}
+}
+@media(max-width:850px){
+  .robot-workspace{grid-template-columns:1fr}
+  .robot-live-column{
+    position:static;
+    max-height:none;
+    overflow:visible;
+  }
+  #robotRealtimeLog{height:360px!important}
+}
 .chart-card{
   border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.035);
   border-radius:14px;padding:17px;margin-bottom:20px
@@ -472,7 +509,9 @@ button{cursor:pointer}
   </div>
 </section>
 
-<section class="chart-card">
+<section class="robot-workspace">
+  <div class="robot-map-column">
+    <section class="chart-card">
   <div class="chart-head">
     <div>
       <div class="chart-title">₿ BTC/USDT</div>
@@ -484,6 +523,22 @@ button{cursor:pointer}
   <div class="chart-status" id="btcStatus">Conectando à Binance...</div>
   <div class="chart-tv-note">Dados reais da Binance · candles, volume, escala de preço e atualização ao vivo.</div>
 </section>
+  </div>
+  <div class="robot-live-column">
+    <section class="operation-card" id="robotLiveCard" style="margin-top:14px">
+  <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
+  <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
+</section>
+    <section class="operation-card" id="robotRealtimeLogCard" style="margin-top:14px">
+  <div class="operation-head">
+    <div class="operation-title">📡 LOG DO ROBÔ — TEMPO REAL</div>
+    <div class="operation-badge" id="robotLogBadge">AGUARDANDO</div>
+  </div>
+  <div id="robotStrategyInfo" class="security" style="margin-bottom:10px">Estratégia: — · Indicadores: —</div>
+  <div id="robotRealtimeLog" style="height:280px;overflow:auto;background:#060a10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.55"><div style="color:#718096">Aguardando dados do robô...</div></div>
+</section>
+  </div>
+</section>
 
 <section class="operation-card">
   <div class="operation-head">
@@ -491,19 +546,6 @@ button{cursor:pointer}
     <div class="operation-badge" id="operationBadge">TEMPO REAL</div>
   </div>
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
-</section>
-
-<section class="operation-card" id="robotLiveCard" style="margin-top:14px">
-  <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
-  <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
-</section>
-<section class="operation-card" id="robotRealtimeLogCard" style="margin-top:14px">
-  <div class="operation-head">
-    <div class="operation-title">📡 LOG DO ROBÔ — TEMPO REAL</div>
-    <div class="operation-badge" id="robotLogBadge">AGUARDANDO</div>
-  </div>
-  <div id="robotStrategyInfo" class="security" style="margin-bottom:10px">Estratégia: — · Indicadores: —</div>
-  <div id="robotRealtimeLog" style="height:280px;overflow:auto;background:#060a10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.55"><div style="color:#718096">Aguardando dados do robô...</div></div>
 </section>
 
 <section class="news-section">
@@ -754,7 +796,13 @@ button{cursor:pointer}
     <div class="message" id="robotMessage"></div>
     <div class="security" style="margin-bottom:15px">CONFIGURAÇÃO PREMIUM — até 3 operações simultâneas. A configuração será salva no servidor e ficará vinculada à API selecionada. O robô usa a lógica da estratégia do binance-robo, adaptada para funcionar por usuário.</div>
     <div class="grid2">
-      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion"><option value="v7.1">V7.1 — TOP 20 Market Cap · Score 7/12</option><option value="v6">V6 — TOP 40 Volume · EMA/RSI</option></select><div class="field-help">Escolha a versão que será executada nesta conta.</div></div>
+      <div class="field"><label>Versão da estratégia</label><select id="strategyVersion">
+          <option value="basico">Básico — TOP Volume · EMA/RSI · mais oportunidades</option>
+          <option value="medio">Médio — TOP Volume · EMA9/EMA21 · equilíbrio</option>
+          <option value="premium" selected>Premium — TOP Market Cap · Score mínimo 7</option>
+          <option value="avancado">Avançado — Market Cap · Score mínimo 8</option>
+          <option value="elite">Elite — máxima seletividade · Score mínimo 9 + Pullback</option>
+        </select><div class="field-help">Escolha uma das 5 estratégias. Os indicadores utilizados aparecem no log em tempo real.</div></div>
       <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
     </div>
     <div class="grid2">
@@ -783,7 +831,7 @@ button{cursor:pointer}
 const token=localStorage.getItem("token");
 if(!token) window.location.href="/login.html";
 
-const defaultRobotConfig={entryPercent:98,takeProfit:5,stopLoss:2.5,maxOperations:3,interval:"15m",maxCoins:20,strategyVersion:"v7.1",stopLossActive:true};
+const defaultRobotConfig={entryPercent:98,takeProfit:5,stopLoss:2.5,maxOperations:3,interval:"15m",maxCoins:20,strategyVersion:"premium",stopLossActive:true};
 let accounts=[];
 let selectedAccountId=localStorage.getItem("selected_binance_account")||"";
 let selectedAccountData=null;
@@ -1343,7 +1391,13 @@ function openLearnApi(){document.getElementById("learnModal").classList.add("ope
 function closeLearnApi(){document.getElementById("learnModal").classList.remove("open")}
 
 function getRobotConfig(){
-  try{const saved=localStorage.getItem("criptopro_robot_config");return saved?{...defaultRobotConfig,...JSON.parse(saved)}:{...defaultRobotConfig};}catch(e){return {...defaultRobotConfig}}
+  try{
+    const saved=localStorage.getItem("criptopro_robot_config");
+    const c=saved?{...defaultRobotConfig,...JSON.parse(saved)}:{...defaultRobotConfig};
+    if(c.strategyVersion==="v7.1")c.strategyVersion="premium";
+    if(c.strategyVersion==="v6")c.strategyVersion="medio";
+    return c;
+  }catch(e){return {...defaultRobotConfig}}
 }
 function renderRobotLive(d){
   const box=document.getElementById('robotLiveContent'),badge=document.getElementById('robotLiveBadge');
@@ -1379,7 +1433,7 @@ async function loadRobotStatus(){
     const running=!!d.running || !!d.engineRunning;
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
-    if(txt)txt.textContent=c?`${c.strategy_version||'v7.1'} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';
+    if(txt){const n={basico:"Básico",medio:"Médio",premium:"Premium",avancado:"Avançado",elite:"Elite","v7.1":"Premium",v6:"Médio"};const k=String(c?.strategy_version||"premium").toLowerCase();txt.textContent=c?`${n[k]||k} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:'Configure o robô para esta API.';}
     if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?'ATIVO':'DESATIVADO'} ${Number(c.stop_loss).toFixed(2)}% · <strong>${(d.operations||[]).filter(x=>x.status==='OPEN').length} posição(ões) aberta(s)</strong>`:'';
     const sb=document.getElementById('startRobotBtn');
     const sbConfig=document.getElementById('startRobotConfigBtn');
@@ -1395,15 +1449,35 @@ async function loadRobotStatus(){
     return d;
   }catch(e){console.warn('ROBÔ STATUS:',e);}
 }
-function openRobot(){
-  const c=getRobotConfig();
+async function openRobot(){
+  let c=getRobotConfig();
+  try{
+    if(selectedAccountId){
+      const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}`);
+      if(d?.config){
+        c={
+          entryPercent:Number(d.config.entry_percent),
+          takeProfit:Number(d.config.take_profit),
+          stopLoss:Number(d.config.stop_loss),
+          maxOperations:Number(d.config.max_operations),
+          interval:d.config.interval||"15m",
+          maxCoins:Number(d.config.max_coins)||20,
+          strategyVersion:String(d.config.strategy_version||"premium"),
+          stopLossActive:d.config.stop_loss_active!==false
+        };
+        if(c.strategyVersion==="v7.1")c.strategyVersion="premium";
+        if(c.strategyVersion==="v6")c.strategyVersion="medio";
+        localStorage.setItem("criptopro_robot_config",JSON.stringify(c));
+      }
+    }
+  }catch(_e){}
   document.getElementById("entryPercent").value=c.entryPercent;
   document.getElementById("takeProfit").value=c.takeProfit;
   document.getElementById("stopLoss").value=c.stopLoss;
   document.getElementById("maxOperations").value=Math.min(Number(c.maxOperations)||3,3);
   document.getElementById("interval").value=c.interval||'15m';
   document.getElementById("maxCoins").value=c.maxCoins||20;
-  document.getElementById("strategyVersion").value=c.strategyVersion||'v7.1';
+  document.getElementById("strategyVersion").value=c.strategyVersion||'premium';
   document.getElementById("stopLossActive").value=(c.stopLossActive===false?'false':'true');
   document.getElementById("robotMessage").className="message";document.getElementById("robotMessage").textContent="";
   document.getElementById("robotModal").classList.add("open");

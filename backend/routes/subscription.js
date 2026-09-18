@@ -17,7 +17,7 @@ const stripe = STRIPE_SECRET_KEY
 
 const BASE_URL =
   process.env.BASE_URL ||
-  "https://site--painel-binance--clbfrw28wczh.code.run";
+  "https://site--painel-binance--clbfrw28wcz.code.run";
 
 const STRIPE_PRICE_BASICO =
   process.env.STRIPE_PRICE_BASICO;
@@ -526,39 +526,78 @@ router.get("/status", authMiddleware, async (req, res) => {
       });
     }
 
-    const result = await db.query(
+    // Procura primeiro uma assinatura ACTIVE ainda válida.
+    // Registros PENDING/EXPIRED mais recentes não devem bloquear
+    // uma assinatura ACTIVE válida do mesmo usuário.
+    let result = await db.query(
       `
       SELECT *
       FROM subscriptions
       WHERE user_id = $1
+        AND status = 'ACTIVE'
+        AND (
+          expires_at IS NULL
+          OR expires_at > NOW()
+        )
       ORDER BY id DESC
       LIMIT 1
       `,
       [userId]
     );
 
+    // Se não houver ACTIVE válida, pega o registro mais recente
+    // para informar corretamente o estado ao frontend.
+    if (result.rows.length === 0) {
+      result = await db.query(
+        `
+        SELECT *
+        FROM subscriptions
+        WHERE user_id = $1
+        ORDER BY id DESC
+        LIMIT 1
+        `,
+        [userId]
+      );
+    }
+
     if (result.rows.length === 0) {
       return res.json({
         ok: true,
         active: false,
-        status: "NONE"
+        status: "NONE",
+        plan: null,
+        planName: null,
+        amount: 0,
+        operacoesSimultaneas: 0,
+        contasBinance: 0,
+        robos: 0,
+        started_at: null,
+        expires_at: null,
+        expiresAt: null,
+        subscriptionId: null,
+        paymentProvider: null
       });
     }
 
     const assinatura = result.rows[0];
 
+    // Proteção adicional contra ACTIVE expirada.
     if (
       assinatura.status === "ACTIVE" &&
       assinatura.expires_at
     ) {
       const expiracao = new Date(assinatura.expires_at);
 
-      if (expiracao <= new Date()) {
+      if (
+        !Number.isNaN(expiracao.getTime()) &&
+        expiracao <= new Date()
+      ) {
         await db.query(
           `
           UPDATE subscriptions
-          SET status = 'EXPIRED',
-              updated_at = NOW()
+          SET
+            status = 'EXPIRED',
+            updated_at = NOW()
           WHERE id = $1
           `,
           [assinatura.id]
@@ -568,30 +607,45 @@ router.get("/status", authMiddleware, async (req, res) => {
       }
     }
 
-    const plano = PLANOS[assinatura.plan];
+    const plano = PLANOS[assinatura.plan] || null;
+
+    const active =
+      assinatura.status === "ACTIVE" &&
+      (
+        !assinatura.expires_at ||
+        new Date(assinatura.expires_at) > new Date()
+      );
 
     return res.json({
       ok: true,
-      active: assinatura.status === "ACTIVE",
-      status: assinatura.status,
-      plan: assinatura.plan,
-      planName: plano?.nome || assinatura.plan,
-      amount: assinatura.amount,
+      active,
+      status: active ? "ACTIVE" : assinatura.status,
+      plan: assinatura.plan || null,
+      planName: plano?.nome || assinatura.plan || null,
+      amount: Number(assinatura.amount || 0),
       operacoesSimultaneas:
         plano?.operacoesSimultaneas || 0,
       contasBinance:
         plano?.contasBinance || 0,
       robos:
         plano?.robos || 0,
-      started_at: assinatura.started_at,
-      expires_at: assinatura.expires_at,
-      subscriptionId: assinatura.id,
+      started_at:
+        assinatura.started_at || null,
+      expires_at:
+        assinatura.expires_at || null,
+      expiresAt:
+        assinatura.expires_at || null,
+      subscriptionId:
+        assinatura.id,
       paymentProvider:
         assinatura.payment_provider || "STRIPE"
     });
 
   } catch (error) {
-    console.error("ERRO AO CONSULTAR ASSINATURA:", error);
+    console.error(
+      "ERRO AO CONSULTAR ASSINATURA:",
+      error
+    );
 
     return res.status(500).json({
       ok: false,
@@ -777,31 +831,20 @@ async function processarWebhookStripe(req, res) {
     // --------------------------------------------------------
     // invoice.paid
     // --------------------------------------------------------
-    //
-    // Stripe API 2026-01-28.clover:
-    // em alguns eventos de invoice, a subscription NÃO fica em
-    // object.subscription.
-    //
-    // No evento real do CriptoPro ela veio em:
-    //
-    // object.parent.subscription_details.subscription
-    //
-    // e os metadados vieram em:
-    //
-    // object.parent.subscription_details.metadata
-    //
-    // Também existe a referência dentro do primeiro line item.
-    // --------------------------------------------------------
 
     else if (event.type === "invoice.paid") {
       let localResult = null;
 
+      // Stripe API 2026+ pode entregar os dados da assinatura
+      // dentro de object.parent.subscription_details.
       const invoiceSubscriptionDetails =
         object.parent?.subscription_details || {};
 
       const invoiceMetadata =
         invoiceSubscriptionDetails.metadata || {};
 
+      // Também verificamos os line items, pois no evento atual
+      // eles carregam metadata e a referência da subscription.
       const firstLine =
         Array.isArray(object.lines?.data) &&
         object.lines.data.length > 0
@@ -814,17 +857,11 @@ async function processarWebhookStripe(req, res) {
       const lineSubscriptionDetails =
         firstLine?.parent?.subscription_item_details || {};
 
-      // ------------------------------------------------------
-      // ID DA ASSINATURA LOCAL
-      // ------------------------------------------------------
-      //
       // Prioridade:
-      // 1. metadata do evento
-      // 2. metadata de parent.subscription_details
-      // 3. metadata do line item
-      // 4. client_reference_id, quando disponível
-      // ------------------------------------------------------
-
+      // 1) metadata do invoice
+      // 2) parent.subscription_details.metadata
+      // 3) metadata do line item
+      // 4) client_reference_id (se existir)
       subscriptionId =
         subscriptionId ||
         invoiceMetadata.subscription_id ||
@@ -832,10 +869,8 @@ async function processarWebhookStripe(req, res) {
         object.client_reference_id ||
         null;
 
-      // ------------------------------------------------------
-      // ID DA ASSINATURA STRIPE
-      // ------------------------------------------------------
-
+      // No formato atual do Stripe, a subscription está em:
+      // object.parent.subscription_details.subscription
       const stripeSubscriptionId =
         typeof object.subscription === "string"
           ? object.subscription
@@ -843,29 +878,6 @@ async function processarWebhookStripe(req, res) {
             invoiceSubscriptionDetails.subscription ||
             lineSubscriptionDetails.subscription ||
             null;
-
-      console.log(
-        "STRIPE invoice.paid — identificação:",
-        {
-          invoiceId: object.id || null,
-          subscriptionId,
-          stripeSubscriptionId,
-          userId:
-            metadataUserId ||
-            invoiceMetadata.user_id ||
-            lineMetadata.user_id ||
-            null,
-          plan:
-            metadata.plan ||
-            invoiceMetadata.plan ||
-            lineMetadata.plan ||
-            null
-        }
-      );
-
-      // ------------------------------------------------------
-      // 1. LOCALIZAR ASSINATURA PELO ID LOCAL
-      // ------------------------------------------------------
 
       if (subscriptionId) {
         localResult = await db.query(
@@ -878,10 +890,6 @@ async function processarWebhookStripe(req, res) {
           [subscriptionId]
         );
       }
-
-      // ------------------------------------------------------
-      // 2. FALLBACK PELO ID DA ASSINATURA STRIPE
-      // ------------------------------------------------------
 
       if (
         (!localResult || localResult.rows.length === 0) &&
@@ -898,24 +906,12 @@ async function processarWebhookStripe(req, res) {
         );
       }
 
-      // ------------------------------------------------------
-      // ASSINATURA NÃO ENCONTRADA
-      // ------------------------------------------------------
-
-      if (
-        !localResult ||
-        localResult.rows.length === 0
-      ) {
+      if (!localResult || localResult.rows.length === 0) {
         console.warn(
           "Webhook Stripe invoice.paid: assinatura não encontrada.",
           {
-            invoiceId:
-              object.id || null,
-
             subscriptionId,
-
             stripeSubscriptionId,
-
             userId:
               metadataUserId ||
               invoiceMetadata.user_id ||
@@ -930,98 +926,34 @@ async function processarWebhookStripe(req, res) {
         });
       }
 
-      const assinatura =
-        localResult.rows[0];
+      const assinatura = localResult.rows[0];
 
-      // ------------------------------------------------------
-      // VALIDADE
-      // ------------------------------------------------------
-      //
-      // Preferimos o período informado pelo Stripe no line item.
-      // Isso mantém a validade sincronizada com o período pago.
-      // ------------------------------------------------------
+      const agora = new Date();
 
-      const periodEndUnix =
-        firstLine?.period?.end ||
-        object.period_end ||
-        null;
-
-      let expiresAt;
-
-      if (periodEndUnix) {
-        expiresAt =
-          new Date(
-            Number(periodEndUnix) * 1000
-          );
-      } else {
-        expiresAt =
-          adicionarUmMes(
-            new Date()
-          );
-      }
-
-      // ------------------------------------------------------
-      // ATIVAR ASSINATURA
-      // ------------------------------------------------------
+      const expiresAt = adicionarUmMes(agora);
 
       await db.query(
         `
         UPDATE subscriptions
         SET
           status = 'ACTIVE',
-
           started_at =
-            COALESCE(
-              started_at,
-              NOW()
-            ),
-
+            COALESCE(started_at, NOW()),
           expires_at = $1,
-
-          external_payment_id =
-            COALESCE(
-              $2,
-              external_payment_id
-            ),
-
           external_subscription_id =
-            COALESCE(
-              $3,
-              external_subscription_id
-            ),
-
+            COALESCE($2, external_subscription_id),
           updated_at = NOW()
-
-        WHERE id = $4
+        WHERE id = $3
         `,
         [
           expiresAt.toISOString(),
-          object.id || null,
           stripeSubscriptionId,
           assinatura.id
         ]
       );
 
       console.log(
-        "ASSINATURA STRIPE ATIVADA:",
-        {
-          localSubscriptionId:
-            assinatura.id,
-
-          userId:
-            assinatura.user_id,
-
-          plan:
-            assinatura.plan,
-
-          stripeSubscriptionId,
-
-          invoiceId:
-            object.id || null,
-
-          expiresAt:
-            expiresAt.toISOString()
-        }
+        `Assinatura ${assinatura.id} ATIVADA via Stripe invoice.paid`
       );
     }
 

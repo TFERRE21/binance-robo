@@ -292,6 +292,7 @@ router.post("/select", authMiddleware, async (req, res) => {
 
       if (pending.external_payment_id && pending.created_at) {
         const criadoEm = new Date(pending.created_at);
+
         const minutos =
           (Date.now() - criadoEm.getTime()) / 60000;
 
@@ -504,7 +505,7 @@ router.post("/select", authMiddleware, async (req, res) => {
 
 router.post("/select-stripe", authMiddleware, async (req, res) => {
   // Reaproveita a mesma implementação do endpoint /select.
-  // O alias será substituído abaixo pelo mesmo handler.
+  // O frontend antigo pode continuar chamando /select-stripe.
   return res.status(307).set(
     "Location",
     "/api/subscription/select"
@@ -512,86 +513,483 @@ router.post("/select-stripe", authMiddleware, async (req, res) => {
 });
 
 // ============================================================
+// ALTERAR PLANO DA ASSINATURA ATIVA
+// ============================================================
+//
+// IMPORTANTE:
+//
+// Este endpoint NÃO cria uma nova assinatura.
+//
+// Ele localiza a assinatura Stripe que o cliente já possui
+// e troca o Price ID dela.
+//
+// Exemplo:
+//
+// Básico
+// R$ 49,90
+//
+//        ↓
+//
+// Premium
+// R$ 199,90
+//
+// A assinatura Stripe existente é alterada.
+//
+// ============================================================
+
+router.post(
+  "/change-plan",
+  authMiddleware,
+  async (req, res) => {
+
+    try {
+
+      // --------------------------------------------------------
+      // STRIPE
+      // --------------------------------------------------------
+
+      if (!stripe) {
+
+        return res.status(500).json({
+          ok: false,
+          error:
+            "STRIPE_SECRET_KEY não configurada no servidor."
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // USUÁRIO
+      // --------------------------------------------------------
+
+      const userId = getUserId(req);
+
+      if (!userId) {
+
+        return res.status(401).json({
+          ok: false,
+          error:
+            "Usuário não autenticado."
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // NOVO PLANO
+      // --------------------------------------------------------
+
+      const plan =
+        String(req.body?.plan || "")
+          .trim()
+          .toLowerCase();
+
+      if (!PLANOS[plan]) {
+
+        return res.status(400).json({
+          ok: false,
+          error:
+            "Plano inválido."
+        });
+
+      }
+
+      const novoPlano =
+        PLANOS[plan];
+
+      // --------------------------------------------------------
+      // LOCALIZA ASSINATURA ATIVA
+      // --------------------------------------------------------
+
+      const activeResult =
+        await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE user_id = $1
+            AND status = 'ACTIVE'
+            AND (
+              expires_at IS NULL
+              OR expires_at > NOW()
+            )
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [userId]
+        );
+
+      if (activeResult.rows.length === 0) {
+
+        return res.status(400).json({
+          ok: false,
+          error:
+            "Você não possui uma assinatura ativa para alterar."
+        });
+
+      }
+
+      const assinatura =
+        activeResult.rows[0];
+
+      const planoAtual =
+        PLANOS[assinatura.plan] || null;
+
+      // --------------------------------------------------------
+      // MESMO PLANO
+      // --------------------------------------------------------
+
+      if (assinatura.plan === plan) {
+
+        return res.status(400).json({
+          ok: false,
+          error:
+            `Você já está no plano ${novoPlano.nome}.`
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // ID DA ASSINATURA STRIPE
+      // --------------------------------------------------------
+
+      if (!assinatura.external_subscription_id) {
+
+        return res.status(409).json({
+          ok: false,
+          error:
+            "Sua assinatura ativa não possui o ID da assinatura Stripe. Entre em contato com o suporte para realizar a alteração."
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // PRICE ID DO NOVO PLANO
+      // --------------------------------------------------------
+
+      const priceId =
+        stripePriceId(plan);
+
+      if (!priceId) {
+
+        return res.status(500).json({
+          ok: false,
+          error:
+            `Price ID do plano ${novoPlano.nome} não configurado no servidor.`
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // BUSCA ASSINATURA NO STRIPE
+      // --------------------------------------------------------
+
+      const stripeSubscription =
+        await stripe.subscriptions.retrieve(
+          assinatura.external_subscription_id
+        );
+
+      // --------------------------------------------------------
+      // LOCALIZA ITEM DA ASSINATURA
+      // --------------------------------------------------------
+
+      const item =
+        stripeSubscription
+          .items
+          ?.data
+          ?.find(Boolean);
+
+      if (!item) {
+
+        return res.status(409).json({
+          ok: false,
+          error:
+            "Não foi possível localizar o item da assinatura no Stripe."
+        });
+
+      }
+
+      // --------------------------------------------------------
+      // ALTERA O PLANO NO STRIPE
+      // --------------------------------------------------------
+      //
+      // A assinatura continua sendo a mesma.
+      //
+      // Apenas o preço/Price ID é alterado.
+      //
+      // always_invoice:
+      // aplica o ajuste proporcional imediatamente.
+      //
+      // error_if_incomplete:
+      // caso o pagamento não possa ser concluído,
+      // o Stripe não deixa a alteração incompleta.
+      //
+      // --------------------------------------------------------
+
+      const updatedSubscription =
+        await stripe.subscriptions.update(
+          stripeSubscription.id,
+          {
+            items: [
+              {
+                id: item.id,
+                price: priceId,
+                quantity: 1
+              }
+            ],
+
+            proration_behavior:
+              "always_invoice",
+
+            payment_behavior:
+              "error_if_incomplete",
+
+            metadata: {
+              ...(stripeSubscription.metadata || {}),
+
+              user_id:
+                String(userId),
+
+              subscription_id:
+                String(assinatura.id),
+
+              plan
+            }
+          }
+        );
+
+      // --------------------------------------------------------
+      // ATUALIZA BANCO LOCAL
+      // --------------------------------------------------------
+
+      await db.query(
+        `
+        UPDATE subscriptions
+        SET
+          plan = $1,
+          amount = $2,
+          external_subscription_id = $3,
+          payment_provider = 'STRIPE',
+          updated_at = NOW()
+        WHERE id = $4
+        `,
+        [
+          plan,
+          novoPlano.valor,
+          updatedSubscription.id,
+          assinatura.id
+        ]
+      );
+
+      // --------------------------------------------------------
+      // LOG
+      // --------------------------------------------------------
+
+      console.log(
+        "PLANO ALTERADO COM SUCESSO:",
+        {
+          userId,
+
+          subscriptionId:
+            assinatura.id,
+
+          stripeSubscriptionId:
+            updatedSubscription.id,
+
+          planoAnterior:
+            assinatura.plan,
+
+          novoPlano:
+            plan
+        }
+      );
+
+      // --------------------------------------------------------
+      // RESPOSTA
+      // --------------------------------------------------------
+
+      return res.json({
+        ok: true,
+
+        changed: true,
+
+        plan,
+
+        planName:
+          novoPlano.nome,
+
+        amount:
+          novoPlano.valor,
+
+        previousPlan:
+          assinatura.plan,
+
+        previousPlanName:
+          planoAtual?.nome ||
+          assinatura.plan,
+
+        subscriptionId:
+          assinatura.id,
+
+        stripeSubscriptionId:
+          updatedSubscription.id,
+
+        message:
+          `Plano alterado de ${
+            planoAtual?.nome ||
+            assinatura.plan
+          } para ${
+            novoPlano.nome
+          } com sucesso.`
+      });
+
+    } catch (error) {
+
+      console.error(
+        "ERRO AO ALTERAR PLANO STRIPE:",
+        error
+      );
+
+      const status =
+        error?.statusCode ||
+        error?.status ||
+        500;
+
+      return res.status(status).json({
+        ok: false,
+
+        error:
+          error?.message ||
+          "Não foi possível alterar o plano."
+      });
+    }
+  }
+);
+
+// ============================================================
 // STATUS DA ASSINATURA
 // ============================================================
 
 router.get("/status", authMiddleware, async (req, res) => {
+
   try {
-    const userId = getUserId(req);
+
+    const userId =
+      getUserId(req);
 
     if (!userId) {
+
       return res.status(401).json({
         ok: false,
-        error: "Usuário não autenticado."
+        error:
+          "Usuário não autenticado."
       });
+
     }
 
-    // Procura primeiro uma assinatura ACTIVE ainda válida.
-    // Registros PENDING/EXPIRED mais recentes não devem bloquear
-    // uma assinatura ACTIVE válida do mesmo usuário.
-    let result = await db.query(
-      `
-      SELECT *
-      FROM subscriptions
-      WHERE user_id = $1
-        AND status = 'ACTIVE'
-        AND (
-          expires_at IS NULL
-          OR expires_at > NOW()
-        )
-      ORDER BY id DESC
-      LIMIT 1
-      `,
-      [userId]
-    );
+    // --------------------------------------------------------
+    // PROCURA ACTIVE VÁLIDA
+    // --------------------------------------------------------
 
-    // Se não houver ACTIVE válida, pega o registro mais recente
-    // para informar corretamente o estado ao frontend.
-    if (result.rows.length === 0) {
-      result = await db.query(
+    let result =
+      await db.query(
         `
         SELECT *
         FROM subscriptions
         WHERE user_id = $1
+          AND status = 'ACTIVE'
+          AND (
+            expires_at IS NULL
+            OR expires_at > NOW()
+          )
         ORDER BY id DESC
         LIMIT 1
         `,
         [userId]
       );
-    }
+
+    // --------------------------------------------------------
+    // CASO NÃO TENHA ACTIVE
+    // --------------------------------------------------------
 
     if (result.rows.length === 0) {
-      return res.json({
-        ok: true,
-        active: false,
-        status: "NONE",
-        plan: null,
-        planName: null,
-        amount: 0,
-        operacoesSimultaneas: 0,
-        contasBinance: 0,
-        robos: 0,
-        started_at: null,
-        expires_at: null,
-        expiresAt: null,
-        subscriptionId: null,
-        paymentProvider: null
-      });
+
+      result =
+        await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE user_id = $1
+          ORDER BY id DESC
+          LIMIT 1
+          `,
+          [userId]
+        );
+
     }
 
-    const assinatura = result.rows[0];
+    // --------------------------------------------------------
+    // NENHUMA ASSINATURA
+    // --------------------------------------------------------
 
-    // Proteção adicional contra ACTIVE expirada.
+    if (result.rows.length === 0) {
+
+      return res.json({
+
+        ok: true,
+
+        active: false,
+
+        status: "NONE",
+
+        plan: null,
+
+        planName: null,
+
+        amount: 0,
+
+        operacoesSimultaneas: 0,
+
+        contasBinance: 0,
+
+        robos: 0,
+
+        started_at: null,
+
+        expires_at: null,
+
+        expiresAt: null,
+
+        subscriptionId: null,
+
+        paymentProvider: null
+
+      });
+
+    }
+
+    const assinatura =
+      result.rows[0];
+
+    // --------------------------------------------------------
+    // PROTEÇÃO CONTRA ASSINATURA EXPIRADA
+    // --------------------------------------------------------
+
     if (
       assinatura.status === "ACTIVE" &&
       assinatura.expires_at
     ) {
-      const expiracao = new Date(assinatura.expires_at);
+
+      const expiracao =
+        new Date(
+          assinatura.expires_at
+        );
 
       if (
-        !Number.isNaN(expiracao.getTime()) &&
+        !Number.isNaN(
+          expiracao.getTime()
+        ) &&
         expiracao <= new Date()
       ) {
+
         await db.query(
           `
           UPDATE subscriptions
@@ -603,45 +1001,93 @@ router.get("/status", authMiddleware, async (req, res) => {
           [assinatura.id]
         );
 
-        assinatura.status = "EXPIRED";
+        assinatura.status =
+          "EXPIRED";
       }
     }
 
-    const plano = PLANOS[assinatura.plan] || null;
+    // --------------------------------------------------------
+    // DADOS DO PLANO
+    // --------------------------------------------------------
+
+    const plano =
+      PLANOS[assinatura.plan] ||
+      null;
 
     const active =
       assinatura.status === "ACTIVE" &&
       (
         !assinatura.expires_at ||
-        new Date(assinatura.expires_at) > new Date()
+        new Date(
+          assinatura.expires_at
+        ) > new Date()
       );
 
+    // --------------------------------------------------------
+    // RESPOSTA
+    // --------------------------------------------------------
+
     return res.json({
+
       ok: true,
+
       active,
-      status: active ? "ACTIVE" : assinatura.status,
-      plan: assinatura.plan || null,
-      planName: plano?.nome || assinatura.plan || null,
-      amount: Number(assinatura.amount || 0),
+
+      status:
+        active
+          ? "ACTIVE"
+          : assinatura.status,
+
+      plan:
+        assinatura.plan ||
+        null,
+
+      planName:
+        plano?.nome ||
+        assinatura.plan ||
+        null,
+
+      amount:
+        Number(
+          assinatura.amount ||
+          0
+        ),
+
       operacoesSimultaneas:
-        plano?.operacoesSimultaneas || 0,
+        plano?.operacoesSimultaneas ||
+        0,
+
       contasBinance:
-        plano?.contasBinance || 0,
+        plano?.contasBinance ||
+        0,
+
       robos:
-        plano?.robos || 0,
+        plano?.robos ||
+        0,
+
       started_at:
-        assinatura.started_at || null,
+        assinatura.started_at ||
+        null,
+
       expires_at:
-        assinatura.expires_at || null,
+        assinatura.expires_at ||
+        null,
+
       expiresAt:
-        assinatura.expires_at || null,
+        assinatura.expires_at ||
+        null,
+
       subscriptionId:
         assinatura.id,
+
       paymentProvider:
-        assinatura.payment_provider || "STRIPE"
+        assinatura.payment_provider ||
+        "STRIPE"
+
     });
 
   } catch (error) {
+
     console.error(
       "ERRO AO CONSULTAR ASSINATURA:",
       error
@@ -649,9 +1095,12 @@ router.get("/status", authMiddleware, async (req, res) => {
 
     return res.status(500).json({
       ok: false,
-      error: "Erro ao consultar assinatura."
+      error:
+        "Erro ao consultar assinatura."
     });
+
   }
+
 });
 
 // ============================================================
@@ -659,6 +1108,7 @@ router.get("/status", authMiddleware, async (req, res) => {
 // ============================================================
 //
 // IMPORTANTE:
+//
 // Esta rota precisa receber o corpo RAW da requisição para que
 // stripe.webhooks.constructEvent() consiga validar a assinatura.
 //
@@ -666,6 +1116,7 @@ router.get("/status", authMiddleware, async (req, res) => {
 // app.use(express.json())
 //
 // Exemplo:
+//
 // app.post(
 //   "/api/subscription/webhook/stripe",
 //   express.raw({ type: "application/json" }),
@@ -674,48 +1125,68 @@ router.get("/status", authMiddleware, async (req, res) => {
 //
 // Se o router já estiver montado com express.json() antes,
 // a assinatura do webhook poderá falhar.
+//
 // ============================================================
 
 async function processarWebhookStripe(req, res) {
+
   if (!stripe) {
+
     return res.status(500).json({
       ok: false,
-      error: "STRIPE_SECRET_KEY não configurada."
+      error:
+        "STRIPE_SECRET_KEY não configurada."
     });
+
   }
 
   const webhookSecret =
     process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
+
     console.error(
       "STRIPE_WEBHOOK_SECRET não configurado."
     );
 
     return res.status(500).json({
       ok: false,
-      error: "Webhook Stripe não configurado no servidor."
+      error:
+        "Webhook Stripe não configurado no servidor."
     });
+
   }
 
-  const signature = getStripeSignature(req);
+  const signature =
+    getStripeSignature(req);
 
   if (!signature) {
+
     return res.status(400).json({
       ok: false,
-      error: "Assinatura Stripe ausente."
+      error:
+        "Assinatura Stripe ausente."
     });
+
   }
 
   let event;
 
+  // ----------------------------------------------------------
+  // VALIDA ASSINATURA
+  // ----------------------------------------------------------
+
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      signature,
-      webhookSecret
-    );
+
+    event =
+      stripe.webhooks.constructEvent(
+        req.body,
+        signature,
+        webhookSecret
+      );
+
   } catch (error) {
+
     console.error(
       "WEBHOOK STRIPE — assinatura inválida:",
       error.message
@@ -723,8 +1194,10 @@ async function processarWebhookStripe(req, res) {
 
     return res.status(400).json({
       ok: false,
-      error: "Assinatura do webhook inválida."
+      error:
+        "Assinatura do webhook inválida."
     });
+
   }
 
   console.log(
@@ -734,10 +1207,14 @@ async function processarWebhookStripe(req, res) {
   );
 
   try {
-    const object = event.data?.object || {};
+
+    const object =
+      event.data?.object ||
+      {};
 
     const metadata =
-      object.metadata || {};
+      object.metadata ||
+      {};
 
     const metadataSubscriptionId =
       metadata.subscription_id ||
@@ -750,19 +1227,27 @@ async function processarWebhookStripe(req, res) {
     let subscriptionId =
       metadataSubscriptionId;
 
-    // --------------------------------------------------------
+    // ========================================================
     // checkout.session.completed
-    // --------------------------------------------------------
+    // ========================================================
 
     if (
-      event.type === "checkout.session.completed"
+      event.type ===
+      "checkout.session.completed"
     ) {
-      if (!subscriptionId && object.client_reference_id) {
+
+      if (
+        !subscriptionId &&
+        object.client_reference_id
+      ) {
+
         subscriptionId =
           object.client_reference_id;
+
       }
 
       if (!subscriptionId) {
+
         console.warn(
           "Webhook Stripe: subscription_id não encontrado no checkout."
         );
@@ -771,19 +1256,24 @@ async function processarWebhookStripe(req, res) {
           ok: true,
           ignored: true
         });
+
       }
 
-      const localResult = await db.query(
-        `
-        SELECT *
-        FROM subscriptions
-        WHERE id = $1
-        LIMIT 1
-        `,
-        [subscriptionId]
-      );
+      const localResult =
+        await db.query(
+          `
+          SELECT *
+          FROM subscriptions
+          WHERE id = $1
+          LIMIT 1
+          `,
+          [subscriptionId]
+        );
 
-      if (localResult.rows.length === 0) {
+      if (
+        localResult.rows.length === 0
+      ) {
+
         console.warn(
           "Webhook Stripe: assinatura local não encontrada:",
           subscriptionId
@@ -793,32 +1283,47 @@ async function processarWebhookStripe(req, res) {
           ok: true,
           ignored: true
         });
+
       }
 
-      const assinatura = localResult.rows[0];
+      const assinatura =
+        localResult.rows[0];
 
       const stripeSubscriptionId =
-        typeof object.subscription === "string"
-          ? object.subscription
-          : object.subscription?.id || null;
+        typeof object.subscription ===
+        "string"
 
-      // Não ativamos aqui somente pela existência da sessão.
-      // A confirmação de pagamento/subscription será processada
-      // pelos eventos de pagamento abaixo.
+          ? object.subscription
+
+          : object.subscription?.id ||
+            null;
+
       await db.query(
         `
         UPDATE subscriptions
         SET
           external_payment_id =
-            COALESCE($1, external_payment_id),
+            COALESCE(
+              $1,
+              external_payment_id
+            ),
+
           external_subscription_id =
-            COALESCE($2, external_subscription_id),
+            COALESCE(
+              $2,
+              external_subscription_id
+            ),
+
           updated_at = NOW()
+
         WHERE id = $3
         `,
         [
-          object.id || null,
+          object.id ||
+            null,
+
           stripeSubscriptionId,
+
           assinatura.id
         ]
       );
@@ -826,92 +1331,120 @@ async function processarWebhookStripe(req, res) {
       console.log(
         `Checkout Stripe concluído para assinatura local ${assinatura.id}`
       );
+
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // invoice.paid
-    // --------------------------------------------------------
+    // ========================================================
 
-    else if (event.type === "invoice.paid") {
+    else if (
+      event.type ===
+      "invoice.paid"
+    ) {
+
       let localResult = null;
 
-      // Stripe API 2026+ pode entregar os dados da assinatura
-      // dentro de object.parent.subscription_details.
       const invoiceSubscriptionDetails =
-        object.parent?.subscription_details || {};
+        object.parent
+          ?.subscription_details ||
+        {};
 
       const invoiceMetadata =
-        invoiceSubscriptionDetails.metadata || {};
+        invoiceSubscriptionDetails.metadata ||
+        {};
 
-      // Também verificamos os line items, pois no evento atual
-      // eles carregam metadata e a referência da subscription.
       const firstLine =
-        Array.isArray(object.lines?.data) &&
+        Array.isArray(
+          object.lines?.data
+        ) &&
         object.lines.data.length > 0
+
           ? object.lines.data[0]
+
           : null;
 
       const lineMetadata =
-        firstLine?.metadata || {};
+        firstLine?.metadata ||
+        {};
 
       const lineSubscriptionDetails =
-        firstLine?.parent?.subscription_item_details || {};
+        firstLine
+          ?.parent
+          ?.subscription_item_details ||
+        {};
 
-      // Prioridade:
-      // 1) metadata do invoice
-      // 2) parent.subscription_details.metadata
-      // 3) metadata do line item
-      // 4) client_reference_id (se existir)
       subscriptionId =
         subscriptionId ||
+
         invoiceMetadata.subscription_id ||
+
         lineMetadata.subscription_id ||
+
         object.client_reference_id ||
+
         null;
 
-      // No formato atual do Stripe, a subscription está em:
-      // object.parent.subscription_details.subscription
       const stripeSubscriptionId =
-        typeof object.subscription === "string"
+        typeof object.subscription ===
+        "string"
+
           ? object.subscription
+
           : object.subscription?.id ||
+
             invoiceSubscriptionDetails.subscription ||
+
             lineSubscriptionDetails.subscription ||
+
             null;
 
       if (subscriptionId) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [subscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [subscriptionId]
+          );
+
       }
 
       if (
-        (!localResult || localResult.rows.length === 0) &&
+        (!localResult ||
+          localResult.rows.length === 0) &&
         stripeSubscriptionId
       ) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_subscription_id = $1
-          LIMIT 1
-          `,
-          [stripeSubscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE external_subscription_id = $1
+            LIMIT 1
+            `,
+            [stripeSubscriptionId]
+          );
+
       }
 
-      if (!localResult || localResult.rows.length === 0) {
+      if (
+        !localResult ||
+        localResult.rows.length === 0
+      ) {
+
         console.warn(
           "Webhook Stripe invoice.paid: assinatura não encontrada.",
           {
             subscriptionId,
+
             stripeSubscriptionId,
+
             userId:
               metadataUserId ||
               invoiceMetadata.user_id ||
@@ -924,30 +1457,49 @@ async function processarWebhookStripe(req, res) {
           ok: true,
           ignored: true
         });
+
       }
 
-      const assinatura = localResult.rows[0];
+      const assinatura =
+        localResult.rows[0];
 
-      const agora = new Date();
+      const agora =
+        new Date();
 
-      const expiresAt = adicionarUmMes(agora);
+      const expiresAt =
+        adicionarUmMes(
+          agora
+        );
 
       await db.query(
         `
         UPDATE subscriptions
         SET
           status = 'ACTIVE',
+
           started_at =
-            COALESCE(started_at, NOW()),
+            COALESCE(
+              started_at,
+              NOW()
+            ),
+
           expires_at = $1,
+
           external_subscription_id =
-            COALESCE($2, external_subscription_id),
+            COALESCE(
+              $2,
+              external_subscription_id
+            ),
+
           updated_at = NOW()
+
         WHERE id = $3
         `,
         [
           expiresAt.toISOString(),
+
           stripeSubscriptionId,
+
           assinatura.id
         ]
       );
@@ -955,79 +1507,115 @@ async function processarWebhookStripe(req, res) {
       console.log(
         `Assinatura ${assinatura.id} ATIVADA via Stripe invoice.paid`
       );
+
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // invoice.payment_failed
-    // --------------------------------------------------------
+    // ========================================================
 
     else if (
-      event.type === "invoice.payment_failed"
+      event.type ===
+      "invoice.payment_failed"
     ) {
+
       let localResult = null;
 
       const invoiceSubscriptionDetails =
-        object.parent?.subscription_details || {};
+        object.parent
+          ?.subscription_details ||
+        {};
 
       const invoiceMetadata =
-        invoiceSubscriptionDetails.metadata || {};
+        invoiceSubscriptionDetails.metadata ||
+        {};
 
       const firstLine =
-        Array.isArray(object.lines?.data) &&
+        Array.isArray(
+          object.lines?.data
+        ) &&
         object.lines.data.length > 0
+
           ? object.lines.data[0]
+
           : null;
 
       const lineMetadata =
-        firstLine?.metadata || {};
+        firstLine?.metadata ||
+        {};
 
       const lineSubscriptionDetails =
-        firstLine?.parent?.subscription_item_details || {};
+        firstLine
+          ?.parent
+          ?.subscription_item_details ||
+        {};
 
       subscriptionId =
         subscriptionId ||
+
         invoiceMetadata.subscription_id ||
+
         lineMetadata.subscription_id ||
+
         object.client_reference_id ||
+
         null;
 
       const stripeSubscriptionId =
-        typeof object.subscription === "string"
+        typeof object.subscription ===
+        "string"
+
           ? object.subscription
+
           : object.subscription?.id ||
+
             invoiceSubscriptionDetails.subscription ||
+
             lineSubscriptionDetails.subscription ||
+
             null;
 
       if (subscriptionId) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [subscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [subscriptionId]
+          );
+
       }
 
       if (
-        (!localResult || localResult.rows.length === 0) &&
+        (!localResult ||
+          localResult.rows.length === 0) &&
         stripeSubscriptionId
       ) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_subscription_id = $1
-          LIMIT 1
-          `,
-          [stripeSubscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE external_subscription_id = $1
+            LIMIT 1
+            `,
+            [stripeSubscriptionId]
+          );
+
       }
 
-      if (localResult && localResult.rows.length > 0) {
-        const assinatura = localResult.rows[0];
+      if (
+        localResult &&
+        localResult.rows.length > 0
+      ) {
+
+        const assinatura =
+          localResult.rows[0];
 
         await db.query(
           `
@@ -1043,50 +1631,67 @@ async function processarWebhookStripe(req, res) {
         console.log(
           `Pagamento Stripe falhou para assinatura ${assinatura.id}`
         );
+
       }
+
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // customer.subscription.deleted
-    // --------------------------------------------------------
+    // ========================================================
 
     else if (
-      event.type === "customer.subscription.deleted"
+      event.type ===
+      "customer.subscription.deleted"
     ) {
+
       const stripeSubscriptionId =
-        object.id || null;
+        object.id ||
+        null;
 
       let localResult = null;
 
       if (subscriptionId) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [subscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [subscriptionId]
+          );
+
       }
 
       if (
-        (!localResult || localResult.rows.length === 0) &&
+        (!localResult ||
+          localResult.rows.length === 0) &&
         stripeSubscriptionId
       ) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_subscription_id = $1
-          LIMIT 1
-          `,
-          [stripeSubscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE external_subscription_id = $1
+            LIMIT 1
+            `,
+            [stripeSubscriptionId]
+          );
+
       }
 
-      if (localResult && localResult.rows.length > 0) {
-        const assinatura = localResult.rows[0];
+      if (
+        localResult &&
+        localResult.rows.length > 0
+      ) {
+
+        const assinatura =
+          localResult.rows[0];
 
         await db.query(
           `
@@ -1102,58 +1707,79 @@ async function processarWebhookStripe(req, res) {
         console.log(
           `Assinatura ${assinatura.id} cancelada via Stripe`
         );
+
       }
+
     }
 
-    // --------------------------------------------------------
+    // ========================================================
     // customer.subscription.updated
-    // --------------------------------------------------------
+    // ========================================================
 
     else if (
-      event.type === "customer.subscription.updated"
+      event.type ===
+      "customer.subscription.updated"
     ) {
+
       const stripeSubscriptionId =
-        object.id || null;
+        object.id ||
+        null;
 
       let localResult = null;
 
       if (subscriptionId) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [subscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [subscriptionId]
+          );
+
       }
 
       if (
-        (!localResult || localResult.rows.length === 0) &&
+        (!localResult ||
+          localResult.rows.length === 0) &&
         stripeSubscriptionId
       ) {
-        localResult = await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE external_subscription_id = $1
-          LIMIT 1
-          `,
-          [stripeSubscriptionId]
-        );
+
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE external_subscription_id = $1
+            LIMIT 1
+            `,
+            [stripeSubscriptionId]
+          );
+
       }
 
-      if (localResult && localResult.rows.length > 0) {
-        const assinatura = localResult.rows[0];
+      if (
+        localResult &&
+        localResult.rows.length > 0
+      ) {
+
+        const assinatura =
+          localResult.rows[0];
 
         const stripeStatus =
           object.status;
 
         if (
-          stripeStatus === "canceled" ||
-          stripeStatus === "unpaid"
+          stripeStatus ===
+            "canceled" ||
+
+          stripeStatus ===
+            "unpaid"
         ) {
+
           await db.query(
             `
             UPDATE subscriptions
@@ -1164,26 +1790,39 @@ async function processarWebhookStripe(req, res) {
             `,
             [assinatura.id]
           );
+
         } else if (
-          stripeStatus === "active"
+          stripeStatus ===
+          "active"
         ) {
+
           await db.query(
             `
             UPDATE subscriptions
             SET
               status = 'ACTIVE',
+
               external_subscription_id =
-                COALESCE($1, external_subscription_id),
+                COALESCE(
+                  $1,
+                  external_subscription_id
+                ),
+
               updated_at = NOW()
+
             WHERE id = $2
             `,
             [
               stripeSubscriptionId,
+
               assinatura.id
             ]
           );
+
         }
+
       }
+
     }
 
     return res.json({
@@ -1193,6 +1832,7 @@ async function processarWebhookStripe(req, res) {
     });
 
   } catch (error) {
+
     console.error(
       "ERRO AO PROCESSAR WEBHOOK STRIPE:",
       error
@@ -1200,9 +1840,12 @@ async function processarWebhookStripe(req, res) {
 
     return res.status(500).json({
       ok: false,
-      error: "Erro interno ao processar webhook Stripe."
+      error:
+        "Erro interno ao processar webhook Stripe."
     });
+
   }
+
 }
 
 // ============================================================
@@ -1218,12 +1861,27 @@ router.post(
 // ALIAS / COMPATIBILIDADE
 // ============================================================
 
-router.get("/teste-mercadopago", (req, res) => {
-  return res.json({
-    ok: true,
-    message: "Gateway antigo não utilizado. Stripe é o gateway atual.",
-    provider: "STRIPE"
-  });
-});
+router.get(
+  "/teste-mercadopago",
+  (req, res) => {
+
+    return res.json({
+
+      ok: true,
+
+      message:
+        "Gateway antigo não utilizado. Stripe é o gateway atual.",
+
+      provider:
+        "STRIPE"
+
+    });
+
+  }
+);
+
+// ============================================================
+// EXPORT
+// ============================================================
 
 module.exports = router;

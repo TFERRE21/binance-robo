@@ -413,31 +413,10 @@ async function buy(userId,account,config,symbol,robotId=1){
   if(!(price>0))throw new Error('Preço atual inválido');
 
   const value=usdt*(num(config.entry_percent)/100);
-  const rawQty=value/price;
-  let qty=roundDown(rawQty,step);
+  let qty=roundDown(value/price,step);
 
-  // Diagnóstico claro para saldos abaixo do mínimo de execução.
-  // Não altera a estratégia nem o percentual de entrada: apenas informa
-  // exatamente por que a ordem não pode ser enviada à Binance.
-  if(qty<=0){
-    const minQtyText=step>0?step.toString():'não informado';
-    throw new Error(
-      `Saldo insuficiente para quantidade mínima | saldo USDT=${usdt.toFixed(4)} | `+
-      `entrada=${num(config.entry_percent)}% | valor calculado=${value.toFixed(4)} USDT | `+
-      `preço=${price} | quantidade calculada=${rawQty.toFixed(12)} | `+
-      `quantidade após arredondamento=${qty} | passo LOT_SIZE=${minQtyText} | `+
-      `mínimo notional=${minNot>0?minNot:'não informado'} USDT`
-    );
-  }
-
-  const orderValue=qty*price;
-  if(orderValue<minNot){
-    throw new Error(
-      `Valor da ordem abaixo do mínimo Binance | saldo USDT=${usdt.toFixed(4)} | `+
-      `entrada=${num(config.entry_percent)}% | valor da ordem=${orderValue.toFixed(4)} USDT | `+
-      `mínimo notional=${minNot} USDT | quantidade=${qty} | preço=${price}`
-    );
-  }
+  if(qty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(qty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor=${(qty*price).toFixed(4)} USDT | mínimo=${minNot}`);
 
   robotLog(userId,account.id,robotId,`ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | valor≈${(qty*price).toFixed(4)} USDT`);
 
@@ -616,7 +595,7 @@ async function loop(userId,accountId,robotId=1){
   const key=`${userId}:${accountId}:${robotId}`;
   if(runners.has(key))return;
 
-  const runner={stop:false,lastScanAt:0};
+  const runner={stop:false};
   runners.set(key,runner);
 
   try{
@@ -633,57 +612,23 @@ async function loop(userId,accountId,robotId=1){
           `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | simultâneas=${config.max_operations}`
         );
 
-        // 1) Administra posições que já existem.
-        // O monitoramento também ocorre em ciclos de 15 minutos, junto ao
-        // ciclo geral do robô, reduzindo chamadas e evitando sobrecarga.
+        // 1) Primeiro administra posições que já existem.
         await monitorOpenOps(userId,account,config,robotId);
 
-        // 2) Verifica quantas operações continuam abertas após o monitoramento.
-        // Regra:
-        // - Se o limite simultâneo já estiver preenchido, NÃO faz nova varredura
-        //   nem tenta outra compra. O robô permanece aguardando a realização
-        //   de lucro/saída da posição aberta.
-        // - Se houver espaço dentro do limite, a varredura poderá continuar.
-        const operationLimit=Math.max(1,Number(config.max_operations)||1);
-        const openOperations=await openCount(userId,account.id,robotId);
+        // 2) Depois procura novos setups conforme a estratégia escolhida.
+        const setups=await scan(userId,account,config,robotId);
 
-        if(openOperations>=operationLimit){
-          robotLog(
-            userId,
-            account.id,
-            robotId,
-            `AGUARDANDO LUCRO | ${openOperations}/${operationLimit} operação(ões) simultânea(s) ocupada(s) | aguardando TAKE PROFIT${config.stop_loss_active?' ou STOP LOSS':''} antes de buscar nova entrada.`
-          );
+        // 3) Executa as entradas aprovadas respeitando o limite configurado.
+        if(setups.length){
+          await executeApprovedSetups(userId,account,config,setups,robotId);
         }else{
-          // 3) Nova varredura de mercado somente a cada 15 minutos.
-          // O primeiro ciclo faz a varredura imediatamente.
-          const now=Date.now();
-          const scanIntervalMs=15*60*1000;
-          const lastScanAt=runner.lastScanAt||0;
-
-          if(now-lastScanAt>=scanIntervalMs){
-            runner.lastScanAt=now;
-
-            const setups=await scan(userId,account,config,robotId);
-
-            // 4) Executa as entradas aprovadas respeitando o limite configurado.
-            // Se o plano/configuração permitir mais de uma operação simultânea,
-            // o robô poderá abrir outras posições até atingir o limite.
-            if(setups.length){
-              await executeApprovedSetups(userId,account,config,setups,robotId);
-            }else{
-              robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
-            }
-          }
+          robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
         }
       }catch(e){
         robotLog(userId,account.id,robotId,`ERRO NO CICLO | ${errText(e)}`,'ERROR');
       }
 
-      // Tanto a varredura de novos setups quanto o monitoramento das
-      // posições abertas acontecem em ciclos de 15 minutos.
-      // Isso reduz chamadas à Binance e evita sobrecarga desnecessária.
-      await sleep(15*60*1000);
+      await sleep(15000);
     }
   }finally{
     runners.delete(key);
@@ -787,7 +732,32 @@ async function getStatus(userId,accountId,robotId=1){
   const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
   const logs=await db.query(`SELECT id,level,message,created_at FROM robot_logs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 80`,[userId,accountId,robotId]);
   const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
-  return {success:true,config:c,running:!!c?.running||engineRunning,engineRunning,operations:r.rows,robotLogs:logs.rows.reverse()};
+
+  /*
+   * CORREÇÃO ETAPA 21:
+   * "running" é o estado oficial persistido no banco.
+   *
+   * Antes:
+   *   running: !!c?.running || engineRunning
+   *
+   * Isso fazia a interface continuar mostrando RODANDO enquanto
+   * o runner interno ainda existia no Map, mesmo depois de o usuário
+   * ter pressionado PARAR e robot_configs.running já estar FALSE.
+   *
+   * Agora:
+   *   running = somente robot_configs.running
+   *   engineRunning = informação técnica separada do motor interno
+   *
+   * Assim, depois de PARAR, o painel passa a receber running=false.
+   */
+  return {
+    success:true,
+    config:c,
+    running:!!c?.running,
+    engineRunning,
+    operations:r.rows,
+    robotLogs:logs.rows.reverse()
+  };
 }
 
 async function listRobots(userId,accountId){

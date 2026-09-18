@@ -413,10 +413,31 @@ async function buy(userId,account,config,symbol,robotId=1){
   if(!(price>0))throw new Error('Preço atual inválido');
 
   const value=usdt*(num(config.entry_percent)/100);
-  let qty=roundDown(value/price,step);
+  const rawQty=value/price;
+  let qty=roundDown(rawQty,step);
 
-  if(qty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
-  if(qty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor=${(qty*price).toFixed(4)} USDT | mínimo=${minNot}`);
+  // Diagnóstico claro para saldos abaixo do mínimo de execução.
+  // Não altera a estratégia nem o percentual de entrada: apenas informa
+  // exatamente por que a ordem não pode ser enviada à Binance.
+  if(qty<=0){
+    const minQtyText=step>0?step.toString():'não informado';
+    throw new Error(
+      `Saldo insuficiente para quantidade mínima | saldo USDT=${usdt.toFixed(4)} | `+
+      `entrada=${num(config.entry_percent)}% | valor calculado=${value.toFixed(4)} USDT | `+
+      `preço=${price} | quantidade calculada=${rawQty.toFixed(12)} | `+
+      `quantidade após arredondamento=${qty} | passo LOT_SIZE=${minQtyText} | `+
+      `mínimo notional=${minNot>0?minNot:'não informado'} USDT`
+    );
+  }
+
+  const orderValue=qty*price;
+  if(orderValue<minNot){
+    throw new Error(
+      `Valor da ordem abaixo do mínimo Binance | saldo USDT=${usdt.toFixed(4)} | `+
+      `entrada=${num(config.entry_percent)}% | valor da ordem=${orderValue.toFixed(4)} USDT | `+
+      `mínimo notional=${minNot} USDT | quantidade=${qty} | preço=${price}`
+    );
+  }
 
   robotLog(userId,account.id,robotId,`ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | valor≈${(qty*price).toFixed(4)} USDT`);
 

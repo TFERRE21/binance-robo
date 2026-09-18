@@ -616,7 +616,7 @@ async function loop(userId,accountId,robotId=1){
   const key=`${userId}:${accountId}:${robotId}`;
   if(runners.has(key))return;
 
-  const runner={stop:false};
+  const runner={stop:false,lastScanAt:0};
   runners.set(key,runner);
 
   try{
@@ -633,23 +633,57 @@ async function loop(userId,accountId,robotId=1){
           `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | simultâneas=${config.max_operations}`
         );
 
-        // 1) Primeiro administra posições que já existem.
+        // 1) Administra posições que já existem.
+        // O monitoramento também ocorre em ciclos de 15 minutos, junto ao
+        // ciclo geral do robô, reduzindo chamadas e evitando sobrecarga.
         await monitorOpenOps(userId,account,config,robotId);
 
-        // 2) Depois procura novos setups conforme a estratégia escolhida.
-        const setups=await scan(userId,account,config,robotId);
+        // 2) Verifica quantas operações continuam abertas após o monitoramento.
+        // Regra:
+        // - Se o limite simultâneo já estiver preenchido, NÃO faz nova varredura
+        //   nem tenta outra compra. O robô permanece aguardando a realização
+        //   de lucro/saída da posição aberta.
+        // - Se houver espaço dentro do limite, a varredura poderá continuar.
+        const operationLimit=Math.max(1,Number(config.max_operations)||1);
+        const openOperations=await openCount(userId,account.id,robotId);
 
-        // 3) Executa as entradas aprovadas respeitando o limite configurado.
-        if(setups.length){
-          await executeApprovedSetups(userId,account,config,setups,robotId);
+        if(openOperations>=operationLimit){
+          robotLog(
+            userId,
+            account.id,
+            robotId,
+            `AGUARDANDO LUCRO | ${openOperations}/${operationLimit} operação(ões) simultânea(s) ocupada(s) | aguardando TAKE PROFIT${config.stop_loss_active?' ou STOP LOSS':''} antes de buscar nova entrada.`
+          );
         }else{
-          robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
+          // 3) Nova varredura de mercado somente a cada 15 minutos.
+          // O primeiro ciclo faz a varredura imediatamente.
+          const now=Date.now();
+          const scanIntervalMs=15*60*1000;
+          const lastScanAt=runner.lastScanAt||0;
+
+          if(now-lastScanAt>=scanIntervalMs){
+            runner.lastScanAt=now;
+
+            const setups=await scan(userId,account,config,robotId);
+
+            // 4) Executa as entradas aprovadas respeitando o limite configurado.
+            // Se o plano/configuração permitir mais de uma operação simultânea,
+            // o robô poderá abrir outras posições até atingir o limite.
+            if(setups.length){
+              await executeApprovedSetups(userId,account,config,setups,robotId);
+            }else{
+              robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
+            }
+          }
         }
       }catch(e){
         robotLog(userId,account.id,robotId,`ERRO NO CICLO | ${errText(e)}`,'ERROR');
       }
 
-      await sleep(15000);
+      // Tanto a varredura de novos setups quanto o monitoramento das
+      // posições abertas acontecem em ciclos de 15 minutos.
+      // Isso reduz chamadas à Binance e evita sobrecarga desnecessária.
+      await sleep(15*60*1000);
     }
   }finally{
     runners.delete(key);

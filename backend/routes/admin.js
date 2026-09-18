@@ -4,33 +4,63 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-function isAdmin(req) {
-  const configuredAdminId = String(process.env.ADMIN_USER_ID || "").trim();
-  const currentUserId = String(req.user?.id || req.user?.userId || "").trim();
+/*
+ * CRIPTOPRO - PAINEL ADMINISTRATIVO
+ * SOMENTE O ADMINISTRADOR CONFIGURADO NO NORTHFLANK PODE
+ * CONSULTAR ESTA API.
+ *
+ * Variável obrigatória:
+ * ADMIN_USER_ID=3
+ */
 
-  return !!configuredAdminId &&
-    !!currentUserId &&
-    configuredAdminId === currentUserId;
+function getCurrentUserId(req) {
+  return String(req.user?.id ?? req.user?.userId ?? "").trim();
+}
+
+function isAdmin(req) {
+  const adminId = String(process.env.ADMIN_USER_ID || "").trim();
+  const userId = getCurrentUserId(req);
+  return !!adminId && !!userId && adminId === userId;
 }
 
 function deny(res) {
   return res.status(403).json({
     success: false,
-    error: "Acesso administrativo não autorizado."
+    message: "Acesso administrativo não autorizado."
   });
 }
+
+function money(value) {
+  return Number(value || 0);
+}
+
+const PLAN_NAMES = {
+  basico: "Básico",
+  profissional: "Profissional",
+  premium: "Premium"
+};
+
+router.get("/teste", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  return res.json({
+    success: true,
+    admin: true,
+    userId: getCurrentUserId(req)
+  });
+});
 
 router.get("/dashboard", authMiddleware, async (req, res) => {
   if (!isAdmin(req)) return deny(res);
 
   try {
     const [
-      usersResult,
+      usersCountResult,
       subscriptionsResult,
       robotsResult,
       accountsResult,
       plansResult,
-      recentPaymentsResult
+      usersResult
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -56,7 +86,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
               THEN amount
               ELSE 0
             END
-          ), 0)::numeric AS mrr
+          ), 0)::numeric AS monthly_revenue
         FROM subscriptions
       `),
 
@@ -93,9 +123,9 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         GROUP BY plan
         ORDER BY
           CASE plan
-            WHEN 'premium' THEN 1
+            WHEN 'basico' THEN 1
             WHEN 'profissional' THEN 2
-            WHEN 'basico' THEN 3
+            WHEN 'premium' THEN 3
             ELSE 4
           END
       `),
@@ -127,98 +157,65 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       `)
     ]);
 
-    const users = usersResult.rows[0] || {};
+    const usersCount = usersCountResult.rows[0] || {};
     const subscriptions = subscriptionsResult.rows[0] || {};
     const robots = robotsResult.rows[0] || {};
     const accounts = accountsResult.rows[0] || {};
 
-    const money = value => Number(value || 0);
+    const usuarios = usersResult.rows.map(row => ({
+      id: row.id,
+      nome: row.name || "—",
+      email: row.email || "—",
+      ativo: row.active !== false,
+      assinaturaId: row.subscription_id || null,
+      plano: row.plan || null,
+      planoNome: PLAN_NAMES[row.plan] || row.plan || "Sem plano",
+      status: row.status || "SEM ASSINATURA",
+      valor: money(row.amount),
+      provedor: row.payment_provider || "—",
+      metodo: row.payment_method || "—",
+      iniciadoEm: row.started_at || null,
+      expiraEm: row.expires_at || null,
+      assinaturaCriadaEm: row.subscription_created_at || null
+    }));
 
-    const planNames = {
-      basico: "Básico",
-      profissional: "Profissional",
-      premium: "Premium"
-    };
+    const planos = plansResult.rows.map(row => ({
+      plan: row.plan,
+      nome: PLAN_NAMES[row.plan] || row.plan || "—",
+      ativos: Number(row.active || 0),
+      valorMensal: money(row.monthly_value)
+    }));
 
-    res.json({
+    return res.json({
       success: true,
       generatedAt: new Date().toISOString(),
-
       resumo: {
-        usuariosTotal: Number(users.total || 0),
-        usuariosAtivos: Number(users.active || 0),
-        usuariosInativos: Number(users.inactive || 0),
-
+        usuariosTotal: Number(usersCount.total || 0),
+        usuariosAtivos: Number(usersCount.active || 0),
+        usuariosInativos: Number(usersCount.inactive || 0),
         assinaturasAtivas: Number(subscriptions.active || 0),
         pagamentosPendentes: Number(subscriptions.pending || 0),
         assinaturasCanceladas: Number(subscriptions.cancelled || 0),
         assinaturasExpiradas: Number(subscriptions.expired || 0),
-
-        valorMensalAtivo: money(subscriptions.mrr),
-
+        valorMensalAtivo: money(subscriptions.monthly_revenue),
         robosConfigurados: Number(robots.configured || 0),
         robosRodando: Number(robots.running || 0),
-
         apisBinanceTotal: Number(accounts.total || 0),
         apisBinanceAtivas: Number(accounts.active || 0)
       },
-
-      planos: plansResult.rows.map(row => ({
-        plan: row.plan,
-        nome: planNames[row.plan] || row.plan || "—",
-        ativos: Number(row.active || 0),
-        valorMensal: money(row.monthly_value)
-      })),
-
-      usuarios: recentPaymentsResult.rows.map(row => ({
-        id: row.id,
-        nome: row.name || "—",
-        email: row.email || "—",
-        ativo: row.active !== false,
-        assinaturaId: row.subscription_id || null,
-        plano: row.plan || null,
-        status: row.status || "SEM ASSINATURA",
-        valor: money(row.amount),
-        provedor: row.payment_provider || "—",
-        metodo: row.payment_method || "—",
-        iniciadoEm: row.started_at || null,
-        expiraEm: row.expires_at || null,
-        criadoEm: row.subscription_created_at || null
-      })),
-
-      assinaturasRecentes: recentPaymentsResult.rows.slice(0, 20).map(row => ({
-        id: row.subscription_id,
-        userId: row.id,
-        nome: row.name || "—",
-        email: row.email || "—",
-        plano: row.plan,
-        status: row.status,
-        valor: money(row.amount),
-        provedor: row.payment_provider || "—",
-        metodo: row.payment_method || "—",
-        iniciadoEm: row.started_at,
-        expiraEm: row.expires_at,
-        criadoEm: row.subscription_created_at
-      }))
+      planos,
+      usuarios,
+      assinaturasRecentes: usuarios
+        .filter(u => u.assinaturaId !== null)
+        .slice(0, 20)
     });
   } catch (error) {
     console.error("ERRO DASHBOARD ADMIN:", error);
-
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      error: "Erro interno ao carregar o painel administrativo."
+      message: "Erro interno ao carregar o painel administrativo."
     });
   }
-});
-
-router.get("/teste", authMiddleware, async (req, res) => {
-  if (!isAdmin(req)) return deny(res);
-
-  res.json({
-    success: true,
-    admin: true,
-    userId: req.user?.id || req.user?.userId || null
-  });
 });
 
 module.exports = router;

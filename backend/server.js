@@ -9,6 +9,7 @@ const reportRoutes = require("./routes/reports");
 const newsRoutes = require("./routes/news");
 const robotRoutes = require("./routes/robot");
 const robotRiskRoutes = require("./routes/robotRisk");
+const adminRoutes = require("./routes/admin");
 const robotEngine = require("./services/robotEngine");
 
 const authMiddleware = require("./middleware/auth");

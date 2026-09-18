@@ -17,7 +17,7 @@ const stripe = STRIPE_SECRET_KEY
 
 const BASE_URL =
   process.env.BASE_URL ||
-  "https://site--painel-binance--clbfrw28wcz.code.run";
+  "https://site--painel-binance--clbfrw28wczh.code.run";
 
 const STRIPE_PRICE_BASICO =
   process.env.STRIPE_PRICE_BASICO;
@@ -777,20 +777,31 @@ async function processarWebhookStripe(req, res) {
     // --------------------------------------------------------
     // invoice.paid
     // --------------------------------------------------------
+    //
+    // Stripe API 2026-01-28.clover:
+    // em alguns eventos de invoice, a subscription NÃO fica em
+    // object.subscription.
+    //
+    // No evento real do CriptoPro ela veio em:
+    //
+    // object.parent.subscription_details.subscription
+    //
+    // e os metadados vieram em:
+    //
+    // object.parent.subscription_details.metadata
+    //
+    // Também existe a referência dentro do primeiro line item.
+    // --------------------------------------------------------
 
     else if (event.type === "invoice.paid") {
       let localResult = null;
 
-      // Stripe API 2026+ pode entregar os dados da assinatura
-      // dentro de object.parent.subscription_details.
       const invoiceSubscriptionDetails =
         object.parent?.subscription_details || {};
 
       const invoiceMetadata =
         invoiceSubscriptionDetails.metadata || {};
 
-      // Também verificamos os line items, pois no evento atual
-      // eles carregam metadata e a referência da subscription.
       const firstLine =
         Array.isArray(object.lines?.data) &&
         object.lines.data.length > 0
@@ -803,11 +814,17 @@ async function processarWebhookStripe(req, res) {
       const lineSubscriptionDetails =
         firstLine?.parent?.subscription_item_details || {};
 
+      // ------------------------------------------------------
+      // ID DA ASSINATURA LOCAL
+      // ------------------------------------------------------
+      //
       // Prioridade:
-      // 1) metadata do invoice
-      // 2) parent.subscription_details.metadata
-      // 3) metadata do line item
-      // 4) client_reference_id (se existir)
+      // 1. metadata do evento
+      // 2. metadata de parent.subscription_details
+      // 3. metadata do line item
+      // 4. client_reference_id, quando disponível
+      // ------------------------------------------------------
+
       subscriptionId =
         subscriptionId ||
         invoiceMetadata.subscription_id ||
@@ -815,8 +832,10 @@ async function processarWebhookStripe(req, res) {
         object.client_reference_id ||
         null;
 
-      // No formato atual do Stripe, a subscription está em:
-      // object.parent.subscription_details.subscription
+      // ------------------------------------------------------
+      // ID DA ASSINATURA STRIPE
+      // ------------------------------------------------------
+
       const stripeSubscriptionId =
         typeof object.subscription === "string"
           ? object.subscription
@@ -824,6 +843,29 @@ async function processarWebhookStripe(req, res) {
             invoiceSubscriptionDetails.subscription ||
             lineSubscriptionDetails.subscription ||
             null;
+
+      console.log(
+        "STRIPE invoice.paid — identificação:",
+        {
+          invoiceId: object.id || null,
+          subscriptionId,
+          stripeSubscriptionId,
+          userId:
+            metadataUserId ||
+            invoiceMetadata.user_id ||
+            lineMetadata.user_id ||
+            null,
+          plan:
+            metadata.plan ||
+            invoiceMetadata.plan ||
+            lineMetadata.plan ||
+            null
+        }
+      );
+
+      // ------------------------------------------------------
+      // 1. LOCALIZAR ASSINATURA PELO ID LOCAL
+      // ------------------------------------------------------
 
       if (subscriptionId) {
         localResult = await db.query(
@@ -836,6 +878,10 @@ async function processarWebhookStripe(req, res) {
           [subscriptionId]
         );
       }
+
+      // ------------------------------------------------------
+      // 2. FALLBACK PELO ID DA ASSINATURA STRIPE
+      // ------------------------------------------------------
 
       if (
         (!localResult || localResult.rows.length === 0) &&
@@ -852,12 +898,24 @@ async function processarWebhookStripe(req, res) {
         );
       }
 
-      if (!localResult || localResult.rows.length === 0) {
+      // ------------------------------------------------------
+      // ASSINATURA NÃO ENCONTRADA
+      // ------------------------------------------------------
+
+      if (
+        !localResult ||
+        localResult.rows.length === 0
+      ) {
         console.warn(
           "Webhook Stripe invoice.paid: assinatura não encontrada.",
           {
+            invoiceId:
+              object.id || null,
+
             subscriptionId,
+
             stripeSubscriptionId,
+
             userId:
               metadataUserId ||
               invoiceMetadata.user_id ||
@@ -872,34 +930,98 @@ async function processarWebhookStripe(req, res) {
         });
       }
 
-      const assinatura = localResult.rows[0];
+      const assinatura =
+        localResult.rows[0];
 
-      const agora = new Date();
+      // ------------------------------------------------------
+      // VALIDADE
+      // ------------------------------------------------------
+      //
+      // Preferimos o período informado pelo Stripe no line item.
+      // Isso mantém a validade sincronizada com o período pago.
+      // ------------------------------------------------------
 
-      const expiresAt = adicionarUmMes(agora);
+      const periodEndUnix =
+        firstLine?.period?.end ||
+        object.period_end ||
+        null;
+
+      let expiresAt;
+
+      if (periodEndUnix) {
+        expiresAt =
+          new Date(
+            Number(periodEndUnix) * 1000
+          );
+      } else {
+        expiresAt =
+          adicionarUmMes(
+            new Date()
+          );
+      }
+
+      // ------------------------------------------------------
+      // ATIVAR ASSINATURA
+      // ------------------------------------------------------
 
       await db.query(
         `
         UPDATE subscriptions
         SET
           status = 'ACTIVE',
+
           started_at =
-            COALESCE(started_at, NOW()),
+            COALESCE(
+              started_at,
+              NOW()
+            ),
+
           expires_at = $1,
+
+          external_payment_id =
+            COALESCE(
+              $2,
+              external_payment_id
+            ),
+
           external_subscription_id =
-            COALESCE($2, external_subscription_id),
+            COALESCE(
+              $3,
+              external_subscription_id
+            ),
+
           updated_at = NOW()
-        WHERE id = $3
+
+        WHERE id = $4
         `,
         [
           expiresAt.toISOString(),
+          object.id || null,
           stripeSubscriptionId,
           assinatura.id
         ]
       );
 
       console.log(
-        `Assinatura ${assinatura.id} ATIVADA via Stripe invoice.paid`
+        "ASSINATURA STRIPE ATIVADA:",
+        {
+          localSubscriptionId:
+            assinatura.id,
+
+          userId:
+            assinatura.user_id,
+
+          plan:
+            assinatura.plan,
+
+          stripeSubscriptionId,
+
+          invoiceId:
+            object.id || null,
+
+          expiresAt:
+            expiresAt.toISOString()
+        }
       );
     }
 

@@ -3366,8 +3366,6 @@
       localStorage.setItem("criptopro_selected_plan_name", nome);
       localStorage.setItem("criptopro_selected_plan_price", preco);
 
-      // Primeira tela / visitante: apenas apresenta os planos.
-      // Para contratar, o usuário deve estar autenticado.
       if (!token) {
         window.location.href = "/login.html";
         return;
@@ -3379,8 +3377,82 @@
       });
 
       try {
-        // O nome e o e-mail já pertencem à conta autenticada.
-        // Não pedimos CPF/CNPJ nem telefone nesta tela.
+        // Verifica primeiro se o cliente já possui uma assinatura ativa.
+        const statusResponse = await fetch("/api/subscription/status", {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`
+          },
+          cache: "no-store"
+        });
+
+        const statusData =
+          await statusResponse.json().catch(() => ({}));
+
+        if (!statusResponse.ok || !statusData.ok) {
+          throw new Error(
+            statusData.error ||
+            statusData.message ||
+            "Não foi possível verificar sua assinatura."
+          );
+        }
+
+        // ======================================================
+        // CLIENTE JÁ POSSUI PLANO ATIVO
+        // ======================================================
+        if (statusData.active) {
+
+          if (statusData.plan === codigo) {
+            throw new Error(
+              `Você já está no plano ${statusData.planName || nome}.`
+            );
+          }
+
+          const confirmacao = window.confirm(
+            `Você possui o plano ${statusData.planName || statusData.plan}.\n\n` +
+            `Deseja alterar para o plano ${nome} por ${preco}?`
+          );
+
+          if (!confirmacao) {
+            return;
+          }
+
+          const changeResponse =
+            await fetch("/api/subscription/change-plan", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                plan: codigo
+              })
+            });
+
+          const changeData =
+            await changeResponse.json().catch(() => ({}));
+
+          if (!changeResponse.ok || !changeData.ok) {
+            throw new Error(
+              changeData.error ||
+              changeData.message ||
+              "Não foi possível alterar o plano."
+            );
+          }
+
+          alert(
+            changeData.message ||
+            `Plano alterado para ${nome} com sucesso.`
+          );
+
+          window.location.reload();
+          return;
+        }
+
+        // ======================================================
+        // CLIENTE SEM PLANO ATIVO — NOVO CHECKOUT
+        // ======================================================
+
         const meResponse = await fetch("/api/auth/me", {
           headers: {
             "Authorization": `Bearer ${token}`
@@ -3436,22 +3508,22 @@
           throw new Error("O Stripe não retornou o endereço do checkout.");
         }
 
-        // Direto para o site pagador.
         window.location.href = checkoutUrl;
 
       } catch (error) {
-        console.error("ERRO AO INICIAR CHECKOUT:", error);
-
-        buttons.forEach(button => {
-          button.disabled = false;
-        });
+        console.error("ERRO AO PROCESSAR PLANO:", error);
 
         alert(
           error.message ||
-          "Não foi possível iniciar o pagamento. Tente novamente."
+          "Não foi possível processar a alteração. Tente novamente."
         );
+      } finally {
+        buttons.forEach(button => {
+          button.disabled = false;
+        });
       }
     }
+
 
     // Compatibilidade: não existe mais modal intermediário.
     function iniciarPagamento() {

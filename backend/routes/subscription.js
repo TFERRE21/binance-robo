@@ -781,6 +781,12 @@ async function processarWebhookStripe(req, res) {
     else if (event.type === "invoice.paid") {
       let localResult = null;
 
+      const stripeSubscriptionId =
+        typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id || null;
+
+      // 1) Tenta pelo ID local presente no metadata do invoice.
       if (subscriptionId) {
         localResult = await db.query(
           `
@@ -793,11 +799,48 @@ async function processarWebhookStripe(req, res) {
         );
       }
 
-      const stripeSubscriptionId =
-        typeof object.subscription === "string"
-          ? object.subscription
-          : object.subscription?.id || null;
+      // 2) O invoice.paid pode chegar ANTES de checkout.session.completed.
+      // Nesse cenário ainda não temos external_subscription_id salvo localmente.
+      // Consultamos a Subscription diretamente na Stripe e usamos o
+      // metadata.subscription_id gravado na criação do Checkout.
+      if (
+        (!localResult || localResult.rows.length === 0) &&
+        stripeSubscriptionId
+      ) {
+        try {
+          const stripeSubscription =
+            await stripe.subscriptions.retrieve(
+              stripeSubscriptionId
+            );
 
+          const stripeMetadata =
+            stripeSubscription.metadata || {};
+
+          const stripeLocalSubscriptionId =
+            stripeMetadata.subscription_id || null;
+
+          if (stripeLocalSubscriptionId) {
+            subscriptionId = stripeLocalSubscriptionId;
+
+            localResult = await db.query(
+              `
+              SELECT *
+              FROM subscriptions
+              WHERE id = $1
+              LIMIT 1
+              `,
+              [stripeLocalSubscriptionId]
+            );
+          }
+        } catch (stripeLookupError) {
+          console.error(
+            "Webhook Stripe invoice.paid: erro ao consultar Subscription na Stripe:",
+            stripeLookupError.message
+          );
+        }
+      }
+
+      // 3) Fallback: Subscription Stripe já vinculada anteriormente no banco.
       if (
         (!localResult || localResult.rows.length === 0) &&
         stripeSubscriptionId
@@ -832,7 +875,6 @@ async function processarWebhookStripe(req, res) {
       const assinatura = localResult.rows[0];
 
       const agora = new Date();
-
       const expiresAt = adicionarUmMes(agora);
 
       await db.query(

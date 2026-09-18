@@ -41,6 +41,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/binance", binanceRoutes);
 app.use("/api/panel", panelRoutes);
 app.use("/api/subscription", subscriptionRoutes);
+app.use("/api/admin", adminRoutes);
 
 // =========================================================
 // CRIPTOPRO V7 - NOVAS ROTAS

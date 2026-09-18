@@ -5,27 +5,20 @@ const authMiddleware = require("../middleware/auth");
 const router = express.Router();
 
 function isAdmin(req) {
-  const adminId = String(process.env.ADMIN_USER_ID || "").trim();
-  const userId = String(req.user?.id || req.user?.userId || "").trim();
-  return !!adminId && !!userId && adminId === userId;
+  const configuredAdminId = String(process.env.ADMIN_USER_ID || "").trim();
+  const currentUserId = String(req.user?.id || req.user?.userId || "").trim();
+
+  return !!configuredAdminId &&
+    !!currentUserId &&
+    configuredAdminId === currentUserId;
 }
 
 function deny(res) {
   return res.status(403).json({
     success: false,
-    message: "Acesso administrativo não autorizado."
+    error: "Acesso administrativo não autorizado."
   });
 }
-
-router.get("/teste", authMiddleware, async (req, res) => {
-  if (!isAdmin(req)) return deny(res);
-
-  return res.json({
-    success: true,
-    admin: true,
-    userId: req.user?.id || req.user?.userId || null
-  });
-});
 
 router.get("/dashboard", authMiddleware, async (req, res) => {
   if (!isAdmin(req)) return deny(res);
@@ -37,7 +30,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       robotsResult,
       accountsResult,
       plansResult,
-      usersListResult
+      recentPaymentsResult
     ] = await Promise.all([
       db.query(`
         SELECT
@@ -63,7 +56,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
               THEN amount
               ELSE 0
             END
-          ), 0)::numeric AS monthly_value
+          ), 0)::numeric AS mrr
         FROM subscriptions
       `),
 
@@ -124,10 +117,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           s.created_at AS subscription_created_at
         FROM users u
         LEFT JOIN LATERAL (
-          SELECT
-            id, plan, status, amount,
-            payment_provider, payment_method,
-            started_at, expires_at, created_at
+          SELECT *
           FROM subscriptions
           WHERE user_id = u.id
           ORDER BY id DESC
@@ -141,6 +131,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
     const subscriptions = subscriptionsResult.rows[0] || {};
     const robots = robotsResult.rows[0] || {};
     const accounts = accountsResult.rows[0] || {};
+
     const money = value => Number(value || 0);
 
     const planNames = {
@@ -149,7 +140,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       premium: "Premium"
     };
 
-    return res.json({
+    res.json({
       success: true,
       generatedAt: new Date().toISOString(),
 
@@ -157,13 +148,17 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         usuariosTotal: Number(users.total || 0),
         usuariosAtivos: Number(users.active || 0),
         usuariosInativos: Number(users.inactive || 0),
+
         assinaturasAtivas: Number(subscriptions.active || 0),
         pagamentosPendentes: Number(subscriptions.pending || 0),
         assinaturasCanceladas: Number(subscriptions.cancelled || 0),
         assinaturasExpiradas: Number(subscriptions.expired || 0),
-        valorMensalAtivo: money(subscriptions.monthly_value),
+
+        valorMensalAtivo: money(subscriptions.mrr),
+
         robosConfigurados: Number(robots.configured || 0),
         robosRodando: Number(robots.running || 0),
+
         apisBinanceTotal: Number(accounts.total || 0),
         apisBinanceAtivas: Number(accounts.active || 0)
       },
@@ -175,7 +170,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         valorMensal: money(row.monthly_value)
       })),
 
-      usuarios: usersListResult.rows.map(row => ({
+      usuarios: recentPaymentsResult.rows.map(row => ({
         id: row.id,
         nome: row.name || "—",
         email: row.email || "—",
@@ -189,16 +184,41 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         iniciadoEm: row.started_at || null,
         expiraEm: row.expires_at || null,
         criadoEm: row.subscription_created_at || null
+      })),
+
+      assinaturasRecentes: recentPaymentsResult.rows.slice(0, 20).map(row => ({
+        id: row.subscription_id,
+        userId: row.id,
+        nome: row.name || "—",
+        email: row.email || "—",
+        plano: row.plan,
+        status: row.status,
+        valor: money(row.amount),
+        provedor: row.payment_provider || "—",
+        metodo: row.payment_method || "—",
+        iniciadoEm: row.started_at,
+        expiraEm: row.expires_at,
+        criadoEm: row.subscription_created_at
       }))
     });
   } catch (error) {
     console.error("ERRO DASHBOARD ADMIN:", error);
 
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
-      message: "Erro interno ao carregar o painel administrativo."
+      error: "Erro interno ao carregar o painel administrativo."
     });
   }
+});
+
+router.get("/teste", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  res.json({
+    success: true,
+    admin: true,
+    userId: req.user?.id || req.user?.userId || null
+  });
 });
 
 module.exports = router;

@@ -33,6 +33,14 @@ button{cursor:pointer}
   color:#dfe6ef;padding:9px 13px;border-radius:8px;font-size:11px;font-weight:800
 }
 .top-btn:hover{background:rgba(255,255,255,.08)}
+.admin-btn{
+  display:none;
+  border:1px solid rgba(240,185,11,.45);
+  background:rgba(240,185,11,.09);
+  color:#f0b90b;
+}
+.admin-btn:hover{background:rgba(240,185,11,.16)}
+.admin-btn.admin-visible{display:inline-flex;align-items:center;gap:5px}
 .logout{color:#ff8b8b}
 .language{
   height:35px;padding:0 10px;border:1px solid rgba(255,255,255,.12);
@@ -650,6 +658,7 @@ select.plan-locked{
   <div class="header-right">
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
+    <button class="top-btn admin-btn" id="adminPanelBtn" onclick="testarPainelAdmin()">🛡 Admin</button>
     <select class="language" id="language" onchange="changeLanguage()">
       <option value="en">🇺🇸 EN</option>
       <option value="pt" selected>🇧🇷 PT</option>
@@ -1106,6 +1115,62 @@ async function apiFetch(url,options={}){
   let data={}; try{data=await response.json()}catch(e){}
   if(!response.ok) throw new Error(data.message||`HTTP ${response.status} em ${url}`);
   return data;
+}
+
+// ============================================================
+// PAINEL ADMINISTRATIVO — TESTE DE ACESSO
+// O botão só aparece se o usuário atual for o administrador.
+// ============================================================
+async function verificarAcessoAdmin(){
+  const btn=document.getElementById("adminPanelBtn");
+  if(!btn)return false;
+
+  try{
+    const d=await apiFetch("/api/admin/teste");
+    if(d?.success && d?.admin){
+      btn.classList.add("admin-visible");
+      btn.title="Abrir teste do painel administrativo";
+      return true;
+    }
+  }catch(e){
+    // Usuário comum: não exibe o botão.
+  }
+
+  btn.classList.remove("admin-visible");
+  return false;
+}
+
+async function testarPainelAdmin(){
+  const btn=document.getElementById("adminPanelBtn");
+  if(btn)btn.disabled=true;
+
+  try{
+    const d=await apiFetch("/api/admin/dashboard");
+
+    if(!d?.success){
+      throw new Error(d?.error||"Não foi possível carregar o painel administrativo.");
+    }
+
+    const r=d.resumo||{};
+
+    alert(
+      "PAINEL ADMINISTRATIVO OK\\n\\n"+
+      "Usuários: "+Number(r.usuariosTotal||0)+"\\n"+
+      "Usuários ativos: "+Number(r.usuariosAtivos||0)+"\\n"+
+      "Assinaturas ativas: "+Number(r.assinaturasAtivas||0)+"\\n"+
+      "Receita mensal ativa: "+moneyBRL(r.valorMensalAtivo||0)+"\\n"+
+      "Robôs configurados: "+Number(r.robosConfigurados||0)+"\\n"+
+      "Robôs rodando: "+Number(r.robosRodando||0)+"\\n"+
+      "APIs Binance: "+Number(r.apisBinanceTotal||0)
+    );
+
+    console.log("CRIPTOPRO — DASHBOARD ADMIN:",d);
+    return d;
+  }catch(e){
+    alert("Erro ao carregar painel administrativo:\\n\\n"+(e?.message||e));
+  }finally{
+    if(btn)btn.disabled=false;
+  }
 }
 
 function moneyUSDT(v){return "US$ "+Number(v||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -1968,23 +2033,9 @@ function renderRobotSlotsFromSingle(d){
 async function openRobot(robotId=1){
   activeRobotId=Number(robotId)||1;
   let c=getRobotConfig();
-  let freshRunning=false;
-  let freshHasConfig=false;
-
   try{
     if(selectedAccountId){
       const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);
-
-      /*
-       * CORREÇÃO:
-       * O botão "Iniciar robô" usa o status recém-consultado no servidor.
-       * Antes, openRobot() consultava a API, mas depois verificava
-       * selectedRobotData(), que podia ainda conter o estado anterior
-       * (RODANDO). Depois de PARAR, o modal podia continuar bloqueado.
-       */
-      freshRunning=!!d?.running || !!d?.engineRunning;
-      freshHasConfig=!!d?.config;
-
       if(d?.config){
         c={
           entryPercent:Number(d.config.entry_percent),
@@ -1997,21 +2048,6 @@ async function openRobot(robotId=1){
           stopLossActive:d.config.stop_loss_active!==false
         };
       }
-
-      /* Sincroniza o cache local com o status real retornado pelo servidor. */
-      const existing=robotInstancesCache.slice();
-      const idx=existing.findIndex(x=>Number(x.robotId)===Number(activeRobotId));
-      const freshItem={
-        robotId:activeRobotId,
-        config:d?.config||null,
-        running:freshRunning,
-        engineRunning:!!d?.engineRunning,
-        operations:d?.operations||[],
-        robotLogs:d?.robotLogs||[]
-      };
-      if(idx>=0)existing[idx]=freshItem;
-      else existing.push(freshItem);
-      robotInstancesCache=existing;
     }
   }catch(_e){}
   document.getElementById("entryPercent").value=c.entryPercent;
@@ -2029,17 +2065,7 @@ async function openRobot(robotId=1){
   if(title)title.textContent=`Configurar Robô ${activeRobotId} · ${ROBOT_NAMES[activeRobotId]||""}`;
   const save=document.getElementById("saveRobotBtn"), start=document.getElementById("startRobotConfigBtn");
   if(save)save.disabled=false;
-
-  /*
-   * O status fresco da API é a fonte de verdade.
-   * Depois de PARAR, o botão volta a ficar disponível.
-   * Se o robô realmente estiver RODANDO, permanece bloqueado.
-   */
-  if(start){
-    const hasApi=!!selectedAccountId;
-    const hasConfig=freshHasConfig || !!selectedRobotData()?.config;
-    start.disabled=!hasApi || !hasConfig || freshRunning;
-  }
+  if(start)start.disabled=!!selectedRobotData()?.running;
   const msg=document.getElementById("robotMessage");
   if(msg){msg.className="message";msg.textContent="";}
   document.getElementById("robotModal").classList.add("open");
@@ -2808,6 +2834,7 @@ async function init(){
   const lang=localStorage.getItem("criptopro_language");
   if(lang){document.getElementById("language").value=lang;changeLanguage()}
   await loadUser();
+  await verificarAcessoAdmin();
   const active=await loadSubscription();
   if(!active)return;
   await loadExchangeRate();

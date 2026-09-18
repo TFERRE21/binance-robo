@@ -1968,9 +1968,23 @@ function renderRobotSlotsFromSingle(d){
 async function openRobot(robotId=1){
   activeRobotId=Number(robotId)||1;
   let c=getRobotConfig();
+  let freshRunning=false;
+  let freshHasConfig=false;
+
   try{
     if(selectedAccountId){
       const d=await apiFetch(`/api/robot/status?account=${encodeURIComponent(selectedAccountId)}&robotId=${activeRobotId}`);
+
+      /*
+       * CORREÇÃO:
+       * O botão "Iniciar robô" usa o status recém-consultado no servidor.
+       * Antes, openRobot() consultava a API, mas depois verificava
+       * selectedRobotData(), que podia ainda conter o estado anterior
+       * (RODANDO). Depois de PARAR, o modal podia continuar bloqueado.
+       */
+      freshRunning=!!d?.running || !!d?.engineRunning;
+      freshHasConfig=!!d?.config;
+
       if(d?.config){
         c={
           entryPercent:Number(d.config.entry_percent),
@@ -1983,6 +1997,21 @@ async function openRobot(robotId=1){
           stopLossActive:d.config.stop_loss_active!==false
         };
       }
+
+      /* Sincroniza o cache local com o status real retornado pelo servidor. */
+      const existing=robotInstancesCache.slice();
+      const idx=existing.findIndex(x=>Number(x.robotId)===Number(activeRobotId));
+      const freshItem={
+        robotId:activeRobotId,
+        config:d?.config||null,
+        running:freshRunning,
+        engineRunning:!!d?.engineRunning,
+        operations:d?.operations||[],
+        robotLogs:d?.robotLogs||[]
+      };
+      if(idx>=0)existing[idx]=freshItem;
+      else existing.push(freshItem);
+      robotInstancesCache=existing;
     }
   }catch(_e){}
   document.getElementById("entryPercent").value=c.entryPercent;
@@ -2000,7 +2029,17 @@ async function openRobot(robotId=1){
   if(title)title.textContent=`Configurar Robô ${activeRobotId} · ${ROBOT_NAMES[activeRobotId]||""}`;
   const save=document.getElementById("saveRobotBtn"), start=document.getElementById("startRobotConfigBtn");
   if(save)save.disabled=false;
-  if(start)start.disabled=!!selectedRobotData()?.running;
+
+  /*
+   * O status fresco da API é a fonte de verdade.
+   * Depois de PARAR, o botão volta a ficar disponível.
+   * Se o robô realmente estiver RODANDO, permanece bloqueado.
+   */
+  if(start){
+    const hasApi=!!selectedAccountId;
+    const hasConfig=freshHasConfig || !!selectedRobotData()?.config;
+    start.disabled=!hasApi || !hasConfig || freshRunning;
+  }
   const msg=document.getElementById("robotMessage");
   if(msg){msg.className="message";msg.textContent="";}
   document.getElementById("robotModal").classList.add("open");

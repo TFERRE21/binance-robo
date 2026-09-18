@@ -2992,8 +2992,7 @@
     }
 
     function translatePage(language) {
-      document.documentElement.lang =
-        language === "en" ? "en" : "pt-BR";
+      document.documentElement.lang = language === "en" ? "en" : "pt-BR";
 
       const walker = document.createTreeWalker(
         document.body,
@@ -3002,232 +3001,110 @@
           acceptNode(node) {
             if (
               !node.parentElement ||
-              ["SCRIPT", "STYLE"].includes(
-                node.parentElement.tagName
-              )
+              ["SCRIPT", "STYLE"].includes(node.parentElement.tagName)
             ) {
               return NodeFilter.FILTER_REJECT;
             }
-
             return NodeFilter.FILTER_ACCEPT;
           }
         }
       );
 
       const nodes = [];
-
-      while (walker.nextNode()) {
-        nodes.push(walker.currentNode);
-      }
+      while (walker.nextNode()) nodes.push(walker.currentNode);
 
       nodes.forEach(node => {
-
         if (!node.__originalText) {
-          node.__originalText =
-            node.nodeValue;
+          node.__originalText = node.nodeValue;
         }
 
-        const original =
-          normalizeText(
-            node.__originalText
-          );
+        const original = normalizeText(node.__originalText);
+        if (!original) return;
 
-        if (!original) {
-          return;
-        }
-
-        if (
-          language === "en" &&
-          translations[original]
-        ) {
-
-          const leading =
-            node.__originalText.match(
-              /^\s*/
-            )?.[0] || "";
-
-          const trailing =
-            node.__originalText.match(
-              /\s*$/
-            )?.[0] || "";
-
-          node.nodeValue =
-            leading +
-            translations[original] +
-            trailing;
-
+        if (language === "en" && translations[original]) {
+          const leading = node.__originalText.match(/^\s*/)?.[0] || "";
+          const trailing = node.__originalText.match(/\s*$/)?.[0] || "";
+          node.nodeValue = leading + translations[original] + trailing;
         } else {
-
-          node.nodeValue =
-            node.__originalText;
-
+          node.nodeValue = node.__originalText;
         }
-
       });
 
       updateLanguageButtons(language);
     }
 
     function updateLanguageButtons(language) {
+      const pt = document.getElementById("languagePT");
+      const en = document.getElementById("languageEN");
 
-      const pt =
-        document.getElementById(
-          "languagePT"
-        );
-
-      const en =
-        document.getElementById(
-          "languageEN"
-        );
-
-      if (pt) {
-        pt.classList.toggle(
-          "active",
-          language === "pt"
-        );
-      }
-
-      if (en) {
-        en.classList.toggle(
-          "active",
-          language === "en"
-        );
-      }
+      if (pt) pt.classList.toggle("active", language === "pt");
+      if (en) en.classList.toggle("active", language === "en");
     }
 
     function setCriptoProLanguage(language) {
+      if (language !== "pt" && language !== "en") return;
 
-      if (
-        language !== "pt" &&
-        language !== "en"
-      ) {
-        return;
-      }
-
-      localStorage.setItem(
-        "criptopro_language",
-        language
-      );
-
+      localStorage.setItem("criptopro_language", language);
       translatePage(language);
 
       // Atualiza saudação do usuário sem recarregar a página.
-      const savedUser =
-        localStorage.getItem(
-          "criptopro_user"
-        );
+      const savedUser = localStorage.getItem("criptopro_user");
+      const userNameElement = document.getElementById("userName");
 
-      const userNameElement =
-        document.getElementById(
-          "userName"
-        );
-
-      if (
-        savedUser &&
-        userNameElement
-      ) {
-
+      if (savedUser && userNameElement) {
         try {
-
-          const user =
-            JSON.parse(
-              savedUser
-            );
-
+          const user = JSON.parse(savedUser);
           userNameElement.textContent =
             language === "en"
               ? `Hello, ${user.name}`
               : `Olá, ${user.name}`;
-
         } catch (error) {
-
-          console.error(
-            "ERRO AO LER USUARIO SALVO:",
-            error
-          );
-
+          console.error("ERRO AO LER USUARIO SALVO:", error);
         }
-
       }
-
     }
 
-    window.setCriptoProLanguage =
-      setCriptoProLanguage;
-
+    window.setCriptoProLanguage = setCriptoProLanguage;
 
     // ========================================================
     // USUÁRIO
     // ========================================================
 
-    const token =
-      localStorage.getItem("token");
-
-    const userNameElement =
-      document.getElementById(
-        "userName"
-      );
+    const token = localStorage.getItem("token");
+    const userNameElement = document.getElementById("userName");
 
     async function carregarUsuario() {
-
       if (!token) {
-
-        userNameElement.textContent =
-          "Olá!";
-
+        userNameElement.textContent = "Olá!";
         return;
       }
 
       try {
+        const response = await fetch("/api/auth/me", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
 
-        const response =
-          await fetch(
-            "/api/auth/me",
-            {
-              headers: {
-                "Authorization":
-                  `Bearer ${token}`
-              }
-            }
-          );
+        const data = await response.json();
 
-        const data =
-          await response.json();
-
-        if (
-          response.ok &&
-          data.success &&
-          data.user
-        ) {
-
+        if (response.ok && data.success && data.user) {
           localStorage.setItem(
             "criptopro_user",
-            JSON.stringify(
-              data.user
-            )
+            JSON.stringify(data.user)
           );
 
           const language =
-            localStorage.getItem(
-              "criptopro_language"
-            ) || "pt";
+            localStorage.getItem("criptopro_language") || "pt";
 
           userNameElement.textContent =
             language === "en"
               ? `Hello, ${data.user.name}`
               : `Olá, ${data.user.name}`;
-
         }
-
       } catch (error) {
-
-        console.error(
-          "ERRO AO CARREGAR USUARIO:",
-          error
-        );
-
+        console.error("ERRO AO CARREGAR USUARIO:", error);
       }
-
     }
 
 
@@ -3236,22 +3113,15 @@
     // ========================================================
 
     const panelAccessButton =
-      document.getElementById(
-        "panelAccessButton"
-      );
+      document.getElementById("panelAccessButton");
 
     const panelAccessStatus =
-      document.getElementById(
-        "panelAccessStatus"
-      );
+      document.getElementById("panelAccessStatus");
 
 
     async function verificarAcessoPainel() {
 
-      if (
-        !panelAccessButton ||
-        !panelAccessStatus
-      ) {
+      if (!panelAccessButton || !panelAccessStatus) {
         return;
       }
 
@@ -3278,19 +3148,14 @@
 
         `;
 
-        panelAccessButton.disabled =
-          false;
+        panelAccessButton.disabled = false;
 
         panelAccessButton.textContent =
           "Fazer login";
 
-        panelAccessButton.onclick =
-          function() {
-
-            window.location.href =
-              "/login.html";
-
-          };
+        panelAccessButton.onclick = function() {
+          window.location.href = "/login.html";
+        };
 
         return;
       }
@@ -3300,8 +3165,7 @@
       // VERIFICANDO
       // ------------------------------------------------------
 
-      panelAccessButton.disabled =
-        true;
+      panelAccessButton.disabled = true;
 
       panelAccessButton.textContent =
         "Verificando...";
@@ -3314,29 +3178,20 @@
             "/api/subscription/status",
             {
               method: "GET",
-
               headers: {
                 "Authorization":
                   `Bearer ${token}`
               },
-
               cache: "no-store"
             }
           );
 
 
         const data =
-          await response
-            .json()
-            .catch(
-              () => ({})
-            );
+          await response.json().catch(() => ({}));
 
 
-        if (
-          !response.ok ||
-          !data.ok
-        ) {
+        if (!response.ok || !data.ok) {
 
           throw new Error(
             data.error ||
@@ -3369,19 +3224,15 @@
 
           `;
 
-          panelAccessButton.disabled =
-            false;
+          panelAccessButton.disabled = false;
 
           panelAccessButton.textContent =
             "Acessar painel";
 
-          panelAccessButton.onclick =
-            function() {
-
-              window.location.href =
-                "https://site--painel-binance--clbfrw28wcz.code.run/";
-
-            };
+          panelAccessButton.onclick = function() {
+            window.location.href =
+              "https://site--painel-binance--clbfrw28wczh.code.run/";
+          };
 
           return;
         }
@@ -3391,9 +3242,7 @@
         // PAGAMENTO PENDENTE
         // ----------------------------------------------------
 
-        if (
-          data.status === "PENDING"
-        ) {
+        if (data.status === "PENDING") {
 
           panelAccessStatus.className =
             "panel-access-status blocked";
@@ -3410,14 +3259,12 @@
 
           `;
 
-          panelAccessButton.disabled =
-            true;
+          panelAccessButton.disabled = true;
 
           panelAccessButton.textContent =
             "Aguardando pagamento";
 
-          panelAccessButton.onclick =
-            null;
+          panelAccessButton.onclick = null;
 
           return;
         }
@@ -3443,21 +3290,19 @@
 
         `;
 
-        panelAccessButton.disabled =
-          false;
+        panelAccessButton.disabled = false;
 
         panelAccessButton.textContent =
           "Escolher plano";
 
-        panelAccessButton.onclick =
-          function() {
+        panelAccessButton.onclick = function() {
 
-            window.scrollTo({
-              top: 0,
-              behavior: "smooth"
-            });
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+          });
 
-          };
+        };
 
       }
 
@@ -3483,8 +3328,7 @@
 
         `;
 
-        panelAccessButton.disabled =
-          false;
+        panelAccessButton.disabled = false;
 
         panelAccessButton.textContent =
           "Tentar novamente";
@@ -3501,22 +3345,15 @@
     // ========================================================
 
     const changePlanButton =
-      document.getElementById(
-        "changePlanButton"
-      );
+      document.getElementById("changePlanButton");
 
     if (changePlanButton) {
-
-      changePlanButton.onclick =
-        function() {
-
-          window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-          });
-
-        };
-
+      changePlanButton.onclick = function() {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+      };
     }
 
 
@@ -3524,11 +3361,7 @@
     // SELECIONAR PLANO / CHECKOUT DIRETO
     // ========================================================
 
-    async function selecionarPlano(
-      codigo,
-      nome,
-      preco
-    ) {
+    async function selecionarPlano(codigo, nome, preco) {
 
       localStorage.setItem(
         "criptopro_selected_plan",
@@ -3545,49 +3378,52 @@
         preco
       );
 
+
       if (!token) {
 
         window.location.href =
           "/login.html";
 
         return;
+
       }
 
-      const buttons =
-        document.querySelectorAll(
-          ".plan-button"
-        );
 
-      buttons.forEach(
-        button => {
-          button.disabled = true;
-        }
-      );
+      const buttons =
+        document.querySelectorAll(".plan-button");
+
+      buttons.forEach(button => {
+
+        button.disabled = true;
+
+      });
+
 
       try {
 
-        // Verifica primeiro se o cliente já possui uma assinatura ativa.
+        // ======================================================
+        // VERIFICA PRIMEIRO SE JÁ POSSUI ASSINATURA ATIVA
+        // ======================================================
+
         const statusResponse =
           await fetch(
             "/api/subscription/status",
             {
               method: "GET",
-
               headers: {
                 "Authorization":
                   `Bearer ${token}`
               },
-
               cache: "no-store"
             }
           );
 
+
         const statusData =
           await statusResponse
             .json()
-            .catch(
-              () => ({})
-            );
+            .catch(() => ({}));
+
 
         if (
           !statusResponse.ok ||
@@ -3602,6 +3438,7 @@
 
         }
 
+
         // ======================================================
         // CLIENTE JÁ POSSUI PLANO ATIVO
         // ======================================================
@@ -3609,29 +3446,46 @@
         if (statusData.active) {
 
           if (
-            statusData.plan ===
-            codigo
+            statusData.plan === codigo
           ) {
 
             throw new Error(
-              `Você já está no plano ${statusData.planName || nome}.`
+              `Você já está no plano ${
+                statusData.planName ||
+                nome
+              }.`
             );
 
           }
 
+
           const confirmacao =
             window.confirm(
 
-              `Você possui o plano ${statusData.planName || statusData.plan}.\n\n` +
-              `Deseja alterar para o plano ${nome} por ${preco}?`
+              `Você possui o plano ${
+                statusData.planName ||
+                statusData.plan
+              }.\n\n` +
+
+              `Deseja alterar para o plano ${
+                nome
+              } por ${
+                preco
+              }?`
 
             );
+
 
           if (!confirmacao) {
 
             return;
 
           }
+
+
+          // ====================================================
+          // SOLICITA TROCA DE PLANO AO BACKEND
+          // ====================================================
 
           const changeResponse =
             await fetch(
@@ -3653,12 +3507,12 @@
               }
             );
 
+
           const changeData =
             await changeResponse
               .json()
-              .catch(
-                () => ({})
-              );
+              .catch(() => ({}));
+
 
           if (
             !changeResponse.ok ||
@@ -3673,12 +3527,18 @@
 
           }
 
+
           // ====================================================
-          // CORREÇÃO:
-          // Se a assinatura antiga estiver em TEST e o servidor
-          // estiver em LIVE, o backend cria um NOVO CHECKOUT LIVE.
+          // NOVO CHECKOUT STRIPE
+          // ====================================================
           //
-          // Nesse caso precisamos ir diretamente para o Stripe.
+          // Quando a assinatura anterior está em outro modo
+          // do Stripe (por exemplo TEST) e o servidor precisa
+          // criar uma nova assinatura LIVE, o backend retorna
+          // requiresCheckout=true e paymentUrl.
+          //
+          // Nesse caso, o usuário precisa ser enviado para
+          // o checkout do Stripe para realizar o pagamento.
           // ====================================================
 
           if (
@@ -3690,50 +3550,38 @@
               changeData.paymentUrl;
 
             return;
+
           }
 
-          // ====================================================
-          // ALTERAÇÃO DIRETA DE UMA ASSINATURA LIVE
-          // ====================================================
-
-          if (
-            changeData.changed === true
-          ) {
-
-            alert(
-              changeData.message ||
-              `Plano alterado para ${nome} com sucesso.`
-            );
-
-            window.location.reload();
-
-            return;
-          }
 
           // ====================================================
-          // COMPATIBILIDADE:
-          // Se por algum motivo o backend retornar uma URL
-          // sem requiresCheckout, também abre o checkout.
+          // COMPATIBILIDADE COM OUTROS NOMES DE URL
           // ====================================================
 
-          const changeCheckoutUrl =
-            changeData.checkoutUrl ||
-            changeData.checkout_url ||
+          const paymentUrl =
             changeData.paymentUrl ||
             changeData.payment_url ||
+            changeData.checkoutUrl ||
+            changeData.checkout_url ||
             changeData.url ||
             changeData.link;
 
-          if (changeCheckoutUrl) {
+
+          if (
+            changeData.requiresCheckout === true &&
+            paymentUrl
+          ) {
 
             window.location.href =
-              changeCheckoutUrl;
+              paymentUrl;
 
             return;
+
           }
 
+
           // ====================================================
-          // OUTRO RETORNO POSITIVO
+          // ALTERAÇÃO NORMAL DE ASSINATURA
           // ====================================================
 
           alert(
@@ -3741,10 +3589,13 @@
             `Plano alterado para ${nome} com sucesso.`
           );
 
+
           window.location.reload();
 
           return;
+
         }
+
 
         // ======================================================
         // CLIENTE SEM PLANO ATIVO — NOVO CHECKOUT
@@ -3761,12 +3612,12 @@
             }
           );
 
+
         const me =
           await meResponse
             .json()
-            .catch(
-              () => ({})
-            );
+            .catch(() => ({}));
+
 
         if (
           !meResponse.ok ||
@@ -3782,6 +3633,7 @@
 
         }
 
+
         const customerData = {
 
           name:
@@ -3793,6 +3645,11 @@
             ""
 
         };
+
+
+        // ======================================================
+        // CRIA CHECKOUT STRIPE
+        // ======================================================
 
         const response =
           await fetch(
@@ -3809,18 +3666,23 @@
               },
 
               body: JSON.stringify({
-                plan: codigo,
+
+                plan:
+                  codigo,
+
                 customerData
+
               })
+
             }
           );
+
 
         const data =
           await response
             .json()
-            .catch(
-              () => ({})
-            );
+            .catch(() => ({}));
+
 
         if (!response.ok) {
 
@@ -3832,6 +3694,11 @@
 
         }
 
+
+        // ======================================================
+        // LOCALIZA URL DO CHECKOUT
+        // ======================================================
+
         const checkoutUrl =
           data.checkoutUrl ||
           data.checkout_url ||
@@ -3839,6 +3706,7 @@
           data.payment_url ||
           data.url ||
           data.link;
+
 
         if (!checkoutUrl) {
 
@@ -3848,8 +3716,14 @@
 
         }
 
+
+        // ======================================================
+        // ENVIA PARA STRIPE
+        // ======================================================
+
         window.location.href =
           checkoutUrl;
+
 
       } catch (error) {
 
@@ -3858,31 +3732,41 @@
           error
         );
 
+
         alert(
           error.message ||
           "Não foi possível processar a alteração. Tente novamente."
         );
 
+
       } finally {
 
-        buttons.forEach(
-          button => {
-            button.disabled = false;
-          }
-        );
+        buttons.forEach(button => {
+
+          button.disabled = false;
+
+        });
 
       }
 
     }
 
 
-    // Compatibilidade: não existe mais modal intermediário.
+    // ========================================================
+    // COMPATIBILIDADE
+    // ========================================================
+
     function iniciarPagamento() {
+
       return;
+
     }
 
+
     function fecharModal() {
+
       return;
+
     }
 
 
@@ -3903,9 +3787,8 @@
     // ========================================================
 
     const modalOverlay =
-      document.getElementById(
-        "modalOverlay"
-      );
+      document.getElementById("modalOverlay");
+
 
     if (modalOverlay) {
 
@@ -3914,8 +3797,7 @@
         function(event) {
 
           if (
-            event.target ===
-            this
+            event.target === this
           ) {
 
             fecharModal();
@@ -3941,15 +3823,12 @@
             "criptopro_language"
           ) || "pt";
 
-        translatePage(
-          language
-        );
+
+        translatePage(language);
 
         await carregarUsuario();
 
-        translatePage(
-          language
-        );
+        translatePage(language);
 
         await verificarAcessoPainel();
 

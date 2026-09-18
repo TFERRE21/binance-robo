@@ -6,11 +6,30 @@ const router = express.Router();
 
 function isAdmin(req) {
   const configuredAdminId = String(process.env.ADMIN_USER_ID || "").trim();
-  const currentUserId = String(req.user?.id || req.user?.userId || "").trim();
+  const currentUserId = String(
+    req.user?.id ??
+    req.user?.userId ??
+    req.user?.sub ??
+    ""
+  ).trim();
 
-  return !!configuredAdminId &&
-    !!currentUserId &&
-    configuredAdminId === currentUserId;
+  if (!configuredAdminId || !currentUserId) {
+    console.warn(
+      "ADMIN CHECK:",
+      JSON.stringify({
+        configured: !!configuredAdminId,
+        currentUserId: currentUserId || null
+      })
+    );
+    return false;
+  }
+
+  // Normaliza IDs numéricos para evitar diferença entre 3 e "3".
+  if (/^\d+$/.test(configuredAdminId) && /^\d+$/.test(currentUserId)) {
+    return Number(configuredAdminId) === Number(currentUserId);
+  }
+
+  return configuredAdminId === currentUserId;
 }
 
 function deny(res) {
@@ -19,6 +38,14 @@ function deny(res) {
     error: "Acesso administrativo não autorizado."
   });
 }
+
+router.get("/identidade", authMiddleware, async (req, res) => {
+  return res.json({
+    success: true,
+    userId: req.user?.id ?? req.user?.userId ?? req.user?.sub ?? null,
+    adminConfigured: !!String(process.env.ADMIN_USER_ID || "").trim()
+  });
+});
 
 router.get("/dashboard", authMiddleware, async (req, res) => {
   if (!isAdmin(req)) return deny(res);

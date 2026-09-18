@@ -781,12 +781,50 @@ async function processarWebhookStripe(req, res) {
     else if (event.type === "invoice.paid") {
       let localResult = null;
 
+      // Stripe API 2026+ pode entregar os dados da assinatura
+      // dentro de object.parent.subscription_details.
+      const invoiceSubscriptionDetails =
+        object.parent?.subscription_details || {};
+
+      const invoiceMetadata =
+        invoiceSubscriptionDetails.metadata || {};
+
+      // Também verificamos os line items, pois no evento atual
+      // eles carregam metadata e a referência da subscription.
+      const firstLine =
+        Array.isArray(object.lines?.data) &&
+        object.lines.data.length > 0
+          ? object.lines.data[0]
+          : null;
+
+      const lineMetadata =
+        firstLine?.metadata || {};
+
+      const lineSubscriptionDetails =
+        firstLine?.parent?.subscription_item_details || {};
+
+      // Prioridade:
+      // 1) metadata do invoice
+      // 2) parent.subscription_details.metadata
+      // 3) metadata do line item
+      // 4) client_reference_id (se existir)
+      subscriptionId =
+        subscriptionId ||
+        invoiceMetadata.subscription_id ||
+        lineMetadata.subscription_id ||
+        object.client_reference_id ||
+        null;
+
+      // No formato atual do Stripe, a subscription está em:
+      // object.parent.subscription_details.subscription
       const stripeSubscriptionId =
         typeof object.subscription === "string"
           ? object.subscription
-          : object.subscription?.id || null;
+          : object.subscription?.id ||
+            invoiceSubscriptionDetails.subscription ||
+            lineSubscriptionDetails.subscription ||
+            null;
 
-      // 1) Tenta pelo ID local presente no metadata do invoice.
       if (subscriptionId) {
         localResult = await db.query(
           `
@@ -799,48 +837,6 @@ async function processarWebhookStripe(req, res) {
         );
       }
 
-      // 2) O invoice.paid pode chegar ANTES de checkout.session.completed.
-      // Nesse cenário ainda não temos external_subscription_id salvo localmente.
-      // Consultamos a Subscription diretamente na Stripe e usamos o
-      // metadata.subscription_id gravado na criação do Checkout.
-      if (
-        (!localResult || localResult.rows.length === 0) &&
-        stripeSubscriptionId
-      ) {
-        try {
-          const stripeSubscription =
-            await stripe.subscriptions.retrieve(
-              stripeSubscriptionId
-            );
-
-          const stripeMetadata =
-            stripeSubscription.metadata || {};
-
-          const stripeLocalSubscriptionId =
-            stripeMetadata.subscription_id || null;
-
-          if (stripeLocalSubscriptionId) {
-            subscriptionId = stripeLocalSubscriptionId;
-
-            localResult = await db.query(
-              `
-              SELECT *
-              FROM subscriptions
-              WHERE id = $1
-              LIMIT 1
-              `,
-              [stripeLocalSubscriptionId]
-            );
-          }
-        } catch (stripeLookupError) {
-          console.error(
-            "Webhook Stripe invoice.paid: erro ao consultar Subscription na Stripe:",
-            stripeLookupError.message
-          );
-        }
-      }
-
-      // 3) Fallback: Subscription Stripe já vinculada anteriormente no banco.
       if (
         (!localResult || localResult.rows.length === 0) &&
         stripeSubscriptionId
@@ -862,7 +858,11 @@ async function processarWebhookStripe(req, res) {
           {
             subscriptionId,
             stripeSubscriptionId,
-            userId: metadataUserId
+            userId:
+              metadataUserId ||
+              invoiceMetadata.user_id ||
+              lineMetadata.user_id ||
+              null
           }
         );
 
@@ -875,6 +875,7 @@ async function processarWebhookStripe(req, res) {
       const assinatura = localResult.rows[0];
 
       const agora = new Date();
+
       const expiresAt = adicionarUmMes(agora);
 
       await db.query(
@@ -911,6 +912,39 @@ async function processarWebhookStripe(req, res) {
     ) {
       let localResult = null;
 
+      const invoiceSubscriptionDetails =
+        object.parent?.subscription_details || {};
+
+      const invoiceMetadata =
+        invoiceSubscriptionDetails.metadata || {};
+
+      const firstLine =
+        Array.isArray(object.lines?.data) &&
+        object.lines.data.length > 0
+          ? object.lines.data[0]
+          : null;
+
+      const lineMetadata =
+        firstLine?.metadata || {};
+
+      const lineSubscriptionDetails =
+        firstLine?.parent?.subscription_item_details || {};
+
+      subscriptionId =
+        subscriptionId ||
+        invoiceMetadata.subscription_id ||
+        lineMetadata.subscription_id ||
+        object.client_reference_id ||
+        null;
+
+      const stripeSubscriptionId =
+        typeof object.subscription === "string"
+          ? object.subscription
+          : object.subscription?.id ||
+            invoiceSubscriptionDetails.subscription ||
+            lineSubscriptionDetails.subscription ||
+            null;
+
       if (subscriptionId) {
         localResult = await db.query(
           `
@@ -922,11 +956,6 @@ async function processarWebhookStripe(req, res) {
           [subscriptionId]
         );
       }
-
-      const stripeSubscriptionId =
-        typeof object.subscription === "string"
-          ? object.subscription
-          : object.subscription?.id || null;
 
       if (
         (!localResult || localResult.rows.length === 0) &&

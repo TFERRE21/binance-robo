@@ -6,15 +6,11 @@ const router = express.Router();
 
 function isAdmin(req) {
   const configuredAdminId = String(process.env.ADMIN_USER_ID || "").trim();
-  const currentUserId = String(
-    req.user?.id || req.user?.userId || ""
-  ).trim();
+  const currentUserId = String(req.user?.id || req.user?.userId || "").trim();
 
-  return (
-    !!configuredAdminId &&
+  return !!configuredAdminId &&
     !!currentUserId &&
-    configuredAdminId === currentUserId
-  );
+    configuredAdminId === currentUserId;
 }
 
 function deny(res) {
@@ -23,10 +19,6 @@ function deny(res) {
     error: "Acesso administrativo não autorizado."
   });
 }
-
-// ============================================================
-// PAINEL ADMINISTRATIVO
-// ============================================================
 
 router.get("/dashboard", authMiddleware, async (req, res) => {
   if (!isAdmin(req)) return deny(res);
@@ -38,10 +30,8 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       robotsResult,
       accountsResult,
       plansResult,
-      usersListResult
+      recentPaymentsResult
     ] = await Promise.all([
-
-      // USUÁRIOS
       db.query(`
         SELECT
           COUNT(*)::int AS total,
@@ -50,87 +40,57 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         FROM users
       `),
 
-      // ASSINATURAS
       db.query(`
         SELECT
           COUNT(*) FILTER (
             WHERE status = 'ACTIVE'
               AND (expires_at IS NULL OR expires_at > NOW())
           )::int AS active,
-
-          COUNT(*) FILTER (
-            WHERE status = 'PENDING'
-          )::int AS pending,
-
-          COUNT(*) FILTER (
-            WHERE status = 'CANCELLED'
-          )::int AS cancelled,
-
-          COUNT(*) FILTER (
-            WHERE status = 'EXPIRED'
-          )::int AS expired,
-
-          COALESCE(
-            SUM(
-              CASE
-                WHEN status = 'ACTIVE'
-                  AND (expires_at IS NULL OR expires_at > NOW())
-                THEN amount
-                ELSE 0
-              END
-            ),
-            0
-          )::numeric AS mrr
-
+          COUNT(*) FILTER (WHERE status = 'PENDING')::int AS pending,
+          COUNT(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled,
+          COUNT(*) FILTER (WHERE status = 'EXPIRED')::int AS expired,
+          COALESCE(SUM(
+            CASE
+              WHEN status = 'ACTIVE'
+                AND (expires_at IS NULL OR expires_at > NOW())
+              THEN amount
+              ELSE 0
+            END
+          ), 0)::numeric AS mrr
         FROM subscriptions
       `),
 
-      // ROBÔS
       db.query(`
         SELECT
           COUNT(*)::int AS configured,
-          COUNT(*) FILTER (
-            WHERE running = true
-          )::int AS running
+          COUNT(*) FILTER (WHERE running = true)::int AS running
         FROM robot_configs
       `),
 
-      // APIS BINANCE
       db.query(`
         SELECT
           COUNT(*)::int AS total,
-          COUNT(*) FILTER (
-            WHERE active = true
-          )::int AS active
+          COUNT(*) FILTER (WHERE active = true)::int AS active
         FROM binance_accounts
       `),
 
-      // PLANOS
       db.query(`
         SELECT
           plan,
-
           COUNT(*) FILTER (
             WHERE status = 'ACTIVE'
               AND (expires_at IS NULL OR expires_at > NOW())
           )::int AS active,
-
-          COALESCE(
-            SUM(
-              CASE
-                WHEN status = 'ACTIVE'
-                  AND (expires_at IS NULL OR expires_at > NOW())
-                THEN amount
-                ELSE 0
-              END
-            ),
-            0
-          )::numeric AS monthly_value
-
+          COALESCE(SUM(
+            CASE
+              WHEN status = 'ACTIVE'
+                AND (expires_at IS NULL OR expires_at > NOW())
+              THEN amount
+              ELSE 0
+            END
+          ), 0)::numeric AS monthly_value
         FROM subscriptions
-
         GROUP BY plan
-
         ORDER BY
           CASE plan
             WHEN 'premium' THEN 1
@@ -140,14 +100,12 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           END
       `),
 
-      // LISTA DE TODOS OS USUÁRIOS
       db.query(`
         SELECT
           u.id,
           u.name,
           u.email,
           u.active,
-
           s.id AS subscription_id,
           s.plan,
           s.status,
@@ -157,9 +115,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           s.started_at,
           s.expires_at,
           s.created_at AS subscription_created_at
-
         FROM users u
-
         LEFT JOIN LATERAL (
           SELECT *
           FROM subscriptions
@@ -167,7 +123,6 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           ORDER BY id DESC
           LIMIT 1
         ) s ON true
-
         ORDER BY u.id DESC
       `)
     ]);
@@ -187,7 +142,6 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-
       generatedAt: new Date().toISOString(),
 
       resumo: {
@@ -195,193 +149,76 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         usuariosAtivos: Number(users.active || 0),
         usuariosInativos: Number(users.inactive || 0),
 
-        assinaturasAtivas: Number(
-          subscriptions.active || 0
-        ),
+        assinaturasAtivas: Number(subscriptions.active || 0),
+        pagamentosPendentes: Number(subscriptions.pending || 0),
+        assinaturasCanceladas: Number(subscriptions.cancelled || 0),
+        assinaturasExpiradas: Number(subscriptions.expired || 0),
 
-        pagamentosPendentes: Number(
-          subscriptions.pending || 0
-        ),
+        valorMensalAtivo: money(subscriptions.mrr),
 
-        assinaturasCanceladas: Number(
-          subscriptions.cancelled || 0
-        ),
+        robosConfigurados: Number(robots.configured || 0),
+        robosRodando: Number(robots.running || 0),
 
-        assinaturasExpiradas: Number(
-          subscriptions.expired || 0
-        ),
-
-        valorMensalAtivo: money(
-          subscriptions.mrr
-        ),
-
-        robosConfigurados: Number(
-          robots.configured || 0
-        ),
-
-        robosRodando: Number(
-          robots.running || 0
-        ),
-
-        apisBinanceTotal: Number(
-          accounts.total || 0
-        ),
-
-        apisBinanceAtivas: Number(
-          accounts.active || 0
-        )
+        apisBinanceTotal: Number(accounts.total || 0),
+        apisBinanceAtivas: Number(accounts.active || 0)
       },
 
       planos: plansResult.rows.map(row => ({
         plan: row.plan,
-
-        nome:
-          planNames[row.plan] ||
-          row.plan ||
-          "—",
-
-        ativos: Number(
-          row.active || 0
-        ),
-
-        valorMensal: money(
-          row.monthly_value
-        )
+        nome: planNames[row.plan] || row.plan || "—",
+        ativos: Number(row.active || 0),
+        valorMensal: money(row.monthly_value)
       })),
 
-      usuarios: usersListResult.rows.map(row => ({
+      usuarios: recentPaymentsResult.rows.map(row => ({
         id: row.id,
-
-        nome:
-          row.name ||
-          "—",
-
-        email:
-          row.email ||
-          "—",
-
-        ativo:
-          row.active !== false,
-
-        assinaturaId:
-          row.subscription_id ||
-          null,
-
-        plano:
-          row.plan ||
-          null,
-
-        status:
-          row.status ||
-          "SEM ASSINATURA",
-
-        valor:
-          money(row.amount),
-
-        provedor:
-          row.payment_provider ||
-          "—",
-
-        metodo:
-          row.payment_method ||
-          "—",
-
-        iniciadoEm:
-          row.started_at ||
-          null,
-
-        expiraEm:
-          row.expires_at ||
-          null,
-
-        criadoEm:
-          row.subscription_created_at ||
-          null
+        nome: row.name || "—",
+        email: row.email || "—",
+        ativo: row.active !== false,
+        assinaturaId: row.subscription_id || null,
+        plano: row.plan || null,
+        status: row.status || "SEM ASSINATURA",
+        valor: money(row.amount),
+        provedor: row.payment_provider || "—",
+        metodo: row.payment_method || "—",
+        iniciadoEm: row.started_at || null,
+        expiraEm: row.expires_at || null,
+        criadoEm: row.subscription_created_at || null
       })),
 
-      assinaturasRecentes:
-        usersListResult.rows
-          .slice(0, 20)
-          .map(row => ({
-            id:
-              row.subscription_id,
-
-            userId:
-              row.id,
-
-            nome:
-              row.name ||
-              "—",
-
-            email:
-              row.email ||
-              "—",
-
-            plano:
-              row.plan,
-
-            status:
-              row.status,
-
-            valor:
-              money(row.amount),
-
-            provedor:
-              row.payment_provider ||
-              "—",
-
-            metodo:
-              row.payment_method ||
-              "—",
-
-            iniciadoEm:
-              row.started_at,
-
-            expiraEm:
-              row.expires_at,
-
-            criadoEm:
-              row.subscription_created_at
-          }))
+      assinaturasRecentes: recentPaymentsResult.rows.slice(0, 20).map(row => ({
+        id: row.subscription_id,
+        userId: row.id,
+        nome: row.name || "—",
+        email: row.email || "—",
+        plano: row.plan,
+        status: row.status,
+        valor: money(row.amount),
+        provedor: row.payment_provider || "—",
+        metodo: row.payment_method || "—",
+        iniciadoEm: row.started_at,
+        expiraEm: row.expires_at,
+        criadoEm: row.subscription_created_at
+      }))
     });
-
   } catch (error) {
-
-    console.error(
-      "ERRO DASHBOARD ADMIN:",
-      error
-    );
+    console.error("ERRO DASHBOARD ADMIN:", error);
 
     res.status(500).json({
       success: false,
-      error:
-        "Erro interno ao carregar o painel administrativo."
+      error: "Erro interno ao carregar o painel administrativo."
     });
   }
 });
 
-// ============================================================
-// TESTE DE ACESSO ADMINISTRATIVO
-// ============================================================
+router.get("/teste", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
 
-router.get(
-  "/teste",
-  authMiddleware,
-  async (req, res) => {
-
-    if (!isAdmin(req)) {
-      return deny(res);
-    }
-
-    res.json({
-      success: true,
-      admin: true,
-      userId:
-        req.user?.id ||
-        req.user?.userId ||
-        null
-    });
-  }
-);
+  res.json({
+    success: true,
+    admin: true,
+    userId: req.user?.id || req.user?.userId || null
+  });
+});
 
 module.exports = router;

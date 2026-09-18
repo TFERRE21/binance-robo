@@ -102,10 +102,11 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
 
       db.query(`
         SELECT
-          s.id,
-          s.user_id,
+          u.id,
           u.name,
           u.email,
+          u.active,
+          s.id AS subscription_id,
           s.plan,
           s.status,
           s.amount,
@@ -113,12 +114,16 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           s.payment_method,
           s.started_at,
           s.expires_at,
-          s.created_at,
-          s.updated_at
-        FROM subscriptions s
-        LEFT JOIN users u ON u.id = s.user_id
-        ORDER BY COALESCE(s.updated_at, s.created_at) DESC
-        LIMIT 20
+          s.created_at AS subscription_created_at
+        FROM users u
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM subscriptions
+          WHERE user_id = u.id
+          ORDER BY id DESC
+          LIMIT 1
+        ) s ON true
+        ORDER BY u.id DESC
       `)
     ]);
 
@@ -165,9 +170,25 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         valorMensal: money(row.monthly_value)
       })),
 
-      assinaturasRecentes: recentPaymentsResult.rows.map(row => ({
+      usuarios: recentPaymentsResult.rows.map(row => ({
         id: row.id,
-        userId: row.user_id,
+        nome: row.name || "—",
+        email: row.email || "—",
+        ativo: row.active !== false,
+        assinaturaId: row.subscription_id || null,
+        plano: row.plan || null,
+        status: row.status || "SEM ASSINATURA",
+        valor: money(row.amount),
+        provedor: row.payment_provider || "—",
+        metodo: row.payment_method || "—",
+        iniciadoEm: row.started_at || null,
+        expiraEm: row.expires_at || null,
+        criadoEm: row.subscription_created_at || null
+      })),
+
+      assinaturasRecentes: recentPaymentsResult.rows.slice(0, 20).map(row => ({
+        id: row.subscription_id,
+        userId: row.id,
         nome: row.name || "—",
         email: row.email || "—",
         plano: row.plan,
@@ -177,8 +198,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         metodo: row.payment_method || "—",
         iniciadoEm: row.started_at,
         expiraEm: row.expires_at,
-        criadoEm: row.created_at,
-        atualizadoEm: row.updated_at
+        criadoEm: row.subscription_created_at
       }))
     });
   } catch (error) {

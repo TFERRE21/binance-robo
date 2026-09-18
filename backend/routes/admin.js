@@ -4,50 +4,67 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-async function isAdmin(req) {
-  const configuredAdminId = String(process.env.ADMIN_USER_ID || "").trim();
-  const configuredAdminEmail = String(process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+/*
+ * CRIPTOPRO — PAINEL ADMINISTRATIVO
+ *
+ * Este arquivo NÃO cria um painel para os clientes.
+ * Ele fornece apenas a API usada pelo seu painel administrativo.
+ *
+ * SEGURANÇA:
+ * 1. JWT válido
+ * 2. ID do usuário precisa ser igual a ADMIN_USER_ID
+ *
+ * No Northflank:
+ * ADMIN_USER_ID=3
+ */
 
-  const currentUserId = String(req.user?.id || req.user?.userId || "").trim();
-  const currentUserEmail = String(req.user?.email || "").trim().toLowerCase();
+function getCurrentUserId(req) {
+  return String(req.user?.id ?? req.user?.userId ?? "").trim();
+}
 
-  // Mantém compatibilidade com ADMIN_USER_ID.
-  if (configuredAdminId && currentUserId && configuredAdminId === currentUserId) {
-    return true;
-  }
+function isAdmin(req) {
+  const adminId = String(process.env.ADMIN_USER_ID || "").trim();
+  const currentId = getCurrentUserId(req);
 
-  // Permite liberar o administrador por e-mail, sem colocar senha no código.
-  if (configuredAdminEmail && currentUserEmail && configuredAdminEmail === currentUserEmail) {
-    return true;
-  }
-
-  // Se o middleware não colocar o e-mail no JWT, consulta o usuário no banco
-  // usando o ID autenticado.
-  if (configuredAdminEmail && currentUserId) {
-    try {
-      const result = await db.query(
-        `SELECT email FROM users WHERE id = $1 LIMIT 1`,
-        [currentUserId]
-      );
-      const dbEmail = String(result.rows[0]?.email || "").trim().toLowerCase();
-      if (dbEmail && dbEmail === configuredAdminEmail) return true;
-    } catch (error) {
-      console.error("ERRO AO VALIDAR ADMIN_EMAIL:", error);
-    }
-  }
-
-  return false;
+  return !!adminId && !!currentId && adminId === currentId;
 }
 
 function deny(res) {
   return res.status(403).json({
     success: false,
-    error: "Acesso administrativo não autorizado."
+    message: "Acesso administrativo não autorizado."
   });
 }
 
+/*
+ * TESTE DE ADMIN
+ */
+router.get("/teste", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  res.json({
+    success: true,
+    admin: true,
+    userId: getCurrentUserId(req)
+  });
+});
+
+/*
+ * DASHBOARD ADMIN
+ *
+ * Retorna:
+ * - total de usuários
+ * - usuários ativos/inativos
+ * - assinaturas
+ * - receita mensal ativa
+ * - robôs configurados/rodando
+ * - APIs Binance
+ * - distribuição por plano
+ * - lista de usuários
+ * - últimas assinaturas
+ */
 router.get("/dashboard", authMiddleware, async (req, res) => {
-  if (!(await isAdmin(req))) return deny(res);
+  if (!isAdmin(req)) return deny(res);
 
   try {
     const [
@@ -56,8 +73,10 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       robotsResult,
       accountsResult,
       plansResult,
-      recentPaymentsResult
+      usersListResult
     ] = await Promise.all([
+
+      // USUÁRIOS
       db.query(`
         SELECT
           COUNT(*)::int AS total,
@@ -66,15 +85,26 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         FROM users
       `),
 
+      // ASSINATURAS / RECEITA
       db.query(`
         SELECT
           COUNT(*) FILTER (
             WHERE status = 'ACTIVE'
               AND (expires_at IS NULL OR expires_at > NOW())
           )::int AS active,
-          COUNT(*) FILTER (WHERE status = 'PENDING')::int AS pending,
-          COUNT(*) FILTER (WHERE status = 'CANCELLED')::int AS cancelled,
-          COUNT(*) FILTER (WHERE status = 'EXPIRED')::int AS expired,
+
+          COUNT(*) FILTER (
+            WHERE status = 'PENDING'
+          )::int AS pending,
+
+          COUNT(*) FILTER (
+            WHERE status = 'CANCELLED'
+          )::int AS cancelled,
+
+          COUNT(*) FILTER (
+            WHERE status = 'EXPIRED'
+          )::int AS expired,
+
           COALESCE(SUM(
             CASE
               WHEN status = 'ACTIVE'
@@ -82,10 +112,12 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
               THEN amount
               ELSE 0
             END
-          ), 0)::numeric AS mrr
+          ), 0)::numeric AS monthly_revenue
+
         FROM subscriptions
       `),
 
+      // ROBÔS
       db.query(`
         SELECT
           COUNT(*)::int AS configured,
@@ -93,6 +125,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         FROM robot_configs
       `),
 
+      // APIS BINANCE
       db.query(`
         SELECT
           COUNT(*)::int AS total,
@@ -100,13 +133,16 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         FROM binance_accounts
       `),
 
+      // PLANOS
       db.query(`
         SELECT
           plan,
+
           COUNT(*) FILTER (
             WHERE status = 'ACTIVE'
               AND (expires_at IS NULL OR expires_at > NOW())
           )::int AS active,
+
           COALESCE(SUM(
             CASE
               WHEN status = 'ACTIVE'
@@ -114,24 +150,20 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
               THEN amount
               ELSE 0
             END
-          ), 0)::numeric AS monthly_value
+          ), 0)::numeric AS monthly_revenue
+
         FROM subscriptions
         GROUP BY plan
-        ORDER BY
-          CASE plan
-            WHEN 'premium' THEN 1
-            WHEN 'profissional' THEN 2
-            WHEN 'basico' THEN 3
-            ELSE 4
-          END
       `),
 
+      // TODOS OS USUÁRIOS + ASSINATURA MAIS RECENTE
       db.query(`
         SELECT
           u.id,
           u.name,
           u.email,
-          u.active,
+          u.active AS user_active,
+
           s.id AS subscription_id,
           s.plan,
           s.status,
@@ -141,7 +173,9 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           s.started_at,
           s.expires_at,
           s.created_at AS subscription_created_at
+
         FROM users u
+
         LEFT JOIN LATERAL (
           SELECT *
           FROM subscriptions
@@ -149,6 +183,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
           ORDER BY id DESC
           LIMIT 1
         ) s ON true
+
         ORDER BY u.id DESC
       `)
     ]);
@@ -166,8 +201,30 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       premium: "Premium"
     };
 
+    const usuarios = usersListResult.rows.map(row => ({
+      id: row.id,
+      nome: row.name || "—",
+      email: row.email || "—",
+      ativo: row.user_active !== false,
+
+      assinaturaId: row.subscription_id || null,
+      plano: row.plan || null,
+      planoNome: planNames[row.plan] || row.plan || "Sem plano",
+
+      status: row.status || "SEM ASSINATURA",
+      valor: money(row.amount),
+
+      provedor: row.payment_provider || "—",
+      metodo: row.payment_method || "—",
+
+      iniciadoEm: row.started_at || null,
+      expiraEm: row.expires_at || null,
+      assinaturaCriadaEm: row.subscription_created_at || null
+    }));
+
     res.json({
       success: true,
+
       generatedAt: new Date().toISOString(),
 
       resumo: {
@@ -180,7 +237,7 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
         assinaturasCanceladas: Number(subscriptions.cancelled || 0),
         assinaturasExpiradas: Number(subscriptions.expired || 0),
 
-        valorMensalAtivo: money(subscriptions.mrr),
+        receitaMensal: money(subscriptions.monthly_revenue),
 
         robosConfigurados: Number(robots.configured || 0),
         robosRodando: Number(robots.running || 0),
@@ -192,59 +249,28 @@ router.get("/dashboard", authMiddleware, async (req, res) => {
       planos: plansResult.rows.map(row => ({
         plan: row.plan,
         nome: planNames[row.plan] || row.plan || "—",
-        ativos: Number(row.active || 0),
-        valorMensal: money(row.monthly_value)
+        usuariosAtivos: Number(row.active || 0),
+        receitaMensal: money(row.monthly_revenue)
       })),
 
-      usuarios: recentPaymentsResult.rows.map(row => ({
-        id: row.id,
-        nome: row.name || "—",
-        email: row.email || "—",
-        ativo: row.active !== false,
-        assinaturaId: row.subscription_id || null,
-        plano: row.plan || null,
-        status: row.status || "SEM ASSINATURA",
-        valor: money(row.amount),
-        provedor: row.payment_provider || "—",
-        metodo: row.payment_method || "—",
-        iniciadoEm: row.started_at || null,
-        expiraEm: row.expires_at || null,
-        criadoEm: row.subscription_created_at || null
-      })),
+      usuarios,
 
-      assinaturasRecentes: recentPaymentsResult.rows.slice(0, 20).map(row => ({
-        id: row.subscription_id,
-        userId: row.id,
-        nome: row.name || "—",
-        email: row.email || "—",
-        plano: row.plan,
-        status: row.status,
-        valor: money(row.amount),
-        provedor: row.payment_provider || "—",
-        metodo: row.payment_method || "—",
-        iniciadoEm: row.started_at,
-        expiraEm: row.expires_at,
-        criadoEm: row.subscription_created_at
-      }))
+      assinaturasRecentes: usuarios
+        .filter(u => u.assinaturaId)
+        .slice(0, 20)
     });
+
   } catch (error) {
-    console.error("ERRO DASHBOARD ADMIN:", error);
+    console.error("ERRO PAINEL ADMIN:", error);
 
     res.status(500).json({
       success: false,
-      error: "Erro interno ao carregar o painel administrativo."
+      message: "Erro interno ao carregar os dados administrativos.",
+      detail: process.env.NODE_ENV === "development"
+        ? error.message
+        : undefined
     });
   }
-});
-
-router.get("/teste", authMiddleware, async (req, res) => {
-  if (!(await isAdmin(req))) return deny(res);
-
-  res.json({
-    success: true,
-    admin: true,
-    userId: req.user?.id || req.user?.userId || null
-  });
 });
 
 module.exports = router;

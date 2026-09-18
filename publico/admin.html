@@ -1,244 +1,42 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CriptoPro — Painel Administrativo</title>
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CriptoPro — Administração</title>
 <style>
-:root{
-  --bg:#070b12;
-  --card:#101722;
-  --card2:#0c121b;
-  --border:#263243;
-  --text:#f4f7fb;
-  --muted:#8e9bad;
-  --yellow:#f0c52e;
-  --green:#21d58a;
-  --red:#ff6674;
-  --blue:#5ca9ff;
-}
-*{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:Inter,Arial,sans-serif;
-  background:linear-gradient(135deg,#070b12,#0b111b 55%,#11100a);
-  color:var(--text);
-}
-header{
-  min-height:76px;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:0 32px;
-  border-bottom:1px solid var(--border);
-  background:rgba(5,8,13,.94);
-  position:sticky;
-  top:0;
-  z-index:5;
-}
-.logo{font-size:24px;font-weight:900}.logo span{color:var(--yellow)}
-.header-right{display:flex;gap:12px;align-items:center}
-button{
-  border:1px solid var(--border);
-  border-radius:10px;
-  padding:10px 15px;
-  background:#151d28;
-  color:var(--text);
-  cursor:pointer;
-  font-weight:800;
-}
-button:hover{border-color:var(--yellow)}
-.container{max-width:1450px;margin:0 auto;padding:28px}
-h1{margin:0 0 7px;font-size:30px}
-.subtitle{color:var(--muted);margin-bottom:26px}
-.status{
-  display:inline-flex;align-items:center;gap:8px;
-  color:var(--green);font-weight:800;font-size:13px
-}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--green)}
-.cards{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:16px;
-}
-.card{
-  background:linear-gradient(145deg,var(--card),var(--card2));
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:20px;
-  min-height:125px;
-}
-.card-label{font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:800}
-.card-value{font-size:30px;font-weight:900;margin-top:12px}
-.card-small{font-size:12px;color:var(--muted);margin-top:6px}
-.section{margin-top:24px}
-.section-title{font-size:20px;font-weight:900;margin-bottom:13px}
-.panel{
-  background:linear-gradient(145deg,var(--card),var(--card2));
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:18px;
-}
-.plan-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.plan{
-  padding:18px;border:1px solid var(--border);border-radius:14px;background:#0a1018
-}
-.plan strong{font-size:17px}.plan .num{font-size:27px;font-weight:900;margin-top:9px}
-.table-wrap{overflow:auto}
-table{width:100%;border-collapse:collapse;min-width:900px}
-th,td{padding:13px 10px;text-align:left;border-bottom:1px solid #202a38;font-size:13px}
-th{color:var(--muted);font-size:11px;text-transform:uppercase}
-.badge{
-  display:inline-flex;padding:5px 9px;border-radius:999px;font-size:11px;font-weight:900
-}
-.badge.green{background:rgba(33,213,138,.12);color:var(--green)}
-.badge.red{background:rgba(255,102,116,.12);color:var(--red)}
-.badge.yellow{background:rgba(240,197,46,.12);color:var(--yellow)}
-.badge.gray{background:#171f2b;color:#9aa7b8}
-.error{
-  display:none;padding:15px;border:1px solid rgba(255,102,116,.4);
-  background:rgba(255,102,116,.08);color:#ffb4bc;border-radius:12px;margin-bottom:18px
-}
-.loading{color:var(--muted);padding:20px;text-align:center}
-@media(max-width:1000px){.cards{grid-template-columns:repeat(2,1fr)}.plan-grid{grid-template-columns:1fr}}
-@media(max-width:600px){.container{padding:18px}.cards{grid-template-columns:1fr}header{padding:0 16px}}
-</style>
-</head>
-<body>
-<header>
-  <div class="logo">Cripto<span>Pro</span> <small style="font-size:11px;color:#8995a6">ADMIN</small></div>
-  <div class="header-right">
-    <span class="status"><span class="dot"></span> Área administrativa</span>
-    <button onclick="window.location.href='/'">← Voltar ao painel</button>
-  </div>
-</header>
-
-<main class="container">
-  <h1>Visão geral da plataforma</h1>
-  <div class="subtitle">Acompanhamento dos usuários, assinaturas, receita e operação do CriptoPro.</div>
-
-  <div id="error" class="error"></div>
-
-  <section class="cards">
-    <div class="card"><div class="card-label">Usuários cadastrados</div><div id="usuariosTotal" class="card-value">—</div><div id="usuariosAtivos" class="card-small">Carregando...</div></div>
-    <div class="card"><div class="card-label">Assinaturas ativas</div><div id="assinaturasAtivas" class="card-value">—</div><div id="pendentes" class="card-small">Carregando...</div></div>
-    <div class="card"><div class="card-label">Receita mensal ativa</div><div id="receita" class="card-value">—</div><div class="card-small">Somente assinaturas ativas vigentes</div></div>
-    <div class="card"><div class="card-label">Robôs rodando</div><div id="robos" class="card-value">—</div><div id="robosConfig" class="card-small">Carregando...</div></div>
-    <div class="card"><div class="card-label">APIs Binance</div><div id="apis" class="card-value">—</div><div id="apisAtivas" class="card-small">Carregando...</div></div>
-    <div class="card"><div class="card-label">Canceladas</div><div id="canceladas" class="card-value">—</div><div class="card-small">Assinaturas canceladas</div></div>
-    <div class="card"><div class="card-label">Expiradas</div><div id="expiradas" class="card-value">—</div><div class="card-small">Assinaturas expiradas</div></div>
-    <div class="card"><div class="card-label">Pendentes</div><div id="pendentes2" class="card-value">—</div><div class="card-small">Aguardando pagamento</div></div>
-  </section>
-
-  <section class="section">
-    <div class="section-title">Planos ativos</div>
-    <div id="planos" class="plan-grid"><div class="loading">Carregando...</div></div>
-  </section>
-
-  <section class="section">
-    <div class="section-title">Todos os usuários</div>
-    <div class="panel">
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th><th>Usuário</th><th>E-mail</th><th>Conta</th>
-              <th>Plano</th><th>Status</th><th>Valor</th><th>Vencimento</th>
-            </tr>
-          </thead>
-          <tbody id="usuarios"><tr><td colspan="8" class="loading">Carregando usuários...</td></tr></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
+body{margin:0;background:#080d14;color:#f4f7fb;font-family:Arial,sans-serif}header{height:72px;background:#050910;border-bottom:1px solid #263243;display:flex;align-items:center;justify-content:space-between;padding:0 28px}.logo{font-size:24px;font-weight:900}.logo span{color:#f0c52e}button{background:#161f2c;color:#fff;border:1px solid #2a3749;border-radius:10px;padding:10px 15px;font-weight:800;cursor:pointer}main{max-width:1450px;margin:auto;padding:28px}h1{margin:0 0 8px}.sub{color:#8f9caf;margin-bottom:24px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.card,.panel{background:#101722;border:1px solid #273346;border-radius:15px;padding:18px}.label{font-size:11px;color:#8f9caf;font-weight:900;text-transform:uppercase}.value{font-size:30px;font-weight:900;margin-top:10px}.small{font-size:12px;color:#8f9caf;margin-top:6px}.section{margin-top:25px}.title{font-size:20px;font-weight:900;margin-bottom:12px}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.plan{background:#0b1119;border:1px solid #263244;border-radius:13px;padding:18px}.plan b{font-size:17px}.plan .n{font-size:27px;font-weight:900;margin:9px 0 3px}.tablewrap{overflow:auto}table{width:100%;min-width:1000px;border-collapse:collapse}th,td{padding:12px 10px;border-bottom:1px solid #222d3c;text-align:left;font-size:13px}th{color:#8f9caf;font-size:10px;text-transform:uppercase}.badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:10px;font-weight:900}.green{color:#21d58a;background:#0c2b22}.yellow{color:#f0c52e;background:#2c2610}.red{color:#ff6674;background:#32151b}.gray{color:#a6b0bf;background:#1b2430}#error{display:none;background:#32151b;border:1px solid #71303a;color:#ffb4bc;padding:13px;border-radius:10px;margin-bottom:18px}@media(max-width:900px){.cards{grid-template-columns:repeat(2,1fr)}.plans{grid-template-columns:1fr}}@media(max-width:600px){.cards{grid-template-columns:1fr}header{padding:0 15px}main{padding:17px}}
+</style></head><body>
+<header><div class="logo">Cripto<span>Pro</span> <small style="font-size:11px;color:#8995a6">ADMINISTRADOR</small></div><button onclick="location.href='/'">← Voltar</button></header>
+<main><h1>Visão geral da plataforma</h1><div class="sub">Dados consolidados de todos os usuários do CriptoPro.</div><div id="error"></div>
+<div class="cards">
+<div class="card"><div class="label">Usuários cadastrados</div><div class="value" id="total">—</div><div class="small" id="activeUsers">—</div></div>
+<div class="card"><div class="label">Assinaturas ativas</div><div class="value" id="subs">—</div><div class="small" id="pending">—</div></div>
+<div class="card"><div class="label">Receita mensal ativa</div><div class="value" id="revenue">—</div><div class="small">Assinaturas ativas vigentes</div></div>
+<div class="card"><div class="label">Robôs rodando</div><div class="value" id="running">—</div><div class="small" id="robots">—</div></div>
+<div class="card"><div class="label">APIs Binance</div><div class="value" id="apis">—</div><div class="small" id="apiActive">—</div></div>
+<div class="card"><div class="label">Pendentes</div><div class="value" id="pend">—</div></div>
+<div class="card"><div class="label">Canceladas</div><div class="value" id="cancel">—</div></div>
+<div class="card"><div class="label">Expiradas</div><div class="value" id="expired">—</div></div>
+</div>
+<div class="section"><div class="title">Planos ativos</div><div class="plans" id="plans"></div></div>
+<div class="section"><div class="title">Todos os usuários</div><div class="panel tablewrap"><table><thead><tr><th>ID</th><th>Nome</th><th>E-mail</th><th>Conta</th><th>Plano</th><th>Status</th><th>Valor</th><th>Provedor</th><th>Vencimento</th></tr></thead><tbody id="users"><tr><td colspan="9">Carregando...</td></tr></tbody></table></div></div>
 </main>
-
 <script>
-const token = localStorage.getItem("token");
-
-function money(v){
-  return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const token=localStorage.getItem("token");
+const money=v=>Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+const date=v=>{if(!v)return"—";const d=new Date(v);return isNaN(d.getTime())?"—":d.toLocaleDateString("pt-BR")};
+const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));
+const badge=s=>{const x=String(s||"").toUpperCase();let c="gray";if(x==="ACTIVE")c="green";else if(x==="PENDING")c="yellow";else if(x==="CANCELLED"||x==="EXPIRED")c="red";return'<span class="badge '+c+'">'+esc(s||"—")+"</span>"};
+async function load(){
+ if(!token){location.href="/login.html";return}
+ try{
+  const r=await fetch("/api/admin/dashboard",{headers:{Authorization:"Bearer "+token}});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok||!d.success)throw new Error(d.message||"Acesso administrativo não autorizado.");
+  const x=d.resumo||{};
+  total.textContent=x.usuariosTotal||0;activeUsers.textContent=(x.usuariosAtivos||0)+" ativos · "+(x.usuariosInativos||0)+" inativos";
+  subs.textContent=x.assinaturasAtivas||0;pending.textContent=(x.pagamentosPendentes||0)+" pendentes";revenue.textContent=money(x.receitaMensalAtiva);
+  running.textContent=x.robosRodando||0;robots.textContent=(x.robosConfigurados||0)+" configurados";apis.textContent=x.apisBinanceTotal||0;apiActive.textContent=(x.apisBinanceAtivas||0)+" ativas";
+  pend.textContent=x.pagamentosPendentes||0;cancel.textContent=x.assinaturasCanceladas||0;expired.textContent=x.assinaturasExpiradas||0;
+  plans.innerHTML=(d.planos||[]).map(p=>'<div class="plan"><b>'+esc(p.nome)+'</b><div class="n">'+p.usuariosAtivos+'</div><div class="small">'+money(p.receitaMensal)+' / mês</div></div>').join("");
+  users.innerHTML=(d.usuarios||[]).map(u=>'<tr><td>'+esc(u.id)+'</td><td><b>'+esc(u.nome)+'</b></td><td>'+esc(u.email)+'</td><td>'+(u.contaAtiva?'<span class="badge green">ATIVA</span>':'<span class="badge red">INATIVA</span>')+'</td><td>'+esc(u.plano)+'</td><td>'+badge(u.status)+'</td><td>'+money(u.valor)+'</td><td>'+esc(u.provedor)+'</td><td>'+date(u.vencimento)+'</td></tr>').join("")||'<tr><td colspan="9">Nenhum usuário.</td></tr>';
+ }catch(e){error.style.display="block";error.textContent=e.message}
 }
-function date(v){
-  if(!v)return "—";
-  const d=new Date(v);
-  return Number.isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
-}
-function esc(v){
-  return String(v??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]));
-}
-function statusBadge(status){
-  const s=String(status||"").toUpperCase();
-  let cls="gray";
-  if(s==="ACTIVE")cls="green";
-  else if(s==="PENDING")cls="yellow";
-  else if(["CANCELLED","EXPIRED"].includes(s))cls="red";
-  return `<span class="badge ${cls}">${esc(status||"—")}</span>`;
-}
-function planName(p){
-  return ({basico:"Básico",profissional:"Profissional",premium:"Premium"})[p] || p || "—";
-}
-async function carregar(){
-  if(!token){
-    document.getElementById("error").style.display="block";
-    document.getElementById("error").textContent="Sessão não encontrada. Faça login no CriptoPro.";
-    return;
-  }
-
-  try{
-    const r=await fetch("/api/admin/dashboard",{
-      headers:{Authorization:"Bearer "+token}
-    });
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok || !d.success){
-      throw new Error(d.error || d.message || "Acesso administrativo não autorizado.");
-    }
-
-    const x=d.resumo||{};
-    document.getElementById("usuariosTotal").textContent=x.usuariosTotal??0;
-    document.getElementById("usuariosAtivos").textContent=`${x.usuariosAtivos??0} ativos · ${x.usuariosInativos??0} inativos`;
-    document.getElementById("assinaturasAtivas").textContent=x.assinaturasAtivas??0;
-    document.getElementById("pendentes").textContent=`${x.pagamentosPendentes??0} pendentes`;
-    document.getElementById("receita").textContent=money(x.valorMensalAtivo);
-    document.getElementById("robos").textContent=x.robosRodando??0;
-    document.getElementById("robosConfig").textContent=`${x.robosConfigurados??0} configurados`;
-    document.getElementById("apis").textContent=x.apisBinanceTotal??0;
-    document.getElementById("apisAtivas").textContent=`${x.apisBinanceAtivas??0} ativas`;
-    document.getElementById("canceladas").textContent=x.assinaturasCanceladas??0;
-    document.getElementById("expiradas").textContent=x.assinaturasExpiradas??0;
-    document.getElementById("pendentes2").textContent=x.pagamentosPendentes??0;
-
-    const planos=document.getElementById("planos");
-    planos.innerHTML=(d.planos||[]).map(p=>`
-      <div class="plan">
-        <strong>${esc(p.nome)}</strong>
-        <div class="num">${p.ativos}</div>
-        <div class="card-small">${money(p.valorMensal)} / mês</div>
-      </div>
-    `).join("") || `<div class="loading">Nenhuma assinatura encontrada.</div>`;
-
-    const tbody=document.getElementById("usuarios");
-    tbody.innerHTML=(d.usuarios||[]).map(u=>`
-      <tr>
-        <td>${esc(u.id)}</td>
-        <td><strong>${esc(u.nome)}</strong></td>
-        <td>${esc(u.email)}</td>
-        <td>${u.ativo ? '<span class="badge green">ATIVA</span>' : '<span class="badge red">INATIVA</span>'}</td>
-        <td>${esc(planName(u.plano))}</td>
-        <td>${statusBadge(u.status)}</td>
-        <td>${money(u.valor)}</td>
-        <td>${date(u.expiraEm)}</td>
-      </tr>
-    `).join("") || `<tr><td colspan="8" class="loading">Nenhum usuário encontrado.</td></tr>`;
-
-  }catch(e){
-    const el=document.getElementById("error");
-    el.style.display="block";
-    el.textContent=e.message;
-  }
-}
-carregar();
-setInterval(carregar,60000);
-</script>
-</body>
-</html>
+load();setInterval(load,60000);
+</script></body></html>

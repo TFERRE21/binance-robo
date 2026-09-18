@@ -861,6 +861,25 @@
 
     }
 
+    .change-plan-button {
+      width: 100%;
+      min-height: 42px;
+      margin-top: 10px;
+      border: 1px solid #374151;
+      border-radius: 9px;
+      background: transparent;
+      color: #d4af37;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: .2s;
+    }
+
+    .change-plan-button:hover {
+      border-color: #d4af37;
+      background: rgba(212,175,55,.08);
+    }
+
 
     /* ========================================================
        LATERAL — ACESSO AO PAINEL
@@ -2217,6 +2236,14 @@
           Acessar painel
         </button>
 
+        <button
+          id="changePlanButton"
+          class="change-plan-button"
+          type="button"
+        >
+          🔄 Alterar plano
+        </button>
+
       </article>
 
     </aside>
@@ -2946,6 +2973,7 @@
       "Pagamento pendente": "Payment pending",
       "Aguardando confirmação do pagamento.": "Waiting for payment confirmation.",
       "Acessar painel": "Access panel",
+      "🔄 Alterar plano": "🔄 Change plan",
       "Fazer login": "Log in",
       "Escolher plano": "Choose plan",
       "Não foi possível verificar": "Unable to verify",
@@ -3309,6 +3337,23 @@
           verificarAcessoPainel;
       }
 
+    }
+
+
+    // ========================================================
+    // ALTERAR PLANO
+    // ========================================================
+
+    const changePlanButton =
+      document.getElementById("changePlanButton");
+
+    if (changePlanButton) {
+      changePlanButton.onclick = function() {
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
+      };
     }
 
 

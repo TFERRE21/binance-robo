@@ -258,23 +258,23 @@
        PLANOS
        ======================================================== */
 
-    .plans {
-
+    .plans-layout {
       width: 94%;
-
-      max-width: 1300px;
-
+      max-width: 1400px;
       margin: 0 auto;
-
       display: grid;
+      grid-template-columns: minmax(0, 1fr) 235px;
+      gap: 14px;
+      align-items: start;
+    }
 
-      grid-template-columns:
-        repeat(3, 1fr);
-
-      gap: 22px;
-
+    .plans {
+      width: 100%;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
       align-items: stretch;
-
     }
 
 
@@ -616,6 +616,359 @@
 
     }
 
+
+
+    /* ========================================================
+       ACESSO AO PAINEL
+       ======================================================== */
+
+    .panel-access-card {
+
+      position: relative;
+
+      background:
+        linear-gradient(
+          145deg,
+          #111827,
+          #0d1320
+        );
+
+      border:
+        1px solid #273244;
+
+      border-radius: 18px;
+
+      padding: 20px;
+
+      min-height: 300px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      align-items: flex-start;
+
+      transition:
+        transform .25s,
+        border-color .25s,
+        box-shadow .25s;
+
+    }
+
+
+    .panel-access-card:hover {
+
+      transform:
+        translateY(-5px);
+
+      border-color:
+        #4b5563;
+
+    }
+
+
+    .panel-access-icon {
+
+      width: 48px;
+
+      height: 48px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      border-radius: 12px;
+
+      background:
+        linear-gradient(
+          145deg,
+          #242a31,
+          #151a22
+        );
+
+      border:
+        1px solid #5a4b27;
+
+      font-size: 23px;
+
+      margin-bottom: 15px;
+
+    }
+
+
+    .panel-access-card h2 {
+
+      font-size: 19px;
+
+      margin-bottom: 10px;
+
+      color: #ffffff;
+
+    }
+
+
+    .panel-access-description {
+
+      color:
+        #9ca3af;
+
+      font-size:
+        12px;
+
+      line-height:
+        1.6;
+
+      margin-bottom:
+        14px;
+
+    }
+
+
+    .panel-access-status {
+
+      width: 100%;
+
+      padding: 11px;
+
+      border-radius: 8px;
+
+      background:
+        #080d16;
+
+      border:
+        1px solid #303b4d;
+
+      margin-bottom: 12px;
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 4px;
+
+    }
+
+
+    .panel-access-status strong {
+
+      color:
+        #d4af37;
+
+      font-size:
+        11px;
+
+    }
+
+
+    .panel-access-status span {
+
+      color:
+        #cbd5e1;
+
+      font-size:
+        10px;
+
+      line-height:
+        1.5;
+
+    }
+
+
+    .panel-access-status.active {
+
+      background:
+        rgba(34,197,94,.08);
+
+      border:
+        1px solid
+        rgba(34,197,94,.30);
+
+    }
+
+
+    .panel-access-status.active strong {
+
+      color:
+        #22c55e;
+
+    }
+
+
+    .panel-access-status.blocked {
+
+      background:
+        #080d16;
+
+      border:
+        1px solid #303b4d;
+
+    }
+
+
+    .panel-access-button {
+
+      width: 100%;
+
+      min-height: 48px;
+
+      border:
+        none;
+
+      border-radius: 9px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #d4af37,
+          #f1d76b
+        );
+
+      color:
+        #111827;
+
+      font-size:
+        13px;
+
+      font-weight:
+        900;
+
+      cursor:
+        pointer;
+
+      margin-top:
+        auto;
+
+    }
+
+
+    .panel-access-button:hover {
+
+      background:
+        #f1d76b;
+
+    }
+
+
+    .panel-access-button:disabled {
+
+      opacity:
+        .65;
+
+      cursor:
+        not-allowed;
+
+    }
+
+
+    /* ========================================================
+       LATERAL — ACESSO AO PAINEL
+       ======================================================== */
+
+    .panel-sidebar {
+      width: 100%;
+      position: sticky;
+      top: 92px;
+    }
+
+    .panel-access-card {
+      position: relative;
+      width: 100%;
+      min-height: 300px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      background: linear-gradient(145deg, #111827, #0d1320);
+      border: 1px solid #273244;
+      border-radius: 18px;
+      box-shadow: 0 15px 45px rgba(0,0,0,.18);
+    }
+
+    .panel-access-card:hover {
+      border-color: #4b5563;
+    }
+
+    .panel-access-icon {
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #242a31, #151a22);
+      border: 1px solid #5a4b27;
+      font-size: 23px;
+      margin-bottom: 15px;
+    }
+
+    .panel-access-card h2 {
+      font-size: 19px;
+      margin-bottom: 10px;
+      color: #ffffff;
+    }
+
+    .panel-access-description {
+      color: #9ca3af;
+      font-size: 12px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .panel-access-status {
+      width: 100%;
+      padding: 11px;
+      border-radius: 8px;
+      background: #080d16;
+      border: 1px solid #303b4d;
+      margin-bottom: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .panel-access-status strong {
+      color: #d4af37;
+      font-size: 11px;
+    }
+
+    .panel-access-status span {
+      color: #cbd5e1;
+      font-size: 10px;
+      line-height: 1.5;
+    }
+
+    .panel-access-status.active {
+      background: rgba(34,197,94,.08);
+      border: 1px solid rgba(34,197,94,.30);
+    }
+
+    .panel-access-status.active strong {
+      color: #22c55e;
+    }
+
+    .panel-access-button {
+      width: 100%;
+      min-height: 48px;
+      border: none;
+      border-radius: 9px;
+      background: linear-gradient(135deg, #d4af37, #f1d76b);
+      color: #111827;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      margin-top: auto;
+    }
+
+    .panel-access-button:hover {
+      background: #f1d76b;
+    }
+
+    .panel-access-button:disabled {
+      opacity: .65;
+      cursor: not-allowed;
+    }
 
     /* ========================================================
        COMPARAÇÃO
@@ -1162,15 +1515,18 @@
        RESPONSIVO
        ======================================================== */
 
-    @media (max-width: 1000px) {
+    @media (max-width: 1100px) {
+
+      .plans-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .panel-sidebar {
+        position: static;
+      }
 
       .plans {
-
-        grid-template-columns:
-          1fr;
-
-        max-width: 600px;
-
+        grid-template-columns: repeat(3, minmax(0, 1fr));
       }
 
 
@@ -1206,7 +1562,26 @@
     }
 
 
+    @media (max-width: 800px) {
+
+      .plans {
+        grid-template-columns: 1fr;
+      }
+
+    }
+
+
     @media (max-width: 700px) {
+
+      .plans {
+
+        grid-template-columns:
+          1fr;
+
+        max-width: 600px;
+
+      }
+
 
       .header-inner {
 
@@ -1365,7 +1740,9 @@
        PLANOS
        ====================================================== -->
 
-  <section class="plans">
+  <section class="plans-layout">
+
+    <div class="plans">
 
 
     <!-- ====================================================
@@ -1794,7 +2171,55 @@
 
       </div>
 
+
     </article>
+
+
+    </div>
+
+    <aside class="panel-sidebar">
+
+      <article class="panel-access-card">
+
+        <div class="panel-access-icon">
+          🔐
+        </div>
+
+        <h2>
+          Acesso ao painel
+        </h2>
+
+        <p class="panel-access-description">
+          O painel operacional é liberado somente
+          após a confirmação do pagamento e da
+          assinatura ativa.
+        </p>
+
+        <div
+          id="panelAccessStatus"
+          class="panel-access-status"
+        >
+          <strong>
+            Painel bloqueado
+          </strong>
+
+          <span>
+            Escolha um plano e conclua a assinatura
+            para liberar o acesso.
+          </span>
+        </div>
+
+        <button
+          id="panelAccessButton"
+          class="panel-access-button"
+          type="button"
+        >
+          Acessar painel
+        </button>
+
+      </article>
+
+    </aside>
 
   </section>
 
@@ -2512,6 +2937,21 @@
       "🔒 Segurança e controle": "🔒 Security and control",
       "A seleção de um plano não libera automaticamente o painel operacional. A liberação será realizada pelo sistema somente após a confirmação do pagamento e da assinatura ativa.": "Selecting a plan does not automatically unlock the operational dashboard. The system will unlock it only after payment confirmation and an active subscription.",
 
+      "Acesso ao painel": "Panel access",
+      "O painel operacional é liberado somente após a confirmação do pagamento e da assinatura ativa.": "The operational panel is unlocked only after payment confirmation and an active subscription.",
+      "Painel bloqueado": "Panel locked",
+      "Escolha um plano e conclua a assinatura para liberar o acesso.": "Choose a plan and complete the subscription to unlock access.",
+      "✓ ACESSO LIBERADO": "✓ ACCESS GRANTED",
+      "Seu plano está ativo. Seu painel operacional está disponível.": "Your plan is active. Your operational panel is available.",
+      "Pagamento pendente": "Payment pending",
+      "Aguardando confirmação do pagamento.": "Waiting for payment confirmation.",
+      "Acessar painel": "Access panel",
+      "Fazer login": "Log in",
+      "Escolher plano": "Choose plan",
+      "Não foi possível verificar": "Unable to verify",
+      "Atualize a página e tente novamente.": "Refresh the page and try again.",
+      "Tentar novamente": "Try again",
+
       "Plano selecionado": "Plan selected",
       "Você selecionou o plano abaixo.": "You selected the plan below.",
       "Na próxima etapa vamos conectar este plano ao sistema de pagamento.": "In the next step, we will connect this plan to the payment system.",
@@ -2639,6 +3079,239 @@
       }
     }
 
+
+    // ========================================================
+    // ACESSO AO PAINEL
+    // ========================================================
+
+    const panelAccessButton =
+      document.getElementById("panelAccessButton");
+
+    const panelAccessStatus =
+      document.getElementById("panelAccessStatus");
+
+
+    async function verificarAcessoPainel() {
+
+      if (!panelAccessButton || !panelAccessStatus) {
+        return;
+      }
+
+
+      // ------------------------------------------------------
+      // USUÁRIO NÃO LOGADO
+      // ------------------------------------------------------
+
+      if (!token) {
+
+        panelAccessStatus.className =
+          "panel-access-status blocked";
+
+        panelAccessStatus.innerHTML = `
+
+          <strong>
+            Painel bloqueado
+          </strong>
+
+          <span>
+            Faça login e tenha uma assinatura ativa
+            para acessar o painel.
+          </span>
+
+        `;
+
+        panelAccessButton.disabled = false;
+
+        panelAccessButton.textContent =
+          "Fazer login";
+
+        panelAccessButton.onclick = function() {
+          window.location.href = "/login.html";
+        };
+
+        return;
+      }
+
+
+      // ------------------------------------------------------
+      // VERIFICANDO
+      // ------------------------------------------------------
+
+      panelAccessButton.disabled = true;
+
+      panelAccessButton.textContent =
+        "Verificando...";
+
+
+      try {
+
+        const response =
+          await fetch(
+            "/api/subscription/status",
+            {
+              method: "GET",
+              headers: {
+                "Authorization":
+                  `Bearer ${token}`
+              },
+              cache: "no-store"
+            }
+          );
+
+
+        const data =
+          await response.json().catch(() => ({}));
+
+
+        if (!response.ok || !data.ok) {
+
+          throw new Error(
+            data.error ||
+            data.message ||
+            "Erro ao verificar assinatura."
+          );
+
+        }
+
+
+        // ----------------------------------------------------
+        // ASSINATURA ATIVA
+        // ----------------------------------------------------
+
+        if (data.active) {
+
+          panelAccessStatus.className =
+            "panel-access-status active";
+
+          panelAccessStatus.innerHTML = `
+
+            <strong>
+              ✓ ACESSO LIBERADO
+            </strong>
+
+            <span>
+              Seu plano está ativo.
+              Seu painel operacional está disponível.
+            </span>
+
+          `;
+
+          panelAccessButton.disabled = false;
+
+          panelAccessButton.textContent =
+            "Acessar painel";
+
+          panelAccessButton.onclick = function() {
+            window.location.href =
+              "/dashboard.html";
+          };
+
+          return;
+        }
+
+
+        // ----------------------------------------------------
+        // PAGAMENTO PENDENTE
+        // ----------------------------------------------------
+
+        if (data.status === "PENDING") {
+
+          panelAccessStatus.className =
+            "panel-access-status blocked";
+
+          panelAccessStatus.innerHTML = `
+
+            <strong>
+              Pagamento pendente
+            </strong>
+
+            <span>
+              Aguardando confirmação do pagamento.
+            </span>
+
+          `;
+
+          panelAccessButton.disabled = true;
+
+          panelAccessButton.textContent =
+            "Aguardando pagamento";
+
+          panelAccessButton.onclick = null;
+
+          return;
+        }
+
+
+        // ----------------------------------------------------
+        // SEM ASSINATURA
+        // ----------------------------------------------------
+
+        panelAccessStatus.className =
+          "panel-access-status blocked";
+
+        panelAccessStatus.innerHTML = `
+
+          <strong>
+            Painel bloqueado
+          </strong>
+
+          <span>
+            Escolha um plano e conclua a assinatura
+            para liberar o acesso.
+          </span>
+
+        `;
+
+        panelAccessButton.disabled = false;
+
+        panelAccessButton.textContent =
+          "Escolher plano";
+
+        panelAccessButton.onclick = function() {
+
+          window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+          });
+
+        };
+
+      }
+
+      catch (error) {
+
+        console.error(
+          "ERRO AO VERIFICAR PAINEL:",
+          error
+        );
+
+        panelAccessStatus.className =
+          "panel-access-status blocked";
+
+        panelAccessStatus.innerHTML = `
+
+          <strong>
+            Não foi possível verificar
+          </strong>
+
+          <span>
+            Atualize a página e tente novamente.
+          </span>
+
+        `;
+
+        panelAccessButton.disabled = false;
+
+        panelAccessButton.textContent =
+          "Tentar novamente";
+
+        panelAccessButton.onclick =
+          verificarAcessoPainel;
+      }
+
+    }
+
+
     // ========================================================
     // SELECIONAR PLANO / CHECKOUT DIRETO
     // ========================================================
@@ -2755,14 +3428,23 @@
     // FECHAR MODAL CLICANDO FORA
     // ========================================================
 
-    document.getElementById("modalOverlay").addEventListener(
-      "click",
-      function(event) {
-        if (event.target === this) {
-          fecharModal();
+    const modalOverlay =
+      document.getElementById("modalOverlay");
+
+    if (modalOverlay) {
+
+      modalOverlay.addEventListener(
+        "click",
+        function(event) {
+
+          if (event.target === this) {
+            fecharModal();
+          }
+
         }
-      }
-    );
+      );
+
+    }
 
     // ========================================================
     // INICIALIZAÇÃO
@@ -2775,6 +3457,7 @@
       translatePage(language);
       await carregarUsuario();
       translatePage(language);
+      await verificarAcessoPainel();
     });
 
   </script>

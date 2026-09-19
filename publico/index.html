@@ -1126,7 +1126,6 @@ let selectedAccountId=localStorage.getItem("selected_binance_account")||"";
 let selectedAccountData=null;
 let usdBrl=0;
 let refreshTimer=null;
-let robotLogTimer=null;
 let operationRealtimeTimer=null;
 
 async function apiFetch(url,options={}){
@@ -2197,6 +2196,19 @@ function robotStrategyLabel(key){
   return map[String(key||"").toLowerCase()]||"Sem configuração";
 }
 
+/*
+ * Seleciona o robô que alimenta o painel lateral.
+ * O log é carregado quando o usuário seleciona um robô,
+ * e não por polling contínuo.
+ */
+async function selectRobotLive(robotId){
+  activeRobotId=Number(robotId)||1;
+
+  renderRobotSlots(robotInstancesCache);
+
+  await loadRobotStatus(activeRobotId);
+}
+
 function robotSlotCard(item){
   const id=Number(item.robotId);
   const locked=!currentPlanRules || id>Number(currentPlanRules.robots||1);
@@ -2207,7 +2219,7 @@ function robotSlotCard(item){
     ? `${strategy} · ${c.interval} · ${Number(c.max_operations||1)} operação(ões) · ${Number(c.max_coins||0)} moedas`
     : "Configure este robô para começar.";
   const selected=id===activeRobotId;
-  return `<div class="robot-slot-card ${locked?"locked":""} ${selected?"robot-selected":""}" data-robot-slot="${id}">
+  return `<div class="robot-slot-card ${locked?"locked":""} ${selected?"robot-selected":""}" data-robot-slot="${id}" onclick="if(!event.target.closest('button'))selectRobotLive(${id})">
     <div class="robot-slot-head">
       <div><div class="robot-slot-title">🤖 Robô ${id} · ${ROBOT_NAMES[id]||"Automação"}</div><div class="robot-slot-sub">${locked?"Bloqueado pelo seu plano":meta}</div></div>
       <span class="robot-slot-status ${locked?"locked":running?"running":"stopped"}">${locked?"🔒 BLOQUEADO":running?"● RODANDO":"PARADO"}</span>
@@ -2248,8 +2260,24 @@ async function loadRobotInstances(){
   try{
     const d=await apiFetch(`/api/robot/instances?account=${encodeURIComponent(selectedAccountId)}`);
     if(!d.success)throw new Error(d.message||"Não foi possível carregar os robôs.");
-    renderRobotSlots(Array.isArray(d.robots)?d.robots:[]);
-    const selected=selectedRobotData();
+    const robots=Array.isArray(d.robots)?d.robots:[];
+    renderRobotSlots(robots);
+
+    let selected=selectedRobotData();
+    const selectedRunning=!!selected?.running||!!selected?.engineRunning;
+
+    if(!selectedRunning){
+      const runningRobot=robotInstancesCache.find(
+        x=>!!x.running||!!x.engineRunning
+      );
+
+      if(runningRobot){
+        activeRobotId=Number(runningRobot.robotId);
+        renderRobotSlots(robotInstancesCache);
+        selected=runningRobot;
+      }
+    }
+
     if(selected)renderRobotLive(selected);
     return d;
   }catch(e){
@@ -3113,7 +3141,6 @@ async function init(){
     await loadAccounts();
     await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
     await loadCryptoNews();
-    await loadRobotStatus();
   },30000);
 
   if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
@@ -3124,8 +3151,6 @@ async function init(){
       console.warn("OPERAÇÃO TEMPO REAL:",e);
     }
   },5000);
-  if(robotLogTimer)clearInterval(robotLogTimer);
-  robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
 init();
 </script>

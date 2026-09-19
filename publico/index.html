@@ -1098,11 +1098,11 @@ select.plan-locked{
       <div class="field"><label>Take Profit (%)</label><input id="takeProfit" type="number" min="0.1" max="100" step="0.1" value="3.5"><div class="field-help">Percentual desejado para saída com lucro.</div></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Stop Loss (%)</label><input id="stopLoss" type="number" min="0.1" max="100" step="0.1" value="2.5"><div class="field-help">Limite percentual de perda.</div></div>
+      <div class="field"><label>Stop Loss (%)</label><input id="stopLoss" type="number" min="0" max="100" step="0.1" value="2.5"><div class="field-help">Limite percentual de perda. Digite <strong>0%</strong> para operar sem Stop Loss.</div></div>
       <div class="field"><label>Operações simultâneas</label><select id="maxOperations"><option value="1">1 operação</option><option value="2">2 operações</option><option value="3">3 operações</option></select><div class="field-help">Máximo permitido pelo Premium: 3.</div></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Intervalo de análise</label><select id="interval"><option value="1m">1 minuto</option><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option><option value="1h">1 hora</option></select></div>
+      <div class="field"><label>Intervalo da busca de entradas</label><select id="interval"><option value="1m">1 minuto</option><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option><option value="1h">1 hora</option></select></div>
       <div class="field"><label>Máximo de moedas analisadas</label><input id="maxCoins" type="number" min="1" max="100" value="40"></div>
     </div>
   </div>
@@ -1127,6 +1127,7 @@ let selectedAccountData=null;
 let usdBrl=0;
 let refreshTimer=null;
 let operationRealtimeTimer=null;
+let robotLogTimer=null;
 
 async function apiFetch(url,options={}){
   const headers={...(options.headers||{}),"Authorization":"Bearer "+token,"Content-Type":"application/json"};
@@ -2224,7 +2225,7 @@ function robotSlotCard(item){
       <div><div class="robot-slot-title">🤖 Robô ${id} · ${ROBOT_NAMES[id]||"Automação"}</div><div class="robot-slot-sub">${locked?"Bloqueado pelo seu plano":meta}</div></div>
       <span class="robot-slot-status ${locked?"locked":running?"running":"stopped"}">${locked?"🔒 BLOQUEADO":running?"● RODANDO":"PARADO"}</span>
     </div>
-    ${!locked?`<div class="robot-slot-meta">${c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"Nenhuma configuração salva."}</div>
+    ${!locked?`<div class="robot-slot-meta">${c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active&&Number(c.stop_loss)>0?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"Nenhuma configuração salva."}</div>
     <div class="robot-slot-actions">
       <button class="btn" onclick="openRobot(${id})">⚙ Configurar</button>
       <button class="btn btn-primary" onclick="startRobot(${id})" ${running||!c||!selectedAccountId?"disabled":""}>▶ Iniciar</button>
@@ -2302,7 +2303,7 @@ async function loadRobotStatus(robotId=activeRobotId){
     const badge=document.getElementById("robotStatusBadge"), txt=document.getElementById("robotStatusText"), info=document.getElementById("robotSavedInfo");
     if(badge){badge.textContent=running?"● RODANDO":"PARADO";badge.className=running?"badge-green":"badge-yellow"}
     if(txt){txt.textContent=c?`${robotStrategyLabel(c.strategy_version)} · ${c.interval} · ${c.max_operations} operação(ões) · ${c.max_coins} moedas`:"Configure este robô para esta API.";}
-    if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"";
+    if(info)info.innerHTML=c?`Entrada ${Number(c.entry_percent).toFixed(1)}% · TP ${Number(c.take_profit).toFixed(2)}% · SL ${c.stop_loss_active&&Number(c.stop_loss)>0?"ATIVO":"DESATIVADO"} ${Number(c.stop_loss).toFixed(2)}%`:"";
     const sb=document.getElementById("startRobotBtn");
     const sbModal=document.getElementById("startRobotConfigBtn");
     const st=document.getElementById("stopRobotBtn");
@@ -2354,7 +2355,7 @@ async function openRobot(robotId=1){
   const requestedStrategy=c.strategyVersion||"premium";
   const requestedOption=strategySelect ? [...strategySelect.options].find(o=>o.value===requestedStrategy && !o.disabled) : null;
   if(strategySelect) strategySelect.value=requestedOption ? requestedStrategy : ([...strategySelect.options].find(o=>!o.disabled)?.value||"basico");
-  document.getElementById("stopLossActive").value=(currentPlanRules?.stopLoss && c.stopLossActive!==false)?"true":"false";
+  document.getElementById("stopLossActive").value=(currentPlanRules?.stopLoss && Number(c.stopLoss)>0 && c.stopLossActive!==false)?"true":"false";
   const title=document.querySelector("#robotModal .modal-title");
   if(title)title.textContent=`Configurar Robô ${activeRobotId} · ${ROBOT_NAMES[activeRobotId]||""}`;
   const save=document.getElementById("saveRobotBtn"), start=document.getElementById("startRobotConfigBtn");
@@ -2383,7 +2384,8 @@ async function saveRobot(){
   const rules=currentPlanRules||{};
   if(!Number.isFinite(c.entryPercent)||c.entryPercent<=0||c.entryPercent>100){showMessage(msg,"A entrada deve estar entre 0 e 100%.","error");return;}
   if(!Number.isFinite(c.takeProfit)||c.takeProfit<=0){showMessage(msg,"Informe um Take Profit válido.","error");return;}
-  if(!Number.isFinite(c.stopLoss)||c.stopLoss<=0){showMessage(msg,"Informe um Stop Loss válido.","error");return;}
+  if(!Number.isFinite(c.stopLoss)||c.stopLoss<0){showMessage(msg,"O Stop Loss deve ser 0 ou maior.","error");return;}
+  if(c.stopLoss===0)c.stopLossActive=false;
   if(c.maxOperations<1||c.maxOperations>Number(rules.operations||1)){showMessage(msg,`Seu plano permite até ${rules.operations||1} operação(ões).`,"error");return;}
   if(!Number.isFinite(c.maxCoins)||c.maxCoins<1||c.maxCoins>Number(rules.maxCoins||20)){showMessage(msg,`Seu plano permite analisar até ${rules.maxCoins||20} moedas.`,"error");return;}
 
@@ -3151,6 +3153,10 @@ async function init(){
       console.warn("OPERAÇÃO TEMPO REAL:",e);
     }
   },5000);
+
+  // Atualiza apenas o painel/log; não inicia nova análise na Binance.
+  if(robotLogTimer)clearInterval(robotLogTimer);
+  robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
 init();
 </script>

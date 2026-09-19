@@ -1871,30 +1871,34 @@ async function manualSell(symbol){
   }
 
   try{
-    const previewData=await apiFetch(
-      "/api/panel/manual/preview?account="+
-      encodeURIComponent(selectedAccountId)+
-      "&symbol="+encodeURIComponent(symbol)
+    /*
+      A posição pode aparecer com saldo total, mas a quantidade pode estar
+      LOCKED por uma ordem SELL LIMIT de proteção. Por isso não usamos
+      /manual/preview antes de cancelar a proteção.
+    */
+    const operationData=await apiFetch(
+      "/api/panel/operation/"+encodeURIComponent(selectedAccountId)+
+      "?symbol="+encodeURIComponent(symbol)
     );
 
-    const p=previewData.preview||{};
-    const qty=Number(p.quantity||0);
-    const price=Number(p.price||p.precoAtual||0);
-    const estimated=Number(p.estimatedValue||p.valorEstimado||0);
+    const op=operationData.operation||{};
+    const positionQty=Number(op.totalQuantity||op.quantity||0);
+    const price=Number(op.currentPrice||0);
+    const estimated=Number(op.currentValue||0);
 
-    if(qty<=0){
-      alert("Não existe saldo disponível suficiente para vender "+symbol+".");
+    if(positionQty<=0){
+      alert("Não existe posição aberta para vender "+symbol+".");
       return;
     }
 
     const confirmed=confirm(
       "⚠️ VENDA REAL NA BINANCE\n\n"+
       "Ativo: "+symbol+"\n"+
-      "Quantidade: "+formatNumber(qty)+"\n"+
+      "Quantidade da posição: "+formatNumber(positionQty)+"\n"+
       "Preço atual: "+moneyUSDT(price)+"\n"+
       "Valor aproximado: "+moneyUSDT(estimated)+"\n"+
       "Em reais: "+moneyBRL(estimated*usdBrl)+"\n\n"+
-      "A ordem será enviada como VENDA A MERCADO.\n"+
+      "A ordem de proteção será cancelada e a posição será vendida A MERCADO.\n"+
       "Deseja realmente vender agora?"
     );
 
@@ -1905,10 +1909,10 @@ async function manualSell(symbol){
     const button=card?.querySelector(".sell-btn");
     if(button){
       button.disabled=true;
-      button.textContent="⏳ VENDENDO...";
+      button.textContent="⏳ LIBERANDO E VENDENDO...";
     }
 
-    // Primeiro cancela a ordem SELL de proteção para liberar o saldo.
+    // Cancela primeiro a SELL LIMIT para liberar a quantidade bloqueada.
     const cancelled=await apiFetch("/api/panel/manual/cancel-sell",{
       method:"POST",
       body:JSON.stringify({
@@ -1921,11 +1925,22 @@ async function manualSell(symbol){
       throw new Error(cancelled.message||"Não foi possível cancelar a ordem de proteção.");
     }
 
-    /*
-      Pequeno intervalo para a Binance refletir o saldo liberado.
-      A rota de venda recalcula o saldo real no servidor.
-    */
-    await new Promise(resolve=>setTimeout(resolve,500));
+    // Aguarda a Binance refletir a liberação do saldo.
+    await new Promise(resolve=>setTimeout(resolve,800));
+
+    // Agora o preview consulta o saldo FREE já liberado.
+    const previewData=await apiFetch(
+      "/api/panel/manual/preview?account="+
+      encodeURIComponent(selectedAccountId)+
+      "&symbol="+encodeURIComponent(symbol)
+    );
+
+    const p=previewData.preview||{};
+    const qty=Number(p.quantity||0);
+
+    if(qty<=0){
+      throw new Error("A ordem de proteção foi cancelada, mas a Binance ainda não liberou saldo suficiente para a venda.");
+    }
 
     const sold=await apiFetch("/api/panel/manual/sell",{
       method:"POST",

@@ -270,6 +270,56 @@ async function getAccount(userId,accountId){
 }
 function clientFor(account){ return Binance({apiKey:cryptoService.decrypt(account.api_key_encrypted),apiSecret:cryptoService.decrypt(account.api_secret_encrypted),recvWindow:60000}); }
 
+async function cancelOpenSellOrders(client,symbol){
+  const orders=await client.openOrders({symbol});
+  const sells=(orders||[]).filter(o=>String(o.side).toUpperCase()==='SELL');
+
+  for(const order of sells){
+    try{
+      await client.cancelOrder({symbol:order.symbol,orderId:order.orderId});
+    }catch(e){
+      console.error(`[ROBO] FALHA AO CANCELAR SELL ${symbol} ${order.orderId}:`,errText(e));
+    }
+  }
+
+  return sells.length;
+}
+
+async function marketSellRemaining(client,symbol){
+  const info=await client.exchangeInfo();
+  const si=info.symbols.find(s=>s.symbol===symbol);
+  if(!si) throw new Error(`Par não encontrado: ${symbol}`);
+
+  const lot=si.filters?.find(f=>f.filterType==='LOT_SIZE');
+  const nf=si.filters?.find(f=>f.filterType==='NOTIONAL'||f.filterType==='MIN_NOTIONAL');
+
+  const step=num(lot?.stepSize);
+  const minQty=num(lot?.minQty);
+  const minNot=num(nf?.minNotional);
+  const base=String(si.baseAsset||'').toUpperCase();
+
+  const accountInfo=await client.accountInfo();
+  const free=num(accountInfo.balances?.find(
+    b=>String(b.asset||'').toUpperCase()===base
+  )?.free);
+
+  const qty=roundDown(free,step);
+
+  if(qty<=0) return null;
+  if(minQty>0 && qty<minQty) return null;
+
+  const price=num((await client.prices({symbol}))[symbol]);
+  if(price<=0) throw new Error(`Preço inválido para ${symbol}`);
+  if(minNot>0 && qty*price<minNot) return null;
+
+  return client.order({
+    symbol,
+    side:'SELL',
+    type:'MARKET',
+    quantity:qty
+  });
+}
+
 async function getConfig(userId,accountId,robotId=1){
   await ensureSchema();
   const r=await db.query(`SELECT * FROM robot_configs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,[userId,accountId,robotId]);
@@ -457,7 +507,7 @@ async function buy(userId,account,config,symbol,robotId=1){
 
   await db.query(
     `INSERT INTO robot_operations(user_id,account_id,robot_id,symbol,buy_order_id,tp_order_id,buy_price,quantity,tp_price,stop_price,status,opened_at,updated_at)
-     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,'OPEN',NOW(),NOW())`,
+     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OPEN',NOW(),NOW())`,
     [userId,account.id,robotId,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]
   );
 
@@ -501,24 +551,148 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
 }
 
 async function monitorOpenOps(userId,account,config,robotId=1){
-  const client=clientFor(account); await ensureSchema(); const r=await db.query(`SELECT * FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN' ORDER BY id`,[userId,account.id,robotId]);
+  const client=clientFor(account);
+  await ensureSchema();
+
+  const r=await db.query(
+    `SELECT * FROM robot_operations
+     WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN'
+     ORDER BY id`,
+    [userId,account.id,robotId]
+  );
+
   for(const op of r.rows){
     try{
       const price=num((await client.prices({symbol:op.symbol}))[op.symbol]);
-      if(config.stop_loss_active && price<=num(op.stop_price)){
-        try{await client.cancelOrder({symbol:op.symbol,orderId:op.tp_order_id});}catch(_){ }
-        const ex=await client.exchangeInfo(); const si=ex.symbols.find(s=>s.symbol===op.symbol); const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE'); const qty=roundDown(num(op.quantity),num(lot?.stepSize));
-        if(qty>0) await client.order({symbol:op.symbol,side:'SELL',type:'MARKET',quantity:qty});
-        await db.query(`UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='STOP',updated_at=NOW() WHERE id=$1`,[op.id]);
-        robotLog(userId,account.id,robotId,`SAÍDA AUTOMÁTICA | ${op.symbol} | STOP LOSS acionado | preço=${price} | stop=${op.stop_price}`);
+      if(!(price>0)) continue;
+
+      const tpPrice=num(op.tp_price);
+      const stopPrice=num(op.stop_price) ||
+        (num(op.buy_price)>0 ? num(op.buy_price)*(1-num(config.stop_loss)/100) : 0);
+
+      // STOP LOSS: cancela SELL pendente e vende o saldo restante a mercado.
+      if(config.stop_loss_active && stopPrice>0 && price<=stopPrice){
+        const cancelled=await cancelOpenSellOrders(client,op.symbol);
+        await sleep(300);
+        const market=await marketSellRemaining(client,op.symbol);
+
+        if(market){
+          robotLog(
+            userId,account.id,robotId,
+            `SAÍDA AUTOMÁTICA | ${op.symbol} | STOP LOSS | SELL MARKET | preço≈${price} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
+          );
+          await db.query(
+            `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='STOP',updated_at=NOW() WHERE id=$1`,
+            [op.id]
+          );
+        }else{
+          robotLog(
+            userId,account.id,robotId,
+            `STOP LOSS ACIONADO | ${op.symbol} | não foi possível vender o saldo restante. Verifique saldo, quantidade mínima e filtros da Binance.`,
+            'ERROR'
+          );
+        }
         continue;
       }
-      let ord=null; try{ord=await client.getOrder({symbol:op.symbol,orderId:op.tp_order_id});}catch(_){ }
+
+      // Consulta o estado da ordem TP.
+      let ord=null;
+      try{
+        if(op.tp_order_id){
+          ord=await client.getOrder({
+            symbol:op.symbol,
+            orderId:op.tp_order_id
+          });
+        }
+      }catch(_){}
+
+      // TP já preenchido pela Binance.
       if(ord && String(ord.status).toUpperCase()==='FILLED'){
-        await db.query(`UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,[op.id]);
-        robotLog(userId,account.id,robotId,`SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT executado | preço≈${price} | alvo=${op.tp_price}`);
+        await db.query(
+          `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,
+          [op.id]
+        );
+        robotLog(
+          userId,account.id,robotId,
+          `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT preenchido | preço≈${price} | alvo=${tpPrice}`
+        );
+        continue;
       }
-    }catch(e){ console.error(`ROBOT OP ${op.symbol}:`,errText(e)); }
+
+      // TP atingido, mas LIMIT não fechou: cancela e vende MARKET.
+      if(tpPrice>0 && price>=tpPrice){
+        const cancelled=await cancelOpenSellOrders(client,op.symbol);
+        await sleep(300);
+        const market=await marketSellRemaining(client,op.symbol);
+
+        if(market){
+          robotLog(
+            userId,account.id,robotId,
+            `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT A MERCADO | preço≈${price} | alvo=${tpPrice} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
+          );
+          await db.query(
+            `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,
+            [op.id]
+          );
+        }else{
+          robotLog(
+            userId,account.id,robotId,
+            `TAKE PROFIT ATINGIDO | ${op.symbol} | não foi possível vender o saldo restante. Verifique saldo, quantidade mínima e filtros da Binance.`,
+            'ERROR'
+          );
+        }
+        continue;
+      }
+
+      // Se a SELL sumiu/cancelou e a posição continua aberta, recria a proteção.
+      const orderStatus=String(ord?.status||'').toUpperCase();
+
+      if(tpPrice>0 && (!ord || !['NEW','PARTIALLY_FILLED'].includes(orderStatus))){
+        try{
+          const info=await client.exchangeInfo();
+          const si=info.symbols.find(s=>s.symbol===op.symbol);
+          const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE');
+          const pf=si?.filters?.find(f=>f.filterType==='PRICE_FILTER');
+
+          const qty=roundDown(num(op.quantity),num(lot?.stepSize));
+          const tp=roundPrice(tpPrice,num(pf?.tickSize));
+
+          if(qty>0 && tp>0){
+            const recreated=await client.order({
+              symbol:op.symbol,
+              side:'SELL',
+              type:'LIMIT',
+              quantity:qty,
+              price:tp,
+              timeInForce:'GTC'
+            });
+
+            await db.query(
+              `UPDATE robot_operations SET tp_order_id=$1,updated_at=NOW() WHERE id=$2`,
+              [String(recreated.orderId),op.id]
+            );
+
+            robotLog(
+              userId,account.id,robotId,
+              `PROTEÇÃO RECRIADA | ${op.symbol} | SELL/TP=${recreated.orderId} | preço=${tp}`
+            );
+          }
+        }catch(e){
+          robotLog(
+            userId,account.id,robotId,
+            `PROTEÇÃO PERDIDA | ${op.symbol} | não foi possível recriar TP | ${errText(e)}`,
+            'ERROR'
+          );
+        }
+      }
+    }catch(e){
+      console.error(`ROBOT OP ${op.symbol}:`,errText(e));
+      robotLog(
+        userId,account.id,robotId,
+        `ERRO AO MONITORAR ${op.symbol} | ${errText(e)}`,
+        'ERROR'
+      );
+    }
   }
 }
 

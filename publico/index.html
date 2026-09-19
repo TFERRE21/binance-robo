@@ -235,7 +235,28 @@ button{cursor:pointer}
   background:rgba(255,75,75,.1);color:#ff8585;border-radius:9px;font-weight:900;font-size:10px
 }
 .sell-btn:hover{background:rgba(255,75,75,.17)}
+
 .sell-btn:disabled{opacity:.5;cursor:not-allowed}
+.operation-live-head{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;
+  margin-bottom:10px;padding:9px 10px;border:1px solid rgba(240,185,11,.16);
+  background:rgba(240,185,11,.035);border-radius:9px
+}
+.operation-live-price{font-size:17px;font-weight:900;color:#f0b90b}
+.operation-live-time{font-size:8px;color:#6f7b8b}
+.operation-sell-order{
+  margin-top:10px;padding:9px;border-radius:8px;
+  border:1px solid rgba(255,184,77,.18);background:rgba(255,184,77,.045);
+  color:#d9e0ea;font-size:9px;line-height:1.5
+}
+.operation-pnl-box{
+  margin-top:10px;padding:10px;border-radius:9px;
+  border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.16)
+}
+.operation-pnl-main{font-size:16px;font-weight:900}
+.operation-pnl-brl{font-size:11px;font-weight:800;margin-top:4px}
+.operation-pnl-pct{font-size:10px;font-weight:900;margin-top:4px}
+.operation-refreshing{opacity:.7}
 
 .section-title{font-size:15px;font-weight:900;margin-bottom:13px}
 .modules{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
@@ -1106,6 +1127,7 @@ let selectedAccountData=null;
 let usdBrl=0;
 let refreshTimer=null;
 let robotLogTimer=null;
+let operationRealtimeTimer=null;
 
 async function apiFetch(url,options={}){
   const headers={...(options.headers||{}),"Authorization":"Bearer "+token,"Content-Type":"application/json"};
@@ -1483,7 +1505,7 @@ async function loadSelectedAccount(){
     statusEl.classList.remove("pending-account");
     statusEl.textContent="Conectando à API selecionada...";
   }
-  if(operationContent){
+  if(operationContent && !operationContent.querySelector("[data-operation-card]")){
     operationContent.innerHTML='<div class="operation-empty">Carregando dados da conta Binance...</div>';
   }
 
@@ -1664,57 +1686,287 @@ async function loadSelectedAccount(){
 }
 async function renderOperation(assets){
   const container=document.getElementById("operationContent");
-  const candidates=(assets||[]).filter(a=>!a.priceUnavailable&&Number(a.valorUSDT||0)>0&&!["USDT","USDC","FDUSD","TUSD","BUSD"].includes(String(a.asset||"").toUpperCase()));
+  const candidates=(assets||[]).filter(a=>
+    !a.priceUnavailable &&
+    Number(a.valorUSDT||0)>0 &&
+    !["USDT","USDC","FDUSD","TUSD","BUSD"].includes(String(a.asset||"").toUpperCase())
+  );
+
   if(!candidates.length){
-    container.innerHTML='<div class="operation-empty">Nenhuma posição em moeda negociável encontrada nesta API.</div>';return;
+    /*
+      Não apaga uma posição que já está desenhada só porque uma
+      consulta momentânea voltou vazia. A posição só some quando
+      a atualização em tempo real confirmar quantidade = 0.
+    */
+    if(container.querySelector("[data-operation-card]")) return;
+    container.innerHTML='<div class="operation-empty">Nenhuma posição em moeda negociável encontrada nesta API.</div>';
+    return;
   }
 
   const cards=[];
-  for(const asset of candidates.slice(0,6)){
+  for(const asset of candidates.slice(0,10)){
     const symbol=String(asset.asset).toUpperCase()+"USDT";
     try{
-      const data=await apiFetch("/api/panel/operation/"+encodeURIComponent(selectedAccountId)+"?symbol="+encodeURIComponent(symbol));
+      const data=await apiFetch(
+        "/api/panel/operation/"+
+        encodeURIComponent(selectedAccountId)+
+        "?symbol="+encodeURIComponent(symbol)
+      );
       const op=data.operation;
       if(!op||Number(op.totalQuantity||0)<=0)continue;
-      const pnl=Number(op.pnlUSDT||0), pnlPct=Number(op.pnlPercentual||0);
+
+      const pnl=Number(op.pnlUSDT||0);
+      const pnlPct=Number(op.pnlPercentual||0);
       const cls=pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral";
+      const orders=Array.isArray(op.sellOrders)?op.sellOrders:[];
+      const sellHtml=orders.length
+        ? orders.map(o=>
+            `VENDA ${escapeHtml(o.orderId)} · ${moneyUSDT(o.price)} · `+
+            `${formatNumber(o.origQty)} · ${escapeHtml(o.status||"ABERTA")}`
+          ).join("<br>")
+        : "Nenhuma ordem SELL aberta";
+
       cards.push(`
-        <div class="operation-item">
-          <div class="operation-label">${escapeHtml(op.symbol)}</div>
-          <div class="operation-value">${moneyUSDT(op.currentPrice)}</div>
-          <div class="operation-label" style="margin-top:8px">Entrada média</div>
-          <div class="operation-value">${op.averageEntry?moneyUSDT(op.averageEntry):"—"}</div>
+        <div class="operation-item" data-operation-card="${escapeHtml(op.symbol)}">
+          <div class="operation-live-head">
+            <div>
+              <div class="operation-label">${escapeHtml(op.symbol)} · POSIÇÃO ABERTA</div>
+              <div class="operation-live-price" data-live-price>${moneyUSDT(op.currentPrice)}</div>
+            </div>
+            <div class="operation-live-time" data-live-time>Atualizado agora</div>
+          </div>
+
+          <div class="operation-label">Entrada média</div>
+          <div class="operation-value" data-live-entry>${op.averageEntry?moneyUSDT(op.averageEntry):"—"}</div>
+
           <div class="operation-label" style="margin-top:8px">Quantidade</div>
-          <div class="operation-value">${formatNumber(op.totalQuantity)}</div>
-          <div class="operation-label" style="margin-top:8px">Valor atual</div>
-          <div class="operation-value">${moneyUSDT(op.currentValue)}</div>
-          <div class="operation-value brl">${moneyBRL(Number(op.currentValue||0)*usdBrl)}</div>
-          <div class="operation-label" style="margin-top:8px">P/L estimado</div>
-          <div class="operation-value ${cls}">${moneyUSDT(pnl)} · ${percent(pnlPct)}</div>
-          <div class="operation-value brl">${moneyBRL(pnl*usdBrl)}</div>
-          <button class="sell-btn" onclick="previewSell('${escapeHtml(op.symbol)}')">Vender manualmente</button>
+          <div class="operation-value" data-live-qty>${formatNumber(op.totalQuantity)}</div>
+
+          <div class="operation-label" style="margin-top:8px">Valor da posição</div>
+          <div class="operation-value" data-live-value>${moneyUSDT(op.currentValue)}</div>
+          <div class="operation-value brl" data-live-value-brl>${moneyBRL(Number(op.currentValue||0)*usdBrl)}</div>
+
+          <div class="operation-pnl-box">
+            <div class="operation-label">Se vender agora a mercado</div>
+            <div class="operation-pnl-main ${cls}" data-live-pnl>${moneyUSDT(pnl)}</div>
+            <div class="operation-pnl-brl ${cls}" data-live-pnl-brl>${moneyBRL(pnl*usdBrl)}</div>
+            <div class="operation-pnl-pct ${cls}" data-live-pnl-pct>${percent(pnlPct)}</div>
+          </div>
+
+          <div class="operation-sell-order" data-live-orders>
+            <strong>📌 Ordem de proteção:</strong><br>${sellHtml}
+          </div>
+
+          <button class="sell-btn" onclick="manualSell('${escapeHtml(op.symbol)}')">
+            🔴 VENDER AGORA A MERCADO
+          </button>
         </div>`);
-    }catch(e){}
+    }catch(e){
+      console.warn("Operação "+symbol,e);
+    }
   }
+
   if(!cards.length){
-    container.innerHTML='<div class="operation-empty">Não foi possível calcular uma posição aberta para os ativos desta API.</div>';return;
+    if(container.querySelector("[data-operation-card]")) return;
+    container.innerHTML='<div class="operation-empty">Aguardando confirmação da posição aberta na Binance...</div>';
+    return;
   }
+
   container.innerHTML=`<div class="operation-grid">${cards.join("")}</div>`;
 }
 
-async function previewSell(symbol){
+async function updateOperationRealtime(){
+  if(!selectedAccountId)return;
+
+  const cards=[...document.querySelectorAll("[data-operation-card]")];
+  if(!cards.length)return;
+
+  for(const card of cards){
+    const symbol=card.getAttribute("data-operation-card");
+    if(!symbol)continue;
+
+    try{
+      const data=await apiFetch(
+        "/api/panel/operation/"+
+        encodeURIComponent(selectedAccountId)+
+        "?symbol="+encodeURIComponent(symbol)
+      );
+      const op=data.operation;
+
+      /*
+        Só remove a posição quando a Binance confirmar quantidade zero.
+        Enquanto existir saldo, o card permanece e apenas os números mudam.
+      */
+      if(!op || Number(op.totalQuantity||0)<=0){
+        card.remove();
+        continue;
+      }
+
+      const price=Number(op.currentPrice||0);
+      const avg=Number(op.averageEntry||0);
+      const qty=Number(op.totalQuantity||0);
+      const value=Number(op.currentValue||0);
+      const pnl=Number(op.pnlUSDT||0);
+      const pnlPct=Number(op.pnlPercentual||0);
+      const orders=Array.isArray(op.sellOrders)?op.sellOrders:[];
+
+      const priceEl=card.querySelector("[data-live-price]");
+      const entryEl=card.querySelector("[data-live-entry]");
+      const qtyEl=card.querySelector("[data-live-qty]");
+      const valueEl=card.querySelector("[data-live-value]");
+      const valueBrlEl=card.querySelector("[data-live-value-brl]");
+      const pnlEl=card.querySelector("[data-live-pnl]");
+      const pnlBrlEl=card.querySelector("[data-live-pnl-brl]");
+      const pnlPctEl=card.querySelector("[data-live-pnl-pct]");
+      const ordersEl=card.querySelector("[data-live-orders]");
+      const timeEl=card.querySelector("[data-live-time]");
+
+      if(priceEl)priceEl.textContent=moneyUSDT(price);
+      if(entryEl)entryEl.textContent=avg?moneyUSDT(avg):"—";
+      if(qtyEl)qtyEl.textContent=formatNumber(qty);
+      if(valueEl)valueEl.textContent=moneyUSDT(value);
+      if(valueBrlEl)valueBrlEl.textContent=moneyBRL(value*usdBrl);
+      if(pnlEl)pnlEl.textContent=moneyUSDT(pnl);
+      if(pnlBrlEl)pnlBrlEl.textContent=moneyBRL(pnl*usdBrl);
+      if(pnlPctEl)pnlPctEl.textContent=percent(pnlPct);
+
+      [pnlEl,pnlBrlEl,pnlPctEl].forEach(el=>{
+        if(!el)return;
+        el.classList.remove("pnl-positive","pnl-negative","pnl-neutral");
+        el.classList.add(pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral");
+      });
+
+      if(ordersEl){
+        const sellHtml=orders.length
+          ? orders.map(o=>
+              `VENDA ${escapeHtml(o.orderId)} · ${moneyUSDT(o.price)} · `+
+              `${formatNumber(o.origQty)} · ${escapeHtml(o.status||"ABERTA")}`
+            ).join("<br>")
+          : "Nenhuma ordem SELL aberta";
+        ordersEl.innerHTML=`<strong>📌 Ordem de proteção:</strong><br>${sellHtml}`;
+      }
+
+      if(timeEl)timeEl.textContent="Atualizado "+new Date().toLocaleTimeString("pt-BR");
+
+      card.classList.remove("operation-refreshing");
+
+      // Mantém os indicadores do topo sincronizados com a posição real.
+      window.currentPnlPercent=pnlPct;
+    }catch(e){
+      console.warn("Atualização em tempo real "+symbol,e);
+    }
+  }
+
+  const remaining=document.querySelectorAll("[data-operation-card]").length;
+  if(!remaining){
+    const container=document.getElementById("operationContent");
+    if(container)container.innerHTML='<div class="operation-empty">Posição encerrada. Aguardando nova operação...</div>';
+  }
+}
+
+async function manualSell(symbol){
+  if(!selectedAccountId){
+    alert("Selecione uma API Binance antes de vender.");
+    return;
+  }
+
   try{
-    const data=await apiFetch("/api/panel/manual/preview?account="+encodeURIComponent(selectedAccountId)+"&symbol="+encodeURIComponent(symbol));
-    const p=data.preview||{};
-    const text=
-      "VENDA MANUAL — "+symbol+
-      "\n\nQuantidade: "+formatNumber(p.quantity)+
-      "\nPreço atual: "+moneyUSDT(p.precoAtual||0)+
-      "\nValor estimado: "+moneyUSDT(p.valorEstimado||0)+
-      "\nValor estimado em R$: "+moneyBRL(Number(p.valorEstimado||0)*usdBrl)+
-      "\n\nAtenção: esta tela é apenas uma prévia. A execução da venda só deve ser habilitada quando a rota de execução autenticada estiver confirmada no backend.";
-    alert(text);
-  }catch(e){alert(e.message||"Não foi possível gerar a prévia da venda.")}
+    const previewData=await apiFetch(
+      "/api/panel/manual/preview?account="+
+      encodeURIComponent(selectedAccountId)+
+      "&symbol="+encodeURIComponent(symbol)
+    );
+
+    const p=previewData.preview||{};
+    const qty=Number(p.quantity||0);
+    const price=Number(p.price||p.precoAtual||0);
+    const estimated=Number(p.estimatedValue||p.valorEstimado||0);
+
+    if(qty<=0){
+      alert("Não existe saldo disponível suficiente para vender "+symbol+".");
+      return;
+    }
+
+    const confirmed=confirm(
+      "⚠️ VENDA REAL NA BINANCE\n\n"+
+      "Ativo: "+symbol+"\n"+
+      "Quantidade: "+formatNumber(qty)+"\n"+
+      "Preço atual: "+moneyUSDT(price)+"\n"+
+      "Valor aproximado: "+moneyUSDT(estimated)+"\n"+
+      "Em reais: "+moneyBRL(estimated*usdBrl)+"\n\n"+
+      "A ordem será enviada como VENDA A MERCADO.\n"+
+      "Deseja realmente vender agora?"
+    );
+
+    if(!confirmed)return;
+
+    const card=[...document.querySelectorAll("[data-operation-card]")]
+      .find(el=>el.getAttribute("data-operation-card")===symbol);
+    const button=card?.querySelector(".sell-btn");
+    if(button){
+      button.disabled=true;
+      button.textContent="⏳ VENDENDO...";
+    }
+
+    // Primeiro cancela a ordem SELL de proteção para liberar o saldo.
+    const cancelled=await apiFetch("/api/panel/manual/cancel-sell",{
+      method:"POST",
+      body:JSON.stringify({
+        accountId:selectedAccountId,
+        symbol
+      })
+    });
+
+    if(!cancelled.success){
+      throw new Error(cancelled.message||"Não foi possível cancelar a ordem de proteção.");
+    }
+
+    /*
+      Pequeno intervalo para a Binance refletir o saldo liberado.
+      A rota de venda recalcula o saldo real no servidor.
+    */
+    await new Promise(resolve=>setTimeout(resolve,500));
+
+    const sold=await apiFetch("/api/panel/manual/sell",{
+      method:"POST",
+      body:JSON.stringify({
+        accountId:selectedAccountId,
+        symbol,
+        quantity:qty,
+        confirmation:"CONFIRMAR VENDA"
+      })
+    });
+
+    if(!sold.success){
+      throw new Error(sold.message||"A Binance não confirmou a venda.");
+    }
+
+    alert(
+      "✅ VENDA EXECUTADA\n\n"+
+      symbol+" foi enviado para venda a mercado na Binance.\n"+
+      "Ordem: "+(sold.order?.orderId||"confirmada")+"\n\n"+
+      "O painel continuará acompanhando até a Binance confirmar o encerramento."
+    );
+
+    await updateOperationRealtime();
+    await loadRobotInstances();
+    await loadRobotStatus(activeRobotId);
+  }catch(e){
+    console.error("VENDA MANUAL:",e);
+    alert("❌ Não foi possível executar a venda.\n\n"+(e?.message||e));
+
+    const card=[...document.querySelectorAll("[data-operation-card]")]
+      .find(el=>el.getAttribute("data-operation-card")===symbol);
+    const button=card?.querySelector(".sell-btn");
+    if(button){
+      button.disabled=false;
+      button.textContent="🔴 VENDER AGORA A MERCADO";
+    }
+
+    // Reconsulta a posição porque o cancelamento pode ter sido concluído
+    // mesmo que a venda tenha falhado.
+    await updateOperationRealtime();
+  }
 }
 
 
@@ -2838,6 +3090,7 @@ async function init(){
   if(!active)return;
   await loadExchangeRate();
   await loadAccounts();
+  await updateOperationRealtime();
   await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
   await loadCryptoNews();
   refreshTimer=setInterval(async()=>{
@@ -2847,6 +3100,15 @@ async function init(){
     await loadCryptoNews();
     await loadRobotStatus();
   },30000);
+
+  if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
+  operationRealtimeTimer=setInterval(async()=>{
+    try{
+      await updateOperationRealtime();
+    }catch(e){
+      console.warn("OPERAÇÃO TEMPO REAL:",e);
+    }
+  },5000);
   if(robotLogTimer)clearInterval(robotLogTimer);
   robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }

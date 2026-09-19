@@ -111,8 +111,8 @@ function errText(e){ return e?.body ? (typeof e.body==='string'?e.body:JSON.stri
 function robotLog(userId,accountId,robotId,message,level='INFO'){
   const line=`[ROBO] usuário=${userId} | conta=${accountId} | robô=${robotId} | ${message}`;
   if(level==='ERROR')console.error(line);else console.log(line);
-  db.query(`INSERT INTO robot_logs(user_id,account_id,level,message) VALUES($1,$2,$3,$4)`,
-    [userId,accountId,level,String(message)]
+  db.query(`INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,$4,$5)`,
+    [userId,accountId,robotId,level,String(message)]
   ).catch(e=>console.error('[ROBO LOG DB]:',errText(e)));
 }
 function fmtNum(v){
@@ -343,6 +343,13 @@ async function saveConfig(userId,accountId,c,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
   }
 
+  // Stop Loss em 0% significa explicitamente "sem Stop Loss".
+  if(Number(c.stopLoss)<0 || !Number.isFinite(Number(c.stopLoss))){
+    throw new Error('Stop Loss deve ser 0 ou maior.');
+  }
+  if(Number(c.stopLoss)===0){
+    c.stopLossActive=false;
+  }
   if(Boolean(c.stopLossActive) && !planRules.stopLoss){
     throw new Error(`Stop Loss está disponível a partir do plano Profissional.`);
   }
@@ -765,12 +772,27 @@ async function scan(userId,account,config,robotId=1){
   return scanByProfile(userId,account,STRATEGIES[version]?config:{...config,strategy_version:'premium'},robotId);
 }
 
+function intervalToMs(interval){
+  const map={
+    '1m':60*1000,
+    '5m':5*60*1000,
+    '15m':15*60*1000,
+    '30m':30*60*1000,
+    '1h':60*60*1000
+  };
+  return map[String(interval||'15m')] || 15*60*1000;
+}
+
 async function loop(userId,accountId,robotId=1){
   const key=`${userId}:${accountId}:${robotId}`;
   if(runners.has(key))return;
 
   const runner={stop:false};
   runners.set(key,runner);
+
+  // A análise de novas entradas respeita o intervalo salvo na configuração.
+  // A monitoração de posições abertas continua frequente para TP/SL/proteção.
+  let nextScanAt=0;
 
   try{
     while(!runner.stop){
@@ -780,28 +802,40 @@ async function loop(userId,accountId,robotId=1){
       if(!account||!config||!config.running)break;
 
       try{
-        const strategy=strategyInfo(String(config.strategy_version||'premium'));
-
-        robotLog(userId,account.id,robotId,
-          `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | simultâneas=${config.max_operations}`
-        );
-
-        // 1) Primeiro administra posições que já existem.
+        // Sempre monitora operações abertas.
         await monitorOpenOps(userId,account,config,robotId);
 
-        // 2) Depois procura novos setups conforme a estratégia escolhida.
-        const setups=await scan(userId,account,config,robotId);
+        // Só faz uma nova BUSCA quando chegar o intervalo configurado.
+        if(Date.now()>=nextScanAt){
+          const scanStartedAt=Date.now();
+          const strategy=strategyInfo(String(config.strategy_version||'premium'));
+          const interval=config.interval||'15m';
+          const intervalMs=intervalToMs(interval);
 
-        // 3) Executa as entradas aprovadas respeitando o limite configurado.
-        if(setups.length){
-          await executeApprovedSetups(userId,account,config,setups,robotId);
-        }else{
-          robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
+          robotLog(userId,account.id,robotId,
+            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | próximas entradas em ${Math.round(intervalMs/60000)} min | simultâneas=${config.max_operations}`
+          );
+
+          const setups=await scan(userId,account,config,robotId);
+
+          if(setups.length){
+            await executeApprovedSetups(userId,account,config,setups,robotId);
+          }else{
+            robotLog(userId,account.id,robotId,`NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`);
+          }
+
+          // O intervalo é contado a partir do início da busca.
+          nextScanAt=scanStartedAt+intervalMs;
         }
       }catch(e){
         robotLog(userId,account.id,robotId,`ERRO NO CICLO | ${errText(e)}`,'ERROR');
+        // Mesmo em caso de erro, não dispara uma nova busca a cada 15s.
+        if(Date.now()>=nextScanAt){
+          nextScanAt=Date.now()+intervalToMs(config.interval);
+        }
       }
 
+      // 15s é somente a frequência de supervisão das posições abertas.
       await sleep(15000);
     }
   }finally{
@@ -828,6 +862,17 @@ async function start(userId,accountId,robotId=1){
 
   if(Number(c.max_operations)>planRules.maxOperations){
     throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
+  }
+
+  // Compatibilidade: configurações antigas com Stop Loss 0 ficam sem SL.
+  if(Number(c.stop_loss)<=0){
+    await db.query(
+      `UPDATE robot_configs SET stop_loss=0,stop_loss_active=false,updated_at=NOW()
+       WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,
+      [userId,accountId,robotId]
+    );
+    c.stop_loss=0;
+    c.stop_loss_active=false;
   }
 
   if(Boolean(c.stop_loss_active) && !planRules.stopLoss){

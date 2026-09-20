@@ -226,7 +226,107 @@ async function asaasRequest(path, options = {}) {
   return data;
 }
 
-function asaasExternalReference(subscriptionId) {
+async function cancelarAssinaturaAnterior(assinatura) {
+  if (!assinatura) {
+    return {
+      ok: true,
+      skipped: true
+    };
+  }
+
+  try {
+    if (
+      assinatura.payment_provider === "ASAAS" &&
+      assinatura.external_subscription_id
+    ) {
+      await asaasRequest(
+        `/v3/subscriptions/${encodeURIComponent(
+          assinatura.external_subscription_id
+        )}`,
+        {
+          method: "DELETE"
+        }
+      );
+
+      console.log(
+        "ASSINATURA ASAAS ANTERIOR ENCERRADA:",
+        {
+          localSubscriptionId:
+            assinatura.id,
+          asaasSubscriptionId:
+            assinatura.external_subscription_id
+        }
+      );
+
+      return {
+        ok: true,
+        provider: "ASAAS"
+      };
+    }
+
+    if (
+      assinatura.payment_provider === "STRIPE" &&
+      assinatura.external_subscription_id &&
+      stripe
+    ) {
+      await stripe.subscriptions.cancel(
+        assinatura.external_subscription_id
+      );
+
+      console.log(
+        "ASSINATURA STRIPE ANTERIOR ENCERRADA APÓS UPGRADE ASAAS:",
+        {
+          localSubscriptionId:
+            assinatura.id,
+          stripeSubscriptionId:
+            assinatura.external_subscription_id
+        }
+      );
+
+      return {
+        ok: true,
+        provider: "STRIPE"
+      };
+    }
+
+    return {
+      ok: true,
+      skipped: true,
+      reason:
+        "Assinatura anterior sem identificador externo cancelável."
+    };
+
+  } catch (error) {
+    console.error(
+      "NÃO FOI POSSÍVEL ENCERRAR A ASSINATURA ANTERIOR:",
+      {
+        localSubscriptionId:
+          assinatura.id,
+        provider:
+          assinatura.payment_provider,
+        externalSubscriptionId:
+          assinatura.external_subscription_id,
+        error:
+          error?.message || String(error)
+      }
+    );
+
+    return {
+      ok: false,
+      error:
+        error?.message || String(error)
+    };
+  }
+}
+
+function asaasExternalReference(
+  subscriptionId,
+  previousSubscriptionId = null
+) {
+  if (previousSubscriptionId) {
+    return `criptopro:${subscriptionId}:upgrade:${previousSubscriptionId}`;
+  }
+
   return `criptopro:${subscriptionId}`;
 }
 
@@ -237,10 +337,24 @@ function subscriptionIdFromAsaasReference(reference) {
     return null;
   }
 
-  const id = value.slice("criptopro:".length);
+  const match = value.match(
+    /^criptopro:(\d+)(?::upgrade:\d+)?$/
+  );
 
-  return /^\d+$/.test(id)
-    ? Number(id)
+  return match
+    ? Number(match[1])
+    : null;
+}
+
+function previousSubscriptionIdFromAsaasReference(reference) {
+  const value = String(reference || "").trim();
+
+  const match = value.match(
+    /^criptopro:\d+:upgrade:(\d+)$/
+  );
+
+  return match
+    ? Number(match[1])
     : null;
 }
 
@@ -1270,7 +1384,15 @@ router.post(
       }
 
       // ------------------------------------------------------
-      // NÃO PERMITE NOVA ASSINATURA ENQUANTO HOUVER ACTIVE
+      // ASSINATURA ATIVA
+      // ------------------------------------------------------
+      //
+      // Se já existir um plano ativo:
+      // - mesmo plano: bloqueia;
+      // - plano diferente: permite UPGRADE/TROCA via PIX.
+      //
+      // A assinatura atual permanece ativa até o novo pagamento
+      // ser confirmado pelo Webhook do Asaas.
       // ------------------------------------------------------
 
       const activeResult =
@@ -1290,11 +1412,19 @@ router.post(
           [userId]
         );
 
-      if (activeResult.rows.length > 0) {
+      const assinaturaAnterior =
+        activeResult.rows.length > 0
+          ? activeResult.rows[0]
+          : null;
+
+      if (
+        assinaturaAnterior &&
+        assinaturaAnterior.plan === plan
+      ) {
         return res.status(400).json({
           ok: false,
           error:
-            "Você já possui uma assinatura ativa."
+            `Você já está no plano ${PLANOS[plan].nome}.`
         });
       }
 
@@ -1390,7 +1520,11 @@ router.post(
                     pending.id,
                   checkoutId,
                   paymentUrl,
-                  reused: true
+                  reused: true,
+                  changePlan:
+                    Boolean(assinaturaAnterior),
+                  previousPlan:
+                    assinaturaAnterior?.plan || null
                 });
 
               }
@@ -1527,7 +1661,8 @@ router.post(
 
         externalReference:
           asaasExternalReference(
-            subscriptionId
+            subscriptionId,
+            assinaturaAnterior?.id || null
           ),
 
         callback: {
@@ -1655,7 +1790,10 @@ router.post(
         subscriptionId,
         checkoutId,
         paymentUrl,
-        reused: false
+        reused: false,
+        changePlan: Boolean(assinaturaAnterior),
+        previousPlan:
+          assinaturaAnterior?.plan || null
       });
 
     } catch (error) {
@@ -3363,6 +3501,11 @@ async function processarWebhookAsaas(req, res) {
           checkout.externalReference
         );
 
+      const previousLocalId =
+        previousSubscriptionIdFromAsaasReference(
+          checkout.externalReference
+        );
+
       if (!localId) {
 
         console.warn(
@@ -3467,6 +3610,64 @@ async function processarWebhookAsaas(req, res) {
         ]
       );
 
+      // ------------------------------------------------------
+      // UPGRADE/TROCA:
+      // encerra a assinatura anterior somente depois que
+      // o novo Checkout foi efetivamente pago.
+      // ------------------------------------------------------
+
+      if (
+        previousLocalId &&
+        String(previousLocalId) !==
+          String(assinatura.id)
+      ) {
+        const previousResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [previousLocalId]
+          );
+
+        if (previousResult.rows.length > 0) {
+          const assinaturaAnterior =
+            previousResult.rows[0];
+
+          await cancelarAssinaturaAnterior(
+            assinaturaAnterior
+          );
+
+          await db.query(
+            `
+            UPDATE subscriptions
+            SET
+              status = 'CANCELLED',
+              updated_at = NOW()
+            WHERE id = $1
+              AND status = 'ACTIVE'
+            `,
+            [assinaturaAnterior.id]
+          );
+
+          console.log(
+            "PLANO ANTERIOR CANCELADO APÓS PAGAMENTO ASAAS:",
+            {
+              previousSubscriptionId:
+                assinaturaAnterior.id,
+              previousPlan:
+                assinaturaAnterior.plan,
+              newSubscriptionId:
+                assinatura.id,
+              newPlan:
+                assinatura.plan
+            }
+          );
+        }
+      }
+
       console.log(
         "ASSINATURA ASAAS ATIVADA VIA CHECKOUT_PAID:",
         {
@@ -3563,10 +3764,48 @@ async function processarWebhookAsaas(req, res) {
         event.subscription ||
         {};
 
-      const localId =
+      let localId =
         subscriptionIdFromAsaasReference(
           subscription.externalReference
         );
+
+      // Alguns payloads de assinatura podem não trazer
+      // externalReference. Nesse caso, usamos o cliente/e-mail
+      // e o registro ASAAS PENDING mais recente como fallback.
+      if (
+        !localId &&
+        subscription.customer
+      ) {
+        const fallbackResult =
+          await db.query(
+            `
+            SELECT s.id
+            FROM subscriptions s
+            WHERE s.payment_provider = 'ASAAS'
+              AND s.status IN ('PENDING', 'ACTIVE')
+              AND s.created_at >= NOW() - INTERVAL '2 hours'
+              AND (
+                s.amount IS NULL
+                OR ABS(
+                  COALESCE(s.amount, 0) -
+                  COALESCE($1, 0)
+                ) < 0.01
+              )
+            ORDER BY s.id DESC
+            LIMIT 1
+            `,
+            [
+              Number(
+                subscription.value || 0
+              )
+            ]
+          );
+
+        if (fallbackResult.rows.length > 0) {
+          localId =
+            fallbackResult.rows[0].id;
+        }
+      }
 
       if (localId) {
 
@@ -3721,7 +3960,7 @@ async function processarWebhookAsaas(req, res) {
         });
       }
 
-      const localResult =
+      let localResult =
         await db.query(
           `
           SELECT *
@@ -3735,6 +3974,37 @@ async function processarWebhookAsaas(req, res) {
             payment.subscription
           ]
         );
+
+      // Fallback para o primeiro pagamento caso o evento
+      // SUBSCRIPTION_CREATED ainda não tenha sido processado.
+      if (
+        localResult.rows.length === 0
+      ) {
+        localResult =
+          await db.query(
+            `
+            SELECT *
+            FROM subscriptions
+            WHERE payment_provider = 'ASAAS'
+              AND status IN ('PENDING', 'ACTIVE')
+              AND created_at >= NOW() - INTERVAL '2 hours'
+              AND (
+                amount IS NULL
+                OR ABS(
+                  COALESCE(amount, 0) -
+                  COALESCE($1, 0)
+                ) < 0.01
+              )
+            ORDER BY id DESC
+            LIMIT 1
+            `,
+            [
+              Number(
+                payment.value || 0
+              )
+            ]
+          );
+      }
 
       if (localResult.rows.length === 0) {
 
@@ -3801,12 +4071,17 @@ async function processarWebhookAsaas(req, res) {
           UPDATE subscriptions
           SET
             external_payment_id = $1,
+            external_subscription_id =
+              COALESCE($2, external_subscription_id),
             updated_at = NOW()
-          WHERE id = $2
+          WHERE id = $3
           `,
           [
             payment.id ||
               currentExternalPayment,
+
+            payment.subscription ||
+              null,
 
             assinatura.id
           ]
@@ -3859,14 +4134,19 @@ async function processarWebhookAsaas(req, res) {
             status = 'ACTIVE',
             expires_at = $1,
             external_payment_id = $2,
+            external_subscription_id =
+              COALESCE($3, external_subscription_id),
             updated_at = NOW()
-          WHERE id = $3
+          WHERE id = $4
           `,
           [
             novaExpiracao.toISOString(),
 
             payment.id ||
               currentExternalPayment,
+
+            payment.subscription ||
+              null,
 
             assinatura.id
           ]

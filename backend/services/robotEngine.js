@@ -502,7 +502,7 @@ async function buy(userId,account,config,symbol,robotId=1){
   let tpOrder=null;
   try{
     tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
-    robotLog(userId,account.id,
+    robotLog(userId,account.id,robotId,
       `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${num(config.take_profit)}%`
     );
   }catch(e){
@@ -518,10 +518,10 @@ async function buy(userId,account,config,symbol,robotId=1){
     [userId,account.id,robotId,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]
   );
 
-  robotLog(userId,account.id,
+  robotLog(userId,account.id,robotId,
     `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preço=${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT`
   );
-  robotLog(userId,account.id,
+  robotLog(userId,account.id,robotId,
     `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder.orderId} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
@@ -661,29 +661,84 @@ async function monitorOpenOps(userId,account,config,robotId=1){
           const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE');
           const pf=si?.filters?.find(f=>f.filterType==='PRICE_FILTER');
 
-          const qty=roundDown(num(op.quantity),num(lot?.stepSize));
+          // CORREÇÃO: nunca recriar uma SELL usando uma quantidade
+          // maior que o saldo realmente livre na Binance.
+          const accountInfo=await client.accountInfo();
+          const base=String(si?.baseAsset||'').toUpperCase();
+          const balance=accountInfo.balances?.find(
+            b=>String(b.asset||'').toUpperCase()===base
+          );
+
+          const free=num(balance?.free);
+          const locked=num(balance?.locked);
+          const configuredQty=num(op.quantity);
+          const stepSize=num(lot?.stepSize);
+          const minQty=num(lot?.minQty);
+
+          const nf=si?.filters?.find(
+            f=>f.filterType==='NOTIONAL'||f.filterType==='MIN_NOTIONAL'
+          );
+          const minNot=num(nf?.minNotional);
+          const currentPrice=num((await client.prices({symbol:op.symbol}))[op.symbol]);
+
+          // Usa a menor quantidade entre a operação registrada e o saldo livre real.
+          const qty=roundDown(Math.min(configuredQty,free),stepSize);
           const tp=roundPrice(tpPrice,num(pf?.tickSize));
 
-          if(qty>0 && tp>0){
-            const recreated=await client.order({
-              symbol:op.symbol,
-              side:'SELL',
-              type:'LIMIT',
-              quantity:qty,
-              price:tp,
-              timeInForce:'GTC'
-            });
-
+          // Se não existe saldo do ativo, a operação ficou órfã no banco.
+          // Não adianta tentar recriar a SELL a cada 15 segundos.
+          if(free<=0 || qty<=0){
             await db.query(
-              `UPDATE robot_operations SET tp_order_id=$1,updated_at=NOW() WHERE id=$2`,
-              [String(recreated.orderId),op.id]
+              `UPDATE robot_operations
+               SET status='CLOSED',
+                   closed_at=NOW(),
+                   close_reason='NO_BALANCE',
+                   updated_at=NOW()
+               WHERE id=$1 AND status='OPEN'`,
+              [op.id]
             );
 
             robotLog(
               userId,account.id,robotId,
-              `PROTEÇÃO RECRIADA | ${op.symbol} | SELL/TP=${recreated.orderId} | preço=${tp}`
+              `OPERAÇÃO ENCERRADA | ${op.symbol} | proteção perdida e saldo Binance zerado | registrado=${configuredQty} | livre=${free} | bloqueado=${locked} | motivo=NO_BALANCE`
             );
+            continue;
           }
+
+          // Se existe saldo, mas é menor que a quantidade original,
+          // protege somente o saldo realmente disponível.
+          const validMinQty=!minQty || qty>=minQty;
+          const validMinNot=!minNot || (currentPrice>0 && qty*currentPrice>=minNot);
+
+          if(!validMinQty || !validMinNot || !(tp>0)){
+            robotLog(
+              userId,account.id,robotId,
+              `PROTEÇÃO PENDENTE | ${op.symbol} | saldo disponível não atende aos filtros Binance | registrado=${configuredQty} | livre=${free} | quantidade_calculada=${qty} | mínimoQty=${minQty} | mínimoNotional=${minNot}`,
+              'ERROR'
+            );
+            continue;
+          }
+
+          const recreated=await client.order({
+            symbol:op.symbol,
+            side:'SELL',
+            type:'LIMIT',
+            quantity:qty,
+            price:tp,
+            timeInForce:'GTC'
+          });
+
+          await db.query(
+            `UPDATE robot_operations
+             SET tp_order_id=$1,quantity=$2,updated_at=NOW()
+             WHERE id=$3`,
+            [String(recreated.orderId),qty,op.id]
+          );
+
+          robotLog(
+            userId,account.id,robotId,
+            `PROTEÇÃO RECRIADA | ${op.symbol} | SELL/TP=${recreated.orderId} | quantidade=${qty} | preço=${tp} | saldo livre=${free}`
+          );
         }catch(e){
           robotLog(
             userId,account.id,robotId,

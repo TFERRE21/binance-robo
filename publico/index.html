@@ -218,6 +218,60 @@ button{cursor:pointer}
   border:1px solid rgba(255,75,75,.28);background:rgba(255,75,75,.035);
   border-radius:14px;padding:17px;margin-bottom:20px
 }
+.operation-chart-panel{
+  border:1px solid rgba(255,255,255,.08);
+  background:rgba(255,255,255,.025);
+  border-radius:12px;
+  padding:12px;
+  margin-bottom:14px;
+}
+.operation-chart-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:8px;
+}
+.operation-chart-title{font-size:14px;font-weight:900}
+.operation-chart-sub{color:#778395;font-size:9px;margin-top:4px}
+.operation-chart-price{text-align:right;font-size:18px;font-weight:900;color:#f0b90b}
+.operation-chart-price small{display:block;font-size:8px;color:#778395;font-weight:700;margin-top:3px}
+.operation-chart-wrap{height:380px;position:relative}
+#operationChartTV{width:100%;height:100%;background:#080d14}
+.operation-chart-status{font-size:8px;color:#6f7b8b;margin-top:7px}
+.operation-chart-note{
+  margin-top:7px;
+  color:#718096;
+  font-size:8px;
+  line-height:1.45;
+}
+.operation-chart-select{
+  height:30px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:7px;
+  background:rgba(255,255,255,.035);
+  color:#dbe4ed;
+  font-size:9px;
+  padding:0 8px;
+  outline:none;
+}
+.operation-chart-select option{color:#111;background:#fff}
+.operation-view-chart-btn{
+  margin-top:10px;
+  width:100%;
+  height:34px;
+  border:1px solid rgba(240,185,11,.25);
+  background:rgba(240,185,11,.07);
+  color:#f0b90b;
+  border-radius:8px;
+  font-weight:900;
+  font-size:9px;
+}
+.operation-view-chart-btn:hover{background:rgba(240,185,11,.13)}
+@media(max-width:850px){
+  .operation-chart-wrap{height:300px}
+}
+
 .operation-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
 .operation-title{font-size:15px;font-weight:900}
 .operation-badge{
@@ -791,6 +845,25 @@ select.plan-locked{
     <div class="operation-title" id="operationTitle">🔴 OPERAÇÃO</div>
     <div class="operation-badge" id="operationBadge">TEMPO REAL</div>
   </div>
+
+  <div class="operation-chart-panel" id="operationChartPanel">
+    <div class="operation-chart-head">
+      <div>
+        <div class="operation-chart-title" id="operationChartTitle">📈 MOEDA DA OPERAÇÃO</div>
+        <div class="operation-chart-sub" id="operationChartSub">Aguardando uma posição aberta...</div>
+      </div>
+      <div>
+        <select id="operationChartSelector" class="operation-chart-select" onchange="loadOpenOperationChart(this.value)" style="display:none"></select>
+        <div class="operation-chart-price" id="operationChartPrice">US$ 0,00<small>sem operação aberta</small></div>
+      </div>
+    </div>
+    <div class="operation-chart-wrap">
+      <div id="operationChartTV" class="tv-chart"></div>
+    </div>
+    <div class="operation-chart-status" id="operationChartStatus">Aguardando confirmação da posição na Binance...</div>
+    <div class="operation-chart-note">COMPRA = entrada real · VENDA/TP = saída real ou ordem de proteção · ATUAL = preço em tempo real da Binance.</div>
+  </div>
+
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
 </section>
 
@@ -1757,6 +1830,10 @@ async function renderOperation(assets){
             <strong>📌 Ordem de proteção:</strong><br>${sellHtml}
           </div>
 
+          <button class="operation-view-chart-btn" onclick="loadOpenOperationChart('${escapeHtml(op.symbol)}')">
+            📈 VER ${escapeHtml(op.symbol)} NO GRÁFICO
+          </button>
+
           <button class="sell-btn" onclick="manualSell('${escapeHtml(op.symbol)}')">
             🔴 VENDER AGORA A MERCADO
           </button>
@@ -1773,6 +1850,9 @@ async function renderOperation(assets){
   }
 
   container.innerHTML=`<div class="operation-grid">${cards.join("")}</div>`;
+
+  // Mantém o gráfico principal sincronizado com as posições abertas.
+  await refreshOpenOperationChartFromCards();
 }
 
 async function updateOperationRealtime(){
@@ -1798,7 +1878,13 @@ async function updateOperationRealtime(){
         Enquanto existir saldo, o card permanece e apenas os números mudam.
       */
       if(!op || Number(op.totalQuantity||0)<=0){
+        const removedSymbol=String(symbol).toUpperCase();
         card.remove();
+
+        if(removedSymbol===operationChartSymbol){
+          operationChartSymbol="";
+          await refreshOpenOperationChartFromCards();
+        }
         continue;
       }
 
@@ -1852,6 +1938,11 @@ async function updateOperationRealtime(){
 
       // Mantém os indicadores do topo sincronizados com a posição real.
       window.currentPnlPercent=pnlPct;
+
+      // Atualiza também o marcador ATUAL do gráfico principal sem recriá-lo.
+      if(String(symbol).toUpperCase()===operationChartSymbol){
+        updateOperationChartLive(op);
+      }
     }catch(e){
       console.warn("Atualização em tempo real "+symbol,e);
     }
@@ -1861,6 +1952,9 @@ async function updateOperationRealtime(){
   if(!remaining){
     const container=document.getElementById("operationContent");
     if(container)container.innerHTML='<div class="operation-empty">Posição encerrada. Aguardando nova operação...</div>';
+    clearOperationChart();
+  }else{
+    await refreshOpenOperationChartFromCards();
   }
 }
 
@@ -1987,6 +2081,11 @@ async function manualSell(symbol){
 
 let btcTVChart=null, btcCandleSeries=null, btcVolumeSeries=null, btcSocket=null;
 let detailTVChart=null, detailCandleSeries=null, detailVolumeSeries=null, detailSocket=null;
+let operationTVChart=null, operationCandleSeries=null, operationVolumeSeries=null, operationSocket=null;
+let operationChartSymbol="";
+let operationCurrentPriceLine=null;
+let operationEntryPriceLine=null;
+let operationTakeProfitLines=[];
 
 function tvTheme(){
   return {
@@ -2043,6 +2142,289 @@ function setTVSize(obj,el){
   if(obj&&obj.chart&&el)obj.chart.applyOptions({width:el.clientWidth,height:el.clientHeight});
 }
 function closeSocket(sock){try{if(sock)sock.close()}catch(e){}}
+
+
+function clearOperationChart(){
+  closeSocket(operationSocket);
+  operationSocket=null;
+  operationChartSymbol="";
+  operationCurrentPriceLine=null;
+  operationEntryPriceLine=null;
+  operationTakeProfitLines=[];
+
+  if(operationTVChart?.chart){
+    try{operationTVChart.chart.remove()}catch(e){}
+  }
+  operationTVChart=null;
+
+  const title=document.getElementById("operationChartTitle");
+  const sub=document.getElementById("operationChartSub");
+  const price=document.getElementById("operationChartPrice");
+  const status=document.getElementById("operationChartStatus");
+  const selector=document.getElementById("operationChartSelector");
+
+  if(title)title.textContent="📈 MOEDA DA OPERAÇÃO";
+  if(sub)sub.textContent="Aguardando uma posição aberta...";
+  if(price)price.innerHTML='US$ 0,00<small>sem operação aberta</small>';
+  if(status)status.textContent="Aguardando confirmação da posição na Binance...";
+  if(selector){
+    selector.innerHTML="";
+    selector.style.display="none";
+  }
+}
+
+function setOperationChartSelector(symbols,selected){
+  const selector=document.getElementById("operationChartSelector");
+  if(!selector)return;
+
+  const list=[...new Set((symbols||[]).map(x=>String(x||"").toUpperCase()).filter(Boolean))];
+  if(!list.length){
+    selector.innerHTML="";
+    selector.style.display="none";
+    return;
+  }
+
+  selector.innerHTML=list.map(s=>
+    `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`
+  ).join("");
+
+  selector.value=String(selected||list[0]).toUpperCase();
+  selector.style.display=list.length>1?"block":"none";
+}
+
+function updateOperationChartLive(op){
+  if(!op || !operationTVChart?.chart)return;
+
+  const price=Number(op.currentPrice||0);
+  const avg=Number(op.averageEntry||0);
+  const pct=avg>0?((price/avg)-1)*100:0;
+
+  if(operationCurrentPriceLine && price>0){
+    operationCurrentPriceLine.applyOptions({
+      price,
+      title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}%`
+    });
+  }
+
+  const priceEl=document.getElementById("operationChartPrice");
+  if(priceEl){
+    priceEl.innerHTML=
+      moneyUSDT(price)+
+      `<small>${escapeHtml(op.symbol||operationChartSymbol)} · AO VIVO</small>`;
+  }
+}
+
+async function loadOpenOperationChart(symbol){
+  if(!selectedAccountId || !symbol)return;
+
+  const cleanSymbol=String(symbol).toUpperCase();
+  if(!cleanSymbol.endsWith("USDT"))return;
+
+  const asset=cleanSymbol.replace(/USDT$/,"");
+  const cfg=getRobotConfig();
+  const interval=cfg.interval||"15m";
+
+  try{
+    const [klineRes,opRes,tradeInfoRes]=await Promise.all([
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(cleanSymbol)}&interval=${encodeURIComponent(interval)}&limit=300`),
+      apiFetch(`/api/panel/operation/${encodeURIComponent(selectedAccountId)}?symbol=${encodeURIComponent(cleanSymbol)}`),
+      apiFetch(`/api/panel/report/trade-info?account=${encodeURIComponent(selectedAccountId)}&symbol=${encodeURIComponent(cleanSymbol)}`).catch(()=>({}))
+    ]);
+
+    if(!klineRes.ok)throw new Error("Não foi possível carregar os candles reais da Binance.");
+
+    const rows=await klineRes.json();
+    const op=opRes.operation||{};
+    const tradeInfo=tradeInfoRes||{};
+
+    op.lastBuy=tradeInfo.lastBuy||op.lastBuy||null;
+    op.lastSell=tradeInfo.lastSell||op.lastSell||null;
+    op.sellOrders=Array.isArray(tradeInfo.sellOrders)
+      ? tradeInfo.sellOrders
+      : (Array.isArray(op.sellOrders)?op.sellOrders:[]);
+
+    if(Number(op.totalQuantity||0)<=0){
+      clearOperationChart();
+      return;
+    }
+
+    closeSocket(operationSocket);
+
+    if(operationTVChart?.chart){
+      try{operationTVChart.chart.remove()}catch(e){}
+    }
+
+    operationTVChart=makeTVChart(
+      "operationChartTV",
+      document.getElementById("operationChartTV")?.clientHeight||380
+    );
+
+    operationChartSymbol=cleanSymbol;
+
+    const candleData=tvRows(rows);
+    const volumeData=tvVolumes(rows);
+
+    operationTVChart.candles.setData(candleData);
+    operationTVChart.volume.setData(volumeData);
+
+    const avg=Number(op.averageEntry||0);
+    const current=Number(op.currentPrice||0);
+    const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
+
+    operationEntryPriceLine=null;
+    operationTakeProfitLines=[];
+
+    if(avg>0){
+      operationEntryPriceLine=operationTVChart.candles.createPriceLine({
+        price:avg,
+        title:"COMPRA",
+        color:"#23c483",
+        lineWidth:2,
+        lineStyle:2,
+        axisLabelVisible:true,
+        lineVisible:true
+      });
+    }
+
+    sellOrders.forEach((o,i)=>{
+      const line=operationTVChart.candles.createPriceLine({
+        price:Number(o.price),
+        title:`VENDA${i===0?" (TP)":` ${i+1}`}`,
+        color:"#ff4d5b",
+        lineWidth:2,
+        lineStyle:2,
+        axisLabelVisible:true,
+        lineVisible:true
+      });
+      operationTakeProfitLines.push(line);
+    });
+
+    if(current>0){
+      const pct=avg>0?((current/avg)-1)*100:0;
+      operationCurrentPriceLine=operationTVChart.candles.createPriceLine({
+        price:current,
+        title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}%`,
+        color:"#f0b90b",
+        lineWidth:2,
+        lineStyle:0,
+        axisLabelVisible:true,
+        lineVisible:true
+      });
+    }else{
+      operationCurrentPriceLine=null;
+    }
+
+    const markers=[];
+
+    if(op.lastBuy?.time){
+      markers.push({
+        time:Math.floor(Number(op.lastBuy.time)/1000),
+        position:"belowBar",
+        color:"#23c483",
+        shape:"arrowUp",
+        text:"COMPRA"
+      });
+    }
+
+    if(op.lastSell?.time){
+      markers.push({
+        time:Math.floor(Number(op.lastSell.time)/1000),
+        position:"aboveBar",
+        color:"#ff4d5b",
+        shape:"arrowDown",
+        text:"VENDA"
+      });
+    }
+
+    if(markers.length){
+      markers.sort((a,b)=>a.time-b.time);
+      operationTVChart.candles.setMarkers(markers);
+    }
+
+    operationTVChart.chart.timeScale().fitContent();
+
+    const title=document.getElementById("operationChartTitle");
+    const sub=document.getElementById("operationChartSub");
+    const priceEl=document.getElementById("operationChartPrice");
+    const status=document.getElementById("operationChartStatus");
+
+    if(title)title.textContent=`📈 ${asset} / USDT`;
+    if(sub)sub.textContent=`Candles reais da Binance · ${interval} · COMPRA / VENDA(TP) / ATUAL`;
+    if(priceEl){
+      priceEl.innerHTML=
+        moneyUSDT(current)+
+        `<small>${asset}USDT · ${interval} · AO VIVO</small>`;
+    }
+    if(status)status.textContent="Dados reais da Binance · atualização ao vivo";
+
+    operationSocket=new WebSocket(
+      `wss://stream.binance.com:9443/ws/${cleanSymbol.toLowerCase()}@kline_${interval}`
+    );
+
+    operationSocket.onmessage=(ev)=>{
+      try{
+        const k=JSON.parse(ev.data).k;
+        const candle={
+          time:Math.floor(k.t/1000),
+          open:+k.o,
+          high:+k.h,
+          low:+k.l,
+          close:+k.c
+        };
+
+        operationTVChart?.candles?.update(candle);
+        operationTVChart?.volume?.update({
+          time:Math.floor(k.t/1000),
+          value:+k.v,
+          color:+k.c>=+k.o
+            ?"rgba(22,199,132,.28)"
+            :"rgba(234,57,67,.28)"
+        });
+
+        const avgNow=Number(op.averageEntry||0);
+        const livePrice=Number(k.c||0);
+        const livePct=avgNow>0?((livePrice/avgNow)-1)*100:0;
+
+        if(operationCurrentPriceLine){
+          operationCurrentPriceLine.applyOptions({
+            price:livePrice,
+            title:`ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}%`
+          });
+        }
+
+        if(priceEl){
+          priceEl.innerHTML=
+            moneyUSDT(livePrice)+
+            `<small>${asset}USDT · ${interval} · AO VIVO</small>`;
+        }
+      }catch(e){}
+    };
+  }catch(e){
+    const status=document.getElementById("operationChartStatus");
+    if(status)status.textContent="Não foi possível atualizar o gráfico da operação.";
+    console.warn("GRÁFICO DA OPERAÇÃO:",e);
+  }
+}
+
+async function refreshOpenOperationChartFromCards(){
+  const cards=[...document.querySelectorAll("[data-operation-card]")];
+  const symbols=cards.map(card=>card.getAttribute("data-operation-card")).filter(Boolean);
+
+  setOperationChartSelector(symbols,operationChartSymbol||symbols[0]||"");
+
+  if(!symbols.length){
+    clearOperationChart();
+    return;
+  }
+
+  const selected=operationChartSymbol&&symbols.includes(operationChartSymbol)
+    ? operationChartSymbol
+    : symbols[0];
+
+  if(selected!==operationChartSymbol || !operationTVChart?.chart){
+    await loadOpenOperationChart(selected);
+  }
+}
 
 async function loadBtcChart(interval="15m"){
   try{

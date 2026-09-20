@@ -205,15 +205,41 @@ async function obterFiltros(
 async function calcularPrecoMedio(
   client,
   symbol,
-  quantidadeAtual
+  quantidadeAtual,
+  filtrosInformados = null
 ) {
 
   try {
 
+    const filtros =
+      filtrosInformados ||
+      await obterFiltros(client, symbol);
+
+    const baseAsset =
+      String(filtros?.baseAsset || "").toUpperCase();
+
+    const quoteAsset =
+      String(filtros?.quoteAsset || "").toUpperCase();
+
+    if (!baseAsset || !quoteAsset) {
+      return null;
+    }
+
+    /*
+     * Reconstrói o custo da posição atual.
+     *
+     * BUY  -> aumenta quantidade e custo.
+     * SELL -> reduz a posição pelo custo médio vigente.
+     * Quando a posição chega a zero, uma nova posição começa.
+     *
+     * Isso evita o cálculo incorreto:
+     * (compras - vendas) / saldo atual
+     */
+
     const trades =
       await client.myTrades({
         symbol,
-        limit: 500
+        limit: 1000
       });
 
     if (
@@ -223,11 +249,37 @@ async function calcularPrecoMedio(
       return null;
     }
 
-    let custoTotal = 0;
-    let quantidadeLiquida = 0;
+    const ordenados =
+      [...trades].sort(
+        (a, b) => {
+
+          const tempoA =
+            numero(a.time);
+
+          const tempoB =
+            numero(b.time);
+
+          if (
+            tempoA !== tempoB
+          ) {
+            return tempoA - tempoB;
+          }
+
+          return (
+            numero(a.id) -
+            numero(b.id)
+          );
+        }
+      );
+
+    let quantidadePosicao = 0;
+    let custoPosicao = 0;
+
+    const EPSILON = 1e-12;
 
     for (
-      const trade of trades
+      const trade
+      of ordenados
     ) {
 
       const qty =
@@ -240,39 +292,202 @@ async function calcularPrecoMedio(
           trade.quoteQty
         );
 
+      const commission =
+        numero(
+          trade.commission
+        );
+
+      const commissionAsset =
+        String(
+          trade.commissionAsset || ""
+        ).toUpperCase();
+
+
+      if (
+        qty <= 0 ||
+        quoteQty < 0
+      ) {
+        continue;
+      }
+
+
+      // ===================================================
+      // COMPRA
+      // ===================================================
+
       if (
         trade.isBuyer
       ) {
 
-        custoTotal +=
+        let quantidadeRecebida =
+          qty;
+
+        let custoCompra =
           quoteQty;
 
-        quantidadeLiquida +=
-          qty;
+
+        /*
+         * Taxa cobrada no ativo comprado:
+         * a quantidade efetivamente recebida é menor.
+         */
+
+        if (
+          commission > 0 &&
+          commissionAsset === baseAsset
+        ) {
+
+          quantidadeRecebida =
+            Math.max(
+              0,
+              qty - commission
+            );
+        }
+
+
+        /*
+         * Taxa cobrada no ativo de cotação:
+         * entra no custo da posição.
+         */
+
+        if (
+          commission > 0 &&
+          commissionAsset === quoteAsset
+        ) {
+
+          custoCompra +=
+            commission;
+        }
+
+
+        if (
+          quantidadeRecebida > 0
+        ) {
+
+          quantidadePosicao +=
+            quantidadeRecebida;
+
+          custoPosicao +=
+            custoCompra;
+        }
+
+
+      // ===================================================
+      // VENDA
+      // ===================================================
 
       } else {
 
-        custoTotal -=
-          quoteQty;
-
-        quantidadeLiquida -=
+        let quantidadeVendida =
           qty;
 
+
+        /*
+         * Se a comissão da venda foi cobrada no
+         * ativo base, ela também sai da posição.
+         */
+
+        if (
+          commission > 0 &&
+          commissionAsset === baseAsset
+        ) {
+
+          quantidadeVendida +=
+            commission;
+        }
+
+
+        if (
+          quantidadeVendida <= 0 ||
+          quantidadePosicao <= EPSILON
+        ) {
+          continue;
+        }
+
+
+        /*
+         * Na venda parcial removemos o custo médio
+         * correspondente à quantidade vendida.
+         *
+         * NÃO subtraímos quoteQty do custo restante.
+         */
+
+        const quantidadeRemovida =
+          Math.min(
+            quantidadeVendida,
+            quantidadePosicao
+          );
+
+        const custoMedioAtual =
+          custoPosicao /
+          quantidadePosicao;
+
+        custoPosicao -=
+          custoMedioAtual *
+          quantidadeRemovida;
+
+        quantidadePosicao -=
+          quantidadeRemovida;
+
+
+        if (
+          quantidadePosicao <= EPSILON
+        ) {
+
+          quantidadePosicao = 0;
+          custoPosicao = 0;
+        }
       }
     }
 
+
     if (
-      quantidadeLiquida <= 0 ||
-      quantidadeAtual <= 0
+      quantidadeAtual <= 0 ||
+      quantidadePosicao <= 0 ||
+      custoPosicao <= 0
     ) {
 
       return null;
     }
 
+
+    /*
+     * Se o histórico da Binance não consegue reconstruir
+     * o saldo atual, não inventamos um preço médio.
+     *
+     * Isso pode ocorrer, por exemplo, se parte do ativo
+     * veio de depósito externo ou se o histórico retornado
+     * não contém trades antigos suficientes.
+     */
+
+    const tolerancia =
+      Math.max(
+        1e-8,
+        Number(
+          quantidadeAtual || 0
+        ) * 0.01
+      );
+
+
+    if (
+      Math.abs(
+        quantidadePosicao -
+        Number(quantidadeAtual)
+      ) > tolerancia
+    ) {
+
+      console.warn(
+        `PREÇO MÉDIO | ${symbol} | histórico não reconstrói exatamente o saldo atual | histórico=${quantidadePosicao} | saldo=${quantidadeAtual} | diferença=${Math.abs(quantidadePosicao - Number(quantidadeAtual))}`
+      );
+
+      return null;
+    }
+
+
     return (
-      custoTotal /
-      quantidadeAtual
+      custoPosicao /
+      quantidadePosicao
     );
+
 
   } catch (error) {
 
@@ -693,7 +908,8 @@ router.get(
         await calcularPrecoMedio(
           client,
           symbol,
-          quantidadeTotal
+          quantidadeTotal,
+          filtros
         );
 
 

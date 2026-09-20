@@ -502,7 +502,7 @@ async function buy(userId,account,config,symbol,robotId=1){
   let tpOrder=null;
   try{
     tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
-    robotLog(userId,account.id,robotId,
+    robotLog(userId,account.id,
       `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${num(config.take_profit)}%`
     );
   }catch(e){
@@ -518,10 +518,10 @@ async function buy(userId,account,config,symbol,robotId=1){
     [userId,account.id,robotId,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]
   );
 
-  robotLog(userId,account.id,robotId,
+  robotLog(userId,account.id,
     `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preço=${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT`
   );
-  robotLog(userId,account.id,robotId,
+  robotLog(userId,account.id,
     `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder.orderId} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
@@ -661,8 +661,9 @@ async function monitorOpenOps(userId,account,config,robotId=1){
           const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE');
           const pf=si?.filters?.find(f=>f.filterType==='PRICE_FILTER');
 
-          // CORREÇÃO: nunca recriar uma SELL usando uma quantidade
-          // maior que o saldo realmente livre na Binance.
+          // CORREÇÃO SOMENTE DA PROTEÇÃO:
+          // usa o saldo real disponível na Binance para recriar o TP.
+          // Não altera estratégia, intervalo, criptografia ou demais regras.
           const accountInfo=await client.accountInfo();
           const base=String(si?.baseAsset||'').toUpperCase();
           const balance=accountInfo.balances?.find(
@@ -681,12 +682,11 @@ async function monitorOpenOps(userId,account,config,robotId=1){
           const minNot=num(nf?.minNotional);
           const currentPrice=num((await client.prices({symbol:op.symbol}))[op.symbol]);
 
-          // Usa a menor quantidade entre a operação registrada e o saldo livre real.
+          // Protege somente o que realmente existe na Binance.
           const qty=roundDown(Math.min(configuredQty,free),stepSize);
           const tp=roundPrice(tpPrice,num(pf?.tickSize));
 
-          // Se não existe saldo do ativo, a operação ficou órfã no banco.
-          // Não adianta tentar recriar a SELL a cada 15 segundos.
+          // Não existe mais saldo do ativo: encerra somente a operação órfã.
           if(free<=0 || qty<=0){
             await db.query(
               `UPDATE robot_operations
@@ -705,15 +705,14 @@ async function monitorOpenOps(userId,account,config,robotId=1){
             continue;
           }
 
-          // Se existe saldo, mas é menor que a quantidade original,
-          // protege somente o saldo realmente disponível.
+          // Se existe saldo parcial, recria o TP somente para o saldo disponível.
           const validMinQty=!minQty || qty>=minQty;
           const validMinNot=!minNot || (currentPrice>0 && qty*currentPrice>=minNot);
 
           if(!validMinQty || !validMinNot || !(tp>0)){
             robotLog(
               userId,account.id,robotId,
-              `PROTEÇÃO PENDENTE | ${op.symbol} | saldo disponível não atende aos filtros Binance | registrado=${configuredQty} | livre=${free} | quantidade_calculada=${qty} | mínimoQty=${minQty} | mínimoNotional=${minNot}`,
+              `PROTEÇÃO PENDENTE | ${op.symbol} | saldo disponível não atende aos filtros Binance | registrado=${configuredQty} | livre=${free} | quantidade=${qty} | mínimoQty=${minQty} | mínimoNotional=${minNot}`,
               'ERROR'
             );
             continue;

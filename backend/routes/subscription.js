@@ -29,7 +29,7 @@ const STRIPE_PRICE_PREMIUM =
   process.env.STRIPE_PRICE_PREMIUM;
 
 // ============================================================
-// ASAAS — PIX / ASSINATURA RECORRENTE
+// ASAAS — PIX / CHECKOUT AVULSO
 // ============================================================
 //
 // A chave da API e o token do Webhook ficam somente no backend.
@@ -738,7 +738,7 @@ router.get("/teste", (req, res) => {
   return res.json({
     ok: true,
     service: "subscription",
-    provider: "STRIPE",
+    providers: ["STRIPE", "ASAAS"],
     asaasConfigured: asaasConfigured()
   });
 });
@@ -1288,22 +1288,24 @@ router.post(
 
 
 // ============================================================
-// ASAAS — CHECKOUT PIX RECORRENTE
+// ASAAS — CHECKOUT PIX AVULSO
 // ============================================================
 //
-// Cria um Checkout hospedado pelo Asaas.
+// IMPORTANTE:
+// O Checkout do Asaas NÃO permite PIX em operações RECURRENT.
+// Para PIX, o Asaas exige chargeTypes = DETACHED.
 //
-// Fluxo:
-//   1. Usuário escolhe PIX.
-//   2. Criamos assinatura local PENDING.
-//   3. Criamos Checkout Asaas RECURRENT + PIX.
-//   4. Frontend redireciona para o link do Asaas.
-//   5. CHECKOUT_PAID confirma a contratação.
-//   6. PAYMENT_RECEIVED confirma as próximas mensalidades.
+// Portanto, o CriptoPro trabalha com PIX mensal avulso:
+//   1. Usuário escolhe o plano.
+//   2. Criamos Checkout PIX DETACHED.
+//   3. CHECKOUT_PAID confirma o pagamento.
+//   4. O plano é ativado por 30 dias.
+//   5. Quando expirar, o usuário pode gerar um novo PIX.
 //
-// A confirmação financeira NÃO é feita pelo redirect.
-// Ela é feita pelos Webhooks do Asaas.
+// Em upgrade/troca, a assinatura anterior permanece ativa até
+// o novo PIX ser confirmado. Só depois disso ela é encerrada.
 //
+// Fonte: documentação atual do Asaas.
 // ============================================================
 
 router.post(
@@ -1353,6 +1355,10 @@ router.post(
         });
       }
 
+      // ------------------------------------------------------
+      // USUÁRIO
+      // ------------------------------------------------------
+
       const userResult =
         await db.query(
           `
@@ -1387,12 +1393,11 @@ router.post(
       // ASSINATURA ATIVA
       // ------------------------------------------------------
       //
-      // Se já existir um plano ativo:
-      // - mesmo plano: bloqueia;
-      // - plano diferente: permite UPGRADE/TROCA via PIX.
+      // Mesmo plano = bloqueia.
+      // Plano diferente = permite upgrade/troca.
       //
-      // A assinatura atual permanece ativa até o novo pagamento
-      // ser confirmado pelo Webhook do Asaas.
+      // A assinatura atual NÃO é cancelada agora.
+      // Ela somente será encerrada quando o novo PIX for pago.
       // ------------------------------------------------------
 
       const activeResult =
@@ -1429,7 +1434,10 @@ router.post(
       }
 
       // ------------------------------------------------------
-      // REUTILIZA CHECKOUT ASAAS PENDING RECENTE
+      // CHECKOUT PENDING RECENTE
+      // ------------------------------------------------------
+      //
+      // Evita gerar vários PIX para a mesma troca.
       // ------------------------------------------------------
 
       const pendingResult =
@@ -1526,7 +1534,6 @@ router.post(
                   previousPlan:
                     assinaturaAnterior?.plan || null
                 });
-
               }
 
             } catch (error) {
@@ -1535,7 +1542,6 @@ router.post(
                 "Não foi possível reutilizar Checkout Asaas pendente:",
                 error.message
               );
-
             }
           }
         }
@@ -1601,7 +1607,7 @@ router.post(
         PLANOS[plan];
 
       // ------------------------------------------------------
-      // CRIA ASSINATURA LOCAL
+      // ASSINATURA LOCAL PENDING
       // ------------------------------------------------------
 
       const insertResult =
@@ -1640,13 +1646,16 @@ router.post(
         insertResult.rows[0].id;
 
       // ------------------------------------------------------
-      // CHECKOUT ASAAS
+      // CHECKOUT ASAAS PIX — AVULSO
       // ------------------------------------------------------
       //
-      // PIX + RECURRENT:
-      // o Asaas cria a assinatura e as cobranças mensais.
-      // A confirmação financeira ocorre pelos Webhooks.
+      // NÃO usar RECURRENT aqui.
+      // O Asaas exige:
+      //   billingTypes = PIX
+      //   chargeTypes  = DETACHED
       //
+      // E NÃO deve existir o campo subscription.
+      // ------------------------------------------------------
 
       const payload = {
         billingTypes: [
@@ -1654,7 +1663,7 @@ router.post(
         ],
 
         chargeTypes: [
-          "RECURRENT"
+          "DETACHED"
         ],
 
         minutesToExpire: 60,
@@ -1687,7 +1696,7 @@ router.post(
               `CriptoPro — Plano ${plano.nome}`,
 
             description:
-              `Assinatura mensal do CriptoPro — Plano ${plano.nome}`,
+              `Acesso de 30 dias ao CriptoPro — Plano ${plano.nome}`,
 
             quantity: 1,
 
@@ -1697,14 +1706,6 @@ router.post(
               )
           }
         ],
-
-        subscription: {
-          cycle:
-            "MONTHLY",
-
-          nextDueDate:
-            dataHojeISO()
-        },
 
         customerData: {
           name: nome,
@@ -1736,7 +1737,6 @@ router.post(
         );
 
       if (!checkoutId || !paymentUrl) {
-
         throw new Error(
           "O Asaas não retornou o ID ou link do Checkout."
         );
@@ -1760,7 +1760,6 @@ router.post(
           asaasCheckoutPaymentId(
             checkoutId
           ),
-
           subscriptionId
         ]
       );
@@ -1773,6 +1772,10 @@ router.post(
           plan,
           amount:
             plano.valor,
+          changePlan:
+            Boolean(assinaturaAnterior),
+          previousSubscriptionId:
+            assinaturaAnterior?.id || null,
           baseUrl:
             ASAAS_BASE_URL
         }
@@ -1791,7 +1794,8 @@ router.post(
         checkoutId,
         paymentUrl,
         reused: false,
-        changePlan: Boolean(assinaturaAnterior),
+        changePlan:
+          Boolean(assinaturaAnterior),
         previousPlan:
           assinaturaAnterior?.plan || null
       });
@@ -1804,9 +1808,7 @@ router.post(
       );
 
       if (subscriptionId) {
-
         try {
-
           await db.query(
             `
             UPDATE subscriptions
@@ -1818,14 +1820,11 @@ router.post(
             `,
             [subscriptionId]
           );
-
         } catch (dbError) {
-
           console.error(
             "ERRO AO CANCELAR PENDING ASAAS:",
             dbError
           );
-
         }
       }
 
@@ -3418,7 +3417,6 @@ router.post(
 async function processarWebhookAsaas(req, res) {
 
   if (!ASAAS_WEBHOOK_TOKEN) {
-
     console.error(
       "ASAAS_WEBHOOK_TOKEN não configurado."
     );
@@ -3438,10 +3436,8 @@ async function processarWebhookAsaas(req, res) {
 
   if (
     !receivedToken ||
-    receivedToken !==
-      String(ASAAS_WEBHOOK_TOKEN)
+    receivedToken !== String(ASAAS_WEBHOOK_TOKEN)
   ) {
-
     console.warn(
       "WEBHOOK ASAAS: token inválido."
     );
@@ -3457,17 +3453,12 @@ async function processarWebhookAsaas(req, res) {
     req.body || {};
 
   const eventId =
-    event.id ||
-    null;
+    event.id || null;
 
   const eventType =
-    String(
-      event.event ||
-      ""
-    );
+    String(event.event || "");
 
   if (!eventId || !eventType) {
-
     return res.status(400).json({
       ok: false,
       error:
@@ -3486,15 +3477,15 @@ async function processarWebhookAsaas(req, res) {
     // ========================================================
     // CHECKOUT PAID
     // ========================================================
+    //
+    // Para PIX DETACHED, este é o evento principal de
+    // confirmação do pagamento do Checkout.
+    // ========================================================
 
-    if (
-      eventType ===
-      "CHECKOUT_PAID"
-    ) {
+    if (eventType === "CHECKOUT_PAID") {
 
       const checkout =
-        event.checkout ||
-        {};
+        event.checkout || {};
 
       const localId =
         subscriptionIdFromAsaasReference(
@@ -3507,7 +3498,6 @@ async function processarWebhookAsaas(req, res) {
         );
 
       if (!localId) {
-
         console.warn(
           "Webhook Asaas CHECKOUT_PAID sem externalReference CriptoPro.",
           {
@@ -3535,7 +3525,6 @@ async function processarWebhookAsaas(req, res) {
         );
 
       if (result.rows.length === 0) {
-
         console.warn(
           "Webhook Asaas: assinatura local não encontrada:",
           localId
@@ -3550,28 +3539,56 @@ async function processarWebhookAsaas(req, res) {
       const assinatura =
         result.rows[0];
 
+      const checkoutPaymentId =
+        asaasCheckoutPaymentId(
+          checkout.id
+        );
+
       // ------------------------------------------------------
-      // IDempotência:
-      // se já estiver ACTIVE e o checkout já tiver sido salvo,
-      // não estendemos a assinatura novamente.
+      // IDEMPOTÊNCIA
+      // ------------------------------------------------------
+      // Se o mesmo Checkout já ativou o plano, não adicionamos
+      // mais 30 dias novamente.
       // ------------------------------------------------------
 
       if (
         assinatura.status === "ACTIVE" &&
         String(
           assinatura.external_payment_id || ""
-        ) ===
-          asaasCheckoutPaymentId(
-            checkout.id
-          )
+        ) === checkoutPaymentId
       ) {
-
         return res.json({
           ok: true,
           received: true,
           duplicate: true,
-          event:
-            eventType
+          event: eventType
+        });
+      }
+
+      // Se já estiver ACTIVE por outro motivo, não devemos
+      // transformar o mesmo evento em uma segunda renovação.
+      if (
+        assinatura.status === "ACTIVE" &&
+        String(
+          assinatura.external_payment_id || ""
+        ) !== checkoutPaymentId
+      ) {
+        console.warn(
+          "CHECKOUT_PAID ASAAS recebido para assinatura já ACTIVE; ignorando para evitar duplicidade.",
+          {
+            subscriptionId:
+              assinatura.id,
+            checkoutId:
+              checkout.id
+          }
+        );
+
+        return res.json({
+          ok: true,
+          received: true,
+          ignored: true,
+          reason:
+            "Assinatura já estava ACTIVE."
         });
       }
 
@@ -3579,9 +3596,7 @@ async function processarWebhookAsaas(req, res) {
         new Date();
 
       const expiresAt =
-        adicionarUmMes(
-          agora
-        );
+        adicionarUmMes(agora);
 
       await db.query(
         `
@@ -3595,25 +3610,24 @@ async function processarWebhookAsaas(req, res) {
             ),
           expires_at = $1,
           external_payment_id = $2,
+          external_subscription_id = NULL,
           updated_at = NOW()
         WHERE id = $3
-          AND status <> 'CANCELLED'
+          AND status = 'PENDING'
         `,
         [
           expiresAt.toISOString(),
-
-          asaasCheckoutPaymentId(
-            checkout.id
-          ),
-
+          checkoutPaymentId,
           assinatura.id
         ]
       );
 
       // ------------------------------------------------------
-      // UPGRADE/TROCA:
-      // encerra a assinatura anterior somente depois que
-      // o novo Checkout foi efetivamente pago.
+      // UPGRADE / TROCA DE PLANO
+      // ------------------------------------------------------
+      //
+      // Só agora, depois do PIX confirmado, encerramos o plano
+      // anterior.
       // ------------------------------------------------------
 
       if (
@@ -3621,6 +3635,7 @@ async function processarWebhookAsaas(req, res) {
         String(previousLocalId) !==
           String(assinatura.id)
       ) {
+
         const previousResult =
           await db.query(
             `
@@ -3633,9 +3648,12 @@ async function processarWebhookAsaas(req, res) {
           );
 
         if (previousResult.rows.length > 0) {
+
           const assinaturaAnterior =
             previousResult.rows[0];
 
+          // Primeiro tenta encerrar a cobrança externa quando
+          // houver uma assinatura real cancelável.
           await cancelarAssinaturaAnterior(
             assinaturaAnterior
           );
@@ -3669,14 +3687,16 @@ async function processarWebhookAsaas(req, res) {
       }
 
       console.log(
-        "ASSINATURA ASAAS ATIVADA VIA CHECKOUT_PAID:",
+        "PIX ASAAS CONFIRMADO VIA CHECKOUT_PAID:",
         {
           subscriptionId:
             assinatura.id,
           checkoutId:
             checkout.id,
           plan:
-            assinatura.plan
+            assinatura.plan,
+          expiresAt:
+            expiresAt.toISOString()
         }
       );
     }
@@ -3685,14 +3705,10 @@ async function processarWebhookAsaas(req, res) {
     // CHECKOUT CANCELED
     // ========================================================
 
-    else if (
-      eventType ===
-      "CHECKOUT_CANCELED"
-    ) {
+    else if (eventType === "CHECKOUT_CANCELED") {
 
       const checkout =
-        event.checkout ||
-        {};
+        event.checkout || {};
 
       const localId =
         subscriptionIdFromAsaasReference(
@@ -3700,7 +3716,6 @@ async function processarWebhookAsaas(req, res) {
         );
 
       if (localId) {
-
         await db.query(
           `
           UPDATE subscriptions
@@ -3720,14 +3735,10 @@ async function processarWebhookAsaas(req, res) {
     // CHECKOUT EXPIRED
     // ========================================================
 
-    else if (
-      eventType ===
-      "CHECKOUT_EXPIRED"
-    ) {
+    else if (eventType === "CHECKOUT_EXPIRED") {
 
       const checkout =
-        event.checkout ||
-        {};
+        event.checkout || {};
 
       const localId =
         subscriptionIdFromAsaasReference(
@@ -3735,7 +3746,6 @@ async function processarWebhookAsaas(req, res) {
         );
 
       if (localId) {
-
         await db.query(
           `
           UPDATE subscriptions
@@ -3752,480 +3762,63 @@ async function processarWebhookAsaas(req, res) {
     }
 
     // ========================================================
-    // ASSINATURA CRIADA NO ASAAS
+    // CHECKOUT CREATED
     // ========================================================
 
-    else if (
-      eventType ===
-      "SUBSCRIPTION_CREATED"
-    ) {
+    else if (eventType === "CHECKOUT_CREATED") {
 
-      const subscription =
-        event.subscription ||
-        {};
+      const checkout =
+        event.checkout || {};
 
-      let localId =
+      const localId =
         subscriptionIdFromAsaasReference(
-          subscription.externalReference
+          checkout.externalReference
         );
 
-      // Alguns payloads de assinatura podem não trazer
-      // externalReference. Nesse caso, usamos o cliente/e-mail
-      // e o registro ASAAS PENDING mais recente como fallback.
-      if (
-        !localId &&
-        subscription.customer
-      ) {
-        const fallbackResult =
-          await db.query(
-            `
-            SELECT s.id
-            FROM subscriptions s
-            WHERE s.payment_provider = 'ASAAS'
-              AND s.status IN ('PENDING', 'ACTIVE')
-              AND s.created_at >= NOW() - INTERVAL '2 hours'
-              AND (
-                s.amount IS NULL
-                OR ABS(
-                  COALESCE(s.amount, 0) -
-                  COALESCE($1, 0)
-                ) < 0.01
-              )
-            ORDER BY s.id DESC
-            LIMIT 1
-            `,
-            [
-              Number(
-                subscription.value || 0
-              )
-            ]
-          );
-
-        if (fallbackResult.rows.length > 0) {
-          localId =
-            fallbackResult.rows[0].id;
-        }
-      }
-
-      if (localId) {
-
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET
-            external_subscription_id = $1,
-            updated_at = NOW()
-          WHERE id = $2
-            AND payment_provider = 'ASAAS'
-          `,
-          [
-            subscription.id ||
-              null,
-
-            localId
-          ]
-        );
-
-        console.log(
-          "ASSINATURA ASAAS VINCULADA:",
-          {
-            localId,
-            asaasSubscriptionId:
-              subscription.id
-          }
-        );
-      }
-    }
-
-    // ========================================================
-    // ASSINATURA ATUALIZADA
-    // ========================================================
-
-    else if (
-      eventType ===
-      "SUBSCRIPTION_UPDATED"
-    ) {
-
-      const subscription =
-        event.subscription ||
-        {};
-
-      const localResult =
-        await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE payment_provider = 'ASAAS'
-            AND external_subscription_id = $1
-          LIMIT 1
-          `,
-          [
-            subscription.id ||
-              null
-          ]
-        );
-
-      if (localResult.rows.length > 0) {
-
-        const local =
-          localResult.rows[0];
-
-        if (
-          subscription.status ===
-            "INACTIVE" ||
-          subscription.status ===
-            "EXPIRED"
-        ) {
-
-          await db.query(
-            `
-            UPDATE subscriptions
-            SET
-              status = 'EXPIRED',
-              updated_at = NOW()
-            WHERE id = $1
-            `,
-            [local.id]
-          );
-        }
-      }
-    }
-
-    // ========================================================
-    // ASSINATURA INATIVADA / EXCLUÍDA
-    // ========================================================
-
-    else if (
-      eventType ===
-        "SUBSCRIPTION_INACTIVATED" ||
-      eventType ===
-        "SUBSCRIPTION_DELETED"
-    ) {
-
-      const subscription =
-        event.subscription ||
-        {};
-
-      if (subscription.id) {
-
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET
-            status = 'CANCELLED',
-            updated_at = NOW()
-          WHERE payment_provider = 'ASAAS'
-            AND external_subscription_id = $1
-          `,
-          [
-            subscription.id
-          ]
-        );
-      }
-    }
-
-    // ========================================================
-    // PAGAMENTO PIX RECEBIDO
-    // ========================================================
-    //
-    // Para PIX, o evento financeiro relevante é
-    // PAYMENT_RECEIVED.
-    //
-    // Primeiro pagamento:
-    //   não soma outro mês, pois CHECKOUT_PAID já ativou
-    //   a assinatura.
-    //
-    // Próximos pagamentos:
-    //   acrescenta 1 mês à data de expiração.
-    //
-    // ========================================================
-
-    else if (
-      eventType ===
-      "PAYMENT_RECEIVED"
-    ) {
-
-      const payment =
-        event.payment ||
-        {};
-
-      if (!payment.subscription) {
-
-        return res.json({
-          ok: true,
-          received: true,
-          ignored: true,
-          reason:
-            "Pagamento Asaas sem assinatura."
-        });
-      }
-
-      let localResult =
-        await db.query(
-          `
-          SELECT *
-          FROM subscriptions
-          WHERE payment_provider = 'ASAAS'
-            AND external_subscription_id = $1
-          ORDER BY id DESC
-          LIMIT 1
-          `,
-          [
-            payment.subscription
-          ]
-        );
-
-      // Fallback para o primeiro pagamento caso o evento
-      // SUBSCRIPTION_CREATED ainda não tenha sido processado.
-      if (
-        localResult.rows.length === 0
-      ) {
-        localResult =
-          await db.query(
-            `
-            SELECT *
-            FROM subscriptions
-            WHERE payment_provider = 'ASAAS'
-              AND status IN ('PENDING', 'ACTIVE')
-              AND created_at >= NOW() - INTERVAL '2 hours'
-              AND (
-                amount IS NULL
-                OR ABS(
-                  COALESCE(amount, 0) -
-                  COALESCE($1, 0)
-                ) < 0.01
-              )
-            ORDER BY id DESC
-            LIMIT 1
-            `,
-            [
-              Number(
-                payment.value || 0
-              )
-            ]
-          );
-      }
-
-      if (localResult.rows.length === 0) {
-
-        console.warn(
-          "PAYMENT_RECEIVED ASAAS: assinatura local não encontrada.",
-          {
-            asaasSubscriptionId:
-              payment.subscription,
-            paymentId:
-              payment.id
-          }
-        );
-
-        return res.json({
-          ok: true,
-          received: true,
-          ignored: true
-        });
-      }
-
-      const assinatura =
-        localResult.rows[0];
-
-      const currentExternalPayment =
-        String(
-          assinatura.external_payment_id ||
-          ""
-        );
-
-      // ------------------------------------------------------
-      // DUPLICIDADE DO MESMO PAGAMENTO
-      // ------------------------------------------------------
-
-      if (
-        currentExternalPayment ===
-        String(payment.id || "")
-      ) {
-
-        return res.json({
-          ok: true,
-          received: true,
-          duplicate: true,
-          event:
-            eventType
-        });
-      }
-
-      // ------------------------------------------------------
-      // PRIMEIRO PAGAMENTO DO CHECKOUT
-      // ------------------------------------------------------
-      //
-      // CHECKOUT_PAID já liberou o primeiro mês.
-      // Apenas trocamos o identificador local para o payment ID.
-      // ------------------------------------------------------
-
-      if (
-        currentExternalPayment.startsWith(
-          "ASAAS_CHECKOUT:"
-        )
-      ) {
-
+      if (localId && checkout.id) {
         await db.query(
           `
           UPDATE subscriptions
           SET
             external_payment_id = $1,
-            external_subscription_id =
-              COALESCE($2, external_subscription_id),
             updated_at = NOW()
-          WHERE id = $3
+          WHERE id = $2
+            AND payment_provider = 'ASAAS'
           `,
           [
-            payment.id ||
-              currentExternalPayment,
-
-            payment.subscription ||
-              null,
-
-            assinatura.id
-          ]
-        );
-
-        console.log(
-          "PRIMEIRO PAGAMENTO ASAAS CONFIRMADO:",
-          {
-            subscriptionId:
-              assinatura.id,
-            paymentId:
-              payment.id
-          }
-        );
-
-      } else {
-
-        // ----------------------------------------------------
-        // PAGAMENTO RECORRENTE
-        // ----------------------------------------------------
-
-        const agora =
-          new Date();
-
-        const expiracaoAtual =
-          assinatura.expires_at
-            ? new Date(
-                assinatura.expires_at
-              )
-            : null;
-
-        const base =
-          expiracaoAtual &&
-          !Number.isNaN(
-            expiracaoAtual.getTime()
-          ) &&
-          expiracaoAtual > agora
-            ? expiracaoAtual
-            : agora;
-
-        const novaExpiracao =
-          adicionarUmMes(
-            base
-          );
-
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET
-            status = 'ACTIVE',
-            expires_at = $1,
-            external_payment_id = $2,
-            external_subscription_id =
-              COALESCE($3, external_subscription_id),
-            updated_at = NOW()
-          WHERE id = $4
-          `,
-          [
-            novaExpiracao.toISOString(),
-
-            payment.id ||
-              currentExternalPayment,
-
-            payment.subscription ||
-              null,
-
-            assinatura.id
-          ]
-        );
-
-        console.log(
-          "RENOVAÇÃO ASAAS CONFIRMADA:",
-          {
-            subscriptionId:
-              assinatura.id,
-            paymentId:
-              payment.id,
-            expiresAt:
-              novaExpiracao.toISOString()
-          }
-        );
-      }
-    }
-
-    // ========================================================
-    // PAGAMENTO ESTORNADO
-    // ========================================================
-
-    else if (
-      eventType ===
-      "PAYMENT_REFUNDED"
-    ) {
-
-      const payment =
-        event.payment ||
-        {};
-
-      if (payment.subscription) {
-
-        await db.query(
-          `
-          UPDATE subscriptions
-          SET
-            status = 'CANCELLED',
-            updated_at = NOW()
-          WHERE payment_provider = 'ASAAS'
-            AND external_subscription_id = $1
-            AND status = 'ACTIVE'
-          `,
-          [
-            payment.subscription
+            asaasCheckoutPaymentId(
+              checkout.id
+            ),
+            localId
           ]
         );
       }
     }
 
     // ========================================================
-    // PAGAMENTO VENCIDO
+    // PAYMENT_RECEIVED
     // ========================================================
     //
-    // Não cancelamos imediatamente o plano local.
-    // O expires_at continua controlando o acesso.
-    // Isso evita bloquear o usuário por um evento de atraso
-    // antes do tratamento financeiro do Asaas.
+    // Checkout PIX DETACHED não cria uma assinatura recorrente.
+    // Portanto não usamos PAYMENT_RECEIVED para somar meses.
+    // O primeiro e único pagamento daquele Checkout é confirmado
+    // pelo CHECKOUT_PAID.
     //
+    // Mantemos o evento tratado para não retornar erro ao Asaas.
     // ========================================================
 
-    else if (
-      eventType ===
-      "PAYMENT_OVERDUE"
-    ) {
+    else if (eventType === "PAYMENT_RECEIVED") {
 
       const payment =
-        event.payment ||
-        {};
+        event.payment || {};
 
-      console.warn(
-        "PAGAMENTO ASAAS VENCIDO:",
+      console.log(
+        "PAYMENT_RECEIVED ASAAS recebido; PIX do CriptoPro é DETACHED e já é conciliado pelo CHECKOUT_PAID.",
         {
           paymentId:
-            payment.id,
+            payment.id || null,
           subscription:
-            payment.subscription ||
-            null
+            payment.subscription || null
         }
       );
     }
@@ -4233,8 +3826,7 @@ async function processarWebhookAsaas(req, res) {
     return res.json({
       ok: true,
       received: true,
-      event:
-        eventType
+      event: eventType
     });
 
   } catch (error) {

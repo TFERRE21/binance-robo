@@ -1707,16 +1707,12 @@ router.post(
           }
         ],
 
-        customerData: {
-          name: nome,
-          email
-        }
+        // IMPORTANTE:
+        // Não enviar customerData neste Checkout PIX.
+        // O Asaas coleta CPF/CNPJ, telefone e endereço
+        // diretamente no Checkout quando esses dados não são
+        // informados previamente.
       };
-
-      if (telefone) {
-        payload.customerData.phone =
-          telefone;
-      }
 
       const checkout =
         await asaasRequest(

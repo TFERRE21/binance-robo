@@ -839,118 +839,217 @@ function intervalToMs(interval){
 
 async function loop(userId,accountId,robotId=1){
   const key=`${userId}:${accountId}:${robotId}`;
+
   if(runners.has(key))return;
 
   const runner={
     stop:false,
     blockedByOpenLimit:false
   };
+
   runners.set(key,runner);
 
-  // A análise de novas entradas respeita o intervalo salvo na configuração.
-  // A monitoração de posições abertas continua frequente para TP/SL/proteção.
-  //
-  // NOVA TRAVA:
-  // Quando o número de operações abertas atingir max_operations,
-  // o robô NÃO faz novas análises de moedas.
-  // Ele continua apenas monitorando as posições abertas.
-  //
-  // Assim que uma operação for encerrada e o limite deixar de ser atingido,
-  // a próxima busca é liberada imediatamente, sem esperar os 15 minutos.
+  /*
+   * CONTROLE DE TEMPO DAS PESQUISAS
+   *
+   * A pesquisa de novas moedas respeita o intervalo configurado:
+   * 1m  = 1 minuto
+   * 5m  = 5 minutos
+   * 15m = 15 minutos
+   * 30m = 30 minutos
+   * 1h  = 1 hora
+   *
+   * O monitoramento das operações continua a cada 15 segundos.
+   */
   let nextScanAt=0;
 
   try{
     while(!runner.stop){
+
       const account=await getAccount(userId,accountId);
       const config=await getConfig(userId,accountId,robotId);
 
       if(!account||!config||!config.running)break;
 
       try{
-        // Sempre monitora operações abertas.
-        // Essa parte continua funcionando mesmo quando novas entradas
-        // estiverem bloqueadas pelo limite de operações.
-        await monitorOpenOps(userId,account,config,robotId);
 
-        const limit=Math.max(1,Number(config.max_operations)||1);
-        const open=await openCount(userId,account.id,robotId);
+        /*
+         * 1. MONITORAMENTO DAS OPERAÇÕES
+         *
+         * TP, SL e proteção continuam sendo monitorados
+         * independentemente do intervalo de pesquisa.
+         */
+        await monitorOpenOps(
+          userId,
+          account,
+          config,
+          robotId
+        );
 
-        // ============================================================
-        // TRAVA DE NOVAS ENTRADAS
-        // ============================================================
+        /*
+         * 2. VERIFICA QUANTAS OPERAÇÕES ESTÃO ABERTAS
+         */
+        const limit=Math.max(
+          1,
+          Number(config.max_operations)||1
+        );
+
+        const open=await openCount(
+          userId,
+          account.id,
+          robotId
+        );
+
+        /*
+         * 3. LIMITE DE OPERAÇÕES ATINGIDO
+         *
+         * Exemplo: max_operations=3 e open=3.
+         *
+         * Não pesquisa novas moedas.
+         * Continua monitorando as operações a cada 15 segundos.
+         *
+         * IMPORTANTE:
+         * Não zeramos nextScanAt aqui. O intervalo continua
+         * sendo respeitado.
+         */
         if(open>=limit){
+
           if(!runner.blockedByOpenLimit){
+
             robotLog(
-              userId,account.id,robotId,
-              `ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas abertas | aguardando encerramento de uma operação para liberar nova busca.`
+              userId,
+              account.id,
+              robotId,
+              `ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas abertas | aguardando encerramento de uma operação para liberar novas entradas.`
             );
+
             runner.blockedByOpenLimit=true;
           }
 
-          // Não faz scan das moedas enquanto estiver no limite.
-          // O monitorOpenOps acima continua sendo executado normalmente.
-          nextScanAt=0;
-
-          // Supervisão continua a cada 15 segundos.
           await sleep(15000);
+
           continue;
         }
 
-        // ============================================================
-        // LIMITE FOI LIBERADO
-        // ============================================================
+        /*
+         * 4. EXISTE ESPAÇO PARA NOVA OPERAÇÃO
+         *
+         * Se anteriormente estava no limite e uma operação fechou,
+         * não fazemos uma pesquisa imediatamente.
+         *
+         * A próxima pesquisa continua obedecendo nextScanAt.
+         */
         if(runner.blockedByOpenLimit){
+
           robotLog(
-            userId,account.id,robotId,
-            `NOVA BUSCA LIBERADA | ${open}/${limit} operações simultâneas | uma operação foi encerrada e há espaço para nova entrada.`
+            userId,
+            account.id,
+            robotId,
+            `NOVA ENTRADA DISPONÍVEL | ${open}/${limit} operações abertas | aguardando o próximo intervalo de pesquisa.`
           );
 
           runner.blockedByOpenLimit=false;
-
-          // Força uma nova busca imediatamente.
-          nextScanAt=0;
         }
 
-        // ============================================================
-        // CICLO NORMAL DE BUSCA
-        // ============================================================
+        /*
+         * 5. HORA DA NOVA PESQUISA?
+         */
         if(Date.now()>=nextScanAt){
-          const scanStartedAt=Date.now();
-          const strategy=strategyInfo(String(config.strategy_version||'premium'));
+
+          const strategy=strategyInfo(
+            String(config.strategy_version||'premium')
+          );
+
           const interval=config.interval||'15m';
           const intervalMs=intervalToMs(interval);
 
-          robotLog(userId,account.id,robotId,
-            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | próximas entradas em ${Math.round(intervalMs/60000)} min | simultâneas=${config.max_operations}`
+          robotLog(
+            userId,
+            account.id,
+            robotId,
+            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operações=${open}/${limit}`
           );
 
-          const setups=await scan(userId,account,config,robotId);
+          /*
+           * PESQUISA DAS MOEDAS
+           */
+          const setups=await scan(
+            userId,
+            account,
+            config,
+            robotId
+          );
 
+          /*
+           * EXECUÇÃO DAS ENTRADAS APROVADAS
+           */
           if(setups.length){
-            await executeApprovedSetups(userId,account,config,setups,robotId);
+
+            await executeApprovedSetups(
+              userId,
+              account,
+              config,
+              setups,
+              robotId
+            );
+
           }else{
+
             robotLog(
-              userId,account.id,robotId,
+              userId,
+              account.id,
+              robotId,
               `NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`
             );
           }
 
-          // O intervalo é contado a partir do início da busca.
-          nextScanAt=scanStartedAt+intervalMs;
-        }
-      }catch(e){
-        robotLog(userId,account.id,robotId,`ERRO NO CICLO | ${errText(e)}`,'ERROR');
+          /*
+           * O intervalo começa após a conclusão da pesquisa.
+           *
+           * Assim, se a análise demorar, o robô não inicia outra
+           * pesquisa imediatamente após terminar.
+           */
+          nextScanAt=Date.now()+intervalMs;
 
-        // Mesmo em caso de erro, não dispara uma nova busca a cada 15s.
+          robotLog(
+            userId,
+            account.id,
+            robotId,
+            `PRÓXIMA PESQUISA AGENDADA | intervalo=${interval} | aproximadamente em ${Math.round(intervalMs/60000)} minuto(s).`
+          );
+        }
+
+      }catch(e){
+
+        robotLog(
+          userId,
+          account.id,
+          robotId,
+          `ERRO NO CICLO | ${errText(e)}`,
+          'ERROR'
+        );
+
+        /*
+         * Mesmo em caso de erro, não tenta pesquisar novamente
+         * a cada 15 segundos.
+         */
         if(Date.now()>=nextScanAt){
-          nextScanAt=Date.now()+intervalToMs(config.interval);
+
+          nextScanAt=
+            Date.now()+
+            intervalToMs(config.interval);
         }
       }
 
-      // 15s é somente a frequência de supervisão das posições abertas.
+      /*
+       * 15 segundos = frequência de supervisão.
+       * Não é a frequência de pesquisa das moedas.
+       */
       await sleep(15000);
     }
+
   }finally{
+
     runners.delete(key);
   }
 }

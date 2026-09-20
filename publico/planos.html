@@ -1345,6 +1345,20 @@
     }
 
 
+
+    /* ========================================================
+       MODAL DE PAGAMENTO
+       ======================================================== */
+    .payment-methods{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+    .payment-method-button{min-height:58px;border-radius:10px;border:1px solid #374151;background:#0d1320;color:#fff;cursor:pointer;font-weight:900;font-size:13px;transition:.2s}
+    .payment-method-button:hover{border-color:#d4af37;transform:translateY(-1px)}
+    .payment-method-button.pix{border-color:rgba(34,197,94,.45);background:rgba(34,197,94,.07)}
+    .payment-method-button.pix:hover{border-color:#22c55e;background:rgba(34,197,94,.12)}
+    .payment-method-button.card{border-color:rgba(99,102,241,.45);background:rgba(99,102,241,.07)}
+    .payment-method-button.card:hover{border-color:#818cf8;background:rgba(99,102,241,.12)}
+    .payment-method-close{margin-top:12px;width:100%;min-height:42px;border:1px solid #374151;border-radius:9px;background:transparent;color:#9ca3af;cursor:pointer;font-weight:800}
+    @media (max-width:520px){.payment-methods{grid-template-columns:1fr}}
+
     /* ========================================================
        MODAL
        ======================================================== */
@@ -2829,6 +2843,24 @@
   </section>
 
 
+
+  <div id="paymentMethodOverlay" class="modal-overlay" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-icon">💳</div>
+      <h2>Escolha a forma de pagamento</h2>
+      <p>
+        O cartão continuará sendo processado pelo Stripe.
+        O Pix será processado pelo Asaas.
+      </p>
+      <div id="paymentMethodPlan" class="modal-plan">Plano selecionado</div>
+      <div class="payment-methods">
+        <button type="button" class="payment-method-button card" id="payWithStripeButton">💳 PAGAR COM CARTÃO</button>
+        <button type="button" class="payment-method-button pix" id="payWithAsaasPixButton">🟢 PAGAR COM PIX</button>
+      </div>
+      <button type="button" class="payment-method-close" id="closePaymentMethodButton">Cancelar</button>
+    </div>
+  </div>
+
   <!-- ======================================================
        FOOTER
        ====================================================== -->
@@ -3358,205 +3390,97 @@
 
 
     // ========================================================
-    // SELECIONAR PLANO / CHECKOUT DIRETO
+    // SELECIONAR PLANO / FORMA DE PAGAMENTO
     // ========================================================
 
+    let planoPagamentoSelecionado = null;
+
+    const paymentMethodOverlay = document.getElementById("paymentMethodOverlay");
+    const paymentMethodPlan = document.getElementById("paymentMethodPlan");
+    const payWithStripeButton = document.getElementById("payWithStripeButton");
+    const payWithAsaasPixButton = document.getElementById("payWithAsaasPixButton");
+    const closePaymentMethodButton = document.getElementById("closePaymentMethodButton");
+
+    function abrirModalPagamento(codigo, nome, preco) {
+      planoPagamentoSelecionado = { codigo, nome, preco };
+      if (paymentMethodPlan) paymentMethodPlan.textContent = `${nome} — ${preco}`;
+      if (paymentMethodOverlay) {
+        paymentMethodOverlay.style.display = "flex";
+        paymentMethodOverlay.setAttribute("aria-hidden", "false");
+      }
+    }
+
+    function fecharModalPagamento() {
+      planoPagamentoSelecionado = null;
+      if (paymentMethodOverlay) {
+        paymentMethodOverlay.style.display = "none";
+        paymentMethodOverlay.setAttribute("aria-hidden", "true");
+      }
+    }
+
     async function selecionarPlano(codigo, nome, preco) {
-
-      localStorage.setItem(
-        "criptopro_selected_plan",
-        codigo
-      );
-
-      localStorage.setItem(
-        "criptopro_selected_plan_name",
-        nome
-      );
-
-      localStorage.setItem(
-        "criptopro_selected_plan_price",
-        preco
-      );
-
+      localStorage.setItem("criptopro_selected_plan", codigo);
+      localStorage.setItem("criptopro_selected_plan_name", nome);
+      localStorage.setItem("criptopro_selected_plan_price", preco);
 
       if (!token) {
-
-        window.location.href =
-          "/login.html";
-
+        window.location.href = "/login.html";
         return;
-
       }
 
+      abrirModalPagamento(codigo, nome, preco);
+    }
 
-      const buttons =
-        document.querySelectorAll(".plan-button");
+    async function iniciarPagamentoStripe() {
+      if (!planoPagamentoSelecionado) return;
 
-      buttons.forEach(button => {
+      const { codigo, nome, preco } = planoPagamentoSelecionado;
+      const buttons = document.querySelectorAll(".plan-button");
+      buttons.forEach(button => button.disabled = true);
 
-        button.disabled = true;
-
-      });
-
+      if (payWithStripeButton) {
+        payWithStripeButton.disabled = true;
+        payWithStripeButton.textContent = "Abrindo Stripe...";
+      }
 
       try {
+        const statusResponse = await fetch("/api/subscription/status", {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${token}` },
+          cache: "no-store"
+        });
 
-        // ======================================================
-        // VERIFICA PRIMEIRO SE JÁ POSSUI ASSINATURA ATIVA
-        // ======================================================
+        const statusData = await statusResponse.json().catch(() => ({}));
 
-        const statusResponse =
-          await fetch(
-            "/api/subscription/status",
-            {
-              method: "GET",
-              headers: {
-                "Authorization":
-                  `Bearer ${token}`
-              },
-              cache: "no-store"
-            }
-          );
-
-
-        const statusData =
-          await statusResponse
-            .json()
-            .catch(() => ({}));
-
-
-        if (
-          !statusResponse.ok ||
-          !statusData.ok
-        ) {
-
-          throw new Error(
-            statusData.error ||
-            statusData.message ||
-            "Não foi possível verificar sua assinatura."
-          );
-
+        if (!statusResponse.ok || !statusData.ok) {
+          throw new Error(statusData.error || statusData.message || "Não foi possível verificar sua assinatura.");
         }
 
-
-        // ======================================================
-        // CLIENTE JÁ POSSUI PLANO ATIVO
-        // ======================================================
-
         if (statusData.active) {
-
-          if (
-            statusData.plan === codigo
-          ) {
-
-            throw new Error(
-              `Você já está no plano ${
-                statusData.planName ||
-                nome
-              }.`
-            );
-
+          if (statusData.plan === codigo) {
+            throw new Error(`Você já está no plano ${statusData.planName || nome}.`);
           }
 
+          const confirmacao = window.confirm(
+            `Você possui o plano ${statusData.planName || statusData.plan}.\n\nDeseja alterar para o plano ${nome} por ${preco}?`
+          );
 
-          const confirmacao =
-            window.confirm(
+          if (!confirmacao) return;
 
-              `Você possui o plano ${
-                statusData.planName ||
-                statusData.plan
-              }.\n\n` +
+          const changeResponse = await fetch("/api/subscription/change-plan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ plan: codigo })
+          });
 
-              `Deseja alterar para o plano ${
-                nome
-              } por ${
-                preco
-              }?`
+          const changeData = await changeResponse.json().catch(() => ({}));
 
-            );
-
-
-          if (!confirmacao) {
-
-            return;
-
+          if (!changeResponse.ok || !changeData.ok) {
+            throw new Error(changeData.error || changeData.message || "Não foi possível alterar o plano.");
           }
-
-
-          // ====================================================
-          // SOLICITA TROCA DE PLANO AO BACKEND
-          // ====================================================
-
-          const changeResponse =
-            await fetch(
-              "/api/subscription/change-plan",
-              {
-                method: "POST",
-
-                headers: {
-                  "Content-Type":
-                    "application/json",
-
-                  "Authorization":
-                    `Bearer ${token}`
-                },
-
-                body: JSON.stringify({
-                  plan: codigo
-                })
-              }
-            );
-
-
-          const changeData =
-            await changeResponse
-              .json()
-              .catch(() => ({}));
-
-
-          if (
-            !changeResponse.ok ||
-            !changeData.ok
-          ) {
-
-            throw new Error(
-              changeData.error ||
-              changeData.message ||
-              "Não foi possível alterar o plano."
-            );
-
-          }
-
-
-          // ====================================================
-          // NOVO CHECKOUT STRIPE
-          // ====================================================
-          //
-          // Quando a assinatura anterior está em outro modo
-          // do Stripe (por exemplo TEST) e o servidor precisa
-          // criar uma nova assinatura LIVE, o backend retorna
-          // requiresCheckout=true e paymentUrl.
-          //
-          // Nesse caso, o usuário precisa ser enviado para
-          // o checkout do Stripe para realizar o pagamento.
-          // ====================================================
-
-          if (
-            changeData.requiresCheckout === true &&
-            changeData.paymentUrl
-          ) {
-
-            window.location.href =
-              changeData.paymentUrl;
-
-            return;
-
-          }
-
-
-          // ====================================================
-          // COMPATIBILIDADE COM OUTROS NOMES DE URL
-          // ====================================================
 
           const paymentUrl =
             changeData.paymentUrl ||
@@ -3566,138 +3490,46 @@
             changeData.url ||
             changeData.link;
 
-
-          if (
-            changeData.requiresCheckout === true &&
-            paymentUrl
-          ) {
-
-            window.location.href =
-              paymentUrl;
-
+          if (changeData.requiresCheckout === true && paymentUrl) {
+            window.location.href = paymentUrl;
             return;
-
           }
 
-
-          // ====================================================
-          // ALTERAÇÃO NORMAL DE ASSINATURA
-          // ====================================================
-
-          alert(
-            changeData.message ||
-            `Plano alterado para ${nome} com sucesso.`
-          );
-
-
+          alert(changeData.message || `Plano alterado para ${nome} com sucesso.`);
           window.location.reload();
-
           return;
-
         }
 
+        const meResponse = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
 
-        // ======================================================
-        // CLIENTE SEM PLANO ATIVO — NOVO CHECKOUT
-        // ======================================================
+        const me = await meResponse.json().catch(() => ({}));
 
-        const meResponse =
-          await fetch(
-            "/api/auth/me",
-            {
-              headers: {
-                "Authorization":
-                  `Bearer ${token}`
-              }
-            }
-          );
-
-
-        const me =
-          await meResponse
-            .json()
-            .catch(() => ({}));
-
-
-        if (
-          !meResponse.ok ||
-          !me.success ||
-          !me.user
-        ) {
-
-          throw new Error(
-            me.message ||
-            me.error ||
-            "Não foi possível identificar sua conta. Faça login novamente."
-          );
-
+        if (!meResponse.ok || !me.success || !me.user) {
+          throw new Error(me.message || me.error || "Não foi possível identificar sua conta. Faça login novamente.");
         }
 
-
-        const customerData = {
-
-          name:
-            me.user.name ||
-            "",
-
-          email:
-            me.user.email ||
-            ""
-
-        };
-
-
-        // ======================================================
-        // CRIA CHECKOUT STRIPE
-        // ======================================================
-
-        const response =
-          await fetch(
-            "/api/subscription/select-stripe",
-            {
-              method: "POST",
-
-              headers: {
-                "Content-Type":
-                  "application/json",
-
-                "Authorization":
-                  `Bearer ${token}`
-              },
-
-              body: JSON.stringify({
-
-                plan:
-                  codigo,
-
-                customerData
-
-              })
-
+        const response = await fetch("/api/subscription/select-stripe", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            plan: codigo,
+            customerData: {
+              name: me.user.name || "",
+              email: me.user.email || ""
             }
-          );
+          })
+        });
 
-
-        const data =
-          await response
-            .json()
-            .catch(() => ({}));
-
+        const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-
-          throw new Error(
-            data.error ||
-            data.message ||
-            "Não foi possível iniciar o pagamento."
-          );
-
+          throw new Error(data.error || data.message || "Não foi possível iniciar o pagamento.");
         }
-
-
-        // ======================================================
-        // LOCALIZA URL DO CHECKOUT
-        // ======================================================
 
         const checkoutUrl =
           data.checkoutUrl ||
@@ -3707,50 +3539,92 @@
           data.url ||
           data.link;
 
-
         if (!checkoutUrl) {
-
-          throw new Error(
-            "O Stripe não retornou o endereço do checkout."
-          );
-
+          throw new Error("O Stripe não retornou o endereço do checkout.");
         }
 
-
-        // ======================================================
-        // ENVIA PARA STRIPE
-        // ======================================================
-
-        window.location.href =
-          checkoutUrl;
-
+        window.location.href = checkoutUrl;
 
       } catch (error) {
-
-        console.error(
-          "ERRO AO PROCESSAR PLANO:",
-          error
-        );
-
-
-        alert(
-          error.message ||
-          "Não foi possível processar a alteração. Tente novamente."
-        );
-
-
+        console.error("ERRO AO PROCESSAR STRIPE:", error);
+        alert(error.message || "Não foi possível processar o pagamento com cartão.");
       } finally {
-
-        buttons.forEach(button => {
-
-          button.disabled = false;
-
-        });
-
+        buttons.forEach(button => button.disabled = false);
+        if (payWithStripeButton) {
+          payWithStripeButton.disabled = false;
+          payWithStripeButton.textContent = "💳 PAGAR COM CARTÃO";
+        }
       }
-
     }
 
+    async function iniciarPagamentoPixAsaas() {
+      if (!planoPagamentoSelecionado) return;
+
+      const { codigo } = planoPagamentoSelecionado;
+
+      if (payWithAsaasPixButton) {
+        payWithAsaasPixButton.disabled = true;
+        payWithAsaasPixButton.textContent = "Gerando Pix...";
+      }
+
+      try {
+        const meResponse = await fetch("/api/auth/me", {
+          headers: { "Authorization": `Bearer ${token}` }
+        });
+
+        const me = await meResponse.json().catch(() => ({}));
+
+        if (!meResponse.ok || !me.success || !me.user) {
+          throw new Error(me.message || me.error || "Não foi possível identificar sua conta. Faça login novamente.");
+        }
+
+        const response = await fetch("/api/subscription/select-asaas", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            plan: codigo,
+            customerData: {
+              name: me.user.name || "",
+              email: me.user.email || ""
+            }
+          })
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || data.message || "Não foi possível iniciar o pagamento via Pix.");
+        }
+
+        if (!data.paymentUrl) {
+          throw new Error("O Asaas não retornou o endereço do checkout Pix.");
+        }
+
+        window.location.href = data.paymentUrl;
+
+      } catch (error) {
+        console.error("ERRO AO PROCESSAR PIX ASAAS:", error);
+        alert(error.message || "Não foi possível iniciar o pagamento via Pix.");
+      } finally {
+        if (payWithAsaasPixButton) {
+          payWithAsaasPixButton.disabled = false;
+          payWithAsaasPixButton.textContent = "🟢 PAGAR COM PIX";
+        }
+      }
+    }
+
+    if (payWithStripeButton) payWithStripeButton.onclick = iniciarPagamentoStripe;
+    if (payWithAsaasPixButton) payWithAsaasPixButton.onclick = iniciarPagamentoPixAsaas;
+    if (closePaymentMethodButton) closePaymentMethodButton.onclick = fecharModalPagamento;
+
+    if (paymentMethodOverlay) {
+      paymentMethodOverlay.addEventListener("click", function(event) {
+        if (event.target === this) fecharModalPagamento();
+      });
+    }
 
     // ========================================================
     // COMPATIBILIDADE

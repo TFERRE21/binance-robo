@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Suporte - CriptoPro</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background:
+        radial-gradient(
+          circle at 15% 10%,
+          rgba(240, 185, 11, 0.10),
+          transparent 30%
+        ),
+        radial-gradient(
+          circle at 85% 20%,
+          rgba(34, 197, 94, 0.07),
+          transparent 30%
+        ),
+        linear-gradient(
+          180deg,
+          #080c14 0%,
+          #0b1020 100%
+        );
+      color: #ffffff;
+    }
+
+    .header {
+      height: 76px;
+      border-bottom: 1px solid #202a3b;
+      background: rgba(8, 12, 20, 0.94);
+      backdrop-filter: blur(15px);
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      padding: 0 5%;
+    }
+
+    .logo {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -1px;
+    }
+
+    .logo span {
+      color: #f0b90b;
+    }
+
+    .back-button {
+      border: 1px solid #374151;
+      background: transparent;
+      color: #ffffff;
+
+      padding: 10px 16px;
+      border-radius: 8px;
+
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .back-button:hover {
+      border-color: #f0b90b;
+      color: #f0b90b;
+    }
+
+    .container {
+      width: 94%;
+      max-width: 900px;
+      margin: 45px auto;
+    }
+
+    .title-area {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .badge {
+      display: inline-block;
+
+      padding: 8px 14px;
+      margin-bottom: 15px;
+
+      border: 1px solid rgba(240, 185, 11, .35);
+      border-radius: 20px;
+
+      background: rgba(240, 185, 11, .08);
+
+      color: #f0b90b;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      font-size: 34px;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      color: #8c98a9;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .support-card {
+      background: rgba(15, 23, 36, .92);
+
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 16px;
+
+      padding: 28px;
+
+      box-shadow:
+        0 25px 70px rgba(0, 0, 0, .35);
+    }
+
+    .card-title {
+      font-size: 17px;
+      font-weight: 900;
+      margin-bottom: 6px;
+    }
+
+    .card-subtitle {
+      color: #778395;
+      font-size: 10px;
+      margin-bottom: 25px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      display: block;
+
+      color: #cbd5e1;
+
+      font-size: 10px;
+      font-weight: 800;
+
+      margin-bottom: 7px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+
+      border: 1px solid #2a3a4c;
+      border-radius: 8px;
+
+      background: #080d14;
+      color: #e5ebf3;
+
+      padding: 12px;
+
+      outline: none;
+
+      font-family: inherit;
+      font-size: 11px;
+
+      transition: .2s;
+    }
+
+    input,
+    select {
+      height: 43px;
+    }
+
+    textarea {
+      min-height: 160px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      border-color: #f0b90b;
+
+      box-shadow:
+        0 0 0 3px rgba(240, 185, 11, .08);
+    }
+
+    .help {
+      color: #667386;
+      font-size: 9px;
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .origin-box {
+      padding: 12px;
+
+      border: 1px solid rgba(240, 185, 11, .18);
+      border-radius: 8px;
+
+      background: rgba(240, 185, 11, .04);
+
+      color: #9ba7b7;
+
+      font-size: 10px;
+    }
+
+    .origin-box strong {
+      color: #f0b90b;
+    }
+
+    .button-area {
+      margin-top: 8px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .submit-button {
+      min-width: 190px;
+      height: 46px;
+
+      border: 0;
+      border-radius: 8px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #ffd83e,
+          #efa900
+        );
+
+      color: #111;
+
+      font-size: 11px;
+      font-weight: 900;
+
+      cursor: pointer;
+
+      transition: .2s;
+    }
+
+    .submit-button:hover {
+      transform: translateY(-1px);
+
+      box-shadow:
+        0 12px 25px rgba(240, 185, 11, .18);
+    }
+
+    .notice {
+      margin-top: 18px;
+
+      padding: 13px;
+
+      border: 1px solid rgba(35, 196, 131, .16);
+      border-radius: 9px;
+
+      background: rgba(35, 196, 131, .04);
+
+      color: #8ca696;
+
+      font-size: 9px;
+      line-height: 1.5;
+    }
+
+    .footer {
+      text-align: center;
+
+      color: #5f6b7b;
+
+      font-size: 9px;
+
+      padding: 0 20px 30px;
+    }
+
+    @media (max-width: 700px) {
+
+      .header {
+        padding: 0 18px;
+      }
+
+      .logo {
+        font-size: 22px;
+      }
+
+      .container {
+        width: 92%;
+        margin: 30px auto;
+      }
+
+      h1 {
+        font-size: 27px;
+      }
+
+      .support-card {
+        padding: 20px;
+      }
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .field.full {
+        grid-column: auto;
+      }
+
+      .button-area {
+        display: block;
+      }
+
+      .submit-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header class="header">
+
+    <div class="logo">
+      CRIPTO<span>PRO</span>
+    </div>
+
+    <button
+      class="back-button"
+      onclick="history.back()"
+    >
+      ← Voltar
+    </button>
+
+  </header>
+
+
+  <main class="container">
+
+    <div class="title-area">
+
+      <div class="badge">
+        🎫 Central de Suporte
+      </div>
+
+      <h1>
+        Como podemos ajudar?
+      </h1>
+
+      <p class="subtitle">
+        Abra um chamado e nossa equipe receberá sua solicitação.
+        Informe o máximo de detalhes possível para agilizar o atendimento.
+      </p>
+
+    </div>
+
+
+    <section class="support-card">
+
+      <div class="card-title">
+        📩 Abrir chamado de suporte
+      </div>
+
+      <div class="card-subtitle">
+        Preencha os dados abaixo para enviar sua solicitação.
+      </div>
+
+
+      <form id="supportTicketForm">
+
+        <div class="form-grid">
+
+
+          <div class="field">
+
+            <label for="nome">
+              Nome
+            </label>
+
+            <input
+              type="text"
+              id="nome"
+              name="nome"
+              placeholder="Seu nome"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label for="email">
+              E-mail
+            </label>
+
+            <input
+              type="email"
+              id="email"
+              name="email"
+              placeholder="seu@email.com"
+              required
+            >
+
+          </div>
+
+
+          <div class="field">
+
+            <label for="categoria">
+              Categoria
+            </label>
+
+            <select
+              id="categoria"
+              name="categoria"
+              required
+            >
+
+              <option value="">
+                Selecione uma categoria
+              </option>
+
+              <option value="pagamento">
+                💳 Pagamento
+              </option>
+
+              <option value="plano">
+                💰 Plano / Assinatura
+              </option>
+
+              <option value="robo">
+                🤖 Robô
+              </option>
+
+              <option value="binance">
+                🔗 Conexão Binance
+              </option>
+
+              <option value="login">
+                🔑 Login / Acesso
+              </option>
+
+              <option value="painel">
+                📊 Painel
+              </option>
+
+              <option value="duvida">
+                ❓ Dúvida
+              </option>
+
+              <option value="tecnico">
+                🐞 Problema técnico
+              </option>
+
+              <option value="outro">
+                📌 Outro
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="field">
+
+            <label for="prioridade">
+              Prioridade
+            </label>
+
+            <select
+              id="prioridade"
+              name="prioridade"
+              required
+            >
+
+              <option value="normal">
+                🟢 Normal
+              </option>
+
+              <option value="importante">
+                🟡 Importante
+              </option>
+
+              <option value="urgente">
+                🔴 Urgente
+              </option>
+
+            </select>
+
+          </div>
+
+
+          <div class="field full">
+
+            <label>
+              Página onde ocorreu
+            </label>
+
+            <div class="origin-box">
+
+              Página:
+              <strong id="paginaOrigem">
+                Identificando...
+              </strong>
+
+            </div>
+
+          </div>
+
+
+          <div class="field full">
+
+            <label for="assunto">
+              Assunto
+            </label>
+
+            <input
+              type="text"
+              id="assunto"
+              name="assunto"
+              placeholder="Ex.: Pagamento realizado e plano não ativado"
+              required
+            >
+
+          </div>
+
+
+          <div class="field full">
+
+            <label for="descricao">
+              Descreva o ocorrido
+            </label>
+
+            <textarea
+              id="descricao"
+              name="descricao"
+              placeholder="Explique o que aconteceu. Se possível, informe data, horário, mensagem de erro e o que você estava tentando fazer."
+              required
+            ></textarea>
+
+            <div class="help">
+              Quanto mais detalhes você informar, mais fácil será analisar o problema.
+            </div>
+
+          </div>
+
+
+        </div>
+
+
+        <div class="button-area">
+
+          <button
+            type="submit"
+            class="submit-button"
+          >
+            📩 ENVIAR CHAMADO
+          </button>
+
+        </div>
+
+
+        <div class="notice">
+
+          🔐 Seus dados serão utilizados para atendimento da solicitação.
+          Nunca informe sua senha da Binance, sua API Secret ou códigos de segurança neste formulário.
+
+        </div>
+
+      </form>
+
+    </section>
+
+  </main>
+
+
+  <div class="footer">
+
+    © CriptoPro — Central de Suporte
+
+  </div>
+
+
+  <script>
+
+    // Identifica automaticamente de qual página o usuário veio.
+    const params = new URLSearchParams(window.location.search);
+
+    const origemParam = params.get("origem");
+
+    const paginaAtual = origemParam
+      ? origemParam
+      : document.referrer
+        ? new URL(document.referrer).pathname
+        : "Acesso direto";
+
+
+    document.getElementById("paginaOrigem").textContent =
+      paginaAtual;
+
+
+    // Nesta primeira etapa o formulário ainda não envia.
+    // O envio será conectado ao servidor no próximo passo.
+
+    document
+      .getElementById("supportTicketForm")
+      .addEventListener("submit", function(event) {
+
+        event.preventDefault();
+
+        alert(
+          "Página de suporte criada com sucesso.\\n\\n" +
+          "No próximo passo vamos conectar este formulário ao servidor para enviar o chamado."
+        );
+
+      });
+
+  </script>
+
+</body>
+</html>

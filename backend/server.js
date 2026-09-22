@@ -39,6 +39,388 @@ app.post("/api/support/chat", async function (req, res) {
 });
 
 // =========================================================
+// CRIPTOPRO — CHAMADOS DE SUPORTE
+// Envia os chamados por e-mail usando Resend
+// A chave RESEND_API_KEY fica somente no servidor.
+// =========================================================
+
+function escaparHTML(valor) {
+  return String(valor || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+app.post("/api/support/ticket", async function (req, res) {
+  try {
+    // -------------------------------------------------------
+    // CONFIGURAÇÕES
+    // -------------------------------------------------------
+    const resendApiKey = process.env.RESEND_API_KEY;
+
+    const emailDestino =
+      process.env.SUPPORT_EMAIL ||
+      "TJESUSFERREIRA17@GMAIL.COM";
+
+    if (!resendApiKey) {
+      console.error(
+        "CRIPTOPRO SUPORTE: RESEND_API_KEY não configurada."
+      );
+
+      return res.status(500).json({
+        ok: false,
+        erro: "Serviço de e-mail não configurado no servidor."
+      });
+    }
+
+    // -------------------------------------------------------
+    // DADOS RECEBIDOS DO FORMULÁRIO
+    // -------------------------------------------------------
+    const nome = String(req.body.nome || "").trim();
+    const email = String(req.body.email || "").trim();
+    const categoria = String(req.body.categoria || "").trim();
+    const prioridade = String(req.body.prioridade || "").trim();
+    const origem = String(
+      req.body.pagina ||
+      req.body.origem ||
+      ""
+    ).trim();
+    const assunto = String(req.body.assunto || "").trim();
+    const descricao = String(req.body.descricao || "").trim();
+
+    // -------------------------------------------------------
+    // VALIDAÇÕES
+    // -------------------------------------------------------
+    if (!nome) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe seu nome."
+      });
+    }
+
+    if (!email) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe seu e-mail."
+      });
+    }
+
+    const emailValido =
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!emailValido) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe um e-mail válido."
+      });
+    }
+
+    if (!categoria) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe a categoria do chamado."
+      });
+    }
+
+    if (!prioridade) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe a prioridade."
+      });
+    }
+
+    if (!assunto) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Informe o assunto."
+      });
+    }
+
+    if (!descricao) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Descreva o problema ou solicitação."
+      });
+    }
+
+    // Limites básicos de segurança
+    if (nome.length > 120) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Nome muito longo."
+      });
+    }
+
+    if (assunto.length > 200) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Assunto muito longo."
+      });
+    }
+
+    if (descricao.length > 10000) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Descrição muito longa."
+      });
+    }
+
+    // -------------------------------------------------------
+    // NÚMERO DO CHAMADO
+    // -------------------------------------------------------
+    const ticketId =
+      "CP-" +
+      Date.now().toString().slice(-8);
+
+    const dataHora =
+      new Date().toLocaleString("pt-BR", {
+        timeZone: "America/Sao_Paulo"
+      });
+
+    // -------------------------------------------------------
+    // PROTEÇÃO CONTRA HTML INJETADO
+    // -------------------------------------------------------
+    const nomeHTML = escaparHTML(nome);
+    const emailHTML = escaparHTML(email);
+    const categoriaHTML = escaparHTML(categoria);
+    const prioridadeHTML = escaparHTML(prioridade);
+    const origemHTML = escaparHTML(origem || "Não informado");
+    const assuntoHTML = escaparHTML(assunto);
+    const descricaoHTML =
+      escaparHTML(descricao).replace(/\n/g, "<br>");
+
+    // -------------------------------------------------------
+    // E-MAIL
+    // -------------------------------------------------------
+    const emailHTMLCompleto = `
+      <div style="
+        font-family:Arial,sans-serif;
+        max-width:700px;
+        margin:0 auto;
+        color:#1f2937;
+      ">
+
+        <div style="
+          background:linear-gradient(135deg,#1677ff,#0b5ed7);
+          color:#fff;
+          padding:22px;
+          border-radius:12px 12px 0 0;
+        ">
+          <h2 style="margin:0;">
+            CRIPTOPRO — Novo chamado de suporte
+          </h2>
+
+          <p style="
+            margin:8px 0 0;
+            opacity:.9;
+          ">
+            Chamado ${ticketId}
+          </p>
+        </div>
+
+        <div style="
+          border:1px solid #e5e7eb;
+          border-top:0;
+          padding:22px;
+          border-radius:0 0 12px 12px;
+        ">
+
+          <h3 style="margin-top:0;">
+            Dados do cliente
+          </h3>
+
+          <table style="
+            width:100%;
+            border-collapse:collapse;
+          ">
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>Nome:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${nomeHTML}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>E-mail:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${emailHTML}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>Categoria:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${categoriaHTML}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>Prioridade:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${prioridadeHTML}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>Página de origem:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${origemHTML}
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                <b>Data/Hora:</b>
+              </td>
+              <td style="padding:8px;border-bottom:1px solid #eee;">
+                ${dataHora}
+              </td>
+            </tr>
+          </table>
+
+          <h3 style="margin-top:25px;">
+            Assunto
+          </h3>
+
+          <div style="
+            background:#f7f9fc;
+            padding:14px;
+            border-radius:8px;
+          ">
+            ${assuntoHTML}
+          </div>
+
+          <h3 style="margin-top:25px;">
+            Descrição
+          </h3>
+
+          <div style="
+            background:#f7f9fc;
+            padding:14px;
+            border-radius:8px;
+            line-height:1.6;
+          ">
+            ${descricaoHTML}
+          </div>
+
+          <div style="
+            margin-top:25px;
+            padding:14px;
+            background:#eef6ff;
+            border-radius:8px;
+            color:#164e86;
+          ">
+            <b>Número do chamado:</b> ${ticketId}
+          </div>
+
+        </div>
+      </div>
+    `;
+
+    // -------------------------------------------------------
+    // ENVIO PELO RESEND
+    // -------------------------------------------------------
+    const respostaResend = await fetch(
+      "https://api.resend.com/emails",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization":
+            "Bearer " + resendApiKey
+        },
+
+        body: JSON.stringify({
+          from:
+            process.env.SUPPORT_FROM_EMAIL ||
+            "onboarding@resend.dev",
+
+          to: [emailDestino],
+
+          subject:
+            "[CRIPTOPRO] Novo chamado " +
+            ticketId +
+            " - " +
+            assunto,
+
+          html: emailHTMLCompleto,
+
+          reply_to: email
+        })
+      }
+    );
+
+    let resultadoResend = {};
+
+    try {
+      resultadoResend =
+        await respostaResend.json();
+    } catch (e) {
+      resultadoResend = {};
+    }
+
+    // -------------------------------------------------------
+    // ERRO NO RESEND
+    // -------------------------------------------------------
+    if (!respostaResend.ok) {
+      console.error(
+        "CRIPTOPRO SUPORTE — ERRO RESEND:",
+        resultadoResend
+      );
+
+      return res.status(502).json({
+        ok: false,
+        erro:
+          resultadoResend.message ||
+          resultadoResend.error ||
+          "Não foi possível enviar o chamado por e-mail."
+      });
+    }
+
+    // -------------------------------------------------------
+    // SUCESSO
+    // -------------------------------------------------------
+    console.log(
+      "CRIPTOPRO SUPORTE — CHAMADO ENVIADO:",
+      ticketId
+    );
+
+    return res.json({
+      ok: true,
+      ticketId,
+      mensagem:
+        "Chamado enviado com sucesso."
+    });
+
+  } catch (erro) {
+
+    console.error(
+      "CRIPTOPRO SUPORTE — ERRO:",
+      erro
+    );
+
+    return res.status(500).json({
+      ok: false,
+      erro:
+        "Erro interno ao enviar o chamado."
+    });
+  }
+});
+
+// =========================================================
 // ROTAS PRINCIPAIS
 // =========================================================
 app.use("/api/auth", authRoutes);

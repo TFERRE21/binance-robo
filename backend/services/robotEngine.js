@@ -11,53 +11,78 @@ const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   basico: {
     name:'Básico',
-    description:'Mais oportunidades com tendência, RSI, volume e entrada técnica.',
+    description:'Mais oportunidades, com filtros mínimos de tendência e qualidade.',
     mode:'volume',
     scoreMin:4,
     rsiMin:38,
     rsiMax:68,
+    volumeMin:0.70,
+    maxDist:0.035,
+    breakoutVolume:1.30,
     requirePullback:false,
-    marketMinScore:0
+    preferPullback:false,
+    marketMinScore:0,
+    blockHotBreakout:true
   },
   medio: {
     name:'Médio',
-    description:'Equilíbrio entre frequência e confirmação técnica.',
+    description:'Equilíbrio entre frequência, tendência e confirmação de volume.',
     mode:'volume',
     scoreMin:4,
     rsiMin:40,
-    rsiMax:66,
+    rsiMax:67,
+    volumeMin:0.80,
+    maxDist:0.035,
+    breakoutVolume:1.30,
     requirePullback:false,
-    marketMinScore:0
+    preferPullback:false,
+    marketMinScore:0,
+    blockHotBreakout:true
   },
   premium: {
     name:'Premium',
-    description:'Boa frequência com confirmação do mercado e market cap.',
+    description:'Confirmação moderada com mercado favorável e maior qualidade de entrada.',
     mode:'marketcap',
     scoreMin:5,
     rsiMin:40,
-    rsiMax:65,
+    rsiMax:66,
+    volumeMin:0.80,
+    maxDist:0.030,
+    breakoutVolume:1.30,
     requirePullback:false,
-    marketMinScore:1
+    preferPullback:false,
+    marketMinScore:1,
+    blockHotBreakout:true
   },
   avancado: {
     name:'Avançado',
-    description:'Mais seletivo, mas ainda com espaço para boas entradas.',
+    description:'Mais seletivo, priorizando pullback e confirmação do mercado.',
     mode:'marketcap',
     scoreMin:5,
-    rsiMin:43,
-    rsiMax:63,
+    rsiMin:42,
+    rsiMax:64,
+    volumeMin:0.90,
+    maxDist:0.030,
+    breakoutVolume:1.40,
     requirePullback:false,
-    marketMinScore:2
+    preferPullback:true,
+    marketMinScore:2,
+    blockHotBreakout:true
   },
   elite: {
     name:'Elite',
-    description:'Maior confirmação: mercado forte + pullback + score elevado.',
+    description:'Alta confirmação sem ficar travado: pullback preferencial e breakout forte.',
     mode:'marketcap',
     scoreMin:6,
-    rsiMin:45,
-    rsiMax:61,
-    requirePullback:true,
-    marketMinScore:3
+    rsiMin:44,
+    rsiMax:62,
+    volumeMin:1.00,
+    maxDist:0.025,
+    breakoutVolume:1.50,
+    requirePullback:false,
+    preferPullback:true,
+    marketMinScore:2,
+    blockHotBreakout:true
   }
 };
 
@@ -434,7 +459,7 @@ async function analyze(client,symbol,market,interval,version='premium'){
 
   const dist=(p-e21)/e21;
 
-  if(dist>0.035){
+  if(dist>strategy.maxDist){
     return {
       valid:false,
       reason:'Preço esticado'
@@ -445,13 +470,13 @@ async function analyze(client,symbol,market,interval,version='premium'){
 
   const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length);
   const vr=avgVol?volumes[last]/avgVol:0;
-  if(vr>=0.8)score++;
+  if(vr>=strategy.volumeMin)score++;
   if(p>o)score++;
 
   const minLow=Math.min(...lows.slice(-6));
   const pull=Math.abs((minLow-e21)/e21)<=0.025&&p>=e21*0.995&&p<=e21*1.04;
   const maxHigh=Math.max(...highs.slice(-11,-1));
-  const breakout=p>maxHigh&&vr>=1.3&&dist<=0.04;
+  const breakout=p>maxHigh&&vr>=strategy.breakoutVolume&&dist<=strategy.maxDist;
 
   let entry=null;
   if(pull) { score++; entry='PULLBACK'; }
@@ -460,8 +485,11 @@ async function analyze(client,symbol,market,interval,version='premium'){
   if(strategy.requirePullback && entry!=='PULLBACK')
     return {valid:false,reason:'Estratégia exige PULLBACK'};
 
-  if(market.quente && entry!=='PULLBACK')
-    return {valid:false,reason:'Mercado aquecido'};
+  if(strategy.preferPullback && entry==='BREAKOUT' && vr<strategy.breakoutVolume)
+    return {valid:false,reason:'Breakout sem volume suficiente para esta estratégia'};
+
+  if(strategy.blockHotBreakout && market.quente && entry==='BREAKOUT')
+    return {valid:false,reason:'Mercado aquecido para entrada por BREAKOUT'};
 
   if(market.score < strategy.marketMinScore)
     return {valid:false,reason:`Mercado abaixo do filtro da estratégia (${market.score})`};

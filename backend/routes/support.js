@@ -86,16 +86,16 @@
         >×</button>
       </div>
 
-      <div
-        id="supportMessages"
-        style="
-          height:315px;
-          overflow-y:auto;
-          padding:14px;
-          box-sizing:border-box;
-          background:#f7f9fc;
-        "
-      >
+            <div
+          id="supportMessages"
+          style="
+            height:260px;
+            overflow-y:auto;
+            padding:14px;
+            box-sizing:border-box;
+            background:#f7f9fc;
+          "
+        >
         <div style="
           background:#fff;
           border:1px solid #e5e7eb;

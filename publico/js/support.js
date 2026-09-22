@@ -5,7 +5,11 @@
   let enviando = false;
 
   function criarChat() {
-    if (document.getElementById("supportChatBox")) return;
+
+    // Evita criar o suporte duas vezes
+    if (document.getElementById("supportChatBox")) {
+      return;
+    }
 
     const button = document.createElement("button");
 
@@ -13,6 +17,7 @@
     button.type = "button";
     button.innerHTML = "💬";
     button.title = "Suporte CRIPTOPRO";
+    button.setAttribute("aria-label", "Abrir suporte CRIPTOPRO");
 
     Object.assign(button.style, {
       position: "fixed",
@@ -30,6 +35,7 @@
       boxShadow: "0 8px 25px rgba(0,0,0,.30)"
     });
 
+
     const box = document.createElement("div");
 
     box.id = "supportChatBox";
@@ -41,6 +47,7 @@
       width: "360px",
       maxWidth: "calc(100vw - 30px)",
       height: "500px",
+      maxHeight: "calc(100vh - 120px)",
       background: "#fff",
       borderRadius: "18px",
       overflow: "hidden",
@@ -48,12 +55,15 @@
       border: "1px solid #e5e7eb",
       zIndex: "99998",
       display: "none",
+      flexDirection: "column",
       fontFamily: "Arial, sans-serif"
     });
 
+
     box.innerHTML = `
+
       <div style="
-        height:58px;
+        min-height:58px;
         background:linear-gradient(135deg,#1677ff,#0b5ed7);
         color:#fff;
         display:flex;
@@ -61,34 +71,52 @@
         justify-content:space-between;
         padding:0 16px;
         box-sizing:border-box;
+        flex-shrink:0;
       ">
+
         <div>
-          <div style="font-size:16px;font-weight:700;">
+
+          <div style="
+            font-size:16px;
+            font-weight:700;
+          ">
             🤖 CRIPTOPRO
           </div>
 
-          <div style="font-size:11px;opacity:.85;">
+          <div style="
+            font-size:11px;
+            opacity:.85;
+          ">
             Assistente de suporte
           </div>
+
         </div>
+
 
         <button
           id="supportCloseButton"
           type="button"
+          aria-label="Fechar suporte"
           style="
             background:transparent;
             border:0;
             color:#fff;
             font-size:22px;
             cursor:pointer;
+            line-height:1;
           "
-        >×</button>
+        >
+          ×
+        </button>
+
       </div>
+
 
       <div
         id="supportMessages"
         style="
-          height:315px;
+          flex:1;
+          min-height:0;
           overflow-y:auto;
           padding:14px;
           box-sizing:border-box;
@@ -106,11 +134,19 @@
           font-size:13px;
           line-height:1.45;
         ">
-          Olá! 👋<br><br>
+
+          Olá! 👋
+
+          <br><br>
 
           Sou o assistente da <b>CRIPTOPRO</b>.
+
+          <br>
+
           Como posso ajudar?
+
         </div>
+
 
         <button
           type="button"
@@ -120,6 +156,7 @@
           🤖 Como funciona o robô?
         </button>
 
+
         <button
           type="button"
           class="supportQuickButton"
@@ -127,6 +164,7 @@
         >
           🔗 Como conectar a Binance?
         </button>
+
 
         <button
           type="button"
@@ -136,6 +174,7 @@
           📊 Diferença dos robôs
         </button>
 
+
         <button
           type="button"
           class="supportQuickButton"
@@ -143,6 +182,7 @@
         >
           💳 Como funciona o pagamento?
         </button>
+
 
         <button
           type="button"
@@ -166,16 +206,18 @@
 
       </div>
 
+
       <form
         id="supportForm"
         style="
-          height:67px;
+          min-height:67px;
           display:flex;
           gap:8px;
           padding:10px;
           box-sizing:border-box;
           background:#fff;
           border-top:1px solid #e5e7eb;
+          flex-shrink:0;
         "
       >
 
@@ -183,7 +225,9 @@
           id="supportInput"
           type="text"
           autocomplete="off"
+          maxlength="1000"
           placeholder="Digite sua dúvida..."
+          aria-label="Digite sua dúvida"
           style="
             flex:1;
             min-width:0;
@@ -195,11 +239,14 @@
           "
         >
 
+
         <button
           id="supportSendButton"
           type="submit"
+          aria-label="Enviar mensagem"
           style="
             width:48px;
+            flex-shrink:0;
             border:0;
             border-radius:10px;
             background:#1677ff;
@@ -212,10 +259,15 @@
         </button>
 
       </form>
+
     `;
+
 
     document.body.appendChild(button);
     document.body.appendChild(box);
+
+
+    // ABRIR / FECHAR CHAT
 
     button.addEventListener("click", function () {
 
@@ -225,40 +277,59 @@
       box.style.display =
         aberto ? "none" : "flex";
 
-      box.style.flexDirection =
-        "column";
-
       if (!aberto) {
 
         setTimeout(function () {
 
           const input =
-            document.getElementById(
-              "supportInput"
-            );
+            document.getElementById("supportInput");
 
           if (input) {
             input.focus();
           }
 
         }, 100);
+
       }
+
     });
 
-    document
-      .getElementById("supportCloseButton")
-      .addEventListener("click", function () {
 
-        box.style.display = "none";
+    // BOTÃO FECHAR
 
-      });
+    const closeButton =
+      document.getElementById("supportCloseButton");
 
-    document
-      .getElementById("supportForm")
-      .addEventListener(
+    if (closeButton) {
+
+      closeButton.addEventListener(
+        "click",
+        function () {
+
+          box.style.display = "none";
+
+        }
+      );
+
+    }
+
+
+    // FORMULÁRIO
+
+    const form =
+      document.getElementById("supportForm");
+
+    if (form) {
+
+      form.addEventListener(
         "submit",
         enviarMensagem
       );
+
+    }
+
+
+    // BOTÕES RÁPIDOS
 
     document
       .querySelectorAll(".supportQuickButton")
@@ -280,6 +351,7 @@
 
         });
 
+
         botao.addEventListener(
           "click",
           function () {
@@ -294,26 +366,62 @@
                 "supportInput"
               );
 
-            if (!input || !pergunta)
+            if (
+              !input ||
+              !pergunta ||
+              enviando
+            ) {
               return;
+            }
 
             input.value = pergunta;
 
-            document
-              .getElementById("supportForm")
-              .dispatchEvent(
-                new Event("submit", {
-                  bubbles: true,
-                  cancelable: true
-                })
+            const form =
+              document.getElementById(
+                "supportForm"
               );
+
+            if (form) {
+
+              if (
+                typeof form.requestSubmit ===
+                "function"
+              ) {
+
+                form.requestSubmit();
+
+              } else {
+
+                form.dispatchEvent(
+                  new Event(
+                    "submit",
+                    {
+                      bubbles: true,
+                      cancelable: true
+                    }
+                  )
+                );
+
+              }
+
+            }
+
           }
         );
+
       });
 
-    document
-      .getElementById("supportTicketButton")
-      .addEventListener(
+
+    // ABRIR CHAMADO
+
+    const ticketButton =
+      document.getElementById(
+        "supportTicketButton"
+      );
+
+    if (ticketButton) {
+
+      ticketButton.addEventListener(
         "click",
         function () {
 
@@ -329,9 +437,16 @@
 
           window.location.href =
             destino;
+
         }
       );
+
+    }
+
   }
+
+
+  // ADICIONAR MENSAGEM
 
   function adicionarMensagem(
     texto,
@@ -343,44 +458,66 @@
         "supportMessages"
       );
 
-    if (!area) return;
+    if (!area) {
+      return;
+    }
+
 
     const mensagem =
       document.createElement("div");
 
+
     const usuario =
       tipo === "user";
 
-    Object.assign(mensagem.style, {
 
-      maxWidth: "85%",
-      marginBottom: "10px",
-      padding: "10px 12px",
-      borderRadius: "12px",
-      fontSize: "13px",
-      lineHeight: "1.45",
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-      marginLeft:
-        usuario ? "auto" : "0",
-      background:
-        usuario ? "#1677ff" : "#fff",
-      color:
-        usuario ? "#fff" : "#263244",
-      border:
-        usuario
-          ? "0"
-          : "1px solid #e5e7eb"
+    Object.assign(
+      mensagem.style,
+      {
 
-    });
+        maxWidth: "85%",
+        marginBottom: "10px",
+        padding: "10px 12px",
+        borderRadius: "12px",
+        fontSize: "13px",
+        lineHeight: "1.45",
+        whiteSpace: "pre-wrap",
+        wordBreak: "break-word",
 
-    mensagem.textContent = texto;
+        marginLeft:
+          usuario ? "auto" : "0",
 
-    area.appendChild(mensagem);
+        background:
+          usuario ? "#1677ff" : "#fff",
+
+        color:
+          usuario ? "#fff" : "#263244",
+
+        border:
+          usuario
+            ? "0"
+            : "1px solid #e5e7eb"
+
+      }
+    );
+
+
+    mensagem.textContent =
+      String(texto || "");
+
+
+    area.appendChild(
+      mensagem
+    );
+
 
     area.scrollTop =
       area.scrollHeight;
+
   }
+
+
+  // CARREGANDO
 
   function adicionarCarregando() {
 
@@ -389,13 +526,21 @@
         "supportMessages"
       );
 
-    if (!area) return;
+    if (!area) {
+      return;
+    }
+
+
+    removerCarregando();
+
 
     const loading =
       document.createElement("div");
 
+
     loading.id =
       "supportLoading";
+
 
     loading.style.cssText = `
       display:inline-block;
@@ -408,14 +553,23 @@
       font-size:13px;
     `;
 
+
     loading.textContent =
       "Digitando...";
 
-    area.appendChild(loading);
+
+    area.appendChild(
+      loading
+    );
+
 
     area.scrollTop =
       area.scrollHeight;
+
   }
+
+
+  // REMOVER CARREGANDO
 
   function removerCarregando() {
 
@@ -427,46 +581,68 @@
     if (loading) {
       loading.remove();
     }
+
   }
+
+
+  // ENVIAR MENSAGEM PARA O BACKEND
 
   async function enviarMensagem(event) {
 
     event.preventDefault();
 
-    if (enviando) return;
+
+    if (enviando) {
+      return;
+    }
+
 
     const input =
       document.getElementById(
         "supportInput"
       );
 
+
     const send =
       document.getElementById(
         "supportSendButton"
       );
 
-    if (!input) return;
+
+    if (!input) {
+      return;
+    }
+
 
     const mensagem =
       input.value.trim();
 
-    if (!mensagem) return;
+
+    if (!mensagem) {
+      return;
+    }
+
 
     enviando = true;
+
 
     if (send) {
 
       send.disabled = true;
       send.style.opacity = "0.6";
+      send.style.cursor = "not-allowed";
 
     }
+
 
     adicionarMensagem(
       mensagem,
       "user"
     );
 
+
     input.value = "";
+
 
     historico.push({
 
@@ -475,7 +651,17 @@
 
     });
 
+
+    if (historico.length > 20) {
+
+      historico =
+        historico.slice(-20);
+
+    }
+
+
     adicionarCarregando();
+
 
     try {
 
@@ -483,11 +669,17 @@
         await fetch(
           "/api/support/chat",
           {
+
             method: "POST",
 
             headers: {
+
               "Content-Type":
+                "application/json",
+
+              "Accept":
                 "application/json"
+
             },
 
             credentials:
@@ -495,13 +687,21 @@
 
             body:
               JSON.stringify({
-                message: mensagem,
-                messages: historico
+
+                message:
+                  mensagem,
+
+                messages:
+                  historico
+
               })
+
           }
         );
 
+
       let dados = {};
+
 
       try {
 
@@ -514,28 +714,36 @@
 
       }
 
+
       if (!resposta.ok) {
 
         throw new Error(
+
           dados.erro ||
           dados.error ||
           "Não foi possível conectar ao suporte."
+
         );
 
       }
 
+
       const texto =
+
         dados.resposta ||
         dados.message ||
         dados.content ||
         "Não consegui gerar uma resposta agora.";
 
+
       removerCarregando();
+
 
       adicionarMensagem(
         texto,
         "assistant"
       );
+
 
       historico.push({
 
@@ -544,52 +752,70 @@
 
       });
 
-      if (
-        historico.length > 20
-      ) {
+
+      if (historico.length > 20) {
 
         historico =
           historico.slice(-20);
 
       }
 
+
     } catch (erro) {
 
       removerCarregando();
 
+
       adicionarMensagem(
+
         "Não foi possível conectar ao suporte no momento. Tente novamente.",
+
         "assistant"
+
       );
+
 
       console.error(
         "CRIPTOPRO suporte:",
         erro
       );
 
+
     } finally {
 
       enviando = false;
+
 
       if (send) {
 
         send.disabled = false;
         send.style.opacity = "1";
+        send.style.cursor = "pointer";
 
       }
+
 
       if (input) {
         input.focus();
       }
+
     }
+
   }
+
+
+  // INICIAR
 
   function iniciar() {
 
-    if (!document.body) return;
+    if (!document.body) {
+      return;
+    }
 
     criarChat();
+
   }
+
 
   if (
     document.readyState ===

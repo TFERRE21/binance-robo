@@ -1204,6 +1204,119 @@ select.plan-locked{
 </div>
 
 
+  <!-- =========================================================
+     SUPORTE CRIPTOPRO — CHAT
+========================================================= -->
+
+<button
+  type="button"
+  id="supportChatButton"
+  onclick="toggleSupportChat()"
+  aria-label="Abrir suporte CriptoPro">
+  💬 Suporte CriptoPro
+</button>
+
+<div id="supportChatWindow">
+
+  <div class="support-chat-header">
+
+    <div class="support-chat-brand">
+
+      <div class="support-chat-avatar">
+        🤖
+      </div>
+
+      <div>
+        <div class="support-chat-title">
+          Suporte CriptoPro
+        </div>
+
+        <div class="support-chat-status">
+          ● Assistente online
+        </div>
+      </div>
+
+    </div>
+
+    <button
+      type="button"
+      class="support-chat-close"
+      onclick="closeSupportChat()">
+      ×
+    </button>
+
+  </div>
+
+  <div id="supportChatMessages">
+
+    <div class="support-message bot">
+      Olá! 👋 Sou o assistente do CriptoPro.
+
+      Posso ajudar com dúvidas sobre planos, robôs, estratégias, Binance, operações, configurações e utilização do painel.
+    </div>
+
+    <div class="support-message bot">
+      Como posso ajudar você?
+    </div>
+
+  </div>
+
+  <div class="support-quick-area">
+
+    <button
+      type="button"
+      class="support-quick"
+      onclick="supportQuickQuestion('Como funciona o robô?')">
+      🤖 Como funciona o robô?
+    </button>
+
+    <button
+      type="button"
+      class="support-quick"
+      onclick="supportQuickQuestion('Como conectar a Binance?')">
+      🔗 Como conectar a Binance?
+    </button>
+
+    <button
+      type="button"
+      class="support-quick"
+      onclick="supportQuickQuestion('Qual a diferença dos robôs?')">
+      📊 Diferença dos robôs
+    </button>
+
+    <button
+      type="button"
+      class="support-quick"
+      onclick="supportQuickQuestion('Como funciona o pagamento?')">
+      💳 Como funciona o pagamento?
+    </button>
+
+  </div>
+
+  <div class="support-chat-note">
+    Suporte CriptoPro • Não envie sua API Key ou API Secret pelo chat.
+  </div>
+
+  <div class="support-chat-footer">
+
+    <textarea
+      id="supportChatInput"
+      placeholder="Digite sua dúvida..."
+      autocomplete="off"
+      rows="1"
+      onkeydown="supportChatKeydown(event)"></textarea>
+
+    <button
+      type="button"
+      id="supportChatSend"
+      onclick="sendSupportMessage()"
+      aria-label="Enviar mensagem">
+      ➤
+    </button>
+
+  </div>
+
+</div>
 
 <!-- =========================================================
      ETAPA 21 — CENTRAL DE ESTRATÉGIAS DOS ROBÔS

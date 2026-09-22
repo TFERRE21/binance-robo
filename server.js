@@ -71,21 +71,15 @@ const PORT = process.env.PORT || 3000;
 
 app.post("/api/support/chat", async function (req, res) {
 
-console.log("CRIPTOPRO SUPORTE: CHAMANDO OPENAI");
+  console.log("CRIPTOPRO SUPORTE: REQUISIÇÃO RECEBIDA");
 
-const respostaOpenAI = await fetch(
-  "https://api.openai.com/v1/chat/completions",
-  
+  try {
+
     const mensagem = String(
       req.body && req.body.message
         ? req.body.message
         : ""
     ).trim();
-
-    const mensagens =
-      Array.isArray(req.body && req.body.messages)
-        ? req.body.messages
-        : [];
 
     if (!mensagem) {
       return res.status(400).json({
@@ -94,9 +88,15 @@ const respostaOpenAI = await fetch(
       });
     }
 
+    const mensagens =
+      Array.isArray(req.body && req.body.messages)
+        ? req.body.messages
+        : [];
+
     const apiKey = process.env.OPENAI_API_KEY;
 
     if (!apiKey) {
+
       console.error(
         "CRIPTOPRO SUPORTE: OPENAI_API_KEY não configurada."
       );
@@ -105,37 +105,47 @@ const respostaOpenAI = await fetch(
         ok: false,
         erro: "A inteligência artificial do suporte não está configurada no servidor."
       });
+
     }
 
     const historico = mensagens
       .slice(-12)
       .filter(function (m) {
+
         return (
           m &&
           (m.role === "user" || m.role === "assistant") &&
           typeof m.content === "string"
         );
+
       })
       .map(function (m) {
+
         return {
           role: m.role,
           content: m.content
         };
+
       });
 
     if (
       !historico.length ||
       historico[historico.length - 1].content !== mensagem
     ) {
+
       historico.push({
         role: "user",
         content: mensagem
       });
+
     }
 
-    console.log("CRIPTOPRO SUPORTE: enviando pergunta para a OpenAI...");
+    console.log(
+      "CRIPTOPRO SUPORTE: CHAMANDO OPENAI"
+    );
 
     const controller = new AbortController();
+
     const timeout = setTimeout(function () {
       controller.abort();
     }, 30000);
@@ -143,16 +153,23 @@ const respostaOpenAI = await fetch(
     let respostaOpenAI;
 
     try {
+
       respostaOpenAI = await fetch(
         "https://api.openai.com/v1/chat/completions",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
             "Authorization": "Bearer " + apiKey
           },
+
           body: JSON.stringify({
-            model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+
+            model:
+              process.env.OPENAI_MODEL ||
+              "gpt-4o-mini",
+
             messages: [
               {
                 role: "system",
@@ -167,19 +184,26 @@ const respostaOpenAI = await fetch(
               },
               ...historico
             ],
+
             temperature: 0.3,
             max_tokens: 500
+
           }),
+
           signal: controller.signal
         }
       );
+
     } finally {
+
       clearTimeout(timeout);
+
     }
 
     const dados = await respostaOpenAI.json();
 
     if (!respostaOpenAI.ok) {
+
       console.error(
         "CRIPTOPRO SUPORTE - ERRO OPENAI:",
         dados
@@ -194,6 +218,7 @@ const respostaOpenAI = await fetch(
             ? dados.error.message
             : "Erro ao consultar a inteligência artificial."
       });
+
     }
 
     const texto =
@@ -206,11 +231,17 @@ const respostaOpenAI = await fetch(
         : "";
 
     if (!texto) {
+
       return res.status(500).json({
         ok: false,
         erro: "A inteligência artificial não retornou uma resposta."
       });
+
     }
+
+    console.log(
+      "CRIPTOPRO SUPORTE: RESPOSTA RECEBIDA"
+    );
 
     return res.json({
       ok: true,
@@ -229,13 +260,16 @@ const respostaOpenAI = await fetch(
       erro:
         erro && erro.name === "AbortError"
           ? "A inteligência artificial demorou mais de 30 segundos para responder."
-          : (erro && erro.message
-              ? erro.message
-              : "Não foi possível processar o atendimento no momento.")
+          : (
+              erro && erro.message
+                ? erro.message
+                : "Não foi possível processar o atendimento no momento."
+            )
     });
+
   }
+
 });
-/*
 =========================================================
 BINANCE-ROBO - PAINEL PREMIUM V2
 =========================================================

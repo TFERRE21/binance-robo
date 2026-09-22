@@ -3910,6 +3910,209 @@ async function init(){
   robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
 init();
+
+  /* =========================================================
+   SUPORTE CRIPTOPRO — CHAT
+   PASSO 1 — INTERFACE + RESPOSTAS LOCAIS
+========================================================= */
+
+function toggleSupportChat(){
+
+  const chat=document.getElementById("supportChatWindow");
+
+  if(!chat)return;
+
+  chat.classList.toggle("show");
+
+  if(chat.classList.contains("show")){
+
+    setTimeout(()=>{
+
+      const input=document.getElementById("supportChatInput");
+
+      if(input)input.focus();
+
+      supportScrollToBottom();
+
+    },100);
+
+  }
+}
+
+function closeSupportChat(){
+
+  const chat=document.getElementById("supportChatWindow");
+
+  if(chat)chat.classList.remove("show");
+}
+
+function supportScrollToBottom(){
+
+  const box=document.getElementById("supportChatMessages");
+
+  if(box){
+
+    box.scrollTop=box.scrollHeight;
+
+  }
+}
+
+function supportEscapeHtml(value){
+
+  return String(value||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+}
+
+function addSupportMessage(text,type="bot"){
+
+  const box=document.getElementById("supportChatMessages");
+
+  if(!box)return;
+
+  const message=document.createElement("div");
+
+  message.className="support-message "+type;
+
+  message.textContent=String(text||"");
+
+  box.appendChild(message);
+
+  supportScrollToBottom();
+
+}
+
+function supportQuickQuestion(text){
+
+  const input=document.getElementById("supportChatInput");
+
+  if(input){
+
+    input.value=text;
+
+  }
+
+  sendSupportMessage();
+
+}
+
+function supportChatKeydown(event){
+
+  if(event.key==="Enter" && !event.shiftKey){
+
+    event.preventDefault();
+
+    sendSupportMessage();
+
+  }
+
+}
+
+function getSupportDemoReply(text){
+
+  const q=String(text||"").toLowerCase();
+
+  if(
+    q.includes("funciona o robô") ||
+    q.includes("funcionamento do robô") ||
+    q.includes("robô funciona")
+  ){
+
+    return "O CriptoPro analisa o mercado conforme a estratégia configurada para o robô. Cada robô possui filtros próprios, como score, RSI, volume, EMA e condições de mercado. Quando uma oportunidade atende aos filtros, o sistema pode executar a operação conforme a configuração salva.";
+
+  }
+
+  if(
+    q.includes("conectar") &&
+    q.includes("binance")
+  ){
+
+    return "Para conectar a Binance, utilize a área de configuração de conta/API do painel. A API deve permitir leitura e negociação. Por segurança, não habilite permissão de saque. Nunca envie sua API Key ou API Secret pelo chat.";
+
+  }
+
+  if(
+    q.includes("diferença") &&
+    (
+      q.includes("robô") ||
+      q.includes("robôs")
+    )
+  ){
+
+    return "O CriptoPro possui 5 estratégias: Básico, Médio, Premium, Avançado e Elite. Elas utilizam diferentes níveis de confirmação, com diferenças nos filtros de score, RSI, volume, EMA, Market Cap e condições de mercado.";
+
+  }
+
+  if(
+    q.includes("pagamento") ||
+    q.includes("pagar") ||
+    q.includes("pix") ||
+    q.includes("cartão")
+  ){
+
+    return "Os planos podem ser contratados pela página de Planos do CriptoPro. O sistema oferece opções de pagamento configuradas para o checkout, incluindo Pix e cartão.";
+
+  }
+
+  if(
+    q.includes("stop loss") ||
+    q.includes("stop")
+  ){
+
+    return "O Stop Loss pode ser configurado nas opções do robô. Quando configurado em 0%, ele representa Stop Loss desativado.";
+
+  }
+
+  if(
+    q.includes("take profit") ||
+    q.includes("tp")
+  ){
+
+    return "O Take Profit define o objetivo percentual da operação. Quando uma operação atinge a condição configurada, o sistema utiliza a proteção/saída prevista para aquela operação.";
+
+  }
+
+  if(
+    q.includes("premium") ||
+    q.includes("plano")
+  ){
+
+    return "O CriptoPro possui planos com diferentes limites e recursos. A página de Planos apresenta as opções disponíveis e permite iniciar a contratação.";
+
+  }
+
+  return "Posso ajudar com dúvidas sobre o funcionamento do CriptoPro, robôs, estratégias, Binance, operações, configurações e planos. Na próxima etapa, este atendimento será conectado à inteligência artificial para responder às dúvidas de forma mais completa.";
+
+}
+
+function sendSupportMessage(){
+
+  const input=document.getElementById("supportChatInput");
+
+  if(!input)return;
+
+  const text=String(input.value||"").trim();
+
+  if(!text)return;
+
+  addSupportMessage(text,"user");
+
+  input.value="";
+
+  const reply=getSupportDemoReply(text);
+
+  setTimeout(()=>{
+
+    addSupportMessage(reply,"bot");
+
+  },350);
+
+}
+  
 </script>
 </body>
 </html>

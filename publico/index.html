@@ -3383,7 +3383,10 @@ function printReport(){
   const w=window.open("","_blank","width=1100,height=800");
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
   w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}
-</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}</body></html>`);
+</style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}
+  <!-- CRIPTOPRO — SUPORTE IA / CHAMADOS -->
+  <script src="/js/support.js?v=20260922"></script>
+</body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);
 }
 

@@ -618,21 +618,216 @@
       paginaAtual;
 
 
-    // Nesta primeira etapa o formulário ainda não envia.
-    // O envio será conectado ao servidor no próximo passo.
+// =========================================================
+// ENVIO DO CHAMADO
+// =========================================================
 
-    document
-      .getElementById("supportTicketForm")
-      .addEventListener("submit", function(event) {
+document
+  .getElementById("supportTicketForm")
+  .addEventListener("submit", async function(event) {
 
-        event.preventDefault();
+    event.preventDefault();
 
-        alert(
-          "Página de suporte criada com sucesso.\\n\\n" +
-          "No próximo passo vamos conectar este formulário ao servidor para enviar o chamado."
+    const form = event.target;
+    const botao = form.querySelector(
+      "button[type='submit']"
+    );
+
+    const textoOriginal = botao.textContent;
+
+    const dados = {
+      nome: document
+        .getElementById("nome")
+        .value
+        .trim(),
+
+      email: document
+        .getElementById("email")
+        .value
+        .trim(),
+
+      categoria: document
+        .getElementById("categoria")
+        .value,
+
+      prioridade: document
+        .getElementById("prioridade")
+        .value,
+
+      pagina: document
+        .getElementById("paginaOrigem")
+        .textContent
+        .trim(),
+
+      assunto: document
+        .getElementById("assunto")
+        .value
+        .trim(),
+
+      descricao: document
+        .getElementById("descricao")
+        .value
+        .trim()
+    };
+
+
+    // -------------------------------------------------------
+    // VALIDAÇÃO
+    // -------------------------------------------------------
+
+    if (
+      !dados.nome ||
+      !dados.email ||
+      !dados.categoria ||
+      !dados.prioridade ||
+      !dados.assunto ||
+      !dados.descricao
+    ) {
+
+      alert(
+        "Preencha todos os campos obrigatórios."
+      );
+
+      return;
+    }
+
+
+    // -------------------------------------------------------
+    // BLOQUEIA O BOTÃO
+    // -------------------------------------------------------
+
+    botao.disabled = true;
+
+    botao.textContent =
+      "⏳ ENVIANDO...";
+
+    botao.style.opacity = "0.7";
+
+
+    try {
+
+      // -----------------------------------------------------
+      // ENVIA PARA O SERVER.JS
+      // -----------------------------------------------------
+
+      const resposta = await fetch(
+        "/api/support/ticket",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type": "application/json"
+          },
+
+          credentials: "same-origin",
+
+          body: JSON.stringify(dados)
+        }
+      );
+
+
+      let resultado = {};
+
+      try {
+
+        resultado =
+          await resposta.json();
+
+      } catch (e) {
+
+        resultado = {};
+
+      }
+
+
+      // -----------------------------------------------------
+      // VERIFICA ERRO
+      // -----------------------------------------------------
+
+      if (
+        !resposta.ok ||
+        !resultado.ok
+      ) {
+
+        throw new Error(
+          resultado.erro ||
+          "Não foi possível enviar o chamado."
         );
 
-      });
+      }
+
+
+      // -----------------------------------------------------
+      // SUCESSO
+      // -----------------------------------------------------
+
+      alert(
+        "✅ CHAMADO ENVIADO COM SUCESSO!\n\n" +
+
+        "Número do chamado: " +
+        resultado.ticketId +
+
+        "\n\n" +
+
+        "Nossa equipe recebeu sua solicitação."
+      );
+
+
+      // Limpa o formulário
+      form.reset();
+
+
+      // Recupera novamente a página de origem
+      const origem =
+        new URLSearchParams(
+          window.location.search
+        ).get("origem");
+
+
+      if (
+        origem &&
+        document.getElementById(
+          "paginaOrigem"
+        )
+      ) {
+
+        document.getElementById(
+          "paginaOrigem"
+        ).textContent = origem;
+
+      }
+
+
+    } catch (erro) {
+
+      console.error(
+        "CRIPTOPRO — erro ao enviar chamado:",
+        erro
+      );
+
+
+      alert(
+        "❌ NÃO FOI POSSÍVEL ENVIAR O CHAMADO.\n\n" +
+        erro.message
+      );
+
+
+    } finally {
+
+      // -----------------------------------------------------
+      // LIBERA O BOTÃO
+      // -----------------------------------------------------
+
+      botao.disabled = false;
+
+      botao.textContent =
+        textoOriginal;
+
+      botao.style.opacity = "1";
+
+    }
+
+  });
 
   </script>
 

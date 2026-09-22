@@ -69,7 +69,7 @@
         box-sizing:border-box;
       ">
         <div>
-          <div style="font-size:16px;font-weight:700;">CRIPTOPRO</div>
+          <div style="font-size:16px;font-weight:700;">🤖 CRIPTOPRO</div>
           <div style="font-size:11px;opacity:.85;">Assistente de suporte</div>
         </div>
 
@@ -89,7 +89,7 @@
       <div
         id="supportMessages"
         style="
-          height:375px;
+          height:315px;
           overflow-y:auto;
           padding:14px;
           box-sizing:border-box;
@@ -110,6 +110,63 @@
           Sou o assistente da <b>CRIPTOPRO</b>.
           Como posso ajudar?
         </div>
+
+        <!-- PERGUNTAS RÁPIDAS -->
+
+        <button
+          type="button"
+          class="supportQuickButton"
+          data-question="Como funciona o robô?"
+        >
+          🤖 Como funciona o robô?
+        </button>
+
+        <button
+          type="button"
+          class="supportQuickButton"
+          data-question="Como conectar a Binance?"
+        >
+          🔗 Como conectar a Binance?
+        </button>
+
+        <button
+          type="button"
+          class="supportQuickButton"
+          data-question="Qual a diferença dos robôs?"
+        >
+          📊 Diferença dos robôs
+        </button>
+
+        <button
+          type="button"
+          class="supportQuickButton"
+          data-question="Como funciona o pagamento?"
+        >
+          💳 Como funciona o pagamento?
+        </button>
+
+        <!-- ABRIR CHAMADO -->
+
+        <button
+          type="button"
+          id="supportTicketButton"
+          style="
+            width:100%;
+            margin-top:10px;
+            padding:11px 12px;
+            border:1px solid #f0b90b;
+            border-radius:10px;
+            background:linear-gradient(135deg,#fff7d1,#fff1a8);
+            color:#7a5800;
+            font-size:12px;
+            font-weight:900;
+            cursor:pointer;
+            text-align:left;
+          "
+        >
+          📩 Abrir chamado de suporte
+        </button>
+
       </div>
 
       <form
@@ -159,6 +216,12 @@
     document.body.appendChild(button);
     document.body.appendChild(box);
 
+    /*
+    =========================================================
+    BOTÃO FLUTUANTE
+    =========================================================
+    */
+
     button.addEventListener("click", function () {
       const aberto = box.style.display === "flex";
 
@@ -168,10 +231,19 @@
       if (!aberto) {
         setTimeout(function () {
           const input = document.getElementById("supportInput");
-          if (input) input.focus();
+
+          if (input) {
+            input.focus();
+          }
         }, 100);
       }
     });
+
+    /*
+    =========================================================
+    FECHAR CHAT
+    =========================================================
+    */
 
     document
       .getElementById("supportCloseButton")
@@ -179,18 +251,103 @@
         box.style.display = "none";
       });
 
+    /*
+    =========================================================
+    FORMULÁRIO DO CHAT
+    =========================================================
+    */
+
     document
       .getElementById("supportForm")
       .addEventListener("submit", enviarMensagem);
+
+    /*
+    =========================================================
+    BOTÕES DE PERGUNTAS RÁPIDAS
+    =========================================================
+    */
+
+    document
+      .querySelectorAll(".supportQuickButton")
+      .forEach(function (botao) {
+
+        Object.assign(botao.style, {
+          width: "100%",
+          marginBottom: "7px",
+          padding: "8px 10px",
+          border: "1px solid #d9b52b",
+          borderRadius: "9px",
+          background: "#fff",
+          color: "#263244",
+          fontSize: "11px",
+          fontWeight: "700",
+          cursor: "pointer",
+          textAlign: "left"
+        });
+
+        botao.addEventListener("click", function () {
+
+          const pergunta =
+            botao.getAttribute("data-question");
+
+          const input =
+            document.getElementById("supportInput");
+
+          if (!input || !pergunta) return;
+
+          input.value = pergunta;
+
+          document
+            .getElementById("supportForm")
+            .dispatchEvent(
+              new Event("submit", {
+                bubbles: true,
+                cancelable: true
+              })
+            );
+        });
+      });
+
+    /*
+    =========================================================
+    ABRIR CHAMADO
+    =========================================================
+    */
+
+    document
+      .getElementById("supportTicketButton")
+      .addEventListener("click", function () {
+
+        const paginaAtual =
+          window.location.pathname +
+          window.location.search;
+
+        const destino =
+          "/suporte.html?origem=" +
+          encodeURIComponent(paginaAtual);
+
+        window.location.href = destino;
+      });
   }
 
+  /*
+  =========================================================
+  ADICIONAR MENSAGEM
+  =========================================================
+  */
+
   function adicionarMensagem(texto, tipo) {
-    const area = document.getElementById("supportMessages");
+
+    const area =
+      document.getElementById("supportMessages");
+
     if (!area) return;
 
-    const mensagem = document.createElement("div");
+    const mensagem =
+      document.createElement("div");
 
-    const usuario = tipo === "user";
+    const usuario =
+      tipo === "user";
 
     Object.assign(mensagem.style, {
       maxWidth: "85%",
@@ -208,16 +365,32 @@
     });
 
     mensagem.textContent = texto;
+
     area.appendChild(mensagem);
-    area.scrollTop = area.scrollHeight;
+
+    area.scrollTop =
+      area.scrollHeight;
   }
 
+  /*
+  =========================================================
+  CARREGANDO
+  =========================================================
+  */
+
   function adicionarCarregando() {
-    const area = document.getElementById("supportMessages");
+
+    const area =
+      document.getElementById("supportMessages");
+
     if (!area) return;
 
-    const loading = document.createElement("div");
-    loading.id = "supportLoading";
+    const loading =
+      document.createElement("div");
+
+    loading.id =
+      "supportLoading";
+
     loading.style.cssText = `
       display:inline-block;
       background:#fff;
@@ -228,28 +401,54 @@
       color:#71809a;
       font-size:13px;
     `;
-    loading.textContent = "Digitando...";
+
+    loading.textContent =
+      "Digitando...";
 
     area.appendChild(loading);
-    area.scrollTop = area.scrollHeight;
+
+    area.scrollTop =
+      area.scrollHeight;
   }
+
+  /*
+  =========================================================
+  REMOVER CARREGANDO
+  =========================================================
+  */
 
   function removerCarregando() {
-    const loading = document.getElementById("supportLoading");
-    if (loading) loading.remove();
+
+    const loading =
+      document.getElementById("supportLoading");
+
+    if (loading) {
+      loading.remove();
+    }
   }
 
+  /*
+  =========================================================
+  ENVIAR MENSAGEM PARA OPENAI
+  =========================================================
+  */
+
   async function enviarMensagem(event) {
+
     event.preventDefault();
 
     if (enviando) return;
 
-    const input = document.getElementById("supportInput");
-    const send = document.getElementById("supportSendButton");
+    const input =
+      document.getElementById("supportInput");
+
+    const send =
+      document.getElementById("supportSendButton");
 
     if (!input) return;
 
-    const mensagem = input.value.trim();
+    const mensagem =
+      input.value.trim();
 
     if (!mensagem) return;
 
@@ -260,7 +459,11 @@
       send.style.opacity = "0.6";
     }
 
-    adicionarMensagem(mensagem, "user");
+    adicionarMensagem(
+      mensagem,
+      "user"
+    );
+
     input.value = "";
 
     historico.push({
@@ -271,27 +474,43 @@
     adicionarCarregando();
 
     try {
-      const resposta = await fetch("/api/support/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          message: mensagem,
-          messages: historico
-        })
-      });
+
+      const resposta =
+        await fetch(
+          "/api/support/chat",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            credentials:
+              "same-origin",
+
+            body:
+              JSON.stringify({
+                message: mensagem,
+                messages: historico
+              })
+          }
+        );
 
       let dados = {};
 
       try {
-        dados = await resposta.json();
+
+        dados =
+          await resposta.json();
+
       } catch (e) {
+
         dados = {};
       }
 
       if (!resposta.ok) {
+
         throw new Error(
           dados.erro ||
           dados.error ||
@@ -306,7 +525,11 @@
         "Não consegui gerar uma resposta agora.";
 
       removerCarregando();
-      adicionarMensagem(texto, "assistant");
+
+      adicionarMensagem(
+        texto,
+        "assistant"
+      );
 
       historico.push({
         role: "assistant",
@@ -314,14 +537,17 @@
       });
 
       /*
-       * Mantém o histórico limitado para não enviar
-       * uma quantidade excessiva de mensagens ao servidor.
+       * Mantém o histórico limitado.
        */
+
       if (historico.length > 20) {
-        historico = historico.slice(-20);
+
+        historico =
+          historico.slice(-20);
       }
 
     } catch (erro) {
+
       removerCarregando();
 
       adicionarMensagem(
@@ -329,29 +555,52 @@
         "assistant"
       );
 
-      console.error("CRIPTOPRO suporte:", erro);
+      console.error(
+        "CRIPTOPRO suporte:",
+        erro
+      );
 
     } finally {
+
       enviando = false;
 
       if (send) {
+
         send.disabled = false;
         send.style.opacity = "1";
       }
 
-      if (input) input.focus();
+      if (input) {
+        input.focus();
+      }
     }
   }
 
+  /*
+  =========================================================
+  INICIAR
+  =========================================================
+  */
+
   function iniciar() {
+
     if (!document.body) return;
 
     criarChat();
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", iniciar);
+  if (
+    document.readyState ===
+    "loading"
+  ) {
+
+    document.addEventListener(
+      "DOMContentLoaded",
+      iniciar
+    );
+
   } else {
+
     iniciar();
   }
 

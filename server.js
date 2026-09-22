@@ -70,7 +70,12 @@ const PORT = process.env.PORT || 3000;
 ========================================================= */
 
 app.post("/api/support/chat", async function (req, res) {
-  try {
+
+console.log("CRIPTOPRO SUPORTE: CHAMANDO OPENAI");
+
+const respostaOpenAI = await fetch(
+  "https://api.openai.com/v1/chat/completions",
+  
     const mensagem = String(
       req.body && req.body.message
         ? req.body.message

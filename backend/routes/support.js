@@ -145,30 +145,44 @@
           💳 Como funciona o pagamento?
         </button>
 
-        <!-- ABRIR CHAMADO -->
+              </div>
+
+      <!-- =====================================================
+           BOTÃO FIXO DE CHAMADO
+           Fica fora da área de rolagem
+      ====================================================== -->
+
+      <div
+        style="
+          height:55px;
+          padding:6px 10px;
+          box-sizing:border-box;
+          background:#fff;
+          border-top:1px solid #e5e7eb;
+        "
+      >
 
         <button
           type="button"
           id="supportTicketButton"
           style="
             width:100%;
-            margin-top:10px;
-            padding:11px 12px;
+            height:43px;
             border:1px solid #f0b90b;
             border-radius:10px;
-            background:linear-gradient(135deg,#fff7d1,#fff1a8);
-            color:#7a5800;
+            background:linear-gradient(135deg,#ffd83e,#efa900);
+            color:#111;
             font-size:12px;
             font-weight:900;
             cursor:pointer;
-            text-align:left;
+            text-align:center;
+            box-shadow:0 4px 10px rgba(240,185,11,.18);
           "
         >
           📩 Abrir chamado de suporte
         </button>
 
       </div>
-
       <form
         id="supportForm"
         style="

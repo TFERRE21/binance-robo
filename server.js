@@ -69,6 +69,15 @@ const PORT = process.env.PORT || 3000;
    CRIPTOPRO - SUPORTE IA
 ========================================================= */
 
+app.post("/api/support/ping", function (req, res) {
+  console.log("CRIPTOPRO PING: POST RECEBIDO");
+
+  return res.json({
+    ok: true,
+    mensagem: "POST funcionando"
+  });
+});
+
 app.post("/api/support/chat", async function (req, res) {
 
   console.log("CRIPTOPRO SUPORTE: REQUISIÇÃO RECEBIDA");

@@ -4114,5 +4114,594 @@ function sendSupportMessage(){
 }
   
 </script>
+
+<!-- =========================================================
+     CRIPTOPRO — SUPORTE IA
+========================================================= -->
+
+<style>
+#supportChatButton{
+  position:fixed !important;
+  right:24px !important;
+  bottom:24px !important;
+  left:auto !important;
+  top:auto !important;
+  z-index:999999 !important;
+
+  display:flex !important;
+  align-items:center !important;
+  gap:9px !important;
+
+  padding:13px 18px !important;
+  border:1px solid rgba(255,255,255,.18) !important;
+  border-radius:999px !important;
+
+  background:linear-gradient(135deg,#f0b90b,#ff9f00) !important;
+  color:#111827 !important;
+
+  font-family:Arial,sans-serif !important;
+  font-size:13px !important;
+  font-weight:900 !important;
+
+  cursor:pointer !important;
+
+  box-shadow:0 8px 30px rgba(0,0,0,.45) !important;
+}
+
+#supportChatButton:hover{
+  transform:translateY(-2px);
+  box-shadow:0 12px 35px rgba(0,0,0,.55) !important;
+}
+
+#supportChatWindow{
+  position:fixed !important;
+  right:24px !important;
+  bottom:82px !important;
+
+  width:370px !important;
+  max-width:calc(100vw - 28px) !important;
+  height:560px !important;
+  max-height:calc(100vh - 110px) !important;
+
+  z-index:999998 !important;
+
+  display:none;
+
+  flex-direction:column;
+
+  overflow:hidden;
+
+  background:#0b111a !important;
+
+  border:1px solid rgba(255,255,255,.12) !important;
+  border-radius:18px !important;
+
+  box-shadow:0 25px 80px rgba(0,0,0,.65) !important;
+
+  font-family:Arial,sans-serif !important;
+}
+
+#supportChatWindow.show{
+  display:flex !important;
+}
+
+.support-chat-header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+
+  padding:15px;
+
+  background:linear-gradient(
+    135deg,
+    rgba(240,185,11,.18),
+    rgba(15,23,42,.95)
+  );
+
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+
+.support-chat-avatar{
+  width:40px;
+  height:40px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  border-radius:50%;
+
+  background:#f0b90b;
+
+  font-size:21px;
+}
+
+.support-chat-title{
+  flex:1;
+}
+
+.support-chat-title strong{
+  display:block;
+  color:#fff;
+  font-size:14px;
+}
+
+.support-chat-title span{
+  display:block;
+  margin-top:3px;
+  color:#23c483;
+  font-size:10px;
+}
+
+.support-chat-close{
+  width:32px;
+  height:32px;
+
+  border:0;
+  border-radius:8px;
+
+  background:#182131;
+  color:#fff;
+
+  font-size:20px;
+  cursor:pointer;
+}
+
+#supportChatMessages{
+  flex:1;
+
+  overflow-y:auto;
+
+  padding:15px;
+
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.support-message{
+  max-width:86%;
+
+  padding:10px 12px;
+
+  border-radius:12px;
+
+  font-size:12px;
+  line-height:1.5;
+
+  word-break:break-word;
+}
+
+.support-message.bot{
+  align-self:flex-start;
+
+  background:#141d2a;
+
+  border:1px solid rgba(255,255,255,.07);
+
+  color:#d9e1eb;
+
+  border-bottom-left-radius:4px;
+}
+
+.support-message.user{
+  align-self:flex-end;
+
+  background:#f0b90b;
+
+  color:#111827;
+
+  border-bottom-right-radius:4px;
+}
+
+.support-quick{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+
+  padding:0 15px 10px;
+}
+
+.support-quick button{
+  border:1px solid rgba(255,255,255,.10);
+
+  border-radius:999px;
+
+  background:#111925;
+
+  color:#cbd5e1;
+
+  padding:7px 9px;
+
+  font-size:10px;
+
+  cursor:pointer;
+}
+
+.support-quick button:hover{
+  border-color:#f0b90b;
+  color:#f0b90b;
+}
+
+.support-chat-note{
+  padding:7px 15px;
+
+  color:#64748b;
+
+  font-size:9px;
+
+  text-align:center;
+}
+
+.support-chat-input{
+  display:flex;
+  gap:8px;
+
+  padding:12px;
+
+  border-top:1px solid rgba(255,255,255,.08);
+
+  background:#0d141e;
+}
+
+#supportChatInput{
+  flex:1;
+
+  min-height:42px;
+  max-height:90px;
+
+  resize:none;
+
+  border:1px solid rgba(255,255,255,.10);
+
+  border-radius:10px;
+
+  background:#111925;
+
+  color:#fff;
+
+  padding:10px;
+
+  font-family:Arial,sans-serif;
+  font-size:12px;
+
+  outline:none;
+}
+
+#supportChatInput:focus{
+  border-color:rgba(240,185,11,.55);
+}
+
+#supportChatSend{
+  width:44px;
+  min-width:44px;
+
+  border:0;
+
+  border-radius:10px;
+
+  background:#f0b90b;
+
+  color:#111827;
+
+  font-size:18px;
+
+  cursor:pointer;
+}
+
+@media(max-width:600px){
+
+  #supportChatButton{
+    right:14px !important;
+    bottom:14px !important;
+    padding:12px 15px !important;
+    font-size:12px !important;
+  }
+
+  #supportChatWindow{
+    right:10px !important;
+    bottom:70px !important;
+
+    width:calc(100vw - 20px) !important;
+    height:calc(100vh - 95px) !important;
+  }
+}
+</style>
+
+
+<button
+  id="supportChatButton"
+  type="button"
+  onclick="toggleSupportChat()"
+>
+  💬 <span>Suporte CriptoPro</span>
+</button>
+
+
+<div id="supportChatWindow">
+
+  <div class="support-chat-header">
+
+    <div class="support-chat-avatar">
+      🤖
+    </div>
+
+    <div class="support-chat-title">
+      <strong>Suporte CriptoPro</strong>
+      <span>● Assistente online</span>
+    </div>
+
+    <button
+      class="support-chat-close"
+      type="button"
+      onclick="closeSupportChat()"
+    >
+      ×
+    </button>
+
+  </div>
+
+
+  <div id="supportChatMessages">
+
+    <div class="support-message bot">
+      Olá! 👋 Sou o assistente do <strong>CriptoPro</strong>.
+      <br><br>
+      Posso ajudar com dúvidas sobre o painel, Binance, robôs,
+      estratégias, configurações, planos e pagamentos.
+    </div>
+
+    <div class="support-message bot">
+      Como posso ajudar?
+    </div>
+
+  </div>
+
+
+  <div class="support-quick">
+
+    <button type="button" onclick="supportQuickQuestion('Como funciona o robô?')">
+      🤖 Como funciona?
+    </button>
+
+    <button type="button" onclick="supportQuickQuestion('Qual a diferença entre os robôs?')">
+      📊 Diferença dos robôs
+    </button>
+
+    <button type="button" onclick="supportQuickQuestion('Como conectar minha Binance?')">
+      🔗 Conectar Binance
+    </button>
+
+    <button type="button" onclick="supportQuickQuestion('Como funciona o Take Profit?')">
+      🎯 Take Profit
+    </button>
+
+  </div>
+
+
+  <div class="support-chat-note">
+    Suporte CriptoPro • Não envie sua API Key ou API Secret pelo chat.
+  </div>
+
+
+  <div class="support-chat-input">
+
+    <textarea
+      id="supportChatInput"
+      placeholder="Digite sua dúvida..."
+      onkeydown="supportChatKeydown(event)"
+    ></textarea>
+
+    <button
+      id="supportChatSend"
+      type="button"
+      onclick="sendSupportMessage()"
+    >
+      ➤
+    </button>
+
+  </div>
+
+</div>
+
+
+<script>
+
+function toggleSupportChat(){
+
+  const chat=document.getElementById("supportChatWindow");
+
+  if(!chat)return;
+
+  chat.classList.toggle("show");
+
+  if(chat.classList.contains("show")){
+
+    setTimeout(()=>{
+
+      const input=document.getElementById("supportChatInput");
+
+      if(input)input.focus();
+
+      supportScrollToBottom();
+
+    },100);
+
+  }
+
+}
+
+
+function closeSupportChat(){
+
+  const chat=document.getElementById("supportChatWindow");
+
+  if(chat)chat.classList.remove("show");
+
+}
+
+
+function supportScrollToBottom(){
+
+  const box=document.getElementById("supportChatMessages");
+
+  if(box){
+
+    box.scrollTop=box.scrollHeight;
+
+  }
+
+}
+
+
+function supportEscapeHtml(value){
+
+  return String(value||"")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+}
+
+
+function addSupportMessage(text,type){
+
+  const box=document.getElementById("supportChatMessages");
+
+  if(!box)return;
+
+  const div=document.createElement("div");
+
+  div.className="support-message "+type;
+
+  div.innerHTML=supportEscapeHtml(text)
+    .replace(/\n/g,"<br>");
+
+  box.appendChild(div);
+
+  supportScrollToBottom();
+
+}
+
+
+function supportQuickQuestion(question){
+
+  const input=document.getElementById("supportChatInput");
+
+  if(!input)return;
+
+  input.value=question;
+
+  sendSupportMessage();
+
+}
+
+
+function supportChatKeydown(event){
+
+  if(event.key==="Enter" && !event.shiftKey){
+
+    event.preventDefault();
+
+    sendSupportMessage();
+
+  }
+
+}
+
+
+function getSupportDemoReply(question){
+
+  const q=String(question||"").toLowerCase();
+
+  if(q.includes("robô") || q.includes("robo")){
+
+    return "O CriptoPro possui diferentes estratégias de robôs. Cada uma utiliza filtros técnicos diferentes para encontrar oportunidades de entrada e possui configurações de entrada, Take Profit, Stop Loss e limite de operações.";
+
+  }
+
+  if(q.includes("binance")){
+
+    return "Para conectar sua Binance, cadastre uma API com permissão de negociação. Por segurança, não habilite permissão de saque. O CriptoPro testa a conexão antes de salvar a conta.";
+
+  }
+
+  if(q.includes("diferença") || q.includes("diferenca")){
+
+    return "Os robôs possuem níveis diferentes de confirmação. Básico e Médio buscam mais oportunidades; Premium, Avançado e Elite utilizam filtros progressivamente mais seletivos.";
+
+  }
+
+  if(q.includes("take profit") || q.includes("tp")){
+
+    return "O Take Profit define o percentual de lucro utilizado como referência para a saída da operação. Quando a operação atinge as condições configuradas, o CriptoPro executa o processo de venda.";
+
+  }
+
+  if(q.includes("stop loss") || q.includes("stop")){
+
+    return "O Stop Loss é uma proteção configurável para limitar perdas. Quando habilitado, o robô acompanha o preço e pode executar a saída conforme o percentual configurado.";
+
+  }
+
+  if(q.includes("pagamento") || q.includes("pix") || q.includes("cartão") || q.includes("cartao")){
+
+    return "O CriptoPro possui opções de pagamento por Pix e cartão. A ativação da assinatura ocorre após a confirmação do pagamento.";
+
+  }
+
+  return "Posso ajudar com dúvidas sobre o funcionamento do CriptoPro, Binance, robôs, estratégias, configurações, planos e pagamentos. Para uma resposta específica, descreva o que aconteceu no painel.";
+
+}
+
+
+async function sendSupportMessage(){
+
+  const input=document.getElementById("supportChatInput");
+
+  if(!input)return;
+
+  const message=input.value.trim();
+
+  if(!message)return;
+
+  addSupportMessage(message,"user");
+
+  input.value="";
+
+  const typing=document.createElement("div");
+
+  typing.className="support-message bot";
+
+  typing.id="supportTyping";
+
+  typing.textContent="Analisando sua dúvida...";
+
+  document.getElementById("supportChatMessages").appendChild(typing);
+
+  supportScrollToBottom();
+
+
+  setTimeout(()=>{
+
+    const el=document.getElementById("supportTyping");
+
+    if(el)el.remove();
+
+    addSupportMessage(
+      getSupportDemoReply(message),
+      "bot"
+    );
+
+  },500);
+
+}
+
+</script>
+
+<!-- FIM SUPORTE IA -->
+  
 </body>
 </html>

@@ -230,6 +230,79 @@
     document.body.appendChild(button);
     document.body.appendChild(box);
 
+         // =========================================================
+    // CORREÇÃO — BOTÃO DE CHAMADO SEMPRE VISÍVEL
+    // =========================================================
+
+    const areaMensagens =
+      document.getElementById("supportMessages");
+
+    const botaoChamado =
+      document.getElementById("supportTicketButton");
+
+    const formularioChat =
+      document.getElementById("supportForm");
+
+    if (
+      areaMensagens &&
+      botaoChamado &&
+      formularioChat
+    ) {
+
+      // Cria uma área fixa para o botão
+      const areaChamado =
+        document.createElement("div");
+
+      areaChamado.id =
+        "supportTicketArea";
+
+      Object.assign(areaChamado.style, {
+        height: "55px",
+        minHeight: "55px",
+        padding: "6px 10px",
+        boxSizing: "border-box",
+        background: "#fff",
+        borderTop: "1px solid #e5e7eb",
+        flexShrink: "0"
+      });
+
+      // Retira o botão da área que possui rolagem
+      areaMensagens.removeChild(botaoChamado);
+
+      // Coloca o botão dentro da área fixa
+      areaChamado.appendChild(botaoChamado);
+
+      // Estilo do botão
+      Object.assign(botaoChamado.style, {
+        display: "block",
+        width: "100%",
+        height: "43px",
+        margin: "0",
+        padding: "0 12px",
+        border: "1px solid #f0b90b",
+        borderRadius: "10px",
+        background:
+          "linear-gradient(135deg,#ffd83e,#efa900)",
+        color: "#111",
+        fontSize: "12px",
+        fontWeight: "900",
+        cursor: "pointer",
+        textAlign: "center",
+        boxSizing: "border-box"
+      });
+
+      // Coloca a área do chamado ANTES do formulário
+      box.insertBefore(
+        areaChamado,
+        formularioChat
+      );
+
+      // Mantém a área de mensagens com rolagem
+      areaMensagens.style.height = "315px";
+      areaMensagens.style.overflowY = "auto";
+      areaMensagens.style.flexShrink = "0";
+    }
+
     /*
     =========================================================
     BOTÃO FLUTUANTE

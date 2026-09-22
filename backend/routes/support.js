@@ -4,6 +4,10 @@
 
    A chave da OpenAI NÃO fica neste arquivo.
    O navegador chama somente /api/support/chat.
+
+   CORREÇÃO:
+   O botão "ABRIR CHAMADO DE SUPORTE" fica FORA da área
+   de rolagem e permanece sempre visível.
 ========================================================= */
 
 (function () {
@@ -29,8 +33,8 @@
       height: "58px",
       borderRadius: "50%",
       border: "0",
-      background: "#1677ff",
-      color: "#fff",
+      background: "#f0b90b",
+      color: "#111",
       fontSize: "25px",
       cursor: "pointer",
       zIndex: "99999",
@@ -54,12 +58,14 @@
       border: "1px solid #e5e7eb",
       zIndex: "99998",
       display: "none",
+      flexDirection: "column",
       fontFamily: "Arial, sans-serif"
     });
 
     box.innerHTML = `
       <div style="
         height:58px;
+        min-height:58px;
         background:linear-gradient(135deg,#1677ff,#0b5ed7);
         color:#fff;
         display:flex;
@@ -67,18 +73,31 @@
         justify-content:space-between;
         padding:0 16px;
         box-sizing:border-box;
+        flex-shrink:0;
       ">
         <div>
-          <div style="font-size:16px;font-weight:700;">🤖 CRIPTOPRO</div>
-          <div style="font-size:11px;opacity:.85;">Assistente de suporte</div>
+          <div style="font-size:16px;font-weight:700;">
+            🤖 CRIPTOPRO
+          </div>
+          <div style="
+            font-size:11px;
+            opacity:.9;
+            color:#22c55e;
+            font-weight:700;
+          ">
+            ● Assistente online
+          </div>
         </div>
 
         <button
           id="supportCloseButton"
           type="button"
           style="
-            background:transparent;
+            width:34px;
+            height:34px;
+            background:rgba(255,255,255,.08);
             border:0;
+            border-radius:9px;
             color:#fff;
             font-size:22px;
             cursor:pointer;
@@ -86,16 +105,19 @@
         >×</button>
       </div>
 
-            <div
-          id="supportMessages"
-          style="
-            height:260px;
-            overflow-y:auto;
-            padding:14px;
-            box-sizing:border-box;
-            background:#f7f9fc;
-          "
-        >
+      <div
+        id="supportMessages"
+        style="
+          height:315px;
+          min-height:315px;
+          overflow-y:auto;
+          overflow-x:hidden;
+          padding:14px;
+          box-sizing:border-box;
+          background:#f7f9fc;
+          flex-shrink:0;
+        "
+      >
         <div style="
           background:#fff;
           border:1px solid #e5e7eb;
@@ -110,8 +132,6 @@
           Sou o assistente da <b>CRIPTOPRO</b>.
           Como posso ajudar?
         </div>
-
-        <!-- PERGUNTAS RÁPIDAS -->
 
         <button
           type="button"
@@ -144,30 +164,31 @@
         >
           💳 Como funciona o pagamento?
         </button>
+      </div>
 
-              </div>
-
-      <!-- =====================================================
-           BOTÃO FIXO DE CHAMADO
-           Fica fora da área de rolagem
-      ====================================================== -->
-
+      <!-- BOTÃO FIXO: FORA DO SCROLL -->
       <div
+        id="supportTicketArea"
         style="
-          height:55px;
-          padding:6px 10px;
+          height:58px;
+          min-height:58px;
+          padding:7px 10px;
           box-sizing:border-box;
           background:#fff;
           border-top:1px solid #e5e7eb;
+          border-bottom:1px solid #e5e7eb;
+          flex-shrink:0;
         "
       >
-
         <button
           type="button"
           id="supportTicketButton"
           style="
+            display:block;
             width:100%;
-            height:43px;
+            height:44px;
+            margin:0;
+            padding:0 12px;
             border:1px solid #f0b90b;
             border-radius:10px;
             background:linear-gradient(135deg,#ffd83e,#efa900);
@@ -176,23 +197,25 @@
             font-weight:900;
             cursor:pointer;
             text-align:center;
+            box-sizing:border-box;
             box-shadow:0 4px 10px rgba(240,185,11,.18);
           "
         >
-          📩 Abrir chamado de suporte
+          📩 ABRIR CHAMADO DE SUPORTE
         </button>
-
       </div>
+
       <form
         id="supportForm"
         style="
           height:67px;
+          min-height:67px;
           display:flex;
           gap:8px;
           padding:10px;
           box-sizing:border-box;
           background:#fff;
-          border-top:1px solid #e5e7eb;
+          flex-shrink:0;
         "
       >
         <input
@@ -208,6 +231,7 @@
             padding:0 12px;
             outline:none;
             font-size:13px;
+            box-sizing:border-box;
           "
         >
 
@@ -216,6 +240,7 @@
           type="submit"
           style="
             width:48px;
+            min-width:48px;
             border:0;
             border-radius:10px;
             background:#1677ff;
@@ -230,135 +255,46 @@
     document.body.appendChild(button);
     document.body.appendChild(box);
 
-         // =========================================================
-    // CORREÇÃO — BOTÃO DE CHAMADO SEMPRE VISÍVEL
-    // =========================================================
-
-    const areaMensagens =
-      document.getElementById("supportMessages");
-
-    const botaoChamado =
-      document.getElementById("supportTicketButton");
-
-    const formularioChat =
-      document.getElementById("supportForm");
-
-    if (
-      areaMensagens &&
-      botaoChamado &&
-      formularioChat
-    ) {
-
-      // Cria uma área fixa para o botão
-      const areaChamado =
-        document.createElement("div");
-
-      areaChamado.id =
-        "supportTicketArea";
-
-      Object.assign(areaChamado.style, {
-        height: "55px",
-        minHeight: "55px",
-        padding: "6px 10px",
-        boxSizing: "border-box",
-        background: "#fff",
-        borderTop: "1px solid #e5e7eb",
-        flexShrink: "0"
-      });
-
-      // Retira o botão da área que possui rolagem
-      areaMensagens.removeChild(botaoChamado);
-
-      // Coloca o botão dentro da área fixa
-      areaChamado.appendChild(botaoChamado);
-
-      // Estilo do botão
-      Object.assign(botaoChamado.style, {
-        display: "block",
-        width: "100%",
-        height: "43px",
-        margin: "0",
-        padding: "0 12px",
-        border: "1px solid #f0b90b",
-        borderRadius: "10px",
-        background:
-          "linear-gradient(135deg,#ffd83e,#efa900)",
-        color: "#111",
-        fontSize: "12px",
-        fontWeight: "900",
-        cursor: "pointer",
-        textAlign: "center",
-        boxSizing: "border-box"
-      });
-
-      // Coloca a área do chamado ANTES do formulário
-      box.insertBefore(
-        areaChamado,
-        formularioChat
-      );
-
-      // Mantém a área de mensagens com rolagem
-      areaMensagens.style.height = "315px";
-      areaMensagens.style.overflowY = "auto";
-      areaMensagens.style.flexShrink = "0";
-    }
-
-    /*
-    =========================================================
-    BOTÃO FLUTUANTE
-    =========================================================
-    */
-
     button.addEventListener("click", function () {
       const aberto = box.style.display === "flex";
 
       box.style.display = aberto ? "none" : "flex";
-      box.style.flexDirection = "column";
 
       if (!aberto) {
         setTimeout(function () {
           const input = document.getElementById("supportInput");
-
-          if (input) {
-            input.focus();
-          }
+          if (input) input.focus();
         }, 100);
       }
     });
 
-    /*
-    =========================================================
-    FECHAR CHAT
-    =========================================================
-    */
+    const closeButton =
+      document.getElementById("supportCloseButton");
 
-    document
-      .getElementById("supportCloseButton")
-      .addEventListener("click", function () {
+    if (closeButton) {
+      closeButton.addEventListener("click", function () {
         box.style.display = "none";
       });
+    }
 
-    /*
-    =========================================================
-    FORMULÁRIO DO CHAT
-    =========================================================
-    */
+    const supportForm =
+      document.getElementById("supportForm");
 
-    document
-      .getElementById("supportForm")
-      .addEventListener("submit", enviarMensagem);
-
-    /*
-    =========================================================
-    BOTÕES DE PERGUNTAS RÁPIDAS
-    =========================================================
-    */
+    if (supportForm) {
+      supportForm.addEventListener(
+        "submit",
+        enviarMensagem
+      );
+    }
 
     document
-      .querySelectorAll(".supportQuickButton")
+      .querySelectorAll(
+        "#supportChatBox .supportQuickButton"
+      )
       .forEach(function (botao) {
 
         Object.assign(botao.style, {
+          display: "block",
           width: "100%",
           marginBottom: "7px",
           padding: "8px 10px",
@@ -369,42 +305,35 @@
           fontSize: "11px",
           fontWeight: "700",
           cursor: "pointer",
-          textAlign: "left"
+          textAlign: "left",
+          boxSizing: "border-box"
         });
 
         botao.addEventListener("click", function () {
-
           const pergunta =
             botao.getAttribute("data-question");
 
           const input =
             document.getElementById("supportInput");
 
-          if (!input || !pergunta) return;
+          if (!input || !pergunta || enviando) return;
 
           input.value = pergunta;
 
-          document
-            .getElementById("supportForm")
-            .dispatchEvent(
-              new Event("submit", {
-                bubbles: true,
-                cancelable: true
-              })
-            );
+          supportForm.dispatchEvent(
+            new Event("submit", {
+              bubbles: true,
+              cancelable: true
+            })
+          );
         });
       });
 
-    /*
-    =========================================================
-    ABRIR CHAMADO
-    =========================================================
-    */
+    const ticketButton =
+      document.getElementById("supportTicketButton");
 
-    document
-      .getElementById("supportTicketButton")
-      .addEventListener("click", function () {
-
+    if (ticketButton) {
+      ticketButton.addEventListener("click", function () {
         const paginaAtual =
           window.location.pathname +
           window.location.search;
@@ -415,16 +344,10 @@
 
         window.location.href = destino;
       });
+    }
   }
 
-  /*
-  =========================================================
-  ADICIONAR MENSAGEM
-  =========================================================
-  */
-
   function adicionarMensagem(texto, tipo) {
-
     const area =
       document.getElementById("supportMessages");
 
@@ -433,8 +356,7 @@
     const mensagem =
       document.createElement("div");
 
-    const usuario =
-      tipo === "user";
+    const usuario = tipo === "user";
 
     Object.assign(mensagem.style, {
       maxWidth: "85%",
@@ -448,25 +370,17 @@
       marginLeft: usuario ? "auto" : "0",
       background: usuario ? "#1677ff" : "#fff",
       color: usuario ? "#fff" : "#263244",
-      border: usuario ? "0" : "1px solid #e5e7eb"
+      border: usuario ? "0" : "1px solid #e5e7eb",
+      boxSizing: "border-box"
     });
 
     mensagem.textContent = texto;
 
     area.appendChild(mensagem);
-
-    area.scrollTop =
-      area.scrollHeight;
+    area.scrollTop = area.scrollHeight;
   }
 
-  /*
-  =========================================================
-  CARREGANDO
-  =========================================================
-  */
-
   function adicionarCarregando() {
-
     const area =
       document.getElementById("supportMessages");
 
@@ -475,8 +389,7 @@
     const loading =
       document.createElement("div");
 
-    loading.id =
-      "supportLoading";
+    loading.id = "supportLoading";
 
     loading.style.cssText = `
       display:inline-block;
@@ -489,39 +402,20 @@
       font-size:13px;
     `;
 
-    loading.textContent =
-      "Digitando...";
+    loading.textContent = "Digitando...";
 
     area.appendChild(loading);
-
-    area.scrollTop =
-      area.scrollHeight;
+    area.scrollTop = area.scrollHeight;
   }
 
-  /*
-  =========================================================
-  REMOVER CARREGANDO
-  =========================================================
-  */
-
   function removerCarregando() {
-
     const loading =
       document.getElementById("supportLoading");
 
-    if (loading) {
-      loading.remove();
-    }
+    if (loading) loading.remove();
   }
 
-  /*
-  =========================================================
-  ENVIAR MENSAGEM PARA OPENAI
-  =========================================================
-  */
-
   async function enviarMensagem(event) {
-
     event.preventDefault();
 
     if (enviando) return;
@@ -534,8 +428,7 @@
 
     if (!input) return;
 
-    const mensagem =
-      input.value.trim();
+    const mensagem = input.value.trim();
 
     if (!mensagem) return;
 
@@ -546,10 +439,7 @@
       send.style.opacity = "0.6";
     }
 
-    adicionarMensagem(
-      mensagem,
-      "user"
-    );
+    adicionarMensagem(mensagem, "user");
 
     input.value = "";
 
@@ -561,43 +451,30 @@
     adicionarCarregando();
 
     try {
-
-      const resposta =
-        await fetch(
-          "/api/support/chat",
-          {
-            method: "POST",
-
-            headers: {
-              "Content-Type":
-                "application/json"
-            },
-
-            credentials:
-              "same-origin",
-
-            body:
-              JSON.stringify({
-                message: mensagem,
-                messages: historico
-              })
-          }
-        );
+      const resposta = await fetch(
+        "/api/support/chat",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            message: mensagem,
+            messages: historico
+          })
+        }
+      );
 
       let dados = {};
 
       try {
-
-        dados =
-          await resposta.json();
-
+        dados = await resposta.json();
       } catch (e) {
-
         dados = {};
       }
 
       if (!resposta.ok) {
-
         throw new Error(
           dados.erro ||
           dados.error ||
@@ -613,28 +490,18 @@
 
       removerCarregando();
 
-      adicionarMensagem(
-        texto,
-        "assistant"
-      );
+      adicionarMensagem(texto, "assistant");
 
       historico.push({
         role: "assistant",
         content: texto
       });
 
-      /*
-       * Mantém o histórico limitado.
-       */
-
       if (historico.length > 20) {
-
-        historico =
-          historico.slice(-20);
+        historico = historico.slice(-20);
       }
 
     } catch (erro) {
-
       removerCarregando();
 
       adicionarMensagem(
@@ -648,46 +515,28 @@
       );
 
     } finally {
-
       enviando = false;
 
       if (send) {
-
         send.disabled = false;
         send.style.opacity = "1";
       }
 
-      if (input) {
-        input.focus();
-      }
+      if (input) input.focus();
     }
   }
 
-  /*
-  =========================================================
-  INICIAR
-  =========================================================
-  */
-
   function iniciar() {
-
     if (!document.body) return;
-
     criarChat();
   }
 
-  if (
-    document.readyState ===
-    "loading"
-  ) {
-
+  if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
       iniciar
     );
-
   } else {
-
     iniciar();
   }
 

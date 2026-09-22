@@ -11,53 +11,53 @@ const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   basico: {
     name:'Básico',
-    description:'Mais oportunidades; filtros técnicos essenciais.',
+    description:'Mais oportunidades com tendência, RSI, volume e entrada técnica.',
     mode:'volume',
-    scoreMin:5,
-    rsiMin:40,
-    rsiMax:65,
+    scoreMin:4,
+    rsiMin:38,
+    rsiMax:68,
     requirePullback:false,
     marketMinScore:0
   },
   medio: {
     name:'Médio',
-    description:'Equilíbrio entre seletividade e frequência.',
+    description:'Equilíbrio entre frequência e confirmação técnica.',
     mode:'volume',
-    scoreMin:6,
-    rsiMin:45,
-    rsiMax:60,
+    scoreMin:4,
+    rsiMin:40,
+    rsiMax:66,
     requirePullback:false,
     marketMinScore:0
   },
   premium: {
     name:'Premium',
-    description:'Filtros de tendência e mercado; maior seletividade.',
+    description:'Boa frequência com confirmação do mercado e market cap.',
     mode:'marketcap',
-    scoreMin:7,
+    scoreMin:5,
     rsiMin:40,
     rsiMax:65,
     requirePullback:false,
-    marketMinScore:2
+    marketMinScore:1
   },
   avancado: {
     name:'Avançado',
-    description:'Mais seletivo; exige confirmação adicional do mercado.',
+    description:'Mais seletivo, mas ainda com espaço para boas entradas.',
     mode:'marketcap',
-    scoreMin:8,
-    rsiMin:45,
-    rsiMax:62,
+    scoreMin:5,
+    rsiMin:43,
+    rsiMax:63,
     requirePullback:false,
-    marketMinScore:3
+    marketMinScore:2
   },
   elite: {
     name:'Elite',
-    description:'Máxima seletividade; foco em setups mais filtrados.',
+    description:'Maior confirmação: mercado forte + pullback + score elevado.',
     mode:'marketcap',
-    scoreMin:9,
-    rsiMin:48,
-    rsiMax:58,
+    scoreMin:6,
+    rsiMin:45,
+    rsiMax:61,
     requirePullback:true,
-    marketMinScore:4
+    marketMinScore:3
   }
 };
 
@@ -141,7 +141,7 @@ async function ensureSchema(){
       stop_loss NUMERIC(8,3) NOT NULL DEFAULT 2.5,
       stop_loss_active BOOLEAN NOT NULL DEFAULT true,
       max_operations INTEGER NOT NULL DEFAULT 3,
-      interval VARCHAR(8) NOT NULL DEFAULT '15m',
+      interval VARCHAR(8) NOT NULL DEFAULT '1h',
       max_coins INTEGER NOT NULL DEFAULT 20,
       running BOOLEAN NOT NULL DEFAULT false,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -187,7 +187,7 @@ async function ensureSchema(){
       ADD COLUMN IF NOT EXISTS stop_loss NUMERIC(8,3) NOT NULL DEFAULT 2.5,
       ADD COLUMN IF NOT EXISTS stop_loss_active BOOLEAN NOT NULL DEFAULT true,
       ADD COLUMN IF NOT EXISTS max_operations INTEGER NOT NULL DEFAULT 3,
-      ADD COLUMN IF NOT EXISTS interval VARCHAR(8) NOT NULL DEFAULT '15m',
+      ADD COLUMN IF NOT EXISTS interval VARCHAR(8) NOT NULL DEFAULT '1h',
       ADD COLUMN IF NOT EXISTS max_coins INTEGER NOT NULL DEFAULT 20,
       ADD COLUMN IF NOT EXISTS running BOOLEAN NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
@@ -255,7 +255,7 @@ async function ensureSchema(){
       stop_loss=COALESCE(stop_loss,2.5),
       stop_loss_active=COALESCE(stop_loss_active,true),
       max_operations=COALESCE(max_operations,3),
-      interval=COALESCE(interval,'15m'),
+      interval=COALESCE(interval,'1h'),
       max_coins=COALESCE(max_coins,20),
       running=COALESCE(running,false),
       updated_at=COALESCE(updated_at,NOW())
@@ -343,6 +343,11 @@ async function saveConfig(userId,accountId,c,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
   }
 
+  const allowedIntervals=new Set(['1h','1h30','2h','2h30']);
+  if(!allowedIntervals.has(String(c.interval||'1h'))){
+    throw new Error('Intervalo de busca inválido. Use 1h, 1h30, 2h ou 2h30.');
+  }
+
   // Stop Loss em 0% significa explicitamente "sem Stop Loss".
   if(Number(c.stopLoss)<0 || !Number.isFinite(Number(c.stopLoss))){
     throw new Error('Stop Loss deve ser 0 ou maior.');
@@ -387,9 +392,16 @@ async function marketFilter(client){
   }catch(e){ return {favoravel:false,quente:false,score:0,error:errText(e)}; }
 }
 
+function analysisCandleInterval(interval){
+  const v=String(interval||'1h');
+  if(v==='1h30'||v==='2h'||v==='2h30')return '1h';
+  return v;
+}
+
 async function analyze(client,symbol,market,interval,version='premium'){
   const strategy=strategyInfo(version);
-  const rows=await client.candles({symbol,interval,limit:120});
+  const candleInterval=analysisCandleInterval(interval);
+  const rows=await client.candles({symbol,interval:candleInterval,limit:120});
   const closed=rows.slice(0,-1);
   if(closed.length<50)return {valid:false,reason:'Poucos candles'};
 
@@ -403,12 +415,32 @@ async function analyze(client,symbol,market,interval,version='premium'){
   const last=closes.length-1,p=closes[last],o=opens[last];
   let score=0;
 
-  if(e9>e21)score+=2;
+  if(!(e9>e21)){
+    return {
+      valid:false,
+      reason:'Tendência curta não confirmada (EMA9 <= EMA21)'
+    };
+  }
+  score+=2;
+
   if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
-  if(r>strategy.rsiMax+5)return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
+
+  if(r>strategy.rsiMax+5){
+    return {
+      valid:false,
+      reason:`RSI muito alto: ${r.toFixed(2)}`
+    };
+  }
 
   const dist=(p-e21)/e21;
-  if(dist>0.04)return {valid:false,reason:'Preço esticado'};
+
+  if(dist>0.035){
+    return {
+      valid:false,
+      reason:'Preço esticado'
+    };
+  }
+
   if(Math.abs(dist)<=0.025)score++;
 
   const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length);
@@ -832,9 +864,12 @@ function intervalToMs(interval){
     '5m':5*60*1000,
     '15m':15*60*1000,
     '30m':30*60*1000,
-    '1h':60*60*1000
+    '1h':60*60*1000,
+    '1h30':90*60*1000,
+    '2h':120*60*1000,
+    '2h30':150*60*1000
   };
-  return map[String(interval||'15m')] || 15*60*1000;
+  return map[String(interval||'1h')] || 60*60*1000;
 }
 
 async function loop(userId,accountId,robotId=1){
@@ -853,11 +888,10 @@ async function loop(userId,accountId,robotId=1){
    * CONTROLE DE TEMPO DAS PESQUISAS
    *
    * A pesquisa de novas moedas respeita o intervalo configurado:
-   * 1m  = 1 minuto
-   * 5m  = 5 minutos
-   * 15m = 15 minutos
-   * 30m = 30 minutos
-   * 1h  = 1 hora
+   * 1h   = 1 hora
+   * 1h30 = 1 hora e 30 minutos
+   * 2h   = 2 horas
+   * 2h30 = 2 horas e 30 minutos
    *
    * O monitoramento das operações continua a cada 15 segundos.
    */
@@ -960,7 +994,7 @@ async function loop(userId,accountId,robotId=1){
             String(config.strategy_version||'premium')
           );
 
-          const interval=config.interval||'15m';
+          const interval=config.interval||'1h';
           const intervalMs=intervalToMs(interval);
 
           robotLog(

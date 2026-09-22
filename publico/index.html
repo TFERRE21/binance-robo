@@ -980,15 +980,15 @@ select.plan-locked{
         </button>
         <button type="button" class="robot-strategy-tab" data-strategy="premium" onclick="selectRobotStrategyInfo('premium')">
           <strong>🤖 Robô 3 · Premium</strong>
-          <span>Market Cap · score mínimo 7</span>
+          <span>Market Cap · score mínimo 5</span>
         </button>
         <button type="button" class="robot-strategy-tab" data-strategy="avancado" onclick="selectRobotStrategyInfo('avancado')">
           <strong>🤖 Robô 4 · Avançado</strong>
-          <span>Market Cap · score mínimo 8</span>
+          <span>Market Cap · score mínimo 5</span>
         </button>
         <button type="button" class="robot-strategy-tab" data-strategy="elite" onclick="selectRobotStrategyInfo('elite')">
           <strong>🤖 Robô 5 · Elite</strong>
-          <span>Máxima seletividade · score 9 + pullback</span>
+          <span>Market Cap · score 6 + pullback</span>
         </button>
       </div>
 
@@ -1160,9 +1160,9 @@ select.plan-locked{
       <div class="field"><label>Versão da estratégia</label><select id="strategyVersion">
           <option value="basico" data-plan-level="1">Básico — TOP Volume · EMA/RSI · mais oportunidades</option>
           <option value="medio" data-plan-level="2">Médio — TOP Volume · EMA9/EMA21 · equilíbrio</option>
-          <option value="premium" data-plan-level="3">Premium — TOP Market Cap · Score mínimo 7</option>
-          <option value="avancado" data-plan-level="4">Avançado — Market Cap · Score mínimo 8</option>
-          <option value="elite" data-plan-level="5">Elite — máxima seletividade · Score mínimo 9 + Pullback</option>
+          <option value="premium" data-plan-level="3">Premium — TOP Market Cap · Score mínimo 5</option>
+          <option value="avancado" data-plan-level="4">Avançado — Market Cap · Score mínimo 5</option>
+          <option value="elite" data-plan-level="5">Elite — Market Cap · Score mínimo 6 + Pullback</option>
         </select><div class="field-help">Escolha uma das 5 estratégias. Os indicadores utilizados aparecem no log em tempo real.</div></div>
       <div class="field"><label>Stop Loss ativo</label><select id="stopLossActive"><option value="true" selected>Sim — proteger posição</option><option value="false">Não</option></select></div>
     </div>
@@ -1175,7 +1175,7 @@ select.plan-locked{
       <div class="field"><label>Operações simultâneas</label><select id="maxOperations"><option value="1">1 operação</option><option value="2">2 operações</option><option value="3">3 operações</option></select><div class="field-help">Máximo permitido pelo Premium: 3.</div></div>
     </div>
     <div class="grid2">
-      <div class="field"><label>Intervalo da busca de entradas</label><select id="interval"><option value="1m">1 minuto</option><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option><option value="1h">1 hora</option></select></div>
+      <div class="field"><label>Intervalo da busca de entradas</label><select id="interval"><option value="1h" selected>1 hora</option><option value="1h30">1 hora e 30 minutos</option><option value="2h">2 horas</option><option value="2h30">2 horas e 30 minutos</option></select></div>
       <div class="field"><label>Máximo de moedas analisadas</label><input id="maxCoins" type="number" min="1" max="100" value="40"></div>
     </div>
   </div>
@@ -1193,7 +1193,7 @@ select.plan-locked{
 const token=localStorage.getItem("token");
 if(!token) window.location.href="/login.html";
 
-const defaultRobotConfig={entryPercent:98,takeProfit:5,stopLoss:2.5,maxOperations:3,interval:"15m",maxCoins:20,strategyVersion:"premium",stopLossActive:true};
+const defaultRobotConfig={entryPercent:98,takeProfit:5,stopLoss:2.5,maxOperations:3,interval:"1h",maxCoins:20,strategyVersion:"premium",stopLossActive:true};
 let accounts=[];
 let selectedAccountId=localStorage.getItem("selected_binance_account")||"";
 let selectedAccountData=null;
@@ -2214,6 +2214,12 @@ function updateOperationChartLive(op){
   }
 }
 
+function binanceCandleInterval(interval){
+  const v=String(interval||"1h");
+  if(v==="1h30"||v==="2h"||v==="2h30")return "1h";
+  return v;
+}
+
 async function loadOpenOperationChart(symbol){
   if(!selectedAccountId || !symbol)return;
 
@@ -2222,11 +2228,12 @@ async function loadOpenOperationChart(symbol){
 
   const asset=cleanSymbol.replace(/USDT$/,"");
   const cfg=getRobotConfig();
-  const interval=cfg.interval||"15m";
+  const interval=cfg.interval||"1h";
+  const candleInterval=binanceCandleInterval(interval);
 
   try{
     const [klineRes,opRes,tradeInfoRes]=await Promise.all([
-      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(cleanSymbol)}&interval=${encodeURIComponent(interval)}&limit=300`),
+      fetch(`https://api.binance.com/api/v3/klines?symbol=${encodeURIComponent(cleanSymbol)}&interval=${encodeURIComponent(candleInterval)}&limit=300`),
       apiFetch(`/api/panel/operation/${encodeURIComponent(selectedAccountId)}?symbol=${encodeURIComponent(cleanSymbol)}`),
       apiFetch(`/api/panel/report/trade-info?account=${encodeURIComponent(selectedAccountId)}&symbol=${encodeURIComponent(cleanSymbol)}`).catch(()=>({}))
     ]);
@@ -2349,16 +2356,16 @@ async function loadOpenOperationChart(symbol){
     const status=document.getElementById("operationChartStatus");
 
     if(title)title.textContent=`📈 ${asset} / USDT`;
-    if(sub)sub.textContent=`Candles reais da Binance · ${interval} · COMPRA / VENDA(TP) / ATUAL`;
+    if(sub)sub.textContent=`Busca ${interval} · candle Binance ${candleInterval} · COMPRA / VENDA(TP) / ATUAL`;
     if(priceEl){
       priceEl.innerHTML=
         moneyUSDT(current)+
-        `<small>${asset}USDT · ${interval} · AO VIVO</small>`;
+        `<small>${asset}USDT · busca ${interval} · candle ${candleInterval} · AO VIVO</small>`;
     }
     if(status)status.textContent="Dados reais da Binance · atualização ao vivo";
 
     operationSocket=new WebSocket(
-      `wss://stream.binance.com:9443/ws/${cleanSymbol.toLowerCase()}@kline_${interval}`
+      `wss://stream.binance.com:9443/ws/${cleanSymbol.toLowerCase()}@kline_${candleInterval}`
     );
 
     operationSocket.onmessage=(ev)=>{
@@ -2395,7 +2402,7 @@ async function loadOpenOperationChart(symbol){
         if(priceEl){
           priceEl.innerHTML=
             moneyUSDT(livePrice)+
-            `<small>${asset}USDT · ${interval} · AO VIVO</small>`;
+            `<small>${asset}USDT · busca ${interval} · candle ${candleInterval} · AO VIVO</small>`;
         }
       }catch(e){}
     };
@@ -3395,17 +3402,17 @@ const ROBOT_STRATEGY_INFO={
   },
   premium:{
     title:"Robô 3 · Premium",
-    subtitle:"TOP Market Cap · score mínimo 7",
+    subtitle:"TOP Market Cap · score mínimo 5",
     desc:"Prioriza moedas de maior capitalização e utiliza uma pontuação técnica mais exigente. A entrada depende da combinação dos sinais definidos pela estratégia."
   },
   avancado:{
     title:"Robô 4 · Avançado",
-    subtitle:"Market Cap · score mínimo 8",
+    subtitle:"Market Cap · score mínimo 5",
     desc:"Aumenta a exigência do conjunto de sinais antes de considerar uma entrada. O objetivo da configuração é reduzir entradas que não atendam ao conjunto mínimo de confirmações."
   },
   elite:{
     title:"Robô 5 · Elite",
-    subtitle:"Máxima seletividade · score mínimo 9 + Pullback",
+    subtitle:"Market Cap · score mínimo 6 + Pullback",
     desc:"Estratégia com maior nível de seleção entre as cinco. Utiliza EMA9, EMA21, RSI14, volume relativo, confirmação de Pullback/Breakout e, quando aplicável, filtro de tendência do BTC em 1D/4H."
   }
 };

@@ -35,7 +35,91 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "../publico")));
 
 app.post("/api/support/chat", async function (req, res) {
-  // conexão com a OpenAI
+  try {
+    const mensagem = String(req.body?.message || "").trim();
+
+    if (!mensagem) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Mensagem vazia."
+      });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({
+        ok: false,
+        erro: "OPENAI_API_KEY não configurada no servidor."
+      });
+    }
+
+    const respostaOpenAI = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é o assistente oficial de suporte do CRIPTOPRO. " +
+                "Responda em português do Brasil, de forma clara, objetiva " +
+                "e amigável. Ajude o usuário com dúvidas sobre o painel, " +
+                "Binance, robôs, planos e funcionalidades do CRIPTOPRO."
+            },
+            {
+              role: "user",
+              content: mensagem
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 500
+        })
+      }
+    );
+
+    const dados = await respostaOpenAI.json();
+
+    if (!respostaOpenAI.ok) {
+      console.error("CRIPTOPRO SUPORTE - ERRO OPENAI:", dados);
+
+      return res.status(500).json({
+        ok: false,
+        erro:
+          dados?.error?.message ||
+          "Erro ao consultar a OpenAI."
+      });
+    }
+
+    const texto =
+      dados?.choices?.[0]?.message?.content?.trim();
+
+    if (!texto) {
+      return res.status(500).json({
+        ok: false,
+        erro: "A OpenAI não retornou uma resposta."
+      });
+    }
+
+    return res.json({
+      ok: true,
+      resposta: texto
+    });
+
+  } catch (erro) {
+    console.error("CRIPTOPRO SUPORTE - ERRO:", erro);
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível processar o atendimento."
+    });
+  }
 });
 
 // =========================================================

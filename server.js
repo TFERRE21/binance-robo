@@ -65,6 +65,153 @@ robotEngine.resumeRunning().catch(err => {
 
 const PORT = process.env.PORT || 3000;
 
+/* =========================================================
+   CRIPTOPRO - SUPORTE IA
+========================================================= */
+
+app.post("/api/support/chat", async function (req, res) {
+  try {
+    const mensagem = String(
+      req.body && req.body.message
+        ? req.body.message
+        : ""
+    ).trim();
+
+    const mensagens =
+      Array.isArray(req.body && req.body.messages)
+        ? req.body.messages
+        : [];
+
+    if (!mensagem) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Mensagem vazia."
+      });
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      console.error(
+        "CRIPTOPRO SUPORTE: OPENAI_API_KEY não configurada."
+      );
+
+      return res.status(500).json({
+        ok: false,
+        erro: "A inteligência artificial do suporte não está configurada no servidor."
+      });
+    }
+
+    const historico = mensagens
+      .slice(-12)
+      .filter(function (m) {
+        return (
+          m &&
+          (m.role === "user" || m.role === "assistant") &&
+          typeof m.content === "string"
+        );
+      })
+      .map(function (m) {
+        return {
+          role: m.role,
+          content: m.content
+        };
+      });
+
+    if (
+      !historico.length ||
+      historico[historico.length - 1].content !== mensagem
+    ) {
+      historico.push({
+        role: "user",
+        content: mensagem
+      });
+    }
+
+    const respostaOpenAI = await fetch(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + apiKey
+        },
+        body: JSON.stringify({
+          model: process.env.OPENAI_MODEL || "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content:
+                "Você é o assistente oficial de suporte do CRIPTOPRO. " +
+                "Ajude o usuário a entender o site, painel Binance, planos, " +
+                "configurações e funcionalidades. " +
+                "Responda em português do Brasil, de forma clara, objetiva " +
+                "e amigável. Não invente funcionalidades que não conhece. " +
+                "Quando não souber algo, informe isso claramente e oriente " +
+                "o usuário a abrir um chamado de suporte."
+            },
+            ...historico
+          ],
+          temperature: 0.3,
+          max_tokens: 500
+        })
+      }
+    );
+
+    const dados = await respostaOpenAI.json();
+
+    if (!respostaOpenAI.ok) {
+      console.error(
+        "CRIPTOPRO SUPORTE - ERRO OPENAI:",
+        dados
+      );
+
+      return res.status(500).json({
+        ok: false,
+        erro:
+          dados &&
+          dados.error &&
+          dados.error.message
+            ? dados.error.message
+            : "Erro ao consultar a inteligência artificial."
+      });
+    }
+
+    const texto =
+      dados &&
+      dados.choices &&
+      dados.choices[0] &&
+      dados.choices[0].message &&
+      dados.choices[0].message.content
+        ? dados.choices[0].message.content.trim()
+        : "";
+
+    if (!texto) {
+      return res.status(500).json({
+        ok: false,
+        erro: "A inteligência artificial não retornou uma resposta."
+      });
+    }
+
+    return res.json({
+      ok: true,
+      resposta: texto
+    });
+
+  } catch (erro) {
+
+    console.error(
+      "CRIPTOPRO SUPORTE - ERRO:",
+      erro
+    );
+
+    return res.status(500).json({
+      ok: false,
+      erro:
+        "Não foi possível processar o atendimento no momento."
+    });
+  }
+});
 /*
 =========================================================
 BINANCE-ROBO - PAINEL PREMIUM V2

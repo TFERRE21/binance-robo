@@ -1,840 +1,1046 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <title>Suporte - CriptoPro</title>
-
+  <title>Meus Chamados — CriptoPro</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    :root{
+      --bg:#07101d;
+      --bg2:#0b1524;
+      --card:#101b2b;
+      --card2:#0d1827;
+      --border:#263953;
+      --gold:#f7bd22;
+      --gold2:#ffcf45;
+      --text:#f4f7fb;
+      --muted:#91a5bf;
+      --blue:#1785ff;
+      --green:#13d7a0;
+      --red:#ff5b68;
+      --yellow:#ffc21c;
     }
 
-    body {
-      min-height: 100vh;
-      font-family: Arial, Helvetica, sans-serif;
+    *{box-sizing:border-box}
+
+    body{
+      margin:0;
+      min-height:100vh;
+      font-family:Arial,Helvetica,sans-serif;
+      color:var(--text);
       background:
-        radial-gradient(
-          circle at 15% 10%,
-          rgba(240, 185, 11, 0.10),
-          transparent 30%
-        ),
-        radial-gradient(
-          circle at 85% 20%,
-          rgba(34, 197, 94, 0.07),
-          transparent 30%
-        ),
-        linear-gradient(
-          180deg,
-          #080c14 0%,
-          #0b1020 100%
-        );
-      color: #ffffff;
+        radial-gradient(circle at 50% -20%,rgba(35,73,125,.22),transparent 45%),
+        linear-gradient(180deg,#070d16 0%,#0b1422 55%,#09111d 100%);
     }
 
-    .header {
-      height: 76px;
-      border-bottom: 1px solid #202a3b;
-      background: rgba(8, 12, 20, 0.94);
-      backdrop-filter: blur(15px);
+    button,input,select,textarea{font:inherit}
 
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-
-      padding: 0 5%;
+    .topbar{
+      height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 30px;
+      border-bottom:1px solid #17263a;
+      background:#060b13;
     }
 
-    .logo {
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: -1px;
+    .brand{
+      font-size:25px;
+      font-weight:900;
+      letter-spacing:-1px;
     }
 
-    .logo span {
-      color: #f0b90b;
+    .brand span{color:var(--gold)}
+
+    .top-actions{
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
 
-    .back-button {
-      border: 1px solid #374151;
-      background: transparent;
-      color: #ffffff;
-
-      padding: 10px 16px;
-      border-radius: 8px;
-
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 800;
+    .online{
+      color:#9aa8ba;
+      font-size:13px;
+      margin-right:8px;
     }
 
-    .back-button:hover {
-      border-color: #f0b90b;
-      color: #f0b90b;
+    .online::before{
+      content:"";
+      display:inline-block;
+      width:9px;
+      height:9px;
+      margin-right:7px;
+      border-radius:50%;
+      background:#15db99;
+      box-shadow:0 0 12px #15db99;
     }
 
-    .container {
-      width: 94%;
-      max-width: 900px;
-      margin: 45px auto;
+    .top-btn{
+      border:1px solid #2b3c54;
+      background:#0d1624;
+      color:#e8eef7;
+      border-radius:9px;
+      padding:11px 15px;
+      cursor:pointer;
+      font-weight:700;
     }
 
-    .title-area {
-      text-align: center;
-      margin-bottom: 30px;
+    .top-btn:hover{border-color:#58708e}
+
+    .top-btn.gold{
+      color:#ffd33e;
+      border-color:#a47705;
+      background:rgba(247,189,34,.08);
     }
 
-    .badge {
-      display: inline-block;
+    .top-btn.red{color:#ff6873}
 
-      padding: 8px 14px;
-      margin-bottom: 15px;
-
-      border: 1px solid rgba(240, 185, 11, .35);
-      border-radius: 20px;
-
-      background: rgba(240, 185, 11, .08);
-
-      color: #f0b90b;
-      font-size: 10px;
-      font-weight: 900;
-      text-transform: uppercase;
+    .page{
+      max-width:1180px;
+      margin:28px auto;
+      padding:0 20px 45px;
     }
 
-    h1 {
-      font-size: 34px;
-      margin-bottom: 10px;
-    }
-
-    .subtitle {
-      color: #8c98a9;
-      font-size: 13px;
-      line-height: 1.6;
-    }
-
-    .support-card {
-      background: rgba(15, 23, 36, .92);
-
-      border: 1px solid rgba(255, 255, 255, .08);
-      border-radius: 16px;
-
-      padding: 28px;
-
-      box-shadow:
-        0 25px 70px rgba(0, 0, 0, .35);
-    }
-
-    .card-title {
-      font-size: 17px;
-      font-weight: 900;
-      margin-bottom: 6px;
-    }
-
-    .card-subtitle {
-      color: #778395;
-      font-size: 10px;
-      margin-bottom: 25px;
-    }
-
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-    }
-
-    .field {
-      margin-bottom: 16px;
-    }
-
-    .field.full {
-      grid-column: 1 / -1;
-    }
-
-    label {
-      display: block;
-
-      color: #cbd5e1;
-
-      font-size: 10px;
-      font-weight: 800;
-
-      margin-bottom: 7px;
-    }
-
-    input,
-    select,
-    textarea {
-      width: 100%;
-
-      border: 1px solid #2a3a4c;
-      border-radius: 8px;
-
-      background: #080d14;
-      color: #e5ebf3;
-
-      padding: 12px;
-
-      outline: none;
-
-      font-family: inherit;
-      font-size: 11px;
-
-      transition: .2s;
-    }
-
-    input,
-    select {
-      height: 43px;
-    }
-
-    textarea {
-      min-height: 160px;
-      resize: vertical;
-      line-height: 1.5;
-    }
-
-    input:focus,
-    select:focus,
-    textarea:focus {
-      border-color: #f0b90b;
-
-      box-shadow:
-        0 0 0 3px rgba(240, 185, 11, .08);
-    }
-
-    .help {
-      color: #667386;
-      font-size: 9px;
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-
-    .origin-box {
-      padding: 12px;
-
-      border: 1px solid rgba(240, 185, 11, .18);
-      border-radius: 8px;
-
-      background: rgba(240, 185, 11, .04);
-
-      color: #9ba7b7;
-
-      font-size: 10px;
-    }
-
-    .origin-box strong {
-      color: #f0b90b;
-    }
-
-    .button-area {
-      margin-top: 8px;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .submit-button {
-      min-width: 190px;
-      height: 46px;
-
-      border: 0;
-      border-radius: 8px;
-
+    .panel{
+      border:1px solid #2b405d;
+      border-radius:18px;
       background:
-        linear-gradient(
-          135deg,
-          #ffd83e,
-          #efa900
-        );
-
-      color: #111;
-
-      font-size: 11px;
-      font-weight: 900;
-
-      cursor: pointer;
-
-      transition: .2s;
+        linear-gradient(180deg,rgba(15,29,47,.98),rgba(9,20,34,.98));
+      box-shadow:0 20px 70px rgba(0,0,0,.35);
+      overflow:hidden;
     }
 
-    .submit-button:hover {
-      transform: translateY(-1px);
-
-      box-shadow:
-        0 12px 25px rgba(240, 185, 11, .18);
+    .panel-head{
+      padding:30px 30px 24px;
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+      gap:20px;
     }
 
-    .notice {
-      margin-top: 18px;
-
-      padding: 13px;
-
-      border: 1px solid rgba(35, 196, 131, .16);
-      border-radius: 9px;
-
-      background: rgba(35, 196, 131, .04);
-
-      color: #8ca696;
-
-      font-size: 9px;
-      line-height: 1.5;
+    .title-wrap{
+      display:flex;
+      gap:18px;
+      align-items:center;
     }
 
-    .footer {
-      text-align: center;
-
-      color: #5f6b7b;
-
-      font-size: 9px;
-
-      padding: 0 20px 30px;
+    .support-icon{
+      width:62px;
+      height:62px;
+      border-radius:50%;
+      border:1px solid #38516f;
+      display:grid;
+      place-items:center;
+      font-size:31px;
+      background:#091624;
     }
 
-    @media (max-width: 700px) {
+    h1{
+      margin:0 0 7px;
+      font-size:32px;
+      letter-spacing:-.7px;
+    }
 
-      .header {
-        padding: 0 18px;
-      }
+    .subtitle{
+      margin:0;
+      color:#a7b7cb;
+      font-size:16px;
+    }
 
-      .logo {
-        font-size: 22px;
-      }
+    .new-btn{
+      border:0;
+      border-radius:10px;
+      background:linear-gradient(180deg,#ffca2e,#f5b914);
+      color:#111;
+      font-weight:900;
+      padding:15px 28px;
+      cursor:pointer;
+      min-width:240px;
+      box-shadow:0 7px 22px rgba(247,189,34,.14);
+    }
 
-      .container {
-        width: 92%;
-        margin: 30px auto;
-      }
+    .new-btn:hover{filter:brightness(1.05)}
 
-      h1 {
-        font-size: 27px;
-      }
+    .stats{
+      display:grid;
+      grid-template-columns:repeat(4,1fr);
+      gap:12px;
+      padding:0 30px 22px;
+    }
 
-      .support-card {
-        padding: 20px;
-      }
+    .stat{
+      min-height:116px;
+      border:1px solid #263b55;
+      border-radius:13px;
+      background:linear-gradient(180deg,#101e30,#0d1928);
+      padding:20px;
+      display:flex;
+      align-items:center;
+      gap:15px;
+    }
 
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
+    .stat-icon{
+      width:48px;
+      height:48px;
+      border-radius:50%;
+      display:grid;
+      place-items:center;
+      font-size:22px;
+      background:#102e52;
+    }
 
-      .field.full {
-        grid-column: auto;
-      }
+    .stat:nth-child(2) .stat-icon{background:#3b3110}
+    .stat:nth-child(3) .stat-icon{background:#083b35}
+    .stat:nth-child(4) .stat-icon{background:#263344}
 
-      .button-area {
-        display: block;
-      }
+    .stat-label{
+      color:#e6edf7;
+      font-weight:800;
+      font-size:14px;
+      margin-bottom:7px;
+    }
 
-      .submit-button {
-        width: 100%;
+    .stat-number{
+      font-size:27px;
+      font-weight:900;
+      margin-bottom:4px;
+    }
+
+    .stat-desc{
+      color:#8398b1;
+      font-size:12px;
+    }
+
+    .toolbar{
+      padding:0 30px 18px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+
+    .filter{
+      padding:12px 18px;
+      border:1px solid #2d415c;
+      background:#0c1726;
+      color:#dbe5f1;
+      border-radius:9px;
+      cursor:pointer;
+      font-weight:700;
+    }
+
+    .filter.active{
+      background:linear-gradient(180deg,#ffca2e,#f5b914);
+      color:#111;
+      border-color:#ffca2e;
+    }
+
+    .search{
+      margin-left:auto;
+      width:310px;
+      padding:13px 16px;
+      border:1px solid #2d415c;
+      border-radius:9px;
+      background:#091421;
+      color:#fff;
+      outline:none;
+    }
+
+    .search:focus{border-color:#587da7}
+
+    .table-wrap{
+      margin:0 30px;
+      border:1px solid #2b4059;
+      border-radius:13px;
+      overflow:hidden;
+      background:#09131f;
+    }
+
+    .table-head,.ticket-row{
+      display:grid;
+      grid-template-columns:70px 1.6fr 150px 210px 145px;
+      align-items:center;
+    }
+
+    .table-head{
+      padding:16px 18px;
+      background:#102031;
+      color:#d8e3ef;
+      font-size:12px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.4px;
+    }
+
+    .ticket-row{
+      min-height:86px;
+      padding:15px 18px;
+      border-top:1px solid #1d3046;
+    }
+
+    .ticket-id{font-weight:900}
+
+    .subject{
+      font-size:16px;
+      font-weight:900;
+      margin-bottom:6px;
+    }
+
+    .category{
+      color:#8499b1;
+      font-size:12px;
+    }
+
+    .status{
+      display:inline-flex;
+      align-items:center;
+      width:max-content;
+      gap:6px;
+      padding:8px 12px;
+      border-radius:18px;
+      font-size:12px;
+      font-weight:900;
+    }
+
+    .status.open{background:#073a76;color:#62b7ff}
+    .status.progress{background:#4b3a08;color:#ffd04a}
+    .status.answered{background:#063d34;color:#55e2bd}
+    .status.closed{background:#273242;color:#b9c5d4}
+
+    .date{
+      color:#c7d2df;
+      font-size:13px;
+    }
+
+    .view-btn{
+      border:1px solid #344a65;
+      background:#101e2d;
+      color:#e8eef6;
+      border-radius:8px;
+      padding:11px 14px;
+      cursor:pointer;
+      font-weight:800;
+    }
+
+    .view-btn:hover{border-color:#6684a6}
+
+    .empty{
+      padding:42px 20px;
+      text-align:center;
+      color:#8499b1;
+      display:none;
+    }
+
+    .help{
+      margin:22px 30px 0;
+      border:1px solid #6d560f;
+      border-radius:13px;
+      background:linear-gradient(90deg,rgba(35,31,13,.8),rgba(11,23,37,.8));
+      padding:25px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
+    }
+
+    .help h3{margin:0 0 7px;font-size:18px}
+    .help p{margin:0;color:#a4b5c9}
+
+    .help-icon{font-size:28px;margin-right:15px}
+    .help-left{display:flex;align-items:center}
+
+    .info-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+      margin:20px 30px 30px;
+    }
+
+    .info-card{
+      border:1px solid #293d57;
+      border-radius:13px;
+      padding:24px;
+      background:#0d1928;
+    }
+
+    .info-card h3{margin:0 0 10px;font-size:17px}
+    .info-card p,.info-card li{color:#a7b6c9;font-size:13px;line-height:1.65}
+    .info-card ul{margin:7px 0 0;padding-left:18px}
+
+    /* Modal novo chamado */
+    .modal-backdrop{
+      position:fixed;
+      inset:0;
+      background:rgba(2,7,13,.82);
+      backdrop-filter:blur(5px);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding:20px;
+      z-index:1000;
+    }
+
+    .modal{
+      width:min(700px,100%);
+      max-height:92vh;
+      overflow:auto;
+      border:1px solid #334b68;
+      border-radius:16px;
+      background:linear-gradient(180deg,#101d2d,#091522);
+      box-shadow:0 30px 100px rgba(0,0,0,.6);
+    }
+
+    .modal-head{
+      padding:22px 25px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      border-bottom:1px solid #24374e;
+    }
+
+    .modal-head h2{margin:0;font-size:22px}
+
+    .close{
+      width:38px;height:38px;border-radius:8px;
+      border:1px solid #334860;background:#0d1827;
+      color:#fff;cursor:pointer;font-size:20px;
+    }
+
+    .form{
+      padding:24px 25px 28px;
+      display:grid;
+      gap:16px;
+    }
+
+    .field label{
+      display:block;
+      margin-bottom:7px;
+      color:#dce5ef;
+      font-size:13px;
+      font-weight:800;
+    }
+
+    .field input,.field select,.field textarea{
+      width:100%;
+      border:1px solid #30445e;
+      border-radius:9px;
+      background:#07121f;
+      color:#fff;
+      padding:13px;
+      outline:none;
+    }
+
+    .field textarea{min-height:140px;resize:vertical}
+    .field input:focus,.field select:focus,.field textarea:focus{border-color:#6583a7}
+
+    .form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:3px}
+
+    .cancel{
+      border:1px solid #334860;background:#0d1827;color:#dbe5ef;
+      padding:12px 18px;border-radius:8px;cursor:pointer;font-weight:800;
+    }
+
+    .submit{
+      border:0;background:linear-gradient(180deg,#ffca2e,#f5b914);
+      color:#111;padding:12px 22px;border-radius:8px;cursor:pointer;font-weight:900;
+    }
+
+    .notice{
+      font-size:12px;
+      color:#8094ab;
+      line-height:1.5;
+    }
+
+    .toast{
+      position:fixed;
+      right:22px;
+      bottom:22px;
+      z-index:2000;
+      background:#102233;
+      border:1px solid #35506e;
+      border-radius:10px;
+      padding:15px 18px;
+      color:#fff;
+      box-shadow:0 12px 35px rgba(0,0,0,.4);
+      display:none;
+      max-width:360px;
+    }
+
+    @media(max-width:900px){
+      .stats{grid-template-columns:1fr 1fr}
+      .table-head{display:none}
+      .ticket-row{
+        grid-template-columns:1fr;
+        gap:10px;
       }
+      .search{width:100%;margin-left:0}
+      .toolbar{flex-wrap:wrap}
+      .info-grid{grid-template-columns:1fr}
+    }
+
+    @media(max-width:650px){
+      .topbar{padding:0 15px;height:64px}
+      .online{display:none}
+      .top-btn{padding:9px 10px;font-size:12px}
+      .page{margin:12px auto;padding:0 10px 30px}
+      .panel-head{padding:22px 18px;flex-direction:column}
+      .new-btn{width:100%}
+      .stats{grid-template-columns:1fr;padding:0 18px 18px}
+      .toolbar{padding:0 18px 15px}
+      .table-wrap{margin:0 18px}
+      .help{margin:18px 18px 0;align-items:flex-start;flex-direction:column}
+      .info-grid{margin:16px 18px 22px}
+      h1{font-size:27px}
     }
   </style>
 </head>
 
 <body>
 
-  <header class="header">
+  <header class="topbar">
+    <div class="brand">Cripto<span>Pro</span></div>
 
-    <div class="logo">
-      CRIPTO<span>PRO</span>
+    <div class="top-actions">
+      <div class="online">ONLINE</div>
+
+      <button class="top-btn gold" type="button">
+        🎫 Meus Chamados
+      </button>
+
+      <button class="top-btn" type="button" onclick="voltarDashboard()">
+        ← Voltar
+      </button>
+
+      <button class="top-btn" type="button">
+        BR PT
+      </button>
+
+      <button class="top-btn red" type="button" onclick="logout()">
+        ↪ Sair
+      </button>
     </div>
-
-    <button
-      class="back-button"
-      onclick="history.back()"
-    >
-      ← Voltar
-    </button>
-
   </header>
 
+  <main class="page">
+    <section class="panel">
 
-  <main class="container">
-
-    <div class="title-area">
-
-      <div class="badge">
-        🎫 Central de Suporte
-      </div>
-
-      <h1>
-        Como podemos ajudar?
-      </h1>
-
-      <p class="subtitle">
-        Abra um chamado e nossa equipe receberá sua solicitação.
-        Informe o máximo de detalhes possível para agilizar o atendimento.
-      </p>
-
-    </div>
-
-
-    <section class="support-card">
-
-      <div class="card-title">
-        📩 Abrir chamado de suporte
-      </div>
-
-      <div class="card-subtitle">
-        Preencha os dados abaixo para enviar sua solicitação.
-      </div>
-
-
-      <form id="supportTicketForm">
-
-        <div class="form-grid">
-
-
-          <div class="field">
-
-            <label for="nome">
-              Nome
-            </label>
-
-            <input
-              type="text"
-              id="nome"
-              name="nome"
-              placeholder="Seu nome"
-              required
-            >
-
+      <div class="panel-head">
+        <div class="title-wrap">
+          <div class="support-icon">🎧</div>
+          <div>
+            <h1>Meus Chamados</h1>
+            <p class="subtitle">
+              Acompanhe seus chamados de suporte e fale com nossa equipe.
+            </p>
           </div>
-
-
-          <div class="field">
-
-            <label for="email">
-              E-mail
-            </label>
-
-            <input
-              type="email"
-              id="email"
-              name="email"
-              placeholder="seu@email.com"
-              required
-            >
-
-          </div>
-
-
-          <div class="field">
-
-            <label for="categoria">
-              Categoria
-            </label>
-
-            <select
-              id="categoria"
-              name="categoria"
-              required
-            >
-
-              <option value="">
-                Selecione uma categoria
-              </option>
-
-              <option value="pagamento">
-                💳 Pagamento
-              </option>
-
-              <option value="plano">
-                💰 Plano / Assinatura
-              </option>
-
-              <option value="robo">
-                🤖 Robô
-              </option>
-
-              <option value="binance">
-                🔗 Conexão Binance
-              </option>
-
-              <option value="login">
-                🔑 Login / Acesso
-              </option>
-
-              <option value="painel">
-                📊 Painel
-              </option>
-
-              <option value="duvida">
-                ❓ Dúvida
-              </option>
-
-              <option value="tecnico">
-                🐞 Problema técnico
-              </option>
-
-              <option value="outro">
-                📌 Outro
-              </option>
-
-            </select>
-
-          </div>
-
-
-          <div class="field">
-
-            <label for="prioridade">
-              Prioridade
-            </label>
-
-            <select
-              id="prioridade"
-              name="prioridade"
-              required
-            >
-
-              <option value="normal">
-                🟢 Normal
-              </option>
-
-              <option value="importante">
-                🟡 Importante
-              </option>
-
-              <option value="urgente">
-                🔴 Urgente
-              </option>
-
-            </select>
-
-          </div>
-
-
-          <div class="field full">
-
-            <label>
-              Página onde ocorreu
-            </label>
-
-            <div class="origin-box">
-
-              Página:
-              <strong id="paginaOrigem">
-                Identificando...
-              </strong>
-
-            </div>
-
-          </div>
-
-
-          <div class="field full">
-
-            <label for="assunto">
-              Assunto
-            </label>
-
-            <input
-              type="text"
-              id="assunto"
-              name="assunto"
-              placeholder="Ex.: Pagamento realizado e plano não ativado"
-              required
-            >
-
-          </div>
-
-
-          <div class="field full">
-
-            <label for="descricao">
-              Descreva o ocorrido
-            </label>
-
-            <textarea
-              id="descricao"
-              name="descricao"
-              placeholder="Explique o que aconteceu. Se possível, informe data, horário, mensagem de erro e o que você estava tentando fazer."
-              required
-            ></textarea>
-
-            <div class="help">
-              Quanto mais detalhes você informar, mais fácil será analisar o problema.
-            </div>
-
-          </div>
-
-
         </div>
 
+        <button class="new-btn" type="button" onclick="abrirNovoChamado()">
+          ＋ Novo Chamado
+        </button>
+      </div>
 
-        <div class="button-area">
-
-          <button
-            type="submit"
-            class="submit-button"
-          >
-            📩 ENVIAR CHAMADO
-          </button>
-
+      <section class="stats">
+        <div class="stat">
+          <div class="stat-icon">📁</div>
+          <div>
+            <div class="stat-label">Abertos</div>
+            <div class="stat-number" id="countOpen">0</div>
+            <div class="stat-desc">Aguardando atendimento</div>
+          </div>
         </div>
 
+        <div class="stat">
+          <div class="stat-icon">🕘</div>
+          <div>
+            <div class="stat-label">Em atendimento</div>
+            <div class="stat-number" id="countProgress">0</div>
+            <div class="stat-desc">Nossa equipe está analisando</div>
+          </div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-icon">💬</div>
+          <div>
+            <div class="stat-label">Respondidos</div>
+            <div class="stat-number" id="countAnswered">0</div>
+            <div class="stat-desc">Aguardando sua resposta</div>
+          </div>
+        </div>
+
+        <div class="stat">
+          <div class="stat-icon">✓</div>
+          <div>
+            <div class="stat-label">Fechados</div>
+            <div class="stat-number" id="countClosed">0</div>
+            <div class="stat-desc">Chamados finalizados</div>
+          </div>
+        </div>
+      </section>
+
+      <div class="toolbar">
+        <button class="filter active" data-filter="TODOS">Todos (0)</button>
+        <button class="filter" data-filter="ABERTO">Abertos (0)</button>
+        <button class="filter" data-filter="EM_ATENDIMENTO">Em atendimento (0)</button>
+        <button class="filter" data-filter="RESPONDIDO">Respondidos (0)</button>
+        <button class="filter" data-filter="FECHADO">Fechados (0)</button>
+
+        <input
+          class="search"
+          id="searchInput"
+          type="search"
+          placeholder="🔎 Buscar por número, assunto ou mensagem..."
+        >
+      </div>
+
+      <div class="table-wrap">
+        <div class="table-head">
+          <div>#</div>
+          <div>Assunto</div>
+          <div>Status</div>
+          <div>Última atualização</div>
+          <div>Ações</div>
+        </div>
+
+        <div id="ticketList"></div>
+
+        <div class="empty" id="emptyState">
+          <div style="font-size:35px;margin-bottom:10px">🎫</div>
+          <strong>Nenhum chamado encontrado</strong>
+          <div style="margin-top:7px">
+            Quando você abrir um chamado, ele aparecerá aqui.
+          </div>
+        </div>
+      </div>
+
+      <section class="help">
+        <div class="help-left">
+          <div class="help-icon">💬</div>
+          <div>
+            <h3>Precisa de ajuda?</h3>
+            <p>Abra um novo chamado e nossa equipe de suporte irá atender você.</p>
+          </div>
+        </div>
+
+        <button class="new-btn" type="button" onclick="abrirNovoChamado()">
+          ＋ Abrir Novo Chamado
+        </button>
+      </section>
+
+      <section class="info-grid">
+        <div class="info-card">
+          <h3>🕘 Horário de atendimento</h3>
+          <p>
+            Segunda a Sexta, das 08:00 às 18:00.<br>
+            Retornamos o mais breve possível.
+          </p>
+        </div>
+
+        <div class="info-card">
+          <h3>🛡️ Dicas importantes</h3>
+          <ul>
+            <li>Descreva seu problema com o máximo de detalhes.</li>
+            <li>Informe prints se necessário.</li>
+            <li>Você poderá acompanhar as respostas por esta central.</li>
+            <li>Nunca informe sua senha ou sua API Secret.</li>
+          </ul>
+        </div>
+      </section>
+
+    </section>
+  </main>
+
+  <!-- MODAL NOVO CHAMADO -->
+  <div class="modal-backdrop" id="newTicketModal">
+    <div class="modal">
+
+      <div class="modal-head">
+        <h2>＋ Novo Chamado</h2>
+        <button class="close" type="button" onclick="fecharNovoChamado()">×</button>
+      </div>
+
+      <form class="form" id="newTicketForm">
+
+        <div class="field">
+          <label for="assunto">Assunto *</label>
+          <input id="assunto" maxlength="200" required placeholder="Ex.: Problema ao iniciar o robô">
+        </div>
+
+        <div class="field">
+          <label for="categoria">Categoria</label>
+          <select id="categoria">
+            <option value="Painel">Painel</option>
+            <option value="Binance">Binance</option>
+            <option value="Robô">Robô</option>
+            <option value="Conta">Conta</option>
+            <option value="Pagamento">Pagamento</option>
+            <option value="Outro">Outro</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="prioridade">Prioridade</label>
+          <select id="prioridade">
+            <option value="NORMAL">Normal</option>
+            <option value="IMPORTANTE">Importante</option>
+            <option value="URGENTE">Urgente</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="descricao">Descreva sua solicitação *</label>
+          <textarea id="descricao" maxlength="10000" required placeholder="Explique o que aconteceu e, se possível, informe os passos realizados."></textarea>
+        </div>
 
         <div class="notice">
+          🔐 Nunca informe sua senha da Binance, API Secret ou códigos de segurança.
+        </div>
 
-          🔐 Seus dados serão utilizados para atendimento da solicitação.
-          Nunca informe sua senha da Binance, sua API Secret ou códigos de segurança neste formulário.
-
+        <div class="form-actions">
+          <button class="cancel" type="button" onclick="fecharNovoChamado()">Cancelar</button>
+          <button class="submit" id="submitTicket" type="submit">📩 Enviar Chamado</button>
         </div>
 
       </form>
-
-    </section>
-
-  </main>
-
-
-  <div class="footer">
-
-    © CriptoPro — Central de Suporte
-
+    </div>
   </div>
 
+  <div class="toast" id="toast"></div>
 
   <script>
+    const token =
+      localStorage.getItem("token") ||
+      localStorage.getItem("authToken") ||
+      localStorage.getItem("accessToken") ||
+      "";
 
-    // Identifica automaticamente de qual página o usuário veio.
-    const params = new URLSearchParams(window.location.search);
+    let tickets = [];
+    let currentFilter = "TODOS";
 
-    const origemParam = params.get("origem");
-
-    const paginaAtual = origemParam
-      ? origemParam
-      : document.referrer
-        ? new URL(document.referrer).pathname
-        : "Acesso direto";
-
-
-    document.getElementById("paginaOrigem").textContent =
-      paginaAtual;
-
-
-// =========================================================
-// ENVIO DO CHAMADO
-// =========================================================
-
-document
-  .getElementById("supportTicketForm")
-  .addEventListener("submit", async function(event) {
-
-    event.preventDefault();
-
-    const form = event.target;
-    const botao = form.querySelector(
-      "button[type='submit']"
-    );
-
-    const textoOriginal = botao.textContent;
-
-    const dados = {
-      nome: document
-        .getElementById("nome")
-        .value
-        .trim(),
-
-      email: document
-        .getElementById("email")
-        .value
-        .trim(),
-
-      categoria: document
-        .getElementById("categoria")
-        .value,
-
-      prioridade: document
-        .getElementById("prioridade")
-        .value,
-
-      pagina: document
-        .getElementById("paginaOrigem")
-        .textContent
-        .trim(),
-
-      assunto: document
-        .getElementById("assunto")
-        .value
-        .trim(),
-
-      descricao: document
-        .getElementById("descricao")
-        .value
-        .trim()
-    };
-
-
-    // -------------------------------------------------------
-    // VALIDAÇÃO
-    // -------------------------------------------------------
-
-    if (
-      !dados.nome ||
-      !dados.email ||
-      !dados.categoria ||
-      !dados.prioridade ||
-      !dados.assunto ||
-      !dados.descricao
-    ) {
-
-      alert(
-        "Preencha todos os campos obrigatórios."
-      );
-
-      return;
+    function authHeaders(json = false) {
+      const headers = {};
+      if (json) headers["Content-Type"] = "application/json";
+      if (token) headers["Authorization"] = "Bearer " + token;
+      return headers;
     }
 
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
 
-    // -------------------------------------------------------
-    // BLOQUEIA O BOTÃO
-    // -------------------------------------------------------
+    function formatDate(value) {
+      if (!value) return "—";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "—";
 
-    botao.disabled = true;
+      return date.toLocaleString("pt-BR", {
+        dateStyle: "short",
+        timeStyle: "short"
+      });
+    }
 
-    botao.textContent =
-      "⏳ ENVIANDO...";
+    function statusInfo(status) {
+      const normalized = String(status || "").toUpperCase();
 
-    botao.style.opacity = "0.7";
+      if (normalized === "ABERTO") {
+        return {label:"Aberto", cls:"open"};
+      }
 
+      if (normalized === "EM_ATENDIMENTO") {
+        return {label:"Em atendimento", cls:"progress"};
+      }
 
-    try {
+      if (normalized === "RESPONDIDO") {
+        return {label:"Respondido", cls:"answered"};
+      }
 
-      // -----------------------------------------------------
-      // ENVIA PARA O SERVER.JS
-      // -----------------------------------------------------
+      if (normalized === "FECHADO") {
+        return {label:"Fechado", cls:"closed"};
+      }
 
-      const resposta = await fetch(
-        "/api/support/ticket",
-        {
-          method: "POST",
+      return {label:status || "—", cls:"closed"};
+    }
 
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + (
-              localStorage.getItem("token") ||
-              localStorage.getItem("authToken") ||
-              localStorage.getItem("accessToken") ||
-              ""
-            )
-          },
+    function updateCounters() {
+      const counts = {
+        ABERTO:0,
+        EM_ATENDIMENTO:0,
+        RESPONDIDO:0,
+        FECHADO:0
+      };
 
-          credentials: "same-origin",
+      tickets.forEach(ticket => {
+        const status = String(ticket.status || "").toUpperCase();
+        if (counts[status] !== undefined) counts[status]++;
+      });
 
-          body: JSON.stringify(dados)
-        }
-      );
+      document.getElementById("countOpen").textContent = counts.ABERTO;
+      document.getElementById("countProgress").textContent = counts.EM_ATENDIMENTO;
+      document.getElementById("countAnswered").textContent = counts.RESPONDIDO;
+      document.getElementById("countClosed").textContent = counts.FECHADO;
 
+      document.querySelector('[data-filter="TODOS"]').textContent =
+        `Todos (${tickets.length})`;
 
-      let resultado = {};
+      document.querySelector('[data-filter="ABERTO"]').textContent =
+        `Abertos (${counts.ABERTO})`;
+
+      document.querySelector('[data-filter="EM_ATENDIMENTO"]').textContent =
+        `Em atendimento (${counts.EM_ATENDIMENTO})`;
+
+      document.querySelector('[data-filter="RESPONDIDO"]').textContent =
+        `Respondidos (${counts.RESPONDIDO})`;
+
+      document.querySelector('[data-filter="FECHADO"]').textContent =
+        `Fechados (${counts.FECHADO})`;
+    }
+
+    function renderTickets() {
+      const list = document.getElementById("ticketList");
+      const empty = document.getElementById("emptyState");
+      const search = document.getElementById("searchInput").value
+        .trim()
+        .toLowerCase();
+
+      const filtered = tickets.filter(ticket => {
+        const status = String(ticket.status || "").toUpperCase();
+
+        const matchesFilter =
+          currentFilter === "TODOS" || status === currentFilter;
+
+        const text = [
+          ticket.id,
+          ticket.subject,
+          ticket.category,
+          ticket.status,
+          ticket.last_message
+        ].join(" ").toLowerCase();
+
+        return matchesFilter && (!search || text.includes(search));
+      });
+
+      list.innerHTML = "";
+
+      if (!filtered.length) {
+        empty.style.display = "block";
+        return;
+      }
+
+      empty.style.display = "none";
+
+      filtered.forEach(ticket => {
+        const info = statusInfo(ticket.status);
+
+        const row = document.createElement("div");
+        row.className = "ticket-row";
+
+        row.innerHTML = `
+          <div class="ticket-id">#${escapeHtml(ticket.id)}</div>
+
+          <div>
+            <div class="subject">${escapeHtml(ticket.subject || "Sem assunto")}</div>
+            <div class="category">${escapeHtml(ticket.category || "Suporte")}</div>
+          </div>
+
+          <div>
+            <span class="status ${info.cls}">
+              ${escapeHtml(info.label)}
+            </span>
+          </div>
+
+          <div class="date">
+            ${escapeHtml(formatDate(ticket.updated_at || ticket.created_at))}
+          </div>
+
+          <div>
+            <button class="view-btn" type="button"
+              onclick="verConversa(${Number(ticket.id)})">
+              👁 Ver conversa
+            </button>
+          </div>
+        `;
+
+        list.appendChild(row);
+      });
+    }
+
+    async function carregarChamados() {
+      if (!token) {
+        mostrarToast("Faça login para acessar seus chamados.");
+        return;
+      }
 
       try {
+        const response = await fetch("/api/support/tickets", {
+          method: "GET",
+          headers: authHeaders()
+        });
 
-        resultado =
-          await resposta.json();
+        if (response.status === 401) {
+          mostrarToast("Sua sessão expirou. Faça login novamente.");
+          return;
+        }
 
-      } catch (e) {
+        if (!response.ok) {
+          throw new Error("endpoint ainda não disponível");
+        }
 
-        resultado = {};
+        const data = await response.json();
 
+        tickets =
+          Array.isArray(data) ? data :
+          Array.isArray(data.chamados) ? data.chamados :
+          Array.isArray(data.tickets) ? data.tickets :
+          [];
+
+        updateCounters();
+        renderTickets();
+
+      } catch (error) {
+        /*
+          A tela já está pronta. A listagem será conectada ao endpoint
+          PostgreSQL na próxima etapa do projeto.
+        */
+        tickets = [];
+        updateCounters();
+        renderTickets();
+        console.warn("CRIPTOPRO CENTRAL:", error);
       }
-
-
-      // -----------------------------------------------------
-      // VERIFICA ERRO
-      // -----------------------------------------------------
-
-      if (
-        !resposta.ok ||
-        !resultado.ok
-      ) {
-
-        throw new Error(
-          resultado.erro ||
-          "Não foi possível enviar o chamado."
-        );
-
-      }
-
-
-      // -----------------------------------------------------
-      // SUCESSO
-      // -----------------------------------------------------
-
-      alert(
-        "✅ CHAMADO ENVIADO COM SUCESSO!\n\n" +
-
-        "Número do chamado: " +
-        resultado.ticketId +
-
-        "\n\n" +
-
-        "Nossa equipe recebeu sua solicitação."
-      );
-
-
-      // Limpa o formulário
-      form.reset();
-
-
-      // Recupera novamente a página de origem
-      const origem =
-        new URLSearchParams(
-          window.location.search
-        ).get("origem");
-
-
-      if (
-        origem &&
-        document.getElementById(
-          "paginaOrigem"
-        )
-      ) {
-
-        document.getElementById(
-          "paginaOrigem"
-        ).textContent = origem;
-
-      }
-
-
-    } catch (erro) {
-
-      console.error(
-        "CRIPTOPRO — erro ao enviar chamado:",
-        erro
-      );
-
-
-      alert(
-        "❌ NÃO FOI POSSÍVEL ENVIAR O CHAMADO.\n\n" +
-        erro.message
-      );
-
-
-    } finally {
-
-      // -----------------------------------------------------
-      // LIBERA O BOTÃO
-      // -----------------------------------------------------
-
-      botao.disabled = false;
-
-      botao.textContent =
-        textoOriginal;
-
-      botao.style.opacity = "1";
-
     }
 
-  });
+    function abrirNovoChamado() {
+      document.getElementById("newTicketModal").style.display = "flex";
+      setTimeout(() => document.getElementById("assunto").focus(), 50);
+    }
 
+    function fecharNovoChamado() {
+      document.getElementById("newTicketModal").style.display = "none";
+    }
+
+    async function enviarNovoChamado(event) {
+      event.preventDefault();
+
+      if (!token) {
+        mostrarToast("Faça login para abrir um chamado.");
+        return;
+      }
+
+      const form = event.target;
+      const button = document.getElementById("submitTicket");
+
+      const dados = {
+        nome: "",
+        email: "",
+        categoria: document.getElementById("categoria").value,
+        prioridade: document.getElementById("prioridade").value,
+        pagina: "/dashboard.html",
+        assunto: document.getElementById("assunto").value.trim(),
+        descricao: document.getElementById("descricao").value.trim()
+      };
+
+      if (!dados.assunto || !dados.descricao) {
+        mostrarToast("Preencha o assunto e a descrição.");
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "⏳ Enviando...";
+
+      try {
+        const response = await fetch("/api/support/ticket", {
+          method: "POST",
+          headers: authHeaders(true),
+          body: JSON.stringify(dados)
+        });
+
+        const result = await response.json().catch(() => ({}));
+
+        if (!response.ok || !result.ok) {
+          throw new Error(result.erro || "Não foi possível criar o chamado.");
+        }
+
+        form.reset();
+        fecharNovoChamado();
+
+        mostrarToast(
+          `Chamado #${result.ticketId || result.chamado?.id || ""} criado com sucesso.`
+        );
+
+        await carregarChamados();
+
+      } catch (error) {
+        mostrarToast(error.message || "Erro ao criar chamado.");
+      } finally {
+        button.disabled = false;
+        button.textContent = "📩 Enviar Chamado";
+      }
+    }
+
+    function verConversa(id) {
+      window.location.href =
+        "/suporte.html?chamado=" +
+        encodeURIComponent(id);
+    }
+
+    function voltarDashboard() {
+      window.location.href = "/dashboard.html";
+    }
+
+    function logout() {
+      localStorage.removeItem("token");
+      localStorage.removeItem("authToken");
+      localStorage.removeItem("accessToken");
+      window.location.href = "/login.html";
+    }
+
+    function mostrarToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.style.display = "block";
+
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => {
+        toast.style.display = "none";
+      }, 3500);
+    }
+
+    document.querySelectorAll(".filter").forEach(button => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".filter").forEach(item =>
+          item.classList.remove("active")
+        );
+
+        button.classList.add("active");
+        currentFilter = button.dataset.filter;
+        renderTickets();
+      });
+    });
+
+    document.getElementById("searchInput").addEventListener(
+      "input",
+      renderTickets
+    );
+
+    document.getElementById("newTicketForm").addEventListener(
+      "submit",
+      enviarNovoChamado
+    );
+
+    document.getElementById("newTicketModal").addEventListener(
+      "click",
+      event => {
+        if (event.target.id === "newTicketModal") {
+          fecharNovoChamado();
+        }
+      }
+    );
+
+    carregarChamados();
   </script>
 
 </body>

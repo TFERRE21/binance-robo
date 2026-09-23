@@ -221,4 +221,338 @@ router.get("/teste", authMiddleware, async (req, res) => {
   });
 });
 
+/*
+=========================================================
+CRIPTOPRO — CENTRAL DE CHAMADOS DO ADMIN
+Somente ADMIN_USER_ID pode acessar estas rotas.
+=========================================================
+*/
+
+router.get("/support/tickets", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  try {
+    const result = await db.query(`
+      SELECT
+        t.id,
+        t.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        t.subject,
+        t.category,
+        t.priority,
+        t.status,
+        t.created_at,
+        t.updated_at,
+        t.closed_at,
+        (
+          SELECT sm.message
+          FROM support_messages sm
+          WHERE sm.ticket_id = t.id
+          ORDER BY sm.id DESC
+          LIMIT 1
+        ) AS last_message
+      FROM support_tickets t
+      LEFT JOIN users u ON u.id = t.user_id
+      ORDER BY
+        CASE t.status
+          WHEN 'ABERTO' THEN 1
+          WHEN 'EM_ATENDIMENTO' THEN 2
+          WHEN 'RESPONDIDO' THEN 3
+          WHEN 'FECHADO' THEN 4
+          ELSE 5
+        END,
+        t.updated_at DESC,
+        t.id DESC
+    `);
+
+    return res.json({
+      ok: true,
+      tickets: result.rows
+    });
+  } catch (error) {
+    console.error("ADMIN SUPORTE — LISTAR:", error);
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível carregar os chamados."
+    });
+  }
+});
+
+router.get("/support/tickets/:id", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  const ticketId = Number(req.params.id);
+
+  if (!Number.isInteger(ticketId) || ticketId <= 0) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Chamado inválido."
+    });
+  }
+
+  try {
+    const ticketResult = await db.query(`
+      SELECT
+        t.id,
+        t.user_id,
+        u.name AS user_name,
+        u.email AS user_email,
+        t.subject,
+        t.category,
+        t.priority,
+        t.status,
+        t.created_at,
+        t.updated_at,
+        t.closed_at
+      FROM support_tickets t
+      LEFT JOIN users u ON u.id = t.user_id
+      WHERE t.id = $1
+      LIMIT 1
+    `, [ticketId]);
+
+    if (!ticketResult.rows.length) {
+      return res.status(404).json({
+        ok: false,
+        erro: "Chamado não encontrado."
+      });
+    }
+
+    const messagesResult = await db.query(`
+      SELECT
+        id,
+        sender_type,
+        sender_user_id,
+        message,
+        created_at
+      FROM support_messages
+      WHERE ticket_id = $1
+      ORDER BY id ASC
+    `, [ticketId]);
+
+    return res.json({
+      ok: true,
+      chamado: ticketResult.rows[0],
+      mensagens: messagesResult.rows
+    });
+  } catch (error) {
+    console.error("ADMIN SUPORTE — DETALHE:", error);
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível carregar o chamado."
+    });
+  }
+});
+
+router.post("/support/tickets/:id/messages", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  const ticketId = Number(req.params.id);
+  const message = String(
+    req.body?.message ||
+    req.body?.mensagem ||
+    ""
+  ).trim();
+
+  const adminUserId = Number(
+    req.user?.id ||
+    req.user?.userId
+  );
+
+  if (!Number.isInteger(ticketId) || ticketId <= 0) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Chamado inválido."
+    });
+  }
+
+  if (!message) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Digite uma mensagem."
+    });
+  }
+
+  if (message.length > 10000) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Mensagem muito longa."
+    });
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const ticketResult = await client.query(
+      "SELECT id, status FROM support_tickets WHERE id = $1 FOR UPDATE",
+      [ticketId]
+    );
+
+    if (!ticketResult.rows.length) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        ok: false,
+        erro: "Chamado não encontrado."
+      });
+    }
+
+    const ticket = ticketResult.rows[0];
+
+    if (ticket.status === "FECHADO") {
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        ok: false,
+        erro: "Este chamado está fechado."
+      });
+    }
+
+    const messageResult = await client.query(
+      `
+      INSERT INTO support_messages
+        (
+          ticket_id,
+          sender_type,
+          sender_user_id,
+          message
+        )
+      VALUES
+        ($1, 'ADMIN', $2, $3)
+      RETURNING
+        id,
+        sender_type,
+        sender_user_id,
+        message,
+        created_at
+      `,
+      [
+        ticketId,
+        adminUserId || null,
+        message
+      ]
+    );
+
+    await client.query(
+      `
+      UPDATE support_tickets
+      SET
+        status = 'RESPONDIDO',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      `,
+      [ticketId]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      ok: true,
+      mensagem: "Resposta enviada ao usuário.",
+      mensagemChamado: messageResult.rows[0]
+    });
+
+  } catch (error) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {}
+
+    console.error("ADMIN SUPORTE — RESPONDER:", error);
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível enviar a resposta."
+    });
+
+  } finally {
+    client.release();
+  }
+});
+
+router.patch("/support/tickets/:id/status", authMiddleware, async (req, res) => {
+  if (!isAdmin(req)) return deny(res);
+
+  const ticketId = Number(req.params.id);
+  const status = String(
+    req.body?.status || ""
+  ).trim().toUpperCase();
+
+  const permitidos = [
+    "ABERTO",
+    "EM_ATENDIMENTO",
+    "RESPONDIDO",
+    "FECHADO"
+  ];
+
+  if (!Number.isInteger(ticketId) || ticketId <= 0) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Chamado inválido."
+    });
+  }
+
+  if (!permitidos.includes(status)) {
+    return res.status(400).json({
+      ok: false,
+      erro: "Status inválido."
+    });
+  }
+
+  try {
+    const result = await db.query(
+      `
+      UPDATE support_tickets
+      SET
+        status = $1,
+        updated_at = CURRENT_TIMESTAMP,
+        closed_at = CASE
+          WHEN $1 = 'FECHADO'
+            THEN CURRENT_TIMESTAMP
+          ELSE NULL
+        END
+      WHERE id = $2
+      RETURNING
+        id,
+        user_id,
+        subject,
+        category,
+        priority,
+        status,
+        created_at,
+        updated_at,
+        closed_at
+      `,
+      [
+        status,
+        ticketId
+      ]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({
+        ok: false,
+        erro: "Chamado não encontrado."
+      });
+    }
+
+    return res.json({
+      ok: true,
+      chamado: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error("ADMIN SUPORTE — STATUS:", error);
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível atualizar o status."
+    });
+  }
+});
+
+
 module.exports = router;

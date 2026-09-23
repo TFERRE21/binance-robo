@@ -305,63 +305,6 @@ app.post("/api/support/ticket", authMiddleware, async function (req, res) {
 // Estrutura inicial dos chamados
 // =========================================================
 
-const chamados = [];
-let proximoChamadoId = 1;
-
-// Criar novo chamado
-app.post("/api/support/chamados", authMiddleware, function (req, res) {
-  try {
-    const usuario = req.user || {};
-
-    const assunto = String(req.body.assunto || "").trim();
-    const categoria = String(req.body.categoria || "").trim();
-    const prioridade = String(req.body.prioridade || "Normal").trim();
-    const mensagem = String(req.body.mensagem || "").trim();
-
-    if (!assunto) {
-      return res.status(400).json({
-        ok: false,
-        erro: "Informe o assunto do chamado."
-      });
-    }
-
-    if (!mensagem) {
-      return res.status(400).json({
-        ok: false,
-        erro: "Informe a mensagem do chamado."
-      });
-    }
-
-    const chamado = {
-      id: proximoChamadoId++,
-      usuarioId: usuario.id || usuario.userId || null,
-      usuarioNome: usuario.name || usuario.nome || usuario.email || "Usuário",
-      usuarioEmail: usuario.email || "",
-      assunto,
-      categoria,
-      prioridade,
-      status: "ABERTO",
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-
-      mensagens: [
-        {
-          id: 1,
-          autor: "usuario",
-          nome: usuario.name || usuario.nome || usuario.email || "Usuário",
-          mensagem,
-          criadoEm: new Date().toISOString()
-        }
-      ]
-    };
-
-    chamados.push(chamado);
-
-    return res.json({
-      ok: true,
-      chamado
-    });
-
   } catch (erro) {
     console.error("CRIPTOPRO SUPORTE — ERRO AO CRIAR CHAMADO:", erro);
 

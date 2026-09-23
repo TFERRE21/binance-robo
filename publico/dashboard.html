@@ -496,6 +496,7 @@
   <script>
     // =====================================================
     // PAINEL ADM — ACESSO EXCLUSIVO
+    // O próprio backend confirma se a conta é administradora.
     // =====================================================
 
     (async function verificarPainelAdmin() {
@@ -507,57 +508,8 @@
         return;
       }
 
-      const EMAIL_ADMIN =
-        "tjesusferreira19@gmail.com";
-
-      function mostrarAdminSeForPermitido(email) {
-
-        const emailNormalizado =
-          String(email || "")
-            .trim()
-            .toLowerCase();
-
-        if (emailNormalizado === EMAIL_ADMIN) {
-          adminButton.style.display = "inline-block";
-          return true;
-        }
-
-        return false;
-      }
-
       try {
 
-        // Primeiro: usa os dados já salvos no login.
-        const usuarioSalvo =
-          localStorage.getItem("criptopro_user");
-
-        if (usuarioSalvo) {
-
-          try {
-
-            const usuario =
-              JSON.parse(usuarioSalvo);
-
-            if (
-              mostrarAdminSeForPermitido(
-                usuario?.email
-              )
-            ) {
-              return;
-            }
-
-          } catch (erroJSON) {
-
-            console.warn(
-              "Dados locais do usuário inválidos.",
-              erroJSON
-            );
-
-          }
-
-        }
-
-        // Segundo: confirma pelo servidor.
         const token =
           localStorage.getItem("token");
 
@@ -565,9 +517,11 @@
           return;
         }
 
+        // Em vez de depender do e-mail salvo no navegador,
+        // perguntamos ao backend se esta sessão tem acesso ADM.
         const response =
           await fetch(
-            "/api/auth/me",
+            "/api/admin/dashboard",
             {
               method: "GET",
               headers: {
@@ -578,16 +532,12 @@
             }
           );
 
-        if (!response.ok) {
-          return;
+        if (response.ok) {
+
+          adminButton.style.display =
+            "inline-block";
+
         }
-
-        const data =
-          await response.json();
-
-        mostrarAdminSeForPermitido(
-          data?.user?.email
-        );
 
       } catch (error) {
 

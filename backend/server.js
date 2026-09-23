@@ -300,6 +300,287 @@ app.post("/api/support/ticket", authMiddleware, async function (req, res) {
   }
 });
 
+
+// =========================================================
+// CRIPTOPRO — LEITURA E RESPOSTA DOS CHAMADOS DO USUÁRIO
+// O usuário só pode acessar chamados pertencentes ao próprio ID.
+// =========================================================
+
+app.get("/api/support/tickets", authMiddleware, async function (req, res) {
+  try {
+    const usuarioId = Number(req.user?.id || req.user?.userId);
+
+    if (!usuarioId) {
+      return res.status(401).json({
+        ok: false,
+        erro: "Usuário não autenticado."
+      });
+    }
+
+    const result = await require("./services/db").query(
+      `
+      SELECT
+        t.id,
+        t.user_id,
+        t.subject,
+        t.category,
+        t.priority,
+        t.status,
+        t.created_at,
+        t.updated_at,
+        t.closed_at,
+        (
+          SELECT sm.message
+          FROM support_messages sm
+          WHERE sm.ticket_id = t.id
+          ORDER BY sm.id DESC
+          LIMIT 1
+        ) AS last_message
+      FROM support_tickets t
+      WHERE t.user_id = $1
+      ORDER BY t.updated_at DESC, t.id DESC
+      `,
+      [usuarioId]
+    );
+
+    return res.json({
+      ok: true,
+      tickets: result.rows
+    });
+
+  } catch (erro) {
+    console.error(
+      "CRIPTOPRO SUPORTE — ERRO AO LISTAR CHAMADOS DO USUÁRIO:",
+      erro
+    );
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível carregar seus chamados."
+    });
+  }
+});
+
+app.get("/api/support/tickets/:id", authMiddleware, async function (req, res) {
+  try {
+    const usuarioId = Number(req.user?.id || req.user?.userId);
+    const ticketId = Number(req.params.id);
+
+    if (!usuarioId) {
+      return res.status(401).json({
+        ok: false,
+        erro: "Usuário não autenticado."
+      });
+    }
+
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Chamado inválido."
+      });
+    }
+
+    const ticketResult = await require("./services/db").query(
+      `
+      SELECT
+        t.id,
+        t.user_id,
+        t.subject,
+        t.category,
+        t.priority,
+        t.status,
+        t.created_at,
+        t.updated_at,
+        t.closed_at
+      FROM support_tickets t
+      WHERE t.id = $1
+        AND t.user_id = $2
+      LIMIT 1
+      `,
+      [ticketId, usuarioId]
+    );
+
+    if (!ticketResult.rows.length) {
+      return res.status(404).json({
+        ok: false,
+        erro: "Chamado não encontrado."
+      });
+    }
+
+    const messagesResult = await require("./services/db").query(
+      `
+      SELECT
+        id,
+        sender_type,
+        sender_user_id,
+        message,
+        created_at
+      FROM support_messages
+      WHERE ticket_id = $1
+      ORDER BY id ASC
+      `,
+      [ticketId]
+    );
+
+    return res.json({
+      ok: true,
+      chamado: ticketResult.rows[0],
+      mensagens: messagesResult.rows
+    });
+
+  } catch (erro) {
+    console.error(
+      "CRIPTOPRO SUPORTE — ERRO AO ABRIR CHAMADO DO USUÁRIO:",
+      erro
+    );
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível carregar o chamado."
+    });
+  }
+});
+
+app.post("/api/support/tickets/:id/messages", authMiddleware, async function (req, res) {
+  const client = await require("./services/db").connect();
+
+  try {
+    const usuarioId = Number(req.user?.id || req.user?.userId);
+    const ticketId = Number(req.params.id);
+    const message = String(
+      req.body?.message ||
+      req.body?.mensagem ||
+      ""
+    ).trim();
+
+    if (!usuarioId) {
+      return res.status(401).json({
+        ok: false,
+        erro: "Usuário não autenticado."
+      });
+    }
+
+    if (!Number.isInteger(ticketId) || ticketId <= 0) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Chamado inválido."
+      });
+    }
+
+    if (!message) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Digite uma mensagem."
+      });
+    }
+
+    if (message.length > 10000) {
+      return res.status(400).json({
+        ok: false,
+        erro: "Mensagem muito longa."
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const ticketResult = await client.query(
+      `
+      SELECT
+        id,
+        user_id,
+        status
+      FROM support_tickets
+      WHERE id = $1
+        AND user_id = $2
+      FOR UPDATE
+      `,
+      [ticketId, usuarioId]
+    );
+
+    if (!ticketResult.rows.length) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        ok: false,
+        erro: "Chamado não encontrado."
+      });
+    }
+
+    const ticket = ticketResult.rows[0];
+
+    if (ticket.status === "FECHADO") {
+      await client.query("ROLLBACK");
+
+      return res.status(400).json({
+        ok: false,
+        erro: "Este chamado está fechado."
+      });
+    }
+
+    const messageResult = await client.query(
+      `
+      INSERT INTO support_messages
+        (
+          ticket_id,
+          sender_type,
+          sender_user_id,
+          message
+        )
+      VALUES
+        ($1, 'USER', $2, $3)
+      RETURNING
+        id,
+        sender_type,
+        sender_user_id,
+        message,
+        created_at
+      `,
+      [
+        ticketId,
+        usuarioId,
+        message
+      ]
+    );
+
+    await client.query(
+      `
+      UPDATE support_tickets
+      SET
+        status = 'EM_ATENDIMENTO',
+        updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      `,
+      [ticketId]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
+      ok: true,
+      mensagem: "Mensagem enviada.",
+      mensagemChamado: messageResult.rows[0]
+    });
+
+  } catch (erro) {
+    try {
+      await client.query("ROLLBACK");
+    } catch (e) {}
+
+    console.error(
+      "CRIPTOPRO SUPORTE — ERRO AO RESPONDER CHAMADO:",
+      erro
+    );
+
+    return res.status(500).json({
+      ok: false,
+      erro: "Não foi possível enviar sua mensagem."
+    });
+
+  } finally {
+    client.release();
+  }
+});
+
 // =========================================================
 // ROTAS PRINCIPAIS
 // =========================================================

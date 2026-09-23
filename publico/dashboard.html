@@ -47,7 +47,7 @@
         class="btn-login"
         type="button"
         style="margin-right: 10px;"
-        onclick="window.location.href='/suporte.html?origem=%2Fdashboard.html'"
+        onclick="window.location.href='/suporte.html?origem=%2Findex.html'"
       >
         🎫 Meus Chamados
       </button>
@@ -489,7 +489,7 @@
   </div>
 
 
-  <script src="js/dashboard.js"></script>
+  <script src="js/dashboard.js?v=20260923"></script>
 
   <script src="/js/support.js?v=20260923"></script>
 
@@ -498,7 +498,7 @@
     // PAINEL ADM — ACESSO EXCLUSIVO
     // =====================================================
 
-    (function verificarPainelAdmin() {
+    (async function verificarPainelAdmin() {
 
       const adminButton =
         document.getElementById("adminPanelButton");
@@ -507,34 +507,87 @@
         return;
       }
 
+      const EMAIL_ADMIN =
+        "tjesusferreira19@gmail.com";
+
+      function mostrarAdminSeForPermitido(email) {
+
+        const emailNormalizado =
+          String(email || "")
+            .trim()
+            .toLowerCase();
+
+        if (emailNormalizado === EMAIL_ADMIN) {
+          adminButton.style.display = "inline-block";
+          return true;
+        }
+
+        return false;
+      }
+
       try {
 
+        // Primeiro: usa os dados já salvos no login.
         const usuarioSalvo =
           localStorage.getItem("criptopro_user");
 
-        if (!usuarioSalvo) {
+        if (usuarioSalvo) {
+
+          try {
+
+            const usuario =
+              JSON.parse(usuarioSalvo);
+
+            if (
+              mostrarAdminSeForPermitido(
+                usuario?.email
+              )
+            ) {
+              return;
+            }
+
+          } catch (erroJSON) {
+
+            console.warn(
+              "Dados locais do usuário inválidos.",
+              erroJSON
+            );
+
+          }
+
+        }
+
+        // Segundo: confirma pelo servidor.
+        const token =
+          localStorage.getItem("token");
+
+        if (!token) {
           return;
         }
 
-        const usuario =
-          JSON.parse(usuarioSalvo);
+        const response =
+          await fetch(
+            "/api/auth/me",
+            {
+              method: "GET",
+              headers: {
+                "Authorization":
+                  "Bearer " + token
+              },
+              cache: "no-store"
+            }
+          );
 
-        const email =
-          String(
-            usuario?.email || ""
-          )
-          .trim()
-          .toLowerCase();
-
-        if (
-          email ===
-          "tjesusferreira19@gmail.com"
-        ) {
-
-          adminButton.style.display =
-            "inline-block";
-
+        if (!response.ok) {
+          return;
         }
+
+        const data =
+          await response.json();
+
+        mostrarAdminSeForPermitido(
+          data?.user?.email
+        );
 
       } catch (error) {
 

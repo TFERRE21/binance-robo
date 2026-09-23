@@ -301,46 +301,6 @@ app.post("/api/support/ticket", authMiddleware, async function (req, res) {
 });
 
 // =========================================================
-// CRIPTOPRO — CENTRAL DE CHAMADOS
-// Estrutura inicial dos chamados
-// =========================================================
-
-  } catch (erro) {
-    console.error("CRIPTOPRO SUPORTE — ERRO AO CRIAR CHAMADO:", erro);
-
-    return res.status(500).json({
-      ok: false,
-      erro: "Não foi possível criar o chamado."
-    });
-  }
-});
-
-// Meus chamados
-app.get("/api/support/chamados", authMiddleware, function (req, res) {
-  try {
-    const usuario = req.user || {};
-    const usuarioId = usuario.id || usuario.userId || null;
-
-    const meusChamados = chamados.filter(function (chamado) {
-      return chamado.usuarioId === usuarioId;
-    });
-
-    return res.json({
-      ok: true,
-      chamados: meusChamados
-    });
-
-  } catch (erro) {
-    console.error("CRIPTOPRO SUPORTE — ERRO AO LISTAR CHAMADOS:", erro);
-
-    return res.status(500).json({
-      ok: false,
-      erro: "Não foi possível carregar seus chamados."
-    });
-  }
-});
-
-// =========================================================
 // ROTAS PRINCIPAIS
 // =========================================================
 app.use("/api/auth", authRoutes);

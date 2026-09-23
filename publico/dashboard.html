@@ -498,7 +498,7 @@
     // PAINEL ADM — ACESSO EXCLUSIVO
     // =====================================================
 
-    (async function verificarPainelAdmin() {
+    (function verificarPainelAdmin() {
 
       const adminButton =
         document.getElementById("adminPanelButton");
@@ -509,35 +509,19 @@
 
       try {
 
-        const token =
-          localStorage.getItem("token");
+        const usuarioSalvo =
+          localStorage.getItem("criptopro_user");
 
-        if (!token) {
+        if (!usuarioSalvo) {
           return;
         }
 
-        const response =
-          await fetch(
-            "/api/auth/me",
-            {
-              headers: {
-                "Authorization":
-                  "Bearer " + token
-              },
-              cache: "no-store"
-            }
-          );
-
-        if (!response.ok) {
-          return;
-        }
-
-        const data =
-          await response.json();
+        const usuario =
+          JSON.parse(usuarioSalvo);
 
         const email =
           String(
-            data?.user?.email || ""
+            usuario?.email || ""
           )
           .trim()
           .toLowerCase();

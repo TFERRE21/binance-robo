@@ -466,113 +466,6 @@
       max-width:360px;
     }
 
-
-    /* Modal da conversa */
-    .conversation-modal{
-      width:min(850px,100%);
-      max-height:92vh;
-      overflow:auto;
-      border:1px solid #334b68;
-      border-radius:16px;
-      background:linear-gradient(180deg,#101d2d,#091522);
-      box-shadow:0 30px 100px rgba(0,0,0,.6);
-    }
-    .conversation-head{
-      padding:20px 24px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      border-bottom:1px solid #24374e;
-    }
-    .conversation-head h2{margin:0;font-size:22px}
-    .conversation-meta{
-      padding:16px 24px;
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:10px;
-      border-bottom:1px solid #24374e;
-      color:#9db0c6;
-      font-size:13px;
-    }
-    .conversation-meta strong{color:#fff}
-    .messages-box{
-      padding:20px 24px;
-      display:grid;
-      gap:12px;
-      max-height:430px;
-      overflow:auto;
-    }
-    .message-bubble{
-      max-width:78%;
-      padding:13px 15px;
-      border-radius:12px;
-      border:1px solid #293d56;
-    }
-    .message-bubble.user{
-      justify-self:start;
-      background:#0c2238;
-    }
-    .message-bubble.admin{
-      justify-self:end;
-      background:#12372f;
-    }
-    .message-author{
-      color:#91a5bf;
-      font-size:11px;
-      font-weight:900;
-      margin-bottom:7px;
-    }
-    .message-text{
-      color:#f4f7fb;
-      line-height:1.5;
-      white-space:normal;
-      overflow-wrap:anywhere;
-    }
-    .conversation-reply{
-      padding:18px 24px;
-      border-top:1px solid #24374e;
-    }
-    .conversation-reply textarea{
-      width:100%;
-      min-height:95px;
-      resize:vertical;
-      border:1px solid #30445e;
-      border-radius:9px;
-      background:#07121f;
-      color:#fff;
-      padding:13px;
-      outline:none;
-    }
-    .conversation-actions{
-      display:flex;
-      justify-content:flex-end;
-      gap:10px;
-      margin-top:10px;
-    }
-    .conversation-send{
-      border:0;
-      border-radius:8px;
-      background:linear-gradient(180deg,#ffca2e,#f5b914);
-      color:#111;
-      padding:11px 18px;
-      cursor:pointer;
-      font-weight:900;
-    }
-    .conversation-close{
-      width:38px;
-      height:38px;
-      border-radius:8px;
-      border:1px solid #334860;
-      background:#0d1827;
-      color:#fff;
-      cursor:pointer;
-      font-size:20px;
-    }
-    @media(max-width:650px){
-      .conversation-meta{grid-template-columns:1fr}
-      .message-bubble{max-width:92%}
-    }
-
     @media(max-width:900px){
       .stats{grid-template-columns:1fr 1fr}
       .table-head{display:none}
@@ -809,32 +702,6 @@
         </div>
 
       </form>
-    </div>
-  </div>
-
-  <!-- MODAL DA CONVERSA -->
-  <div class="modal-backdrop" id="conversationModal">
-    <div class="conversation-modal">
-      <div class="conversation-head">
-        <h2 id="conversationTitle">Chamado</h2>
-        <button class="conversation-close" type="button" onclick="fecharConversa()">×</button>
-      </div>
-
-      <div class="conversation-meta" id="conversationMeta"></div>
-
-      <div class="messages-box" id="messagesBox"></div>
-
-      <div class="conversation-reply" id="conversationReply">
-        <textarea id="conversationMessage" maxlength="10000"
-          placeholder="Digite sua resposta para o suporte..."></textarea>
-
-        <div class="conversation-actions">
-          <button class="conversation-send" id="conversationSend" type="button"
-            onclick="enviarRespostaChamado()">
-            📩 Enviar resposta
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -1114,157 +981,31 @@
       }
     }
 
-    let chamadoAtual = null;
-
-    async function verConversa(id) {
-      if (!token) {
-        mostrarToast("Faça login para acessar o chamado.");
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          "/api/support/tickets/" + encodeURIComponent(id),
-          {
-            method: "GET",
-            headers: authHeaders()
-          }
-        );
-
-        if (response.status === 401) {
-          mostrarToast("Sua sessão expirou. Faça login novamente.");
-          return;
-        }
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || !data.ok) {
-          throw new Error(
-            data.erro || "Não foi possível abrir a conversa."
-          );
-        }
-
-        chamadoAtual = data.chamado;
-
-        document.getElementById("conversationTitle").textContent =
-          "Chamado #" + chamadoAtual.id + " — " +
-          (chamadoAtual.subject || "Sem assunto");
-
-        document.getElementById("conversationMeta").innerHTML = `
-          <div>📂 Categoria: <strong>${escapeHtml(chamadoAtual.category || "—")}</strong></div>
-          <div>⚡ Prioridade: <strong>${escapeHtml(chamadoAtual.priority || "NORMAL")}</strong></div>
-          <div>📌 Status: <strong>${escapeHtml(statusInfo(chamadoAtual.status).label)}</strong></div>
-          <div>🕘 Atualizado: <strong>${escapeHtml(formatDate(chamadoAtual.updated_at))}</strong></div>
-        `;
-
-        const messages = Array.isArray(data.mensagens)
-          ? data.mensagens
-          : [];
-
-        const box = document.getElementById("messagesBox");
-
-        if (!messages.length) {
-          box.innerHTML = `
-            <div style="text-align:center;color:#8499b1;padding:25px">
-              Nenhuma mensagem encontrada.
-            </div>
-          `;
-        } else {
-          box.innerHTML = messages.map(message => {
-            const admin =
-              String(message.sender_type || "").toUpperCase() === "ADMIN";
-
-            return `
-              <div class="message-bubble ${admin ? "admin" : "user"}">
-                <div class="message-author">
-                  ${admin ? "🛡️ SUPORTE" : "👤 VOCÊ"}
-                  · ${escapeHtml(formatDate(message.created_at))}
-                </div>
-                <div class="message-text">
-                  ${escapeHtml(message.message).replace(/\n/g, "<br>")}
-                </div>
-              </div>
-            `;
-          }).join("");
-        }
-
-        const fechado =
-          String(chamadoAtual.status || "").toUpperCase() === "FECHADO";
-
-        document.getElementById("conversationReply").style.display =
-          fechado ? "none" : "block";
-
-        document.getElementById("conversationMessage").value = "";
-        document.getElementById("conversationModal").style.display = "flex";
-
-        setTimeout(() => {
-          box.scrollTop = box.scrollHeight;
-        }, 50);
-
-      } catch (error) {
-        mostrarToast(
-          error.message || "Não foi possível abrir a conversa."
-        );
-      }
-    }
-
-    function fecharConversa() {
-      document.getElementById("conversationModal").style.display = "none";
-      chamadoAtual = null;
-    }
-
-    async function enviarRespostaChamado() {
-      if (!chamadoAtual) return;
-
-      const textarea = document.getElementById("conversationMessage");
-      const button = document.getElementById("conversationSend");
-      const message = textarea.value.trim();
-
-      if (!message) {
-        mostrarToast("Digite uma mensagem.");
-        return;
-      }
-
-      button.disabled = true;
-      button.textContent = "⏳ Enviando...";
-
-      try {
-        const response = await fetch(
-          "/api/support/tickets/" +
-          encodeURIComponent(chamadoAtual.id) +
-          "/messages",
-          {
-            method: "POST",
-            headers: authHeaders(true),
-            body: JSON.stringify({message})
-          }
-        );
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok || !data.ok) {
-          throw new Error(
-            data.erro || "Não foi possível enviar a mensagem."
-          );
-        }
-
-        textarea.value = "";
-        mostrarToast("Mensagem enviada ao suporte.");
-
-        await verConversa(chamadoAtual.id);
-        await carregarChamados();
-
-      } catch (error) {
-        mostrarToast(
-          error.message || "Não foi possível enviar a mensagem."
-        );
-      } finally {
-        button.disabled = false;
-        button.textContent = "📩 Enviar resposta";
-      }
+    function verConversa(id) {
+      window.location.href =
+        "/suporte.html?chamado=" +
+        encodeURIComponent(id);
     }
 
     function voltarDashboard() {
+
+      const params =
+        new URLSearchParams(window.location.search);
+
+      const origem =
+        params.get("origem");
+
+      // Quando o chamado foi aberto a partir do painel principal,
+      // retorna exatamente para ele.
+      if (
+        origem === "/index.html" ||
+        origem === "index.html"
+      ) {
+        window.location.href = "/index.html";
+        return;
+      }
+
+      // Compatibilidade com acessos antigos.
       window.location.href = "/dashboard.html";
     }
 
@@ -1316,20 +1057,6 @@
         }
       }
     );
-
-    document.getElementById("conversationModal").addEventListener(
-      "click",
-      event => {
-        if (event.target.id === "conversationModal") {
-          fecharConversa();
-        }
-      }
-    );
-
-    const chamadoUrl = new URLSearchParams(window.location.search).get("chamado");
-    if (chamadoUrl && /^\d+$/.test(chamadoUrl)) {
-      setTimeout(() => verConversa(Number(chamadoUrl)), 300);
-    }
 
     carregarChamados();
   </script>

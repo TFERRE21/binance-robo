@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CriptoPro — Central de Chamados</title>
+<style>
+:root{
+  --bg:#07101d;--bg2:#0b1524;--card:#101b2b;--border:#263953;
+  --gold:#f7bd22;--text:#f4f7fb;--muted:#91a5bf;
+  --green:#13d7a0;--red:#ff5b68;--blue:#1785ff;
+}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;font-family:Arial,Helvetica,sans-serif;color:var(--text);
+background:linear-gradient(180deg,#070d16,#0b1422)}
+button,input,textarea,select{font:inherit}
+.topbar{height:72px;display:flex;align-items:center;justify-content:space-between;
+padding:0 30px;border-bottom:1px solid #17263a;background:#060b13}
+.brand{font-size:25px;font-weight:900}.brand span{color:var(--gold)}
+.top-actions{display:flex;gap:10px;align-items:center}
+.top-btn{border:1px solid #2b3c54;background:#0d1624;color:#e8eef7;border-radius:9px;
+padding:10px 15px;cursor:pointer;font-weight:800}.top-btn:hover{border-color:#58708e}
+.page{max-width:1250px;margin:25px auto;padding:0 18px 45px}
+.panel{border:1px solid #2b405d;border-radius:18px;background:linear-gradient(180deg,#0f1d2f,#091422);
+overflow:hidden;box-shadow:0 20px 70px #0006}
+.head{padding:26px 28px;border-bottom:1px solid #23374f;display:flex;justify-content:space-between;gap:15px}
+h1{margin:0 0 6px;font-size:29px}.sub{margin:0;color:#9fb1c7}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:20px 28px}
+.stat{border:1px solid #263b55;border-radius:12px;padding:17px;background:#0d1928}
+.stat b{display:block;color:#9eb2ca;font-size:12px;text-transform:uppercase}.num{font-size:28px;font-weight:900;margin-top:7px}
+.toolbar{display:flex;gap:10px;padding:0 28px 18px;flex-wrap:wrap}
+.filter{padding:11px 15px;border:1px solid #2d415c;background:#0c1726;color:#dbe5f1;
+border-radius:9px;cursor:pointer;font-weight:800}.filter.active{background:var(--gold);color:#111}
+.search{margin-left:auto;width:300px;padding:11px 14px;border:1px solid #2d415c;border-radius:9px;
+background:#091421;color:#fff;outline:none}
+.table{margin:0 28px;border:1px solid #2b4059;border-radius:12px;overflow:hidden}
+.th,.row{display:grid;grid-template-columns:70px 1.35fr 1fr 135px 155px 110px;align-items:center}
+.th{padding:14px;background:#102031;color:#d8e3ef;font-size:11px;font-weight:900;text-transform:uppercase}
+.row{min-height:82px;padding:12px;border-top:1px solid #1d3046}
+.subject{font-weight:900}.meta{font-size:12px;color:#8499b1;margin-top:5px}
+.badge{display:inline-block;padding:7px 10px;border-radius:16px;font-size:11px;font-weight:900}
+.open{background:#073a76;color:#62b7ff}.progress{background:#4b3a08;color:#ffd04a}
+.answered{background:#063d34;color:#55e2bd}.closed{background:#273242;color:#b9c5d4}
+.priority{font-size:11px;font-weight:900}.urgent{color:#ff6674}.important{color:#ffd04a}.normal{color:#9eb1c7}
+.view{border:1px solid #344a65;background:#101e2d;color:#fff;border-radius:8px;padding:9px 11px;cursor:pointer;font-weight:800}
+.empty{padding:45px;text-align:center;color:#8499b1}
+.overlay{position:fixed;inset:0;background:#02070dcc;display:none;align-items:center;justify-content:center;padding:18px;z-index:1000}
+.modal{width:min(850px,100%);max-height:92vh;overflow:auto;border:1px solid #334b68;border-radius:16px;background:#0d1928;box-shadow:0 30px 100px #0009}
+.modalhead{padding:20px 24px;border-bottom:1px solid #24374e;display:flex;justify-content:space-between;align-items:center}
+.modalhead h2{margin:0}.close{background:#111d2b;border:1px solid #334860;color:#fff;border-radius:8px;width:38px;height:38px;cursor:pointer;font-size:20px}
+.info{padding:18px 24px;border-bottom:1px solid #24374e;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.info div{color:#9db0c6;font-size:13px}.info strong{color:#fff}
+.messages{padding:20px 24px;display:grid;gap:12px}
+.msg{padding:13px 15px;border-radius:12px;max-width:78%;border:1px solid #293d56}
+.msg.user{background:#0c2238;justify-self:start}.msg.admin{background:#12372f;justify-self:end}
+.msg small{display:block;color:#8499b1;margin-bottom:6px;font-weight:800}
+.reply{padding:18px 24px;border-top:1px solid #24374e}
+.reply textarea{width:100%;min-height:110px;resize:vertical;border:1px solid #30445e;border-radius:9px;
+background:#07121f;color:#fff;padding:13px;outline:none}
+.actions{display:flex;justify-content:flex-end;gap:10px;margin-top:10px}
+.send,.statusbtn{border:0;border-radius:8px;padding:11px 18px;cursor:pointer;font-weight:900}
+.send{background:var(--gold);color:#111}.statusbtn{background:#162536;color:#fff;border:1px solid #344a65}
+.notice{margin:15px 28px;padding:12px;border-radius:9px;background:#32151b;border:1px solid #71303a;color:#ffb4bc;display:none}
+@media(max-width:950px){.stats{grid-template-columns:1fr 1fr}.th{display:none}.row{grid-template-columns:1fr;gap:8px}.search{margin-left:0;width:100%}}
+@media(max-width:600px){.stats{grid-template-columns:1fr}.topbar{padding:0 15px}.page{padding:0 10px}.head{padding:20px}.table{margin:0 15px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">Cripto<span>Pro</span> <small style="font-size:11px;color:#8995a6">ADMIN</small></div>
+  <div class="top-actions">
+    <button class="top-btn" onclick="location.href='/index.html'">← Painel</button>
+    <button class="top-btn" onclick="logout()">↪ Sair</button>
+  </div>
+</header>
+
+<main class="page">
+<section class="panel">
+  <div class="head">
+    <div>
+      <h1>🎫 Central de Chamados</h1>
+      <p class="sub">Atendimento interno — somente administrador</p>
+    </div>
+    <button class="top-btn" onclick="carregarChamados()">↻ Atualizar</button>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><b>Todos</b><div class="num" id="allCount">0</div></div>
+    <div class="stat"><b>Abertos</b><div class="num" id="openCount">0</div></div>
+    <div class="stat"><b>Em atendimento</b><div class="num" id="progressCount">0</div></div>
+    <div class="stat"><b>Respondidos</b><div class="num" id="answeredCount">0</div></div>
+  </div>
+
+  <div class="toolbar">
+    <button class="filter active" data-filter="TODOS">Todos</button>
+    <button class="filter" data-filter="ABERTO">Abertos</button>
+    <button class="filter" data-filter="EM_ATENDIMENTO">Em atendimento</button>
+    <button class="filter" data-filter="RESPONDIDO">Respondidos</button>
+    <button class="filter" data-filter="FECHADO">Fechados</button>
+    <input class="search" id="search" placeholder="🔎 Buscar chamado, usuário ou assunto">
+  </div>
+
+  <div id="notice" class="notice"></div>
+
+  <div class="table">
+    <div class="th">
+      <div>#</div><div>Chamado</div><div>Usuário</div><div>Status</div><div>Atualização</div><div>Ação</div>
+    </div>
+    <div id="list"><div class="empty">Carregando chamados...</div></div>
+  </div>
+</section>
+</main>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modalhead">
+      <h2 id="modalTitle">Chamado</h2>
+      <button class="close" onclick="fechar()">×</button>
+    </div>
+    <div class="info" id="info"></div>
+    <div class="messages" id="messages"></div>
+    <div class="reply">
+      <textarea id="replyText" placeholder="Digite sua resposta para o usuário..."></textarea>
+      <div class="actions">
+        <button class="statusbtn" onclick="alterarStatus('EM_ATENDIMENTO')">Em atendimento</button>
+        <button class="statusbtn" onclick="alterarStatus('FECHADO')">Fechar chamado</button>
+        <button class="send" onclick="responder()">📩 Enviar resposta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const token =
+  localStorage.getItem("token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("accessToken") || "";
+
+let tickets=[];
+let filter="TODOS";
+let currentId=null;
+
+function headers(json=false){
+  const h={};
+  if(json) h["Content-Type"]="application/json";
+  if(token) h.Authorization="Bearer "+token;
+  return h;
+}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[c]));}
+function date(v){if(!v)return"—";const d=new Date(v);return isNaN(d)?"—":d.toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});}
+function status(s){
+  const x=String(s||"").toUpperCase();
+  const map={
+    ABERTO:["Aberto","open"],EM_ATENDIMENTO:["Em atendimento","progress"],
+    RESPONDIDO:["Respondido","answered"],FECHADO:["Fechado","closed"]
+  };
+  const a=map[x]||[s||"—","closed"];
+  return `<span class="badge ${a[1]}">${esc(a[0])}</span>`;
+}
+function priority(p){
+  const x=String(p||"NORMAL").toUpperCase();
+  const cls=x==="URGENTE"?"urgent":x==="IMPORTANTE"?"important":"normal";
+  return `<span class="priority ${cls}">${esc(x)}</span>`;
+}
+
+async function carregarChamados(){
+  if(!token){location.href="/login.html";return;}
+  try{
+    const r=await fetch("/api/admin/support/tickets",{headers:headers()});
+    const d=await r.json().catch(()=>({}));
+    if(r.status===403){mostrarErro("Acesso administrativo não autorizado.");return;}
+    if(r.status===401){location.href="/login.html";return;}
+    if(!r.ok||!d.ok)throw new Error(d.erro||"Erro ao carregar chamados.");
+    tickets=Array.isArray(d.tickets)?d.tickets:[];
+    render();
+  }catch(e){mostrarErro(e.message);}
+}
+
+function render(){
+  const counts={ABERTO:0,EM_ATENDIMENTO:0,RESPONDIDO:0,FECHADO:0};
+  tickets.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++;});
+  allCount.textContent=tickets.length;
+  openCount.textContent=counts.ABERTO;
+  progressCount.textContent=counts.EM_ATENDIMENTO;
+  answeredCount.textContent=counts.RESPONDIDO;
+
+  const q=search.value.trim().toLowerCase();
+  const arr=tickets.filter(t=>{
+    const ok=filter==="TODOS"||t.status===filter;
+    const text=[t.id,t.subject,t.user_name,t.user_email,t.category,t.last_message].join(" ").toLowerCase();
+    return ok&&(!q||text.includes(q));
+  });
+
+  list.innerHTML="";
+  if(!arr.length){list.innerHTML='<div class="empty">Nenhum chamado encontrado.</div>';return;}
+
+  arr.forEach(t=>{
+    const row=document.createElement("div");
+    row.className="row";
+    row.innerHTML=`
+      <div><b>#${esc(t.id)}</b></div>
+      <div><div class="subject">${esc(t.subject||"Sem assunto")}</div>
+          <div class="meta">${esc(t.category||"Suporte")} · ${priority(t.priority)}</div></div>
+      <div><b>${esc(t.user_name||"Usuário")}</b><div class="meta">${esc(t.user_email||"")}</div></div>
+      <div>${status(t.status)}</div>
+      <div class="meta">${date(t.updated_at||t.created_at)}</div>
+      <div><button class="view" onclick="abrir(${Number(t.id)})">👁 Abrir</button></div>`;
+    list.appendChild(row);
+  });
+}
+
+async function abrir(id){
+  try{
+    const r=await fetch("/api/admin/support/tickets/"+encodeURIComponent(id),{headers:headers()});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.erro||"Não foi possível abrir o chamado.");
+    currentId=id;
+    const t=d.chamado;
+    modalTitle.textContent=`Chamado #${t.id} — ${t.subject||"Sem assunto"}`;
+    info.innerHTML=`
+      <div>👤 Cliente: <strong>${esc(t.user_name||"—")}</strong></div>
+      <div>✉️ E-mail: <strong>${esc(t.user_email||"—")}</strong></div>
+      <div>📂 Categoria: <strong>${esc(t.category||"—")}</strong></div>
+      <div>⚡ Prioridade: <strong>${esc(t.priority||"NORMAL")}</strong></div>
+      <div>📌 Status: <strong>${esc(t.status||"—")}</strong></div>
+      <div>🕘 Atualizado: <strong>${date(t.updated_at)}</strong></div>`;
+    messages.innerHTML=(d.mensagens||[]).map(m=>`
+      <div class="msg ${String(m.sender_type).toLowerCase()==="admin"?"admin":"user"}">
+        <small>${m.sender_type==="ADMIN"?"🛡️ ADMIN":"👤 USUÁRIO"} · ${date(m.created_at)}</small>
+        <div>${esc(m.message).replace(/\n/g,"<br>")}</div>
+      </div>`).join("");
+    replyText.value="";
+    overlay.style.display="flex";
+  }catch(e){mostrarErro(e.message);}
+}
+function fechar(){overlay.style.display="none";currentId=null;}
+async function responder(){
+  if(!currentId)return;
+  const message=replyText.value.trim();
+  if(!message){mostrarErro("Digite uma resposta.");return;}
+  try{
+    const r=await fetch("/api/admin/support/tickets/"+currentId+"/messages",{
+      method:"POST",headers:headers(true),body:JSON.stringify({message})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.erro||"Não foi possível responder.");
+    replyText.value="";
+    await abrir(currentId);
+    await carregarChamados();
+  }catch(e){mostrarErro(e.message);}
+}
+async function alterarStatus(statusValue){
+  if(!currentId)return;
+  try{
+    const r=await fetch("/api/admin/support/tickets/"+currentId+"/status",{
+      method:"PATCH",headers:headers(true),body:JSON.stringify({status:statusValue})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok||!d.ok)throw new Error(d.erro||"Não foi possível alterar o status.");
+    await abrir(currentId);
+    await carregarChamados();
+  }catch(e){mostrarErro(e.message);}
+}
+function mostrarErro(msg){
+  notice.textContent=msg;
+  notice.style.display="block";
+  clearTimeout(window.__err);
+  window.__err=setTimeout(()=>notice.style.display="none",5000);
+}
+function logout(){
+  localStorage.removeItem("token");
+  localStorage.removeItem("authToken");
+  localStorage.removeItem("accessToken");
+  location.href="/login.html";
+}
+document.querySelectorAll(".filter").forEach(b=>b.onclick=()=>{
+  document.querySelectorAll(".filter").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active");filter=b.dataset.filter;render();
+});
+search.addEventListener("input",render);
+overlay.addEventListener("click",e=>{if(e.target===overlay)fechar();});
+carregarChamados();
+setInterval(carregarChamados,30000);
+</script>
+</body>
+</html>

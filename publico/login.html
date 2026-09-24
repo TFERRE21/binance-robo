@@ -2,653 +2,335 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CriptoPro — Automação Inteligente</title>
 
 <style>
 :root{
-  --bg:#f7f8fa;
-  --surface:#ffffff;
-  --surface2:#f1f3f6;
-  --text:#111827;
-  --muted:#667085;
-  --line:#e4e7ec;
-  --gold:#f0b90b;
-  --gold2:#d99d00;
-  --green:#12b76a;
-  --shadow:0 24px 70px rgba(16,24,40,.10);
+  --bg:#fbfcfe;--surface:#fff;--surface2:#f5f7fa;--text:#111827;--muted:#667085;
+  --line:#e7eaf0;--gold:#f0b90b;--gold2:#d99b00;--green:#12b76a;--red:#e5484d;
+  --shadow:0 20px 55px rgba(16,24,40,.09);
 }
 html.dark{
-  --bg:#05080c;
-  --surface:#0b1118;
-  --surface2:#101821;
-  --text:#f5f7fa;
-  --muted:#93a0af;
-  --line:#1e2935;
-  --shadow:0 28px 80px rgba(0,0,0,.42);
+  --bg:#05080d;--surface:#0b1118;--surface2:#111923;--text:#f5f7fa;--muted:#98a5b5;
+  --line:#1d2936;--shadow:0 25px 70px rgba(0,0,0,.42);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{
-  min-height:100vh;
-  font-family:Inter,Arial,Helvetica,sans-serif;
-  color:var(--text);
-  background:var(--bg);
-  transition:background .25s,color .25s;
-}
-a{text-decoration:none;color:inherit}
-button,input,select{font:inherit}
-.container{width:min(1180px,92%);margin:auto}
+body{font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text);transition:.25s}
+a{text-decoration:none;color:inherit}button,input,select{font:inherit}
+.container{width:min(1200px,92%);margin:auto}
 
 /* HEADER */
-.header{
-  position:sticky;top:0;z-index:100;
-  height:72px;
-  border-bottom:1px solid var(--line);
-  background:color-mix(in srgb,var(--bg) 88%,transparent);
-  backdrop-filter:blur(18px);
-}
-.header-inner{
-  height:100%;display:flex;align-items:center;justify-content:space-between;gap:25px;
-}
-.brand{display:flex;align-items:center;gap:10px}
-.logo{
-  width:40px;height:40px;border-radius:11px;
-  display:grid;place-items:center;
-  background:linear-gradient(145deg,#ffe36a,#e5a500);
-  box-shadow:0 8px 28px rgba(240,185,11,.20);
-  color:#111;
-}
-.logo svg{width:25px;height:25px}
-.brand-name{font-weight:900;font-size:19px;letter-spacing:-.8px}
-.brand-name span{color:var(--gold)}
-.brand-sub{font-size:7px;letter-spacing:1.7px;color:var(--muted);text-transform:uppercase;margin-top:3px}
-.nav{display:flex;gap:28px;color:var(--muted);font-size:13px}
-.nav a:hover{color:var(--text)}
-.header-actions{display:flex;align-items:center;gap:9px}
-.online{
-  display:flex;align-items:center;gap:7px;
-  padding:8px 11px;border:1px solid var(--line);border-radius:999px;
-  color:var(--muted);font-size:11px;
-}
+.header{position:sticky;top:0;z-index:100;height:72px;border-bottom:1px solid var(--line);
+background:color-mix(in srgb,var(--bg) 90%,transparent);backdrop-filter:blur(18px)}
+.header-inner{height:100%;display:flex;align-items:center;justify-content:space-between;gap:22px}
+.brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.logo{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#ffe36a,#e5a500);color:#111;box-shadow:0 8px 25px rgba(240,185,11,.18)}
+.logo svg{width:25px;height:25px}.brand-name{font-size:20px;font-weight:900;letter-spacing:-1px}.brand-name span{color:var(--gold)}
+.brand-sub{font-size:7px;letter-spacing:1.7px;color:var(--muted);text-transform:uppercase;margin-top:2px}
+.nav{display:flex;gap:27px;color:var(--muted);font-size:12px}.nav a:hover{color:var(--text)}
+.header-actions{display:flex;align-items:center;gap:8px}
+.online{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:8px 10px;font-size:10px;color:var(--muted)}
 .online-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green)}
-.theme-btn,.lang{
-  height:36px;border:1px solid var(--line);border-radius:9px;
-  background:var(--surface);color:var(--text);cursor:pointer;
-}
-.theme-btn{width:38px}
-.lang{padding:0 10px;font-size:11px}
-.header-login{
-  height:36px;padding:0 16px;border-radius:9px;
-  background:var(--gold);color:#111;font-weight:800;font-size:11px;
-}
+.theme-btn,.lang{height:36px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--text);cursor:pointer}
+.theme-btn{width:38px}.lang{padding:0 10px;font-size:11px}
+.header-login{height:36px;padding:0 15px;border-radius:9px;background:var(--gold);color:#111;font-size:11px;font-weight:900}
 
 /* HERO */
-.hero{padding:78px 0 65px}
-.hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:70px;align-items:center}
-.eyebrow{
-  display:inline-flex;align-items:center;gap:8px;
-  color:var(--muted);font-size:11px;font-weight:800;
-  letter-spacing:1.5px;text-transform:uppercase;margin-bottom:20px;
-}
+.hero{padding:58px 0 38px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(390px,.92fr);gap:45px;align-items:center}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:8px 12px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.7px;margin-bottom:18px}
 .eyebrow i{width:7px;height:7px;border-radius:50%;background:var(--gold)}
-h1{
-  font-size:clamp(44px,6vw,76px);line-height:.98;
-  letter-spacing:-4px;max-width:760px;
-}
+h1{font-size:clamp(46px,6vw,78px);line-height:.96;letter-spacing:-4px;max-width:750px}
 h1 span{color:var(--gold)}
-.hero-text{margin-top:23px;max-width:650px;color:var(--muted);font-size:17px;line-height:1.65}
-.hero-actions{display:flex;gap:12px;margin-top:30px;flex-wrap:wrap}
-.btn-primary,.btn-secondary{
-  height:48px;padding:0 20px;border-radius:10px;font-weight:800;font-size:12px;cursor:pointer;
-}
+.hero-text{max-width:680px;color:var(--muted);font-size:16px;line-height:1.65;margin-top:22px}
+.hero-actions{display:flex;gap:11px;margin-top:27px;flex-wrap:wrap}
+.btn-primary,.btn-secondary{height:48px;padding:0 20px;border-radius:10px;font-size:12px;font-weight:900;cursor:pointer}
 .btn-primary{background:var(--gold);color:#111;border:1px solid var(--gold)}
 .btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--line)}
-.trust-row{display:flex;gap:22px;margin-top:30px;flex-wrap:wrap;color:var(--muted);font-size:11px}
-.trust-row span{display:flex;align-items:center;gap:7px}
-.check{color:var(--green);font-weight:900}
+.trust-row{display:flex;gap:20px;flex-wrap:wrap;margin-top:25px;color:var(--muted);font-size:10px}
+.trust-row span{display:flex;align-items:center;gap:6px}.check{color:var(--green);font-size:14px}
 
-/* LOGIN CARD */
-.login-card{
-  background:var(--surface);
-  border:1px solid var(--line);
-  border-radius:22px;
-  padding:30px;
-  box-shadow:var(--shadow);
-  position:relative;
-  overflow:hidden;
-}
-.login-card:before{
-  content:"";position:absolute;inset:0 0 auto;height:3px;
-  background:linear-gradient(90deg,transparent,var(--gold),transparent);
-}
-.login-head{text-align:center;margin-bottom:22px}
-.login-icon{margin:0 auto 12px}
-.login-head h2{font-size:24px;letter-spacing:-1px}
-.login-head p{color:var(--muted);font-size:12px;margin-top:6px}
-.divider{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:10px;margin:20px 0}
-.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}
-.form-group{margin-bottom:14px}
-.form-group label{display:block;font-size:11px;font-weight:800;margin-bottom:7px}
-.form-group input{
-  width:100%;height:47px;padding:0 13px;
-  border:1px solid var(--line);border-radius:9px;
-  background:var(--surface2);color:var(--text);outline:none;font-size:13px;
-}
+/* LOGIN */
+.login-card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:27px;box-shadow:var(--shadow);position:relative}
+.login-card:before{content:"";position:absolute;top:0;left:18%;right:18%;height:3px;background:var(--gold);border-radius:0 0 8px 8px}
+.login-head{text-align:center;margin-bottom:19px}.login-icon{margin:auto auto 10px}
+.login-head h2{font-size:23px;letter-spacing:-1px}.login-head h2 span{color:var(--gold)}
+.login-head p{font-size:11px;color:var(--muted);margin-top:5px}
+.divider{display:flex;align-items:center;gap:9px;color:var(--muted);font-size:9px;margin:17px 0}.divider:before,.divider:after{content:"";height:1px;background:var(--line);flex:1}
+.form-group{margin-bottom:12px}.form-group label{display:block;font-size:10px;font-weight:800;margin-bottom:6px}
+.form-group input{width:100%;height:46px;border:1px solid var(--line);border-radius:9px;background:var(--surface2);color:var(--text);padding:0 12px;outline:none;font-size:12px}
 .form-group input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(240,185,11,.10)}
-.password-wrap{position:relative}
-.password-wrap input{padding-right:44px}
-.toggle-password{
-  position:absolute;right:6px;top:6px;width:35px;height:35px;
-  border:0;background:transparent;color:var(--muted);cursor:pointer
-}
-.login-options{display:flex;justify-content:space-between;align-items:center;margin:4px 0 16px}
-.remember{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:10px}
-.remember input{accent-color:var(--gold)}
-.forgot{color:var(--gold2);font-size:10px;font-weight:800}
-.btn-login{
-  width:100%;height:48px;border:0;border-radius:9px;
-  background:var(--gold);color:#111;font-weight:900;font-size:12px;cursor:pointer;
-}
-.btn-login:hover{filter:brightness(1.04);transform:translateY(-1px)}
-.message{min-height:18px;text-align:center;margin-top:9px;color:#e5484d;font-size:10px}
-.create{
-  width:100%;height:44px;border:1px solid var(--line);border-radius:9px;
-  background:transparent;color:var(--text);font-weight:800;font-size:11px;cursor:pointer;
-}
-.create:hover{border-color:var(--gold)}
-.security{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:20px}
-.security-item{
-  text-align:center;padding:10px 5px;border:1px solid var(--line);border-radius:9px;
-  color:var(--muted);font-size:9px;
-}
-.security-item strong{display:block;margin-bottom:5px;font-size:14px}
-.binance-note{
-  margin-top:12px;padding:12px;border-radius:9px;
-  background:var(--surface2);color:var(--muted);font-size:9px;line-height:1.5
-}
-.binance-note strong{color:var(--text)}
+.password-wrap{position:relative}.password-wrap input{padding-right:42px}
+.toggle-password{position:absolute;right:4px;top:5px;width:36px;height:36px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+.login-options{display:flex;justify-content:space-between;align-items:center;margin:3px 0 15px}
+.remember{display:flex;gap:6px;align-items:center;color:var(--muted);font-size:9px}.remember input{accent-color:var(--gold)}
+.forgot{color:var(--gold2);font-size:9px;font-weight:900}
+.btn-login{width:100%;height:46px;border:0;border-radius:9px;background:var(--gold);color:#111;font-size:12px;font-weight:900;cursor:pointer}
+.message{min-height:17px;text-align:center;color:var(--red);font-size:9px;margin-top:7px}
+.create{width:100%;height:42px;border:1px solid var(--line);border-radius:9px;background:transparent;color:var(--text);font-size:10px;font-weight:900;cursor:pointer}
+.security-mini{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:17px}
+.security-mini div{border:1px solid var(--line);border-radius:8px;padding:9px 4px;text-align:center;color:var(--muted);font-size:8px}.security-mini strong{display:block;font-size:14px;margin-bottom:3px}
+.binance-note{margin-top:9px;padding:10px;border-radius:8px;background:var(--surface2);color:var(--muted);font-size:8px;line-height:1.5}.binance-note strong{color:var(--text)}
+
+/* MARKET */
+.market-strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.market-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px 0}
+.market-card{border:1px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface)}
+.coin{display:flex;align-items:center;gap:8px}.coin-icon{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);font-size:13px;font-weight:900}
+.coin b{font-size:10px}.coin small{display:block;color:var(--muted);font-size:8px;margin-top:2px}
+.market-price{text-align:right}.market-price b{display:block;font-size:10px}.market-price span{font-size:9px;font-weight:900;color:var(--green)}.market-price span.down{color:var(--red)}
+.spark{width:58px;height:24px}.spark polyline{fill:none;stroke:var(--green);stroke-width:2}.spark.down polyline{stroke:var(--red)}
 
 /* SECTIONS */
-.section{padding:75px 0}
-.section-head{max-width:700px;margin-bottom:35px}
-.kicker{color:var(--gold);font-size:11px;font-weight:900;letter-spacing:1.6px;text-transform:uppercase}
-.section h2{font-size:clamp(30px,4vw,48px);letter-spacing:-2px;margin-top:10px}
-.section-head p{color:var(--muted);line-height:1.6;margin-top:13px;font-size:14px}
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.card{
-  background:var(--surface);border:1px solid var(--line);border-radius:16px;
-  padding:22px;transition:.2s;
-}
-.card:hover{transform:translateY(-3px);border-color:rgba(240,185,11,.55)}
-.card-icon{
-  width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
-  border:1px solid rgba(240,185,11,.35);color:var(--gold);margin-bottom:17px
-}
-.card h3{font-size:14px;margin-bottom:8px}
-.card p{font-size:11px;line-height:1.6;color:var(--muted)}
-
-/* FLOW */
-.flow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-.step{position:relative;padding:28px;background:var(--surface);border:1px solid var(--line);border-radius:16px}
-.step-number{font-size:12px;font-weight:900;color:var(--gold);margin-bottom:18px}
-.step h3{font-size:17px;margin-bottom:8px}
-.step p{font-size:12px;line-height:1.6;color:var(--muted)}
+.section{padding:68px 0}.section-head{text-align:center;max-width:700px;margin:0 auto 30px}
+.kicker{color:var(--gold2);font-size:10px;font-weight:900;letter-spacing:1.4px;text-transform:uppercase}
+.section h2{font-size:clamp(30px,4vw,45px);letter-spacing:-2px;margin-top:9px}.section-head p{color:var(--muted);font-size:13px;line-height:1.6;margin-top:10px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:21px;transition:.2s}.card:hover{transform:translateY(-3px);border-color:rgba(240,185,11,.55)}
+.card-icon{width:39px;height:39px;border-radius:11px;display:grid;place-items:center;background:rgba(240,185,11,.12);color:var(--gold2);font-size:18px;margin-bottom:15px}
+.card h3{font-size:13px;margin-bottom:7px}.card p{font-size:10px;line-height:1.6;color:var(--muted)}
 
 /* SECURITY */
-.security-panel{
-  display:grid;grid-template-columns:1fr 1fr;gap:20px;
-  background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:30px;
-}
-.security-big{padding:15px}
-.security-big h3{font-size:27px;letter-spacing:-1px;margin:12px 0}
-.security-big p{color:var(--muted);font-size:13px;line-height:1.7;max-width:520px}
-.security-list{display:grid;gap:10px}
-.security-list div{
-  padding:15px;border:1px solid var(--line);border-radius:12px;
-  display:flex;gap:12px;align-items:flex-start
-}
-.security-list b{font-size:12px}.security-list span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.security-panel{display:grid;grid-template-columns:1fr 1fr;gap:22px;border:1px solid var(--line);border-radius:20px;background:var(--surface);padding:28px;box-shadow:var(--shadow)}
+.security-big{padding:12px}.security-big h3{font-size:28px;line-height:1.1;letter-spacing:-1.2px;margin:10px 0}.security-big p{color:var(--muted);font-size:12px;line-height:1.7}
+.security-list{display:grid;gap:9px}.security-list div{display:flex;gap:10px;padding:14px;border:1px solid var(--line);border-radius:11px}.security-list b{font-size:17px}.security-list strong{font-size:11px}.security-list span{display:block;color:var(--muted);font-size:9px;line-height:1.5;margin-top:3px}
 
-/* CTA */
-.cta{
-  padding:45px;border-radius:22px;
-  background:linear-gradient(135deg,var(--surface),var(--surface2));
-  border:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:25px
-}
-.cta h2{font-size:32px;letter-spacing:-1.5px}
-.cta p{color:var(--muted);font-size:12px;margin-top:7px}
+/* TESTIMONIALS */
+.testimonials{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+.quote{background:var(--surface);border:1px solid var(--line);border-radius:15px;padding:21px}
+.quote-top{display:flex;align-items:center;gap:9px}.avatar{width:35px;height:35px;border-radius:50%;display:grid;place-items:center;background:#edf2ff;color:#3157d5;font-weight:900}
+.stars{color:var(--gold);font-size:12px;margin:12px 0 8px}.quote p{font-size:11px;color:var(--muted);line-height:1.6}.quote small{display:block;margin-top:12px;color:var(--muted);font-size:8px}
 
-/* FOOTER */
-.footer{border-top:1px solid var(--line);padding:28px 0;color:var(--muted);font-size:10px}
-.footer-inner{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+/* STATS */
+.stats{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);padding:25px 0}
+.stat{text-align:center;border-right:1px solid var(--line)}.stat:last-child{border:0}.stat strong{font-size:25px;color:var(--gold2)}.stat span{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+
+/* CTA FOOTER */
+.cta{padding:40px;border:1px solid var(--line);border-radius:20px;background:linear-gradient(135deg,var(--surface),var(--surface2));display:flex;align-items:center;justify-content:space-between;gap:20px}
+.cta h2{font-size:31px;letter-spacing:-1.5px}.cta p{color:var(--muted);font-size:11px;margin-top:6px}
+.footer{border-top:1px solid var(--line);padding:25px 0;color:var(--muted);font-size:9px}.footer-inner{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 
 /* MODAL */
-.forgot-overlay{
-  position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.65);
-  display:grid;place-items:center;padding:20px;backdrop-filter:blur(8px)
-}
-.forgot-box{
-  width:min(420px,100%);background:var(--surface);border:1px solid var(--line);
-  border-radius:18px;padding:28px;box-shadow:var(--shadow);position:relative
-}
-.forgot-close{position:absolute;right:14px;top:10px;border:0;background:none;color:var(--muted);font-size:25px;cursor:pointer}
-.forgot-icon{font-size:28px;margin-bottom:12px}
-.forgot-box h2{font-size:22px}
-.forgot-description{color:var(--muted);font-size:11px;line-height:1.6;margin:8px 0 20px}
-.forgot-box label{font-size:10px;font-weight:800;display:block;margin-bottom:6px}
-.forgot-box input{width:100%;height:44px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--text);padding:0 11px;outline:none}
-.forgot-submit{width:100%;height:44px;border:0;border-radius:8px;background:var(--gold);color:#111;font-weight:900;margin-top:12px;cursor:pointer}
-.forgot-message{font-size:10px;line-height:1.5;margin-top:12px}.forgot-message.success{color:var(--green)}.forgot-message.error{color:#e5484d}
-.forgot-back{width:100%;border:0;background:none;color:var(--muted);margin-top:12px;font-size:10px;cursor:pointer}
+.forgot-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,.65);display:grid;place-items:center;padding:20px;backdrop-filter:blur(8px)}
+.forgot-box{width:min(420px,100%);background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:27px;box-shadow:var(--shadow);position:relative}
+.forgot-close{position:absolute;right:13px;top:8px;border:0;background:none;color:var(--muted);font-size:25px;cursor:pointer}
+.forgot-icon{font-size:27px;margin-bottom:10px}.forgot-box h2{font-size:21px}.forgot-description{color:var(--muted);font-size:10px;line-height:1.6;margin:7px 0 18px}
+.forgot-box label{font-size:9px;font-weight:800;display:block;margin-bottom:6px}.forgot-box input{width:100%;height:43px;border:1px solid var(--line);border-radius:8px;background:var(--surface2);color:var(--text);padding:0 10px}
+.forgot-submit{width:100%;height:43px;border:0;border-radius:8px;background:var(--gold);color:#111;font-weight:900;margin-top:11px;cursor:pointer}.forgot-message{font-size:9px;line-height:1.5;margin-top:10px}.forgot-message.success{color:var(--green)}.forgot-message.error{color:var(--red)}.forgot-back{width:100%;border:0;background:none;color:var(--muted);margin-top:10px;font-size:9px;cursor:pointer}
 
-/* RESPONSIVE */
-@media(max-width:900px){
-  .nav{display:none}
-  .hero-grid{grid-template-columns:1fr;gap:35px}
-  .cards{grid-template-columns:repeat(2,1fr)}
-  .security-panel{grid-template-columns:1fr}
-}
-@media(max-width:600px){
-  .online{display:none}
-  .header-login{display:none}
-  .hero{padding:48px 0}
-  h1{letter-spacing:-2.5px}
-  .hero-text{font-size:14px}
-  .cards,.flow{grid-template-columns:1fr}
-  .security{grid-template-columns:1fr}
-  .cta{padding:25px;display:block}
-  .cta .btn-primary{margin-top:18px}
-}
+@media(max-width:1000px){.nav{display:none}.hero-grid{grid-template-columns:1fr}.market-row{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:650px){.online,.header-login{display:none}.hero{padding-top:40px}h1{font-size:48px;letter-spacing:-2.7px}.hero-text{font-size:14px}.market-row{grid-template-columns:1fr 1fr}.cards,.testimonials{grid-template-columns:1fr}.security-panel{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr;gap:20px}.stat:nth-child(2){border:0}.cta{display:block;padding:26px}.cta .btn-primary{display:inline-flex;margin-top:17px}.security-mini{grid-template-columns:1fr}}
 </style>
 </head>
 
 <body>
 <header class="header">
   <div class="container header-inner">
-    <a class="brand" href="/login.html">
-      <div class="logo">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <path d="M5 18 8 9l4 5 3-8 4 12"/>
-        </svg>
-      </div>
-      <div>
-        <div class="brand-name">Cripto<span>Pro</span></div>
-        <div class="brand-sub">Automação inteligente</div>
-      </div>
+    <a class="brand" href="/login.html" aria-label="CriptoPro">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 18 8 9l4 5 3-8 4 12"/></svg></div>
+      <div><div class="brand-name">Cripto<span>Pro</span></div><div class="brand-sub">Automação inteligente</div></div>
     </a>
-
     <nav class="nav">
-      <a href="#recursos">Recursos</a>
-      <a href="#como-funciona">Como funciona</a>
-      <a href="#seguranca">Segurança</a>
-      <a href="/planos.html">Planos</a>
+      <a href="#inicio">Início</a><a href="#como-funciona">Como funciona</a><a href="#seguranca">Segurança</a><a href="#recursos">Recursos</a><a href="#depoimentos">Depoimentos</a><a href="/planos.html">Planos</a>
     </nav>
-
     <div class="header-actions">
       <div class="online"><span class="online-dot"></span> Sistema online</div>
-      <button class="theme-btn" id="themeToggle" type="button" title="Alternar tema">☾</button>
-      <select class="lang" id="languageSelect" aria-label="Idioma">
-        <option value="pt">PT</option>
-        <option value="en">EN</option>
-      </select>
-      <a class="header-login" href="#login">Entrar</a>
+      <button class="theme-btn" id="themeToggle" type="button">☾</button>
+      <select class="lang" id="languageSelect"><option value="pt">PT</option><option value="en">EN</option></select>
+      <a class="header-login" href="#login-card">Entrar</a>
     </div>
   </div>
 </header>
 
 <main>
-<section class="hero" id="login">
-  <div class="container hero-grid">
-    <div>
-      <div class="eyebrow"><i></i> Automação • Controle • Segurança</div>
-      <h1>Mais controle para suas operações.<br><span>Mais inteligência para seu futuro.</span></h1>
-      <p class="hero-text">
-        O CriptoPro centraliza sua automação de operações na Binance em um único painel.
-        Acompanhe suas contas, configure seus robôs e visualize o que está acontecendo
-        sem precisar ficar operando manualmente o tempo todo.
-      </p>
-
-      <div class="hero-actions">
-        <a class="btn-primary" href="#login-card">Acessar minha conta →</a>
-        <a class="btn-secondary" href="#recursos">Conhecer o sistema</a>
-      </div>
-
-      <div class="trust-row">
-        <span><b class="check">✓</b> Painel centralizado</span>
-        <span><b class="check">✓</b> Integração via API</span>
-        <span><b class="check">✓</b> Monitoramento contínuo</span>
-      </div>
-    </div>
-
-    <aside class="login-card" id="login-card">
-      <div class="login-head">
-        <div class="logo login-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M5 18 8 9l4 5 3-8 4 12"/>
-          </svg>
-        </div>
-        <h2>Bem-vindo ao <span>CriptoPro</span></h2>
-        <p>Acesse seu painel de automação.</p>
-      </div>
-
-      <div class="divider">Acesse sua conta</div>
-
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="email">E-mail</label>
-          <input id="email" type="email" autocomplete="email" placeholder="seu@email.com" required>
-        </div>
-
-        <div class="form-group">
-          <label for="password">Senha</label>
-          <div class="password-wrap">
-            <input id="password" type="password" autocomplete="current-password" placeholder="Sua senha" required>
-            <button class="toggle-password" id="togglePassword" type="button">👁</button>
-          </div>
-        </div>
-
-        <div class="login-options">
-          <label class="remember"><input type="checkbox"> Lembrar de mim</label>
-          <a href="#" class="forgot" id="forgotPassword">Esqueci minha senha</a>
-        </div>
-
-        <button class="btn-login" type="submit">Entrar no sistema →</button>
-        <div class="message" id="message"></div>
-      </form>
-
-      <div class="divider">ou</div>
-
-      <button class="create" id="createAccountButton" type="button">＋ Criar nova conta</button>
-
-      <div class="security" id="seguranca">
-        <div class="security-item"><strong>🔐</strong>Dados protegidos</div>
-        <div class="security-item"><strong>🛡</strong>Conexão segura</div>
-        <div class="security-item"><strong>🎧</strong>Suporte</div>
-      </div>
-
-      <div class="binance-note">
-        <strong>Integração com Binance</strong><br>
-        A conexão utiliza API. Por segurança, recomendamos manter as permissões de saque desativadas.
-      </div>
-    </aside>
+<section class="hero" id="inicio">
+<div class="container hero-grid">
+<div>
+  <div class="eyebrow"><i></i> AUTOMAÇÃO • SEGURANÇA • CONTROLE</div>
+  <h1>Mais controle<br><span>para seu futuro.</span></h1>
+  <p class="hero-text">O CriptoPro centraliza sua automação de operações na Binance em um único painel. Acompanhe suas contas, configure seus robôs e visualize o que está acontecendo sem precisar operar manualmente o tempo todo.</p>
+  <div class="hero-actions"><a class="btn-primary" href="#login-card">Acessar minha conta →</a><a class="btn-secondary" href="#recursos">Conhecer o sistema</a></div>
+  <div class="trust-row">
+    <span><b class="check">✓</b> Integração Binance via API</span>
+    <span><b class="check">✓</b> Monitoramento contínuo</span>
+    <span><b class="check">✓</b> Controle das operações</span>
   </div>
+</div>
+
+<aside class="login-card" id="login-card">
+  <div class="login-head">
+    <div class="logo login-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 18 8 9l4 5 3-8 4 12"/></svg></div>
+    <h2>Acesse sua conta</h2><p>Entre para acompanhar suas operações.</p>
+  </div>
+  <div class="divider">Acesse sua conta</div>
+  <form id="loginForm">
+    <div class="form-group"><label for="email">E-mail</label><input id="email" type="email" autocomplete="email" placeholder="seu@email.com" required></div>
+    <div class="form-group"><label for="password">Senha</label><div class="password-wrap"><input id="password" type="password" autocomplete="current-password" placeholder="Sua senha" required><button class="toggle-password" id="togglePassword" type="button">👁</button></div></div>
+    <div class="login-options"><label class="remember"><input type="checkbox"> Lembrar de mim</label><a href="#" class="forgot" id="forgotPassword">Esqueci minha senha?</a></div>
+    <button class="btn-login" type="submit">Entrar no sistema →</button><div class="message" id="message"></div>
+  </form>
+  <div class="divider">ou</div>
+  <button class="create" id="createAccountButton" type="button">＋ Criar nova conta</button>
+  <div class="security-mini">
+    <div><strong>🔐</strong>Dados protegidos</div><div><strong>🛡</strong>Conexão segura</div><div><strong>🎧</strong>Suporte</div>
+  </div>
+  <div class="binance-note"><strong>Integração com Binance</strong><br>Utilizamos API. Como boa prática, mantenha as permissões de saque desativadas.</div>
+</aside>
+</div>
+</section>
+
+<section class="market-strip" aria-label="Mercado">
+<div class="container market-row" id="marketRow">
+  <div class="market-card"><div class="coin"><div class="coin-icon">₿</div><div><b>Bitcoin</b><small>BTC/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+  <div class="market-card"><div class="coin"><div class="coin-icon">Ξ</div><div><b>Ethereum</b><small>ETH/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+  <div class="market-card"><div class="coin"><div class="coin-icon">BNB</div><div><b>BNB</b><small>BNB/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+  <div class="market-card"><div class="coin"><div class="coin-icon">S</div><div><b>Solana</b><small>SOL/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+  <div class="market-card"><div class="coin"><div class="coin-icon">X</div><div><b>XRP</b><small>XRP/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+</div>
 </section>
 
 <section class="section" id="recursos">
-  <div class="container">
-    <div class="section-head">
-      <div class="kicker">O que o CriptoPro faz</div>
-      <h2>Uma plataforma feita para simplificar sua operação.</h2>
-      <p>
-        Menos telas, menos tarefas repetitivas e uma visão mais clara do que acontece
-        com suas operações automatizadas.
-      </p>
-    </div>
-
-    <div class="cards">
-      <article class="card">
-        <div class="card-icon">⚙</div>
-        <h3>Automação</h3>
-        <p>Configure seus robôs para executar a estratégia definida sem precisar acompanhar cada movimento manualmente.</p>
-      </article>
-      <article class="card">
-        <div class="card-icon">◉</div>
-        <h3>Controle centralizado</h3>
-        <p>Gerencie suas contas Binance e acompanhe as configurações em um único painel.</p>
-      </article>
-      <article class="card">
-        <div class="card-icon">▥</div>
-        <h3>Acompanhamento</h3>
-        <p>Visualize status, operações e informações importantes da sua automação de forma organizada.</p>
-      </article>
-      <article class="card">
-        <div class="card-icon">↗</div>
-        <h3>Integração Binance</h3>
-        <p>Conecte sua conta por API e mantenha as credenciais sob controle, seguindo boas práticas de segurança.</p>
-      </article>
-    </div>
-  </div>
+<div class="container">
+<div class="section-head"><div class="kicker">Como o CriptoPro ajuda</div><h2>Tudo o que você precisa em um único lugar.</h2><p>Automatize, monitore e tenha mais controle das suas operações na Binance.</p></div>
+<div class="cards">
+<article class="card"><div class="card-icon">⚙</div><h3>Automação inteligente</h3><p>Configure seus robôs e deixe o sistema executar a estratégia definida por você.</p></article>
+<article class="card"><div class="card-icon">▥</div><h3>Monitoramento contínuo</h3><p>Acompanhe resultados, operações e informações importantes do seu painel.</p></article>
+<article class="card"><div class="card-icon">🛡</div><h3>Segurança em primeiro lugar</h3><p>Integração por API e permissões controladas para reduzir acessos desnecessários.</p></article>
+<article class="card"><div class="card-icon">▦</div><h3>Interface simples</h3><p>Um painel organizado para facilitar a leitura e o acompanhamento das suas operações.</p></article>
+</div>
+</div>
 </section>
 
 <section class="section" id="como-funciona">
-  <div class="container">
-    <div class="section-head">
-      <div class="kicker">Como funciona</div>
-      <h2>Do acesso ao robô em poucos passos.</h2>
-      <p>O fluxo foi pensado para deixar a experiência simples mesmo para quem não quer ficar navegando por dezenas de telas.</p>
-    </div>
-
-    <div class="flow">
-      <article class="step">
-        <div class="step-number">01 — CONECTE</div>
-        <h3>Sua conta Binance</h3>
-        <p>Cadastre a integração através da API e configure as permissões necessárias para o funcionamento.</p>
-      </article>
-      <article class="step">
-        <div class="step-number">02 — CONFIGURE</div>
-        <h3>Seu robô</h3>
-        <p>Escolha a conta e configure as informações da automação diretamente pelo painel.</p>
-      </article>
-      <article class="step">
-        <div class="step-number">03 — ACOMPANHE</div>
-        <h3>Suas operações</h3>
-        <p>Tenha uma visão centralizada do funcionamento e dos registros do sistema.</p>
-      </article>
-    </div>
-  </div>
+<div class="container">
+<div class="section-head"><div class="kicker">Como funciona</div><h2>Simples de entender. Fácil de acompanhar.</h2><p>O fluxo do sistema foi pensado para reduzir tarefas repetitivas e centralizar as informações.</p></div>
+<div class="cards">
+<article class="card"><div class="card-icon">01</div><h3>Conecte</h3><p>Integre sua conta Binance através da API e defina as permissões necessárias.</p></article>
+<article class="card"><div class="card-icon">02</div><h3>Configure</h3><p>Escolha sua configuração e deixe o robô executar conforme os parâmetros definidos.</p></article>
+<article class="card"><div class="card-icon">03</div><h3>Acompanhe</h3><p>Visualize o funcionamento, os registros e as informações da sua operação.</p></article>
+<article class="card"><div class="card-icon">04</div><h3>Gerencie</h3><p>Centralize suas contas e recursos em um único ambiente de controle.</p></article>
+</div>
+</div>
 </section>
 
-<section class="section" id="seguranca-section">
-  <div class="container">
-    <div class="security-panel">
-      <div class="security-big">
-        <div class="kicker">Segurança em primeiro lugar</div>
-        <h3>Automação não precisa significar perda de controle.</h3>
-        <p>
-          O CriptoPro foi estruturado para separar o acesso ao painel das credenciais
-          da Binance e trabalhar através da integração por API. A recomendação é sempre
-          utilizar somente as permissões necessárias e manter saques desativados.
-        </p>
-      </div>
-      <div class="security-list">
-        <div><b>🛡</b><div><strong>Permissões controladas</strong><span>Use somente as permissões necessárias para a operação.</span></div></div>
-        <div><b>🔐</b><div><strong>Proteção de acesso</strong><span>Seu painel utiliza autenticação para acessar os recursos da plataforma.</span></div></div>
-        <div><b>📊</b><div><strong>Transparência operacional</strong><span>Tenha informações organizadas para acompanhar o funcionamento do sistema.</span></div></div>
-      </div>
-    </div>
-  </div>
+<section class="section" id="seguranca">
+<div class="container">
+<div class="security-panel">
+<div class="security-big"><div class="kicker">Segurança em primeiro lugar</div><h3>Automação sem abrir mão do controle.</h3><p>O CriptoPro utiliza integração por API para conectar sua operação. Como boa prática de segurança, utilize apenas as permissões necessárias e mantenha o saque desativado.</p></div>
+<div class="security-list">
+<div><b>🛡</b><div><strong>Permissões controladas</strong><span>Configure somente o que o sistema precisa para funcionar.</span></div></div>
+<div><b>🔐</b><div><strong>Acesso protegido</strong><span>O painel utiliza autenticação para liberar seus recursos.</span></div></div>
+<div><b>📊</b><div><strong>Visibilidade operacional</strong><span>Acompanhe as informações importantes em um ambiente centralizado.</span></div></div>
+</div>
+</div>
+</div>
 </section>
 
-<section class="section" id="planos">
-  <div class="container">
-    <div class="cta">
-      <div>
-        <div class="kicker">CriptoPro</div>
-        <h2>Pronto para conhecer seu painel?</h2>
-        <p>Veja os recursos disponíveis e escolha a configuração que faz sentido para sua operação.</p>
-      </div>
-      <a class="btn-primary" href="/planos.html">Ver opções →</a>
-    </div>
-  </div>
+<section class="section" id="depoimentos">
+<div class="container">
+<div class="section-head"><div class="kicker">Experiência de uso</div><h2>O que queremos entregar a cada usuário.</h2><p>Espaço preparado para depoimentos reais dos clientes do CriptoPro.</p></div>
+<div class="testimonials">
+<article class="quote"><div class="quote-top"><div class="avatar">U</div><strong>Usuário CriptoPro</strong></div><div class="stars">★★★★★</div><p>“Interface simples e uma visão mais organizada das minhas operações.”</p><small>Depoimento de demonstração — substitua por um depoimento real.</small></article>
+<article class="quote"><div class="quote-top"><div class="avatar">U</div><strong>Usuário CriptoPro</strong></div><div class="stars">★★★★★</div><p>“A proposta é centralizar o acompanhamento e reduzir tarefas manuais.”</p><small>Depoimento de demonstração — substitua por um depoimento real.</small></article>
+<article class="quote"><div class="quote-top"><div class="avatar">U</div><strong>Usuário CriptoPro</strong></div><div class="stars">★★★★★</div><p>“Um painel pensado para facilitar o controle da automação.”</p><small>Depoimento de demonstração — substitua por um depoimento real.</small></article>
+</div>
+</div>
 </section>
+
+<section class="stats"><div class="container stats-grid">
+<div class="stat"><strong>24/7</strong><span>Monitoramento</span></div>
+<div class="stat"><strong>API</strong><span>Integração Binance</span></div>
+<div class="stat"><strong>1 painel</strong><span>Controle centralizado</span></div>
+<div class="stat"><strong>Suporte</strong><span>Atendimento ao usuário</span></div>
+</div></section>
+
+<section class="section"><div class="container"><div class="cta"><div><div class="kicker">CriptoPro</div><h2>Conheça a plataforma.</h2><p>Veja os recursos disponíveis para sua operação.</p></div><a class="btn-primary" href="/planos.html">Conhecer opções →</a></div></div></section>
 </main>
 
-<footer class="footer">
-  <div class="container footer-inner">
-    <span>CriptoPro — Automação inteligente.</span>
-    <span>Segurança • Controle • Transparência</span>
-  </div>
-</footer>
+<footer class="footer"><div class="container footer-inner"><span>CriptoPro — Automação inteligente.</span><span>Segurança • Controle • Transparência</span></div></footer>
 
 <script src="js/login.js"></script>
 <script src="/js/support.js?v=20260922"></script>
-
 <script>
+/* Tema claro é o padrão */
 (function(){
-  const root=document.documentElement;
-  const toggle=document.getElementById("themeToggle");
-  const saved=localStorage.getItem("criptopro_theme")||"dark";
-
-  function applyTheme(theme){
-    root.classList.toggle("dark",theme==="dark");
-    toggle.textContent=theme==="dark"?"☀":"☾";
-    toggle.title=theme==="dark"?"Usar tema claro":"Usar tema escuro";
-    localStorage.setItem("criptopro_theme",theme);
-  }
-
-  applyTheme(saved);
-
-  toggle.addEventListener("click",function(){
-    applyTheme(root.classList.contains("dark")?"light":"dark");
-  });
+  const root=document.documentElement,btn=document.getElementById("themeToggle");
+  const saved=localStorage.getItem("criptopro_theme")||"light";
+  function apply(t){root.classList.toggle("dark",t==="dark");btn.textContent=t==="dark"?"☀":"☾";btn.title=t==="dark"?"Usar tema claro":"Usar tema escuro";localStorage.setItem("criptopro_theme",t)}
+  apply(saved);btn.addEventListener("click",()=>apply(root.classList.contains("dark")?"light":"dark"));
 })();
 
+/* Idioma preservado */
 const languageSelect=document.getElementById("languageSelect");
-
-function changeLanguage(language){
-  localStorage.setItem("criptopro_language",language);
-  document.documentElement.lang=language==="en"?"en":"pt-BR";
-
-  const text={
-    pt:{
-      title:"CriptoPro — Automação Inteligente",
-      eyebrow:"Automação • Controle • Segurança",
-      h1:"Mais controle para suas operações.",
-      h1b:"Mais inteligência para seu futuro.",
-      desc:"O CriptoPro centraliza sua automação de operações na Binance em um único painel. Acompanhe suas contas, configure seus robôs e visualize o que está acontecendo sem precisar ficar operando manualmente o tempo todo."
-    },
-    en:{
-      title:"CriptoPro — Intelligent Automation",
-      eyebrow:"Automation • Control • Security",
-      h1:"More control for your operations.",
-      h1b:"More intelligence for your future.",
-      desc:"CriptoPro centralizes your Binance automation in one dashboard. Manage your accounts, configure your bots and monitor what is happening without having to operate everything manually."
-    }
-  };
-
-  /* The login flow remains handled by js/login.js. */
-  document.title=text[language].title;
-}
-
 if(languageSelect){
   const saved=localStorage.getItem("criptopro_language")||"pt";
   languageSelect.value=saved;
-  changeLanguage(saved);
-  languageSelect.addEventListener("change",e=>changeLanguage(e.target.value));
-}
-
-const togglePassword=document.getElementById("togglePassword");
-const password=document.getElementById("password");
-
-if(togglePassword && password){
-  togglePassword.addEventListener("click",function(){
-    const visible=password.type==="text";
-    password.type=visible?"password":"text";
-    togglePassword.textContent=visible?"👁":"🙈";
+  languageSelect.addEventListener("change",e=>{
+    localStorage.setItem("criptopro_language",e.target.value);
+    document.documentElement.lang=e.target.value==="en"?"en":"pt-BR";
   });
 }
 
+/* Mostrar / ocultar senha */
+const togglePassword=document.getElementById("togglePassword"),password=document.getElementById("password");
+if(togglePassword&&password)togglePassword.addEventListener("click",()=>{
+  const visible=password.type==="text";password.type=visible?"password":"text";togglePassword.textContent=visible?"👁":"🙈";
+});
+
+/* Cadastro */
 const createAccount=document.getElementById("createAccountButton");
-if(createAccount){
-  createAccount.addEventListener("click",function(){
-    window.location.href="cadastro.html";
-  });
-}
+if(createAccount)createAccount.addEventListener("click",()=>window.location.href="cadastro.html");
 
+/* Recuperação de senha */
 const forgotPassword=document.getElementById("forgotPassword");
-if(forgotPassword){
-  forgotPassword.addEventListener("click",function(event){
-    event.preventDefault();
+if(forgotPassword)forgotPassword.addEventListener("click",function(e){
+  e.preventDefault();
+  const old=document.getElementById("forgotPasswordModal");if(old)old.remove();
+  const modal=document.createElement("div");modal.id="forgotPasswordModal";
+  modal.innerHTML=`<div class="forgot-overlay"><div class="forgot-box">
+  <button class="forgot-close" id="closeForgotModal" type="button">×</button><div class="forgot-icon">🔐</div>
+  <h2>Recuperar senha</h2><p class="forgot-description">Informe o e-mail cadastrado na sua conta CriptoPro. Enviaremos as instruções para redefinição.</p>
+  <form id="forgotPasswordForm"><label for="forgotEmail">E-mail</label><input id="forgotEmail" type="email" placeholder="seu@email.com" required>
+  <button class="forgot-submit" id="forgotSubmit" type="submit">ENVIAR INSTRUÇÕES</button></form>
+  <div id="forgotMessage" class="forgot-message"></div><button class="forgot-back" id="forgotBack" type="button">← Voltar para o login</button>
+  </div></div>`;
+  document.body.appendChild(modal);
+  const email=document.getElementById("forgotEmail"),loginEmail=document.getElementById("email");if(loginEmail.value)email.value=loginEmail.value;email.focus();
+  const close=()=>document.getElementById("forgotPasswordModal")?.remove();
+  document.getElementById("closeForgotModal").onclick=close;document.getElementById("forgotBack").onclick=close;
+  modal.querySelector(".forgot-overlay").onclick=e=>{if(e.target.classList.contains("forgot-overlay"))close()};
+  document.getElementById("forgotPasswordForm").onsubmit=async e=>{
+    e.preventDefault();const submit=document.getElementById("forgotSubmit"),msg=document.getElementById("forgotMessage");
+    submit.disabled=true;submit.textContent="ENVIANDO...";
+    try{
+      const r=await fetch("/api/auth/forgot-password",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:email.value.trim().toLowerCase()})});
+      const data=await r.json();if(!r.ok||!data.success)throw new Error(data.message||"Não foi possível processar.");
+      msg.innerHTML="<strong>Solicitação realizada!</strong><br><br>Se o e-mail estiver cadastrado, você receberá as instruções.";msg.className="forgot-message success";submit.textContent="SOLICITAÇÃO REALIZADA";
+    }catch(err){msg.textContent=err.message||"Erro ao solicitar recuperação.";msg.className="forgot-message error";submit.disabled=false;submit.textContent="ENVIAR INSTRUÇÕES"}
+  };
+});
 
-    const old=document.getElementById("forgotPasswordModal");
-    if(old)old.remove();
-
-    const modal=document.createElement("div");
-    modal.id="forgotPasswordModal";
-    modal.innerHTML=`
-      <div class="forgot-overlay">
-        <div class="forgot-box">
-          <button type="button" class="forgot-close" id="closeForgotModal">×</button>
-          <div class="forgot-icon">🔐</div>
-          <h2>Recuperar senha</h2>
-          <p class="forgot-description">
-            Informe o e-mail cadastrado na sua conta CriptoPro.
-            <br><br>Enviaremos as instruções para você criar uma nova senha.
-          </p>
-          <form id="forgotPasswordForm">
-            <label for="forgotEmail">E-mail</label>
-            <input type="email" id="forgotEmail" placeholder="seu@email.com" autocomplete="email" required>
-            <button type="submit" class="forgot-submit" id="forgotSubmit">ENVIAR INSTRUÇÕES</button>
-          </form>
-          <div id="forgotMessage" class="forgot-message"></div>
-          <button type="button" class="forgot-back" id="forgotBack">← Voltar para o login</button>
-        </div>
-      </div>`;
-
-    document.body.appendChild(modal);
-
-    const loginEmail=document.getElementById("email");
-    const forgotEmail=document.getElementById("forgotEmail");
-    if(loginEmail && loginEmail.value)forgotEmail.value=loginEmail.value;
-    forgotEmail.focus();
-
-    const close=()=>{
-      const current=document.getElementById("forgotPasswordModal");
-      if(current)current.remove();
-    };
-
-    document.getElementById("closeForgotModal").onclick=close;
-    document.getElementById("forgotBack").onclick=close;
-
-    modal.querySelector(".forgot-overlay").addEventListener("click",e=>{
-      if(e.target.classList.contains("forgot-overlay"))close();
-    });
-
-    const form=document.getElementById("forgotPasswordForm");
-    const submit=document.getElementById("forgotSubmit");
-    const message=document.getElementById("forgotMessage");
-
-    form.addEventListener("submit",async function(e){
-      e.preventDefault();
-      const email=forgotEmail.value.trim().toLowerCase();
-
-      if(!email){
-        message.textContent="Informe seu e-mail.";
-        message.className="forgot-message error";
-        return;
-      }
-
-      submit.disabled=true;
-      submit.textContent="ENVIANDO...";
-      message.textContent="";
-
-      try{
-        const response=await fetch("/api/auth/forgot-password",{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({email})
-        });
-
-        const data=await response.json();
-
-        if(!response.ok || !data.success){
-          throw new Error(data.message||"Não foi possível processar a solicitação.");
-        }
-
-        message.innerHTML="<strong>Solicitação realizada!</strong><br><br>Se o e-mail estiver cadastrado, você receberá as instruções para redefinir sua senha.";
-        message.className="forgot-message success";
-        submit.textContent="SOLICITAÇÃO REALIZADA";
-      }catch(error){
-        console.error("ERRO AO RECUPERAR SENHA:",error);
-        message.textContent=error.message||"Erro ao solicitar recuperação.";
-        message.className="forgot-message error";
-        submit.disabled=false;
-        submit.textContent="ENVIAR INSTRUÇÕES";
-      }
-    });
-  });
-}
+/* Mercado público: somente dados de mercado, nenhuma chave privada */
+(async function loadMarket(){
+  const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
+  const names={BTCUSDT:"Bitcoin",ETHUSDT:"Ethereum",BNBUSDT:"BNB",SOLUSDT:"Solana",XRPUSDT:"XRP"};
+  const icons={BTCUSDT:"₿",ETHUSDT:"Ξ",BNBUSDT:"BNB",SOLUSDT:"S",XRPUSDT:"X"};
+  try{
+    const res=await fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+encodeURIComponent(JSON.stringify(symbols)),{cache:"no-store"});
+    if(!res.ok)throw new Error("market");
+    const data=await res.json(),row=document.getElementById("marketRow");
+    row.innerHTML=data.map(x=>{
+      const price=Number(x.lastPrice),change=Number(x.priceChangePercent),down=change<0;
+      const priceText=price>=1000?price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4});
+      return `<div class="market-card"><div class="coin"><div class="coin-icon">${icons[x.symbol]}</div><div><b>${names[x.symbol]}</b><small>${x.symbol.slice(0,-4)}/USDT</small></div></div><div class="market-price"><b>${priceText}</b><span class="${down?"down":""}">${down?"":"+"}${change.toFixed(2)}%</span></div></div>`;
+    }).join("");
+  }catch(e){
+    console.warn("Não foi possível carregar mercado em tempo real.",e);
+  }
+})();
 </script>
 </body>
 </html>

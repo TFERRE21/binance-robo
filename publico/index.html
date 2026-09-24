@@ -868,6 +868,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
     <button class="top-btn" type="button" onclick="window.location.href='/suporte.html?origem=%2Findex.html'">🎫 Meus Chamados</button>
+    <button class="top-btn admin-btn" id="adminPanelBtn" type="button" onclick="window.location.href='/admin.html'">🛡️ PAINEL ADM</button>
     <button class="top-btn cp-theme-toggle" id="cpThemeToggleV2" type="button">🌙 Escuro</button>
     <select class="language" id="language" onchange="changeLanguage()">
       <option value="en">🇺🇸 EN</option>
@@ -1355,15 +1356,28 @@ async function verificarAcessoAdmin(){
   const btn=document.getElementById("adminPanelBtn");
   if(!btn)return false;
 
+  // Regra visual: somente este e-mail pode visualizar o botão.
+  let emailAtual="";
+  try{
+    const usuario=JSON.parse(localStorage.getItem("criptopro_user")||"{}");
+    emailAtual=String(usuario.email||"").trim().toLowerCase();
+  }catch(e){}
+
+  if(emailAtual!=="tjesusferreira19@gmail.com"){
+    btn.classList.remove("admin-visible");
+    return false;
+  }
+
+  // Segurança real continua no backend.
   try{
     const d=await apiFetch("/api/admin/teste");
     if(d?.success && d?.admin){
       btn.classList.add("admin-visible");
-      btn.title="Abrir teste do painel administrativo";
+      btn.title="Abrir Painel ADM";
       return true;
     }
   }catch(e){
-    // Usuário comum: não exibe o botão.
+    // Sem permissão administrativa: botão permanece oculto.
   }
 
   btn.classList.remove("admin-visible");

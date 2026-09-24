@@ -726,48 +726,33 @@ select.plan-locked{
 
 </style>
 
-<style id="cp-theme-css">
-/* =========================================================
-   CRIPTOPRO — TEMA VISUAL
-   SOMENTE CSS. Nenhuma função existente é substituída.
-========================================================= */
-
-/* Tema claro — padrão */
+<style id="cp-theme-css-v2">
+/* CRIPTOPRO THEME V2 — visual only; does not alter existing functions */
 body.cp-light{
-  background:#f5f7fa !important;
+  background:#f4f6f8 !important;
   color:#17202a !important;
 }
-
 body.cp-light .header{
-  background:rgba(255,255,255,.97) !important;
-  border-bottom:1px solid #e1e6ed !important;
+  background:#ffffff !important;
+  border-bottom:1px solid #dfe4ea !important;
+  box-shadow:0 2px 12px rgba(20,30,45,.08) !important;
 }
-
 body.cp-light .logo{color:#17202a !important}
-body.cp-light .logo span{color:#dca900 !important}
-
 body.cp-light .status{color:#667085 !important}
-
 body.cp-light .top-btn,
 body.cp-light .language{
-  background:#fff !important;
+  background:#ffffff !important;
   color:#273142 !important;
-  border-color:#d9e0e8 !important;
+  border-color:#d7dde5 !important;
 }
-
-body.cp-light .top-btn:hover{
-  background:#f2f5f8 !important;
-}
-
+body.cp-light .top-btn:hover{background:#eef2f6 !important}
 body.cp-light .logout{color:#c43f3f !important}
-
-body.cp-light .layout{background:#f5f7fa !important}
-
+body.cp-light .layout{background:#f4f6f8 !important}
+body.cp-light .main{background:#f4f6f8 !important}
 body.cp-light .sidebar{
-  background:#fff !important;
-  border-color:#e1e6ed !important;
+  background:#ffffff !important;
+  border-color:#dfe4ea !important;
 }
-
 body.cp-light .welcome h1,
 body.cp-light .chart-title,
 body.cp-light .operation-title,
@@ -780,169 +765,100 @@ body.cp-light .limit-title,
 body.cp-light .api-selector-title,
 body.cp-light .operation-chart-title,
 body.cp-light .news-title,
-body.cp-light .robot-strategy-head-title{
-  color:#17202a !important;
-}
-
+body.cp-light .robot-strategy-head-title,
+body.cp-light .api-account-name,
+body.cp-light .api-slot-title,
+body.cp-light .robot-slot-title{color:#17202a !important}
 body.cp-light .welcome p,
 body.cp-light .chart-sub,
 body.cp-light .side-sub,
 body.cp-light .stat-sub,
 body.cp-light .api-selector-help,
 body.cp-light .selected-account,
-body.cp-light .chart-status,
 body.cp-light .module-desc,
 body.cp-light .action-desc,
-body.cp-light .field-help,
-body.cp-light .news-sub{
-  color:#667085 !important;
-}
-
-body.cp-light .api-selector,
+body.cp-light .operation-chart-sub,
+body.cp-light .operation-chart-status,
+body.cp-light .chart-status,
+body.cp-light .limit-row,
+body.cp-light .api-account-info,
+body.cp-light .robot-slot-sub,
+body.cp-light .robot-slot-meta{color:#667085 !important}
 body.cp-light .stat,
 body.cp-light .chart-card,
 body.cp-light .operation-card,
-body.cp-light .operation-chart-panel,
-body.cp-light .news-section,
 body.cp-light .module,
-body.cp-light .api-slot,
 body.cp-light .limit-box,
-body.cp-light .notice,
+body.cp-light .api-selector,
+body.cp-light .video-card,
+body.cp-light .api-slot,
+body.cp-light .operation-chart-panel,
 body.cp-light .robot-control-card{
-  background:#fff !important;
-  border-color:#dfe5ec !important;
+  background:#ffffff !important;
+  border-color:#dfe4ea !important;
+  box-shadow:0 3px 14px rgba(20,30,45,.05) !important;
 }
-
-body.cp-light .api-selector{
-  background:#fffaf0 !important;
-  border-color:#eadcae !important;
-}
-
+body.cp-light .module{color:#17202a !important}
+body.cp-light .module:hover{background:#fff9e8 !important;border-color:#e6c65d !important}
+body.cp-light .action{color:#17202a !important;border-color:#dfe4ea !important}
+body.cp-light .action.primary{color:#111 !important}
+body.cp-light .action.robot{background:#f7f9fc !important}
+body.cp-light .action.learn{background:#f7f9fc !important}
 body.cp-light .api-selector select,
 body.cp-light .report-account-bar select,
 body.cp-light .operation-chart-select,
 body.cp-light .field input,
-body.cp-light .field select{
-  background:#fff !important;
+body.cp-light .field select,
+body.cp-light .language{
+  background:#ffffff !important;
   color:#17202a !important;
-  border-color:#d4dce5 !important;
+  border-color:#d7dde5 !important;
 }
-
-body.cp-light .api-selector button{
-  color:#9b7100 !important;
-  background:#fff8df !important;
-  border-color:#e6c65b !important;
-}
-
-body.cp-light .api-selector-row .load-panel-btn{
-  color:#111 !important;
-  background:linear-gradient(135deg,#dca900,#f0b90b) !important;
-}
-
-body.cp-light .module{
-  color:#273142 !important;
-}
-
-body.cp-light .module:hover{
-  background:#fffaf0 !important;
-}
-
-body.cp-light .action{
-  color:#273142 !important;
-  background:#f7f9fb !important;
-  border-color:#dfe5ec !important;
-}
-
-body.cp-light .action.primary{
-  color:#111 !important;
-  background:linear-gradient(135deg,#dca900,#f0b90b) !important;
-  border-color:#f0b90b !important;
-}
-
-body.cp-light .action.robot,
-body.cp-light .action.learn{
-  background:#f7f9fc !important;
-}
-
 body.cp-light .operation-item,
+body.cp-light .operation-pnl-box,
 body.cp-light .operation-live-head,
 body.cp-light .operation-sell-order,
-body.cp-light .operation-pnl-box{
-  background:#f7f9fb !important;
-  border-color:#e0e6ed !important;
-}
-
-body.cp-light .operation-chart-wrap,
-body.cp-light #operationChartTV{
-  background:#fff !important;
-}
-
 body.cp-light .robot-strategy-detail,
 body.cp-light .robot-strategy-chart,
-body.cp-light .robot-strategy-box{
-  background:#fff !important;
-  color:#273142 !important;
-  border-color:#dfe5ec !important;
+body.cp-light .robot-strategy-chart-wrap,
+body.cp-light .robot-slot-card{
+  background:#f8fafc !important;
+  border-color:#dfe4ea !important;
 }
-
-body.cp-light .robot-strategy-tab{
-  background:#f7f9fb !important;
-  color:#273142 !important;
-  border-color:#dfe5ec !important;
-}
-
-body.cp-light .modal{
-  background:#fff !important;
-  color:#273142 !important;
-  border-color:#dfe5ec !important;
-}
-
-body.cp-light .modal-header{
-  border-bottom-color:#e1e6ed !important;
-}
-
-body.cp-light .modal-title,
-body.cp-light .field label{
-  color:#273142 !important;
-}
-
-body.cp-light .btn{
-  background:#f4f6f8 !important;
-  color:#273142 !important;
-  border-color:#d9e0e8 !important;
-}
-
-body.cp-light .btn-primary{
-  background:#f0b90b !important;
-  color:#111 !important;
-  border-color:#f0b90b !important;
-}
-
-body.cp-light .robot-api-alert{
-  color:#4b5563 !important;
-}
-
-body.cp-light .robot-api-alert strong{
-  color:#a97800 !important;
-}
-
-body.cp-light .security{
-  color:#587060 !important;
-}
-
-body.cp-light .robot-strategy-open{
-  color:#9b7100 !important;
-}
-
-body.cp-light .cp-theme-toggle{
-  font-weight:900 !important;
-}
-
-body.cp-dark .cp-theme-toggle{
-  font-weight:900 !important;
-}
+body.cp-light .operation-value,
+body.cp-light .operation-pnl-main,
+body.cp-light .btc-price,
+body.cp-light .operation-chart-price{color:#17202a !important}
+body.cp-light .security{color:#496653 !important;background:#f0faf4 !important;border-color:#c9ead7 !important}
+body.cp-light .notice{background:#fffaf0 !important;border-color:#eadcae !important;color:#667085 !important}
+body.cp-light .modal-bg{background:rgba(20,25,35,.45) !important}
+body.cp-light .modal{background:#ffffff !important;border-color:#dfe4ea !important;color:#17202a !important}
+body.cp-light .modal-header{border-color:#dfe4ea !important}
+body.cp-light .modal-title{color:#17202a !important}
+body.cp-light .modal-subtitle,
+body.cp-light .field label,
+body.cp-light .field-help{color:#667085 !important}
+body.cp-light .close{color:#667085 !important}
+body.cp-light .btn{background:#ffffff !important;color:#273142 !important;border-color:#d7dde5 !important}
+body.cp-light .btn-primary{background:#f0b90b !important;color:#111 !important;border-color:#f0b90b !important}
+body.cp-light .robot-api-alert{background:#fffaf0 !important;color:#4b5563 !important;border-color:#eadcae !important}
+body.cp-light #robotRealtimeLog{background:#ffffff !important;color:#273142 !important;border-color:#dfe4ea !important}
+body.cp-light #operationChartTV{background:#ffffff !important}
+body.cp-light .chart-detail{background:#ffffff !important}
+body.cp-light .cp-theme-toggle{font-weight:900 !important}
 </style>
-
+<script>
+/* Apply the light theme before the page is shown. */
+(function(){
+  try{
+    var saved=localStorage.getItem('criptopro_theme_v2');
+    document.documentElement.setAttribute('data-cp-theme', saved==='dark'?'dark':'light');
+  }catch(e){document.documentElement.setAttribute('data-cp-theme','light');}
+})();
+</script>
+<style>
+html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !important}
+</style>
 </head>
 
 <body>
@@ -952,7 +868,7 @@ body.cp-dark .cp-theme-toggle{
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
     <button class="top-btn" type="button" onclick="window.location.href='/suporte.html?origem=%2Findex.html'">🎫 Meus Chamados</button>
-    <button class="top-btn cp-theme-toggle" id="cpThemeToggle" type="button" aria-label="Alternar tema">☀️ Claro</button>
+    <button class="top-btn cp-theme-toggle" id="cpThemeToggleV2" type="button">🌙 Escuro</button>
     <select class="language" id="language" onchange="changeLanguage()">
       <option value="en">🇺🇸 EN</option>
       <option value="pt" selected>🇧🇷 PT</option>
@@ -3604,58 +3520,6 @@ function printReport(){
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
   w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}
 </style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}
-<script id="cp-theme-js">
-(function(){
-  "use strict";
-
-  function cpInitTheme(){
-    var body = document.body;
-    var btn = document.getElementById("cpThemeToggle");
-    if(!body || !btn) return;
-
-    var saved = null;
-    try { saved = localStorage.getItem("criptopro_theme"); } catch(e) {}
-
-    // Claro é o padrão. Só usa escuro se o usuário já tiver escolhido escuro.
-    var light = saved !== "dark";
-
-    body.classList.remove("cp-light","cp-dark");
-    body.classList.add(light ? "cp-light" : "cp-dark");
-
-    function update(){
-      var isLight = body.classList.contains("cp-light");
-      btn.textContent = isLight ? "🌙 Escuro" : "☀️ Claro";
-      btn.title = isLight ? "Mudar para tema escuro" : "Mudar para tema claro";
-      btn.setAttribute("aria-label", btn.title);
-    }
-
-    update();
-
-    btn.addEventListener("click", function(ev){
-      ev.preventDefault();
-      ev.stopPropagation();
-
-      var isLight = body.classList.contains("cp-light");
-      var nextLight = !isLight;
-
-      body.classList.remove("cp-light","cp-dark");
-      body.classList.add(nextLight ? "cp-light" : "cp-dark");
-
-      try {
-        localStorage.setItem("criptopro_theme", nextLight ? "light" : "dark");
-      } catch(e) {}
-
-      update();
-    });
-  }
-
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", cpInitTheme);
-  }else{
-    cpInitTheme();
-  }
-})();
-</script>
 
 </body></html>`);
   w.document.close();w.focus();setTimeout(()=>w.print(),300);
@@ -3825,5 +3689,31 @@ init();
 
 <!-- CRIPTOPRO - SUPORTE IA -->
 <script src="/js/support.js?v=20260922"></script>
+<script id="cp-theme-js-v2">
+(function(){
+  function initThemeButton(){
+    var btn=document.getElementById('cpThemeToggleV2');
+    if(!btn)return;
+    function apply(theme){
+      document.documentElement.setAttribute('data-cp-theme',theme);
+      document.body.classList.remove('cp-light','cp-dark');
+      document.body.classList.add(theme==='dark'?'cp-dark':'cp-light');
+      btn.textContent=theme==='dark'?'☀️ Claro':'🌙 Escuro';
+      btn.title=theme==='dark'?'Mudar para tema claro':'Mudar para tema escuro';
+    }
+    var theme='light';
+    try{theme=localStorage.getItem('criptopro_theme_v2')==='dark'?'dark':'light'}catch(e){}
+    apply(theme);
+    btn.onclick=function(e){
+      e.preventDefault();
+      var next=document.documentElement.getAttribute('data-cp-theme')==='dark'?'light':'dark';
+      try{localStorage.setItem('criptopro_theme_v2',next)}catch(e){}
+      apply(next);
+    };
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initThemeButton);
+  else initThemeButton();
+})();
+</script>
 </body>
 </html>

@@ -96,7 +96,7 @@ h1{margin:0 0 7px;font-size:30px}.sub{color:var(--muted)}
 .reply textarea:focus{border-color:var(--gold)}
 .reply-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
 .status-select{background:#111e2b;color:#fff;border:1px solid #304258;border-radius:9px;padding:9px}
-.notify{display:none;background:#f0c52e;color:#111;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;margin-left:5px}
+.notify{display:none;background:#f0c52e;color:#111;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;margin-left:5px}.notify.new{display:inline-block;animation:pulse 1s infinite}@keyframes pulse{50%{transform:scale(1.06);opacity:.72}}
 
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.support-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){header{padding:0 14px}.header-right .online{display:none}main{padding:17px}.grid,.support-grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}h1{font-size:25px}}
@@ -123,6 +123,7 @@ h1{margin:0 0 7px;font-size:30px}.sub{color:var(--muted)}
   </div>
 
   <div id="error" class="error"></div>
+<div id="newTicketAlert" style="display:none;margin-bottom:18px;background:#241d08;border:1px solid #6f5a16;color:#f5d45a;border-radius:12px;padding:13px 16px;font-weight:800;cursor:pointer" onclick="focusTickets()">🔔 <span id="newTicketText">Nova mensagem aguardando atendimento.</span></div>
 
   <div class="grid">
     <div class="card"><div class="card-top"><span class="label">Usuários</span><span class="icon">👥</span></div><div class="value" id="total">—</div><div class="small" id="usersDetail">—</div></div>
@@ -237,6 +238,57 @@ function ticketBadge(s){
 function showError(msg){const e=document.getElementById("error");e.style.display="block";e.textContent=msg}
 function hideError(){document.getElementById("error").style.display="none"}
 
+let previousAttentionCount=null;
+let previousTicketSnapshot={};
+let firstTicketLoad=true;
+
+function updateAttentionAlert(rows){
+  const attention=rows.filter(t=>t.status==="ABERTO"||t.status==="EM_ATENDIMENTO").length;
+  const alertBox=document.getElementById("newTicketAlert");
+  const notify=document.getElementById("ticketNotify");
+
+  if(notify){
+    if(attention>0){
+      notify.style.display="inline-block";
+      notify.classList.add("new");
+      notify.textContent=attention+" pendente"+(attention===1?"":"s");
+    }else{
+      notify.style.display="none";
+      notify.classList.remove("new");
+    }
+  }
+
+  if(firstTicketLoad){
+    previousAttentionCount=attention;
+    rows.forEach(t=>previousTicketSnapshot[t.id]=`${t.status}|${t.updated_at}`);
+    firstTicketLoad=false;
+    return;
+  }
+
+  let changedCustomerMessage=false;
+  rows.forEach(t=>{
+    const key=`${t.status}|${t.updated_at}`;
+    const old=previousTicketSnapshot[t.id];
+    if(old && old!==key && t.status==="EM_ATENDIMENTO") changedCustomerMessage=true;
+    if(!old && (t.status==="ABERTO"||t.status==="EM_ATENDIMENTO")) changedCustomerMessage=true;
+    previousTicketSnapshot[t.id]=key;
+  });
+
+  if(changedCustomerMessage || (previousAttentionCount!==null && attention>previousAttentionCount)){
+    alertBox.style.display="block";
+    document.getElementById("newTicketText").textContent="🔔 Nova mensagem/chamado do cliente aguardando atendimento.";
+  }else if(attention===0){
+    alertBox.style.display="none";
+  }
+
+  previousAttentionCount=attention;
+}
+
+function focusTickets(){
+  document.getElementById("newTicketAlert").style.display="none";
+  document.querySelector(".ticket-table")?.scrollIntoView({behavior:"smooth",block:"center"});
+}
+
 async function api(url,options={}){
   const r=await fetch(url,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
   const d=await r.json().catch(()=>({}));
@@ -313,6 +365,7 @@ async function loadTickets(){
   try{
     const d=await api("/api/admin/support/tickets");
     const rows=d.tickets||[];
+    updateAttentionAlert(rows);
     const counts={ABERTO:0,EM_ATENDIMENTO:0,RESPONDIDO:0,FECHADO:0};
     rows.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++});
     tOpen.textContent=counts.ABERTO;tWork.textContent=counts.EM_ATENDIMENTO;tAnswered.textContent=counts.RESPONDIDO;tClosed.textContent=counts.FECHADO;
@@ -423,7 +476,8 @@ document.getElementById("replyText").addEventListener("keydown",e=>{
 
 loadDashboard();
 loadTickets();
-setInterval(()=>{loadDashboard();loadTickets()},60000);
+setInterval(loadTickets,5000);
+setInterval(loadDashboard,60000);
 </script>
 </body>
 </html>

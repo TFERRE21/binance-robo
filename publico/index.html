@@ -726,32 +726,46 @@ select.plan-locked{
 
 </style>
 
-<style id="cpThemeCSS">
+<style id="cp-theme-css">
 /* =========================================================
-   CRIPTOPRO — TEMA CLARO / ESCURO
-   Não altera as funções existentes do painel.
+   CRIPTOPRO — TEMA VISUAL
+   SOMENTE CSS. Nenhuma função existente é substituída.
 ========================================================= */
 
-/* Tema claro */
+/* Tema claro — padrão */
 body.cp-light{
   background:#f5f7fa !important;
-  color:#111827 !important;
+  color:#17202a !important;
 }
 
 body.cp-light .header{
-  background:rgba(255,255,255,.96) !important;
-  border-bottom:1px solid #e3e8ef !important;
+  background:rgba(255,255,255,.97) !important;
+  border-bottom:1px solid #e1e6ed !important;
 }
+
+body.cp-light .logo{color:#17202a !important}
+body.cp-light .logo span{color:#dca900 !important}
+
+body.cp-light .status{color:#667085 !important}
 
 body.cp-light .top-btn,
 body.cp-light .language{
-  background:#ffffff !important;
-  color:#182230 !important;
-  border-color:#dce3eb !important;
+  background:#fff !important;
+  color:#273142 !important;
+  border-color:#d9e0e8 !important;
 }
 
 body.cp-light .top-btn:hover{
-  background:#f3f6f9 !important;
+  background:#f2f5f8 !important;
+}
+
+body.cp-light .logout{color:#c43f3f !important}
+
+body.cp-light .layout{background:#f5f7fa !important}
+
+body.cp-light .sidebar{
+  background:#fff !important;
+  border-color:#e1e6ed !important;
 }
 
 body.cp-light .welcome h1,
@@ -764,8 +778,10 @@ body.cp-light .stat-value,
 body.cp-light .action-title,
 body.cp-light .limit-title,
 body.cp-light .api-selector-title,
-body.cp-light .operation-chart-title{
-  color:#111827 !important;
+body.cp-light .operation-chart-title,
+body.cp-light .news-title,
+body.cp-light .robot-strategy-head-title{
+  color:#17202a !important;
 }
 
 body.cp-light .welcome p,
@@ -777,32 +793,24 @@ body.cp-light .selected-account,
 body.cp-light .chart-status,
 body.cp-light .module-desc,
 body.cp-light .action-desc,
-body.cp-light .field-help{
+body.cp-light .field-help,
+body.cp-light .news-sub{
   color:#667085 !important;
 }
 
-body.cp-light .sidebar{
-  background:#ffffff !important;
-  border-left-color:#e3e8ef !important;
-}
-
+body.cp-light .api-selector,
 body.cp-light .stat,
 body.cp-light .chart-card,
 body.cp-light .operation-card,
 body.cp-light .operation-chart-panel,
 body.cp-light .news-section,
 body.cp-light .module,
-body.cp-light .api-selector,
+body.cp-light .api-slot,
 body.cp-light .limit-box,
 body.cp-light .notice,
-body.cp-light .robot-control-card,
-body.cp-light .api-slot{
-  background:#ffffff !important;
-  border-color:#e1e7ee !important;
-}
-
-body.cp-light .module:hover{
-  background:#fffaf0 !important;
+body.cp-light .robot-control-card{
+  background:#fff !important;
+  border-color:#dfe5ec !important;
 }
 
 body.cp-light .api-selector{
@@ -815,13 +823,32 @@ body.cp-light .report-account-bar select,
 body.cp-light .operation-chart-select,
 body.cp-light .field input,
 body.cp-light .field select{
-  background:#ffffff !important;
-  color:#182230 !important;
-  border-color:#d6dee8 !important;
+  background:#fff !important;
+  color:#17202a !important;
+  border-color:#d4dce5 !important;
+}
+
+body.cp-light .api-selector button{
+  color:#9b7100 !important;
+  background:#fff8df !important;
+  border-color:#e6c65b !important;
+}
+
+body.cp-light .api-selector-row .load-panel-btn{
+  color:#111 !important;
+  background:linear-gradient(135deg,#dca900,#f0b90b) !important;
+}
+
+body.cp-light .module{
+  color:#273142 !important;
+}
+
+body.cp-light .module:hover{
+  background:#fffaf0 !important;
 }
 
 body.cp-light .action{
-  color:#182230 !important;
+  color:#273142 !important;
   background:#f7f9fb !important;
   border-color:#dfe5ec !important;
 }
@@ -832,87 +859,87 @@ body.cp-light .action.primary{
   border-color:#f0b90b !important;
 }
 
-body.cp-light .action.robot{
-  background:#f4f7fb !important;
-  color:#182230 !important;
-}
-
+body.cp-light .action.robot,
 body.cp-light .action.learn{
-  background:#f5f8fc !important;
-  color:#182230 !important;
+  background:#f7f9fc !important;
 }
 
 body.cp-light .operation-item,
-body.cp-light .operation-pnl-box,
 body.cp-light .operation-live-head,
-body.cp-light .operation-sell-order{
+body.cp-light .operation-sell-order,
+body.cp-light .operation-pnl-box{
   background:#f7f9fb !important;
-  border-color:#e1e7ee !important;
+  border-color:#e0e6ed !important;
 }
 
 body.cp-light .operation-chart-wrap,
 body.cp-light #operationChartTV{
-  background:#ffffff !important;
+  background:#fff !important;
 }
 
 body.cp-light .robot-strategy-detail,
 body.cp-light .robot-strategy-chart,
 body.cp-light .robot-strategy-box{
-  background:#ffffff !important;
-  color:#182230 !important;
-  border-color:#e1e7ee !important;
+  background:#fff !important;
+  color:#273142 !important;
+  border-color:#dfe5ec !important;
 }
 
 body.cp-light .robot-strategy-tab{
   background:#f7f9fb !important;
-  color:#182230 !important;
+  color:#273142 !important;
   border-color:#dfe5ec !important;
 }
 
 body.cp-light .modal{
-  background:#ffffff !important;
-  color:#182230 !important;
+  background:#fff !important;
+  color:#273142 !important;
   border-color:#dfe5ec !important;
 }
 
 body.cp-light .modal-header{
-  border-bottom-color:#e1e7ee !important;
+  border-bottom-color:#e1e6ed !important;
 }
 
-body.cp-light .field label,
-body.cp-light .modal-title{
-  color:#182230 !important;
+body.cp-light .modal-title,
+body.cp-light .field label{
+  color:#273142 !important;
 }
 
-body.cp-light #robotRealtimeLog{
-  background:#0a0f16 !important;
-  color:#dce5ef !important;
+body.cp-light .btn{
+  background:#f4f6f8 !important;
+  color:#273142 !important;
+  border-color:#d9e0e8 !important;
 }
 
-body.cp-light .news-card{
-  background:#ffffff !important;
-  border-color:#e1e7ee !important;
-  color:#182230 !important;
+body.cp-light .btn-primary{
+  background:#f0b90b !important;
+  color:#111 !important;
+  border-color:#f0b90b !important;
 }
 
-body.cp-light .cp-theme-button{
-  font-weight:900;
+body.cp-light .robot-api-alert{
+  color:#4b5563 !important;
 }
 
-/* Ajuste para telas pequenas */
-@media(max-width:900px){
-  .header{
-    height:auto !important;
-    min-height:72px;
-    flex-wrap:wrap;
-    gap:8px;
-    padding-top:10px !important;
-    padding-bottom:10px !important;
-  }
-  .header-right{
-    flex-wrap:wrap;
-    justify-content:flex-end;
-  }
+body.cp-light .robot-api-alert strong{
+  color:#a97800 !important;
+}
+
+body.cp-light .security{
+  color:#587060 !important;
+}
+
+body.cp-light .robot-strategy-open{
+  color:#9b7100 !important;
+}
+
+body.cp-light .cp-theme-toggle{
+  font-weight:900 !important;
+}
+
+body.cp-dark .cp-theme-toggle{
+  font-weight:900 !important;
 }
 </style>
 
@@ -925,7 +952,7 @@ body.cp-light .cp-theme-button{
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
     <button class="top-btn" type="button" onclick="window.location.href='/suporte.html?origem=%2Findex.html'">🎫 Meus Chamados</button>
-    <button class="top-btn cp-theme-button" id="cpThemeToggle" type="button">🌙 Escuro</button>
+    <button class="top-btn cp-theme-toggle" id="cpThemeToggle" type="button" aria-label="Alternar tema">☀️ Claro</button>
     <select class="language" id="language" onchange="changeLanguage()">
       <option value="en">🇺🇸 EN</option>
       <option value="pt" selected>🇧🇷 PT</option>
@@ -3577,42 +3604,55 @@ function printReport(){
   if(!w){alert("Permita a abertura de pop-ups para imprimir o relatório.");return}
   w.document.write(`<html><head><title>CriptoPro — Relatório</title><style>body{font-family:Arial;padding:25px;color:#111}table{width:100%;border-collapse:collapse;font-size:11px}th,td{padding:7px;border-bottom:1px solid #ddd;text-align:left}.report-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:15px}.report-box{border:1px solid #ddd;padding:10px}.report-box span{display:block;color:#777;font-size:9px}.security{padding:10px;background:#f5f5f5;margin:10px 0;font-size:10px}.pnl-positive{color:green}.pnl-negative{color:red}
 </style></head><body><h1>CriptoPro — Relatório de operações</h1><p>API: ${escapeHtml(accounts.find(a=>String(a.id)===String(document.getElementById("reportAccountSelector")?.value||selectedAccountId))?.name||"")}</p>${content}
-<script id="cpThemeJS">
+<script id="cp-theme-js">
 (function(){
   "use strict";
 
-  function initCriptoProTheme(){
-    var button = document.getElementById("cpThemeToggle");
-    if(!button) return;
+  function cpInitTheme(){
+    var body = document.body;
+    var btn = document.getElementById("cpThemeToggle");
+    if(!body || !btn) return;
 
-    var saved = localStorage.getItem("criptopro_theme");
-    var isLight = saved !== "dark";
+    var saved = null;
+    try { saved = localStorage.getItem("criptopro_theme"); } catch(e) {}
 
-    document.body.classList.toggle("cp-light", isLight);
+    // Claro é o padrão. Só usa escuro se o usuário já tiver escolhido escuro.
+    var light = saved !== "dark";
 
-    function updateButton(){
-      if(!button) return;
-      var light = document.body.classList.contains("cp-light");
-      button.textContent = light ? "🌙 Escuro" : "☀️ Claro";
-      button.title = light ? "Ativar tema escuro" : "Ativar tema claro";
+    body.classList.remove("cp-light","cp-dark");
+    body.classList.add(light ? "cp-light" : "cp-dark");
+
+    function update(){
+      var isLight = body.classList.contains("cp-light");
+      btn.textContent = isLight ? "🌙 Escuro" : "☀️ Claro";
+      btn.title = isLight ? "Mudar para tema escuro" : "Mudar para tema claro";
+      btn.setAttribute("aria-label", btn.title);
     }
 
-    updateButton();
+    update();
 
-    button.addEventListener("click", function(){
-      var light = !document.body.classList.contains("cp-light");
+    btn.addEventListener("click", function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
 
-      document.body.classList.toggle("cp-light", light);
-      localStorage.setItem("criptopro_theme", light ? "light" : "dark");
+      var isLight = body.classList.contains("cp-light");
+      var nextLight = !isLight;
 
-      updateButton();
+      body.classList.remove("cp-light","cp-dark");
+      body.classList.add(nextLight ? "cp-light" : "cp-dark");
+
+      try {
+        localStorage.setItem("criptopro_theme", nextLight ? "light" : "dark");
+      } catch(e) {}
+
+      update();
     });
   }
 
   if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", initCriptoProTheme);
+    document.addEventListener("DOMContentLoaded", cpInitTheme);
   }else{
-    initCriptoProTheme();
+    cpInitTheme();
   }
 })();
 </script>

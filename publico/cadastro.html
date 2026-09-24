@@ -1,1166 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
->
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CriptoPro — Criar conta</title>
-
-<style>
-
-/* =========================================================
-   RESET
-========================================================= */
-
-*{
-  box-sizing:border-box;
-  margin:0;
-  padding:0;
-}
-
-html{
-  scroll-behavior:smooth;
-}
-
-body{
-
-  min-height:100vh;
-
-  font-family:
-    Inter,
-    Arial,
-    Helvetica,
-    sans-serif;
-
-  color:#fff;
-
-  background:#02060a;
-
-  overflow-x:hidden;
-}
-
-
-/* =========================================================
-   FUNDO
-========================================================= */
-
-body::before{
-
-  content:"";
-
-  position:fixed;
-
-  inset:0;
-
-  z-index:-10;
-
-  background:
-
-    radial-gradient(
-      circle at 50% 15%,
-      rgba(240,185,11,.14),
-      transparent 27%
-    ),
-
-    radial-gradient(
-      circle at 85% 75%,
-      rgba(0,220,150,.06),
-      transparent 25%
-    ),
-
-    linear-gradient(
-      120deg,
-      #02060a 0%,
-      #061019 48%,
-      #03070b 100%
-    );
-}
-
-
-body::after{
-
-  content:"";
-
-  position:fixed;
-
-  inset:0;
-
-  z-index:-9;
-
-  opacity:.3;
-
-  background-image:
-
-    linear-gradient(
-      rgba(255,255,255,.025) 1px,
-      transparent 1px
-    ),
-
-    linear-gradient(
-      90deg,
-      rgba(255,255,255,.025) 1px,
-      transparent 1px
-    );
-
-  background-size:55px 55px;
-
-  mask-image:
-    linear-gradient(
-      to bottom,
-      black,
-      transparent
-    );
-}
-
-
-/* =========================================================
-   GLOW
-========================================================= */
-
-.glow{
-
-  position:fixed;
-
-  width:500px;
-  height:500px;
-
-  border-radius:50%;
-
-  filter:blur(120px);
-
-  pointer-events:none;
-
-  z-index:-8;
-}
-
-
-.glow.gold{
-
-  top:-250px;
-  left:15%;
-
-  background:#f0b90b;
-
-  opacity:.09;
-}
-
-
-.glow.green{
-
-  right:-250px;
-  bottom:-250px;
-
-  background:#00d995;
-
-  opacity:.05;
-}
-
-
-/* =========================================================
-   HEADER
-========================================================= */
-
-.header{
-
-  height:72px;
-
-  display:flex;
-
-  align-items:center;
-
-  justify-content:space-between;
-
-  padding:0 4%;
-
-  border-bottom:
-    1px solid
-    rgba(255,255,255,.08);
-
-  background:
-    rgba(2,6,10,.82);
-
-  backdrop-filter:blur(18px);
-}
-
-
-.brand{
-
-  display:flex;
-
-  align-items:center;
-
-  gap:10px;
-
-  color:#fff;
-
-  text-decoration:none;
-}
-
-
-.logo{
-
-  width:42px;
-  height:42px;
-
-  display:flex;
-
-  align-items:center;
-  justify-content:center;
-
-  border-radius:11px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #ffe36a,
-      #e9a700
-    );
-
-  box-shadow:
-    0 0 28px
-    rgba(240,185,11,.25);
-}
-
-
-.logo svg{
-
-  width:28px;
-  height:28px;
-}
-
-
-.brand-title{
-
-  font-size:20px;
-
-  font-weight:900;
-
-  letter-spacing:-1px;
-}
-
-
-.brand-title span{
-
-  color:#f0b90b;
-}
-
-
-.brand-subtitle{
-
-  margin-top:4px;
-
-  color:#738498;
-
-  font-size:7px;
-
-  letter-spacing:1.8px;
-
-  text-transform:uppercase;
-}
-
-
-/* =========================================================
-   HEADER DIREITA
-========================================================= */
-
-.header-right{
-
-  display:flex;
-
-  align-items:center;
-
-  gap:10px;
-}
-
-
-.language-select{
-
-  height:35px;
-
-  padding:0 10px;
-
-  border:
-    1px solid
-    rgba(255,255,255,.15);
-
-  border-radius:8px;
-
-  color:#dbe4ed;
-
-  background:
-    rgba(255,255,255,.035);
-
-  outline:none;
-
-  cursor:pointer;
-
-  font-size:9px;
-
-  font-weight:800;
-}
-
-
-.language-select option{
-
-  color:#111;
-
-  background:#fff;
-}
-
-
-.back-login{
-
-  height:35px;
-
-  display:flex;
-
-  align-items:center;
-
-  padding:0 14px;
-
-  border:
-    1px solid
-    rgba(255,255,255,.14);
-
-  border-radius:8px;
-
-  color:#aebdcc;
-
-  text-decoration:none;
-
-  font-size:9px;
-
-  font-weight:800;
-
-  transition:.2s;
-}
-
-
-.back-login:hover{
-
-  color:#fff;
-
-  border-color:#f0b90b;
-}
-
-
-/* =========================================================
-   MAIN
-========================================================= */
-
-.main{
-
-  width:94%;
-
-  max-width:1150px;
-
-  margin:auto;
-
-  padding:45px 0 60px;
-}
-
-
-.page-grid{
-
-  display:grid;
-
-  grid-template-columns:
-    1fr
-    470px;
-
-  gap:55px;
-
-  align-items:center;
-}
-
-
-/* =========================================================
-   LEFT
-========================================================= */
-
-.intro{
-
-  padding-right:20px;
-}
-
-
-.badge{
-
-  display:inline-flex;
-
-  align-items:center;
-
-  gap:7px;
-
-  padding:7px 11px;
-
-  margin-bottom:18px;
-
-  border:
-    1px solid
-    rgba(240,185,11,.25);
-
-  border-radius:20px;
-
-  color:#d5c177;
-
-  background:
-    rgba(240,185,11,.05);
-
-  font-size:8px;
-
-  font-weight:800;
-
-  letter-spacing:1px;
-
-  text-transform:uppercase;
-}
-
-
-.badge span{
-
-  color:#24df91;
-}
-
-
-.intro h1{
-
-  max-width:580px;
-
-  font-size:
-    clamp(
-      45px,
-      5vw,
-      70px
-    );
-
-  line-height:.95;
-
-  letter-spacing:-3px;
-
-  font-weight:950;
-}
-
-
-.intro h1 span{
-
-  color:#f0b90b;
-}
-
-
-.intro-description{
-
-  max-width:560px;
-
-  margin-top:20px;
-
-  color:#899bad;
-
-  font-size:13px;
-
-  line-height:1.7;
-}
-
-
-/* =========================================================
-   BENEFÍCIOS
-========================================================= */
-
-.benefits{
-
-  display:grid;
-
-  grid-template-columns:
-    repeat(2,1fr);
-
-  gap:10px;
-
-  margin-top:28px;
-}
-
-
-.benefit{
-
-  padding:15px;
-
-  border:
-    1px solid
-    rgba(255,255,255,.08);
-
-  border-radius:10px;
-
-  background:
-    rgba(255,255,255,.025);
-}
-
-
-.benefit-icon{
-
-  margin-bottom:7px;
-
-  font-size:18px;
-}
-
-
-.benefit strong{
-
-  display:block;
-
-  color:#dce5ee;
-
-  font-size:10px;
-}
-
-
-.benefit p{
-
-  margin-top:4px;
-
-  color:#6f8296;
-
-  font-size:8px;
-
-  line-height:1.5;
-}
-
-
-/* =========================================================
-   SECURITY
-========================================================= */
-
-.security-note{
-
-  margin-top:18px;
-
-  padding:13px;
-
-  border:
-    1px solid
-    rgba(34,223,145,.15);
-
-  border-radius:9px;
-
-  background:
-    rgba(0,80,50,.08);
-
-  color:#74899b;
-
-  font-size:8px;
-
-  line-height:1.6;
-}
-
-
-.security-note strong{
-
-  color:#24df91;
-}
-
-
-/* =========================================================
-   CARD
-========================================================= */
-
-.register-card{
-
-  padding:30px;
-
-  border:
-    1px solid
-    rgba(240,185,11,.42);
-
-  border-radius:18px;
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(9,22,34,.98),
-      rgba(3,9,14,.99)
-    );
-
-  box-shadow:
-    0 35px 100px
-    rgba(0,0,0,.65),
-
-    inset
-    0 1px 0
-    rgba(255,255,255,.04);
-}
-
-
-.card-title{
-
-  text-align:center;
-
-  margin-bottom:22px;
-}
-
-
-.card-title h2{
-
-  font-size:25px;
-
-  font-weight:900;
-
-  letter-spacing:-1px;
-}
-
-
-.card-title h2 span{
-
-  color:#f0b90b;
-}
-
-
-.card-title p{
-
-  margin-top:6px;
-
-  color:#718397;
-
-  font-size:9px;
-}
-
-
-/* =========================================================
-   FORM
-========================================================= */
-
-.form-group{
-
-  margin-bottom:14px;
-}
-
-
-.form-group label{
-
-  display:block;
-
-  margin-bottom:6px;
-
-  color:#cbd6e1;
-
-  font-size:9px;
-
-  font-weight:800;
-}
-
-
-.form-group input{
-
-  width:100%;
-
-  height:45px;
-
-  padding:
-    0 12px;
-
-  border:
-    1px solid
-    #2a3a4c;
-
-  border-radius:7px;
-
-  outline:none;
-
-  background:#eef4fa;
-
-  color:#16202a;
-
-  font-size:11px;
-
-  transition:.2s;
-}
-
-
-.form-group input:focus{
-
-  border-color:#f0b90b;
-
-  box-shadow:
-    0 0 0 3px
-    rgba(240,185,11,.08);
-}
-
-
-.password-wrap{
-
-  position:relative;
-}
-
-
-.password-wrap input{
-
-  padding-right:42px;
-}
-
-
-.password-toggle{
-
-  position:absolute;
-
-  right:7px;
-
-  top:6px;
-
-  width:32px;
-
-  height:32px;
-
-  border:0;
-
-  background:transparent;
-
-  cursor:pointer;
-}
-
-
-/* =========================================================
-   PLANOS
-========================================================= */
-
-.plan-label{
-
-  display:block;
-
-  margin-bottom:8px;
-
-  color:#cbd6e1;
-
-  font-size:9px;
-
-  font-weight:800;
-}
-
-
-.plan-options{
-
-  display:grid;
-
-  grid-template-columns:
-    repeat(3,1fr);
-
-  gap:7px;
-
-  margin-bottom:15px;
-}
-
-
-.plan-option{
-
-  position:relative;
-}
-
-
-.plan-option input{
-
-  position:absolute;
-
-  opacity:0;
-
-  pointer-events:none;
-}
-
-
-.plan-option label{
-
-  min-height:90px;
-
-  display:flex;
-
-  flex-direction:column;
-
-  justify-content:center;
-
-  align-items:center;
-
-  padding:8px;
-
-  border:
-    1px solid
-    #29394b;
-
-  border-radius:8px;
-
-  color:#91a2b5;
-
-  background:
-    rgba(255,255,255,.025);
-
-  cursor:pointer;
-
-  text-align:center;
-
-  transition:.2s;
-}
-
-
-.plan-option label:hover{
-
-  border-color:
-    rgba(240,185,11,.5);
-}
-
-
-.plan-option input:checked + label{
-
-  color:#fff;
-
-  border-color:#f0b90b;
-
-  background:
-    rgba(240,185,11,.08);
-
-  box-shadow:
-    0 0 20px
-    rgba(240,185,11,.06);
-}
-
-
-.plan-name{
-
-  color:#e4ebf3;
-
-  font-size:10px;
-
-  font-weight:900;
-}
-
-
-.plan-price{
-
-  margin-top:6px;
-
-  color:#f0b90b;
-
-  font-size:13px;
-
-  font-weight:900;
-}
-
-
-.plan-period{
-
-  margin-top:2px;
-
-  color:#718397;
-
-  font-size:7px;
-}
-
-
-.most-popular{
-
-  position:absolute;
-
-  top:-6px;
-
-  left:50%;
-
-  transform:
-    translateX(-50%);
-
-  padding:3px 7px;
-
-  border-radius:10px;
-
-  color:#111;
-
-  background:#f0b90b;
-
-  font-size:6px;
-
-  font-weight:900;
-
-  white-space:nowrap;
-}
-
-
-/* =========================================================
-   TERMOS
-========================================================= */
-
-.terms{
-
-  display:flex;
-
-  align-items:flex-start;
-
-  gap:7px;
-
-  margin:14px 0;
-
-  color:#718397;
-
-  font-size:8px;
-
-  line-height:1.5;
-}
-
-
-.terms input{
-
-  width:13px;
-
-  height:13px;
-
-  margin-top:1px;
-
-  accent-color:#f0b90b;
-}
-
-
-.terms a{
-
-  color:#f0b90b;
-
-  text-decoration:none;
-}
-
-
-/* =========================================================
-   BOTÃO
-========================================================= */
-
-.submit-button{
-
-  width:100%;
-
-  height:48px;
-
-  border:0;
-
-  border-radius:7px;
-
-  color:#111;
-
-  background:
-    linear-gradient(
-      135deg,
-      #ffd83e,
-      #efa900
-    );
-
-  cursor:pointer;
-
-  font-size:10px;
-
-  font-weight:900;
-
-  transition:.2s;
-}
-
-
-.submit-button:hover{
-
-  transform:
-    translateY(-2px);
-
-  box-shadow:
-    0 14px 30px
-    rgba(240,185,11,.18);
-}
-
-
-.submit-button:disabled{
-
-  cursor:not-allowed;
-
-  opacity:.55;
-
-  transform:none;
-
-  box-shadow:none;
-}
-
-
-/* =========================================================
-   MENSAGEM
-========================================================= */
-
-.message{
-
-  min-height:22px;
-
-  margin-top:10px;
-
-  text-align:center;
-
-  font-size:9px;
-
-  line-height:1.5;
-}
-
-
-.message.error{
-
-  color:#ff6670;
-}
-
-
-.message.success{
-
-  color:#24df91;
-}
-
-
-/* =========================================================
-   LOGIN
-========================================================= */
-
-.already-account{
-
-  margin-top:18px;
-
-  padding-top:16px;
-
-  border-top:
-    1px solid
-    rgba(255,255,255,.07);
-
-  text-align:center;
-
-  color:#718397;
-
-  font-size:8px;
-}
-
-
-.already-account a{
-
-  color:#f0b90b;
-
-  font-weight:800;
-
-  text-decoration:none;
-}
-
-
-/* =========================================================
-   FOOTER
-========================================================= */
-
-.footer{
-
-  margin-top:35px;
-
-  padding-top:18px;
-
-  border-top:
-    1px solid
-    rgba(255,255,255,.07);
-
-  display:flex;
-
-  justify-content:space-between;
-
-  color:#4e6073;
-
-  font-size:8px;
-}
-
-
-/* =========================================================
-   RESPONSIVO
-========================================================= */
-
-@media(max-width:900px){
-
-  .page-grid{
-
-    grid-template-columns:1fr;
-
-    max-width:560px;
-
-    margin:auto;
-
-  }
-
-  .intro{
-
-    padding-right:0;
-
-    text-align:center;
-  }
-
-  .intro-description{
-
-    margin-left:auto;
-    margin-right:auto;
-  }
-
-  .benefits{
-
-    text-align:left;
-  }
-
-}
-
-
-@media(max-width:600px){
-
-  .header{
-
-    padding:0 15px;
-  }
-
-  .back-login{
-
-    display:none;
-  }
-
-  .main{
-
-    width:92%;
-
-    padding-top:30px;
-  }
-
-  .intro h1{
-
-    font-size:44px;
-
-    letter-spacing:-2px;
-  }
-
-  .benefits{
-
-    grid-template-columns:1fr;
-  }
-
-  .register-card{
-
-    padding:22px;
-  }
-
-  .plan-options{
-
-    grid-template-columns:1fr;
-  }
-
-  .plan-option label{
-
-    min-height:70px;
-  }
-
-  .footer{
-
-    flex-direction:column;
-
-    gap:8px;
-
-    text-align:center;
-  }
-
-}
-
-</style>
+<meta name="description" content="Crie sua conta CriptoPro com segurança e tenha acesso à plataforma de automação de operações em criptomoedas.">
 
 <!-- Meta Pixel Code -->
 <script>
@@ -1180,745 +24,313 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
 /></noscript>
 <!-- End Meta Pixel Code -->
 
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  min-height:100vh;font-family:Inter,Arial,Helvetica,sans-serif;color:#111827;
+  background:#f5f7fa;overflow-x:hidden;transition:background .25s,color .25s;
+}
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;
+  background:radial-gradient(circle at 15% 10%,rgba(212,175,55,.13),transparent 30%),
+             radial-gradient(circle at 90% 85%,rgba(34,197,94,.07),transparent 27%),
+             linear-gradient(135deg,#fff 0%,#f3f6f9 55%,#edf1f5 100%);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.35;
+  background-image:linear-gradient(rgba(15,23,42,.035) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(15,23,42,.035) 1px,transparent 1px);
+  background-size:55px 55px;mask-image:linear-gradient(to bottom,#000,transparent 85%);
+}
+.header{
+  height:74px;display:flex;align-items:center;justify-content:space-between;padding:0 4%;
+  border-bottom:1px solid #e2e8f0;background:rgba(255,255,255,.88);
+  backdrop-filter:blur(18px);position:sticky;top:0;z-index:20;
+}
+.brand{display:flex;align-items:center;gap:11px;text-decoration:none}
+.logo{
+  width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:11px;
+  background:linear-gradient(145deg,#ffe36a,#e9a700);box-shadow:0 8px 25px rgba(212,175,55,.25)
+}
+.logo svg{width:27px;height:27px}
+.brand-title{font-size:20px;font-weight:950;letter-spacing:-1px;color:#111827}
+.brand-title span{color:#c99700}
+.brand-subtitle{margin-top:3px;color:#64748b;font-size:7px;letter-spacing:1.8px;text-transform:uppercase}
+.header-right{display:flex;align-items:center;gap:9px}
+.language-select,.theme-toggle,.back-login{
+  height:36px;border:1px solid #cbd5e1;border-radius:9px;background:#fff;color:#334155;
+  font-size:11px;font-weight:800
+}
+.language-select{padding:0 10px;outline:none;cursor:pointer}
+.theme-toggle{width:38px;cursor:pointer;font-size:15px}
+.theme-toggle:hover,.back-login:hover{border-color:#d4af37;color:#9a7600}
+.back-login{display:flex;align-items:center;padding:0 13px;text-decoration:none}
+
+.main{width:94%;max-width:1180px;margin:auto;padding:58px 0 45px}
+.page-grid{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:65px;align-items:center}
+.intro{padding:8px 0}
+.badge{
+  display:inline-flex;align-items:center;gap:7px;padding:8px 12px;margin-bottom:18px;
+  border:1px solid rgba(212,175,55,.35);border-radius:30px;color:#8a6b00;background:#fffaf0;
+  font-size:9px;font-weight:900;letter-spacing:1px
+}
+.badge-dot{color:#16a34a}
+.intro h1{font-size:clamp(44px,5.2vw,72px);line-height:.94;letter-spacing:-3.5px;font-weight:950;color:#0f172a}
+.intro h1 .gold{color:#d4a900}
+.intro-description{max-width:600px;margin-top:22px;color:#64748b;font-size:15px;line-height:1.75}
+.security-head{
+  margin-top:30px;padding:18px 20px;border-radius:15px;border:1px solid rgba(34,197,94,.28);
+  background:linear-gradient(135deg,rgba(34,197,94,.07),rgba(255,255,255,.75));
+}
+.security-head strong{display:block;color:#15803d;font-size:14px;margin-bottom:7px}
+.security-head p{color:#64748b;font-size:12px;line-height:1.6}
+.benefits{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+.benefit{
+  padding:17px;border:1px solid #e2e8f0;border-radius:13px;background:rgba(255,255,255,.8);
+  box-shadow:0 8px 24px rgba(15,23,42,.04)
+}
+.benefit-icon{font-size:20px;margin-bottom:8px}
+.benefit strong{display:block;color:#1e293b;font-size:12px}
+.benefit p{margin-top:5px;color:#64748b;font-size:10px;line-height:1.55}
+.trust-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}
+.trust-pill{padding:7px 10px;border-radius:30px;background:#fff;border:1px solid #e2e8f0;color:#475569;font-size:9px;font-weight:800}
+.trust-pill span{color:#16a34a}
+
+.register-card{
+  padding:30px;border:1px solid rgba(212,175,55,.55);border-radius:20px;background:rgba(255,255,255,.94);
+  box-shadow:0 25px 70px rgba(15,23,42,.13)
+}
+.card-title{text-align:center;margin-bottom:22px}
+.card-title h2{font-size:28px;letter-spacing:-1px;color:#0f172a}
+.card-title h2 .gold{color:#d4a900}
+.card-title p{margin-top:7px;color:#64748b;font-size:10px}
+.form-group{margin-bottom:14px}
+.form-group label,.plan-label{display:block;margin-bottom:6px;color:#334155;font-size:10px;font-weight:900}
+.form-group input{
+  width:100%;height:45px;padding:0 12px;border:1px solid #cbd5e1;border-radius:9px;outline:none;
+  background:#f8fafc;color:#0f172a;font-size:12px;transition:.2s
+}
+.form-group input:focus{border-color:#d4af37;box-shadow:0 0 0 3px rgba(212,175,55,.11);background:#fff}
+.password-wrap{position:relative}
+.password-wrap input{padding-right:42px}
+.password-toggle{position:absolute;right:7px;top:6px;width:32px;height:32px;border:0;background:transparent;cursor:pointer}
+.plan-options{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:15px}
+.plan-option{position:relative}
+.plan-option input{position:absolute;opacity:0;pointer-events:none}
+.plan-option label{
+  min-height:76px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:9px;
+  border:1px solid #cbd5e1;border-radius:10px;background:#f8fafc;color:#64748b;cursor:pointer;
+  text-align:center;transition:.2s
+}
+.plan-option label:hover{border-color:#d4af37;background:#fffdf5}
+.plan-option input:checked+label{
+  color:#0f172a;border-color:#d4af37;background:#fffaf0;box-shadow:0 0 0 2px rgba(212,175,55,.10)
+}
+.plan-name{font-size:11px;font-weight:950}
+.plan-detail{margin-top:5px;font-size:8px;color:#64748b;line-height:1.35}
+.most-popular{
+  position:absolute;top:-7px;left:50%;transform:translateX(-50%);padding:3px 7px;border-radius:10px;
+  background:#d4af37;color:#111;font-size:6px;font-weight:950;white-space:nowrap
+}
+.terms{display:flex;align-items:flex-start;gap:8px;margin:15px 0;color:#64748b;font-size:9px;line-height:1.5}
+.terms input{width:14px;height:14px;margin-top:1px;accent-color:#d4af37}
+.submit-button{
+  width:100%;height:49px;border:0;border-radius:9px;color:#111;background:linear-gradient(135deg,#ffd83e,#efa900);
+  cursor:pointer;font-size:11px;font-weight:950;transition:.2s;box-shadow:0 10px 25px rgba(212,175,55,.18)
+}
+.submit-button:hover{transform:translateY(-2px);box-shadow:0 15px 30px rgba(212,175,55,.28)}
+.submit-button:disabled{cursor:not-allowed;opacity:.55;transform:none;box-shadow:none}
+.message{min-height:22px;margin-top:10px;text-align:center;font-size:10px;line-height:1.5}
+.message.error{color:#dc2626}.message.success{color:#16a34a}
+.already-account{margin-top:18px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#64748b;font-size:9px}
+.already-account a{color:#b08300;font-weight:900;text-decoration:none}
+.security-mini{
+  margin-top:14px;padding:12px;border-radius:10px;background:#f0fdf4;border:1px solid #bbf7d0;
+  color:#166534;font-size:9px;line-height:1.5
+}
+.footer{
+  margin-top:35px;padding-top:18px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;
+  color:#64748b;font-size:8px
+}
+
+body.dark{color:#fff;background:#02060a}
+body.dark::before{
+  background:radial-gradient(circle at 15% 10%,rgba(240,185,11,.13),transparent 30%),
+             radial-gradient(circle at 90% 85%,rgba(34,197,94,.06),transparent 27%),
+             linear-gradient(135deg,#02060a 0%,#061019 55%,#03070b 100%)
+}
+body.dark::after{
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px)
+}
+body.dark .header{background:rgba(2,6,10,.84);border-color:rgba(255,255,255,.08)}
+body.dark .brand-title{color:#fff}.body.dark .brand-subtitle{color:#738498}
+body.dark .brand-subtitle{color:#738498}
+body.dark .language-select,body.dark .theme-toggle,body.dark .back-login{
+  background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.15);color:#dbe4ed
+}
+body.dark .intro h1{color:#fff}.body.dark .intro-description{color:#899bad}
+body.dark .intro-description{color:#899bad}
+body.dark .security-head{background:rgba(0,80,50,.10);border-color:rgba(34,223,145,.20)}
+body.dark .security-head strong{color:#24df91}.body.dark .security-head p{color:#74899b}
+body.dark .security-head p{color:#74899b}
+body.dark .benefit{background:rgba(255,255,255,.025);border-color:rgba(255,255,255,.08);box-shadow:none}
+body.dark .benefit strong{color:#dce5ee}.body.dark .benefit p{color:#6f8296}
+body.dark .benefit p{color:#6f8296}
+body.dark .trust-pill{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.09);color:#aebdcc}
+body.dark .register-card{background:linear-gradient(145deg,rgba(9,22,34,.98),rgba(3,9,14,.99));border-color:rgba(240,185,11,.42);box-shadow:0 35px 100px rgba(0,0,0,.65)}
+body.dark .card-title h2{color:#fff}.body.dark .card-title p{color:#718397}
+body.dark .card-title p{color:#718397}
+body.dark .form-group label,body.dark .plan-label{color:#cbd6e1}
+body.dark .form-group input{background:#eef4fa;border-color:#2a3a4c;color:#16202a}
+body.dark .plan-option label{background:rgba(255,255,255,.025);border-color:#29394b;color:#91a2b5}
+body.dark .plan-option input:checked+label{background:rgba(240,185,11,.08);color:#fff;border-color:#f0b90b}
+body.dark .plan-name{color:#e4ebf3}.body.dark .plan-detail{color:#718397}
+body.dark .plan-detail{color:#718397}
+body.dark .terms{color:#718397}.body.dark .already-account{border-color:rgba(255,255,255,.07);color:#718397}
+body.dark .already-account{border-color:rgba(255,255,255,.07);color:#718397}
+body.dark .security-mini{background:rgba(0,80,50,.10);border-color:rgba(34,223,145,.18);color:#24df91}
+body.dark .footer{border-color:rgba(255,255,255,.07);color:#4e6073}
+
+@media(max-width:950px){
+  .page-grid{grid-template-columns:1fr;max-width:600px;margin:auto;gap:35px}
+  .intro{text-align:center}.intro-description{margin-left:auto;margin-right:auto}.benefits{text-align:left}
+}
+@media(max-width:600px){
+  .header{padding:0 15px}.back-login{display:none}.main{width:92%;padding-top:30px}
+  .intro h1{font-size:45px;letter-spacing:-2px}.benefits{grid-template-columns:1fr}.register-card{padding:22px}
+  .plan-options{grid-template-columns:1fr}.plan-option label{min-height:65px}
+  .footer{flex-direction:column;gap:8px;text-align:center}
+}
+</style>
 </head>
 
-
 <body>
-
-
-<div class="glow gold"></div>
-<div class="glow green"></div>
-
-
-<!-- =======================================================
-     HEADER
-======================================================= -->
-
 <header class="header">
-
-
-  <a
-    href="login.html"
-    class="brand"
-  >
-
-
+  <a href="login.html" class="brand">
     <div class="logo">
-
-      <svg
-        viewBox="0 0 100 100"
-        fill="none"
-      >
-
-        <path
-          d="M14 72L30 56L44 65L74 30"
-          stroke="#111"
-          stroke-width="10"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-
-        <path
-          d="M61 30H74V43"
-          stroke="#111"
-          stroke-width="10"
-          stroke-linecap="round"
-        />
-
-        <rect
-          x="14"
-          y="77"
-          width="11"
-          height="8"
-          rx="2"
-          fill="#111"
-        />
-
-        <rect
-          x="33"
-          y="69"
-          width="11"
-          height="16"
-          rx="2"
-          fill="#111"
-        />
-
-        <rect
-          x="52"
-          y="58"
-          width="11"
-          height="27"
-          rx="2"
-          fill="#111"
-        />
-
+      <svg viewBox="0 0 100 100" fill="none" aria-hidden="true">
+        <path d="M14 72L30 56L44 65L74 30" stroke="#111" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M61 30H74V43" stroke="#111" stroke-width="10" stroke-linecap="round"/>
+        <rect x="14" y="77" width="11" height="8" rx="2" fill="#111"/>
+        <rect x="33" y="69" width="11" height="16" rx="2" fill="#111"/>
+        <rect x="52" y="58" width="11" height="27" rx="2" fill="#111"/>
       </svg>
-
     </div>
-
-
     <div>
-
-      <div class="brand-title">
-        Cripto<span>Pro</span>
-      </div>
-
-      <div
-        class="brand-subtitle"
-        data-pt="Automação inteligente"
-        data-en="Intelligent automation"
-      >
-        Automação inteligente
-      </div>
-
+      <div class="brand-title">Cripto<span>Pro</span></div>
+      <div class="brand-subtitle" data-pt="Automação inteligente" data-en="Intelligent automation">Automação inteligente</div>
     </div>
-
-
   </a>
-
-
   <div class="header-right">
-
-
-    <select
-      id="languageSelect"
-      class="language-select"
-    >
-
-      <option value="pt">
-        🇧🇷 PT
-      </option>
-
-      <option value="en">
-        🇺🇸 EN
-      </option>
-
+    <select id="languageSelect" class="language-select" aria-label="Idioma">
+      <option value="pt">🇧🇷 PT</option>
+      <option value="en">🇺🇸 EN</option>
     </select>
-
-
-    <a
-      href="login.html"
-      class="back-login"
-      data-pt="← Voltar para o login"
-      data-en="← Back to login"
-    >
-      ← Voltar para o login
-    </a>
-
-
+    <button type="button" id="themeToggle" class="theme-toggle" title="Usar tema escuro" aria-label="Alternar tema">☾</button>
+    <a href="login.html" class="back-login" data-pt="← Voltar para o login" data-en="← Back to login">← Voltar para o login</a>
   </div>
-
-
 </header>
 
-
-<!-- =======================================================
-     MAIN
-======================================================= -->
-
 <main class="main">
+  <div class="page-grid">
+    <section class="intro">
+      <div class="badge"><span class="badge-dot">●</span><span data-pt="COMECE SUA JORNADA" data-en="START YOUR JOURNEY">COMECE SUA JORNADA</span></div>
+      <h1><span data-pt="Sua conta." data-en="Your account.">Sua conta.</span><br><span class="gold" data-pt="Seu controle." data-en="Your control.">Seu controle.</span></h1>
+      <p class="intro-description" data-pt="Crie sua conta CriptoPro e tenha acesso a um ambiente de automação, acompanhamento e controle das suas operações." data-en="Create your CriptoPro account and access an environment for automation, monitoring and control of your operations.">Crie sua conta CriptoPro e tenha acesso a um ambiente de automação, acompanhamento e controle das suas operações.</p>
 
-
-<div class="page-grid">
-
-
-<!-- =====================================================
-     INTRO
-===================================================== -->
-
-<section class="intro">
-
-
-  <div class="badge">
-
-    <span>●</span>
-
-    <span
-      data-pt="COMECE SUA JORNADA"
-      data-en="START YOUR JOURNEY"
-    >
-      COMECE SUA JORNADA
-    </span>
-
-  </div>
-
-
-  <h1>
-
-    <span
-      data-pt="Sua conta."
-      data-en="Your account."
-      style="color:#fff;"
-    >
-      Sua conta.
-    </span>
-
-    <br>
-
-    <span
-      data-pt="Seu controle."
-      data-en="Your control."
-    >
-      Seu controle.
-    </span>
-
-  </h1>
-
-
-  <p
-    class="intro-description"
-    data-pt="Crie sua conta CriptoPro e tenha acesso ao seu ambiente de automação, acompanhamento e controle das suas operações."
-    data-en="Create your CriptoPro account and access your automation, monitoring and operations control environment."
-  >
-
-    Crie sua conta CriptoPro e tenha acesso
-    ao seu ambiente de automação,
-    acompanhamento e controle das suas operações.
-
-  </p>
-
-
-  <div class="benefits">
-
-
-    <div class="benefit">
-
-      <div class="benefit-icon">
-        🤖
+      <div class="security-head">
+        <strong data-pt="🔐 Segurança em primeiro lugar" data-en="🔐 Security first">🔐 Segurança em primeiro lugar</strong>
+        <p data-pt="Sua conta é protegida por autenticação e o CriptoPro recomenda manter as permissões de saque da API Binance desativadas." data-en="Your account is protected by authentication, and CriptoPro recommends keeping Binance API withdrawal permissions disabled.">Sua conta é protegida por autenticação e o CriptoPro recomenda manter as permissões de saque da API Binance desativadas.</p>
       </div>
 
-      <strong
-        data-pt="Automação"
-        data-en="Automation"
-      >
-        Automação
-      </strong>
-
-      <p
-        data-pt="Configure estratégias para executar suas operações automaticamente."
-        data-en="Configure strategies to execute your operations automatically."
-      >
-        Configure estratégias para executar
-        suas operações automaticamente.
-      </p>
-
-    </div>
-
-
-    <div class="benefit">
-
-      <div class="benefit-icon">
-        📊
+      <div class="benefits">
+        <div class="benefit"><div class="benefit-icon">🛡️</div><strong data-pt="Proteção de acesso" data-en="Access protection">Proteção de acesso</strong><p data-pt="Cadastro com e-mail e senha para acesso individual." data-en="Registration with email and password for individual access.">Cadastro com e-mail e senha para acesso individual.</p></div>
+        <div class="benefit"><div class="benefit-icon">🔑</div><strong data-pt="Controle da API" data-en="API control">Controle da API</strong><p data-pt="Recomendação de não habilitar permissões de saque." data-en="Recommendation to keep withdrawal permissions disabled.">Recomendação de não habilitar permissões de saque.</p></div>
+        <div class="benefit"><div class="benefit-icon">📊</div><strong data-pt="Painel centralizado" data-en="Centralized dashboard">Painel centralizado</strong><p data-pt="Acompanhe configurações e operações em um único ambiente." data-en="Manage settings and operations in one environment.">Acompanhe configurações e operações em um único ambiente.</p></div>
+        <div class="benefit"><div class="benefit-icon">🎫</div><strong data-pt="Suporte ao usuário" data-en="User support">Suporte ao usuário</strong><p data-pt="Abertura e acompanhamento de chamados pela plataforma." data-en="Open and track support tickets through the platform.">Abertura e acompanhamento de chamados pela plataforma.</p></div>
       </div>
 
-      <strong
-        data-pt="Acompanhamento"
-        data-en="Monitoring"
-      >
-        Acompanhamento
-      </strong>
+      <div class="trust-row">
+        <div class="trust-pill"><span>✓</span> Conta individual</div>
+        <div class="trust-pill"><span>✓</span> Controle de acesso</div>
+        <div class="trust-pill"><span>✓</span> Sem permissão de saque recomendada</div>
+      </div>
+    </section>
 
-      <p
-        data-pt="Visualize informações e acompanhe suas operações pelo painel."
-        data-en="View information and monitor your operations from the dashboard."
-      >
-        Visualize informações e acompanhe
-        suas operações pelo painel.
-      </p>
-
-    </div>
-
-
-    <div class="benefit">
-
-      <div class="benefit-icon">
-        🛡
+    <section class="register-card">
+      <div class="card-title">
+        <h2><span data-pt="Criar" data-en="Create">Criar</span> <span class="gold" data-pt="sua conta" data-en="your account">sua conta</span></h2>
+        <p data-pt="Preencha seus dados para começar." data-en="Enter your information to get started.">Preencha seus dados para começar.</p>
       </div>
 
-      <strong
-        data-pt="Segurança"
-        data-en="Security"
-      >
-        Segurança
-      </strong>
-
-      <p
-        data-pt="Credenciais da Binance protegidas e controle das permissões."
-        data-en="Protected Binance credentials and permission control."
-      >
-        Credenciais da Binance protegidas
-        e controle das permissões.
-      </p>
-
-    </div>
-
-
-    <div class="benefit">
-
-      <div class="benefit-icon">
-        ⚡
-      </div>
-
-      <strong
-        data-pt="Controle"
-        data-en="Control"
-      >
-        Controle
-      </strong>
-
-      <p
-        data-pt="Escolha o plano que melhor atende às suas necessidades."
-        data-en="Choose the plan that best fits your needs."
-      >
-        Escolha o plano que melhor atende
-        às suas necessidades.
-      </p>
-
-    </div>
-
-
-  </div>
-
-
-  <div class="security-note">
-
-    <strong
-      data-pt="🔐 Segurança desde o primeiro acesso"
-      data-en="🔐 Security from the first access"
-    >
-      🔐 Segurança desde o primeiro acesso
-    </strong>
-
-    <br>
-
-    <span
-      data-pt="A CriptoPro recomenda manter as permissões de saque da API desativadas."
-      data-en="CriptoPro recommends keeping API withdrawal permissions disabled."
-    >
-      A CriptoPro recomenda manter as
-      permissões de saque da API desativadas.
-    </span>
-
-  </div>
-
-
-</section>
-
-
-<!-- =====================================================
-     CADASTRO
-===================================================== -->
-
-<section class="register-card">
-
-
-  <div class="card-title">
-
-    <h2>
-
-      <span
-        data-pt="Criar"
-        data-en="Create"
-        style="color:#fff;"
-      >
-        Criar
-      </span>
-
-      <span
-        data-pt="sua conta"
-        data-en="your account"
-      >
-        sua conta
-      </span>
-
-    </h2>
-
-
-    <p
-      data-pt="Preencha seus dados para começar."
-      data-en="Enter your information to get started."
-    >
-      Preencha seus dados para começar.
-    </p>
-
-  </div>
-
-
-  <form id="registerForm">
-
-
-    <!-- NOME -->
-
-    <div class="form-group">
-
-      <label
-        for="name"
-        data-pt="Nome"
-        data-en="Name"
-      >
-        Nome
-      </label>
-
-
-      <input
-        type="text"
-        id="name"
-        name="name"
-        placeholder="Seu nome"
-        autocomplete="name"
-        required
-      >
-
-    </div>
-
-
-    <!-- EMAIL -->
-
-    <div class="form-group">
-
-      <label
-        for="email"
-        data-pt="E-mail"
-        data-en="Email"
-      >
-        E-mail
-      </label>
-
-
-      <input
-        type="email"
-        id="email"
-        name="email"
-        placeholder="seu@email.com"
-        autocomplete="email"
-        required
-      >
-
-    </div>
-
-
-    <!-- SENHA -->
-
-    <div class="form-group">
-
-      <label
-        for="password"
-        data-pt="Senha"
-        data-en="Password"
-      >
-        Senha
-      </label>
-
-
-      <div class="password-wrap">
-
-        <input
-          type="password"
-          id="password"
-          name="password"
-          placeholder="Crie uma senha"
-          autocomplete="new-password"
-          minlength="8"
-          required
-        >
-
-
-        <button
-          type="button"
-          class="password-toggle"
-          id="togglePassword"
-        >
-          👁
-        </button>
-
-      </div>
-
-    </div>
-
-
-    <!-- CONFIRMAR SENHA -->
-
-    <div class="form-group">
-
-      <label
-        for="confirmPassword"
-        data-pt="Confirmar senha"
-        data-en="Confirm password"
-      >
-        Confirmar senha
-      </label>
-
-
-      <div class="password-wrap">
-
-        <input
-          type="password"
-          id="confirmPassword"
-          placeholder="Digite a senha novamente"
-          autocomplete="new-password"
-          minlength="8"
-          required
-        >
-
-
-        <button
-          type="button"
-          class="password-toggle"
-          id="toggleConfirmPassword"
-        >
-          👁
-        </button>
-
-      </div>
-
-    </div>
-
-
-    <!-- PLANOS -->
-
-    <label
-      class="plan-label"
-      data-pt="Escolha seu plano"
-      data-en="Choose your plan"
-    >
-      Escolha seu plano
-    </label>
-
-
-    <div class="plan-options">
-
-
-      <!-- BÁSICO -->
-
-      <div class="plan-option">
-
-        <input
-          type="radio"
-          id="planBasic"
-          name="plan"
-          value="basico"
-        >
-
-
-        <label for="planBasic">
-
-          <span
-            class="plan-name"
-            data-pt="Básico"
-            data-en="Basic"
-          >
-            Básico
-          </span>
-
-
-          <span class="plan-price">
-            R$ 49,90
-          </span>
-
-
-          <span
-            class="plan-period"
-            data-pt="/ mês"
-            data-en="/ month"
-          >
-            / mês
-          </span>
-
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="name" data-pt="Nome" data-en="Name">Nome</label>
+          <input type="text" id="name" name="name" placeholder="Seu nome" autocomplete="name" required>
+        </div>
+        <div class="form-group">
+          <label for="email" data-pt="E-mail" data-en="Email">E-mail</label>
+          <input type="email" id="email" name="email" placeholder="seu@email.com" autocomplete="email" required>
+        </div>
+        <div class="form-group">
+          <label for="password" data-pt="Senha" data-en="Password">Senha</label>
+          <div class="password-wrap">
+            <input type="password" id="password" name="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
+            <button type="button" class="password-toggle" id="togglePassword">👁</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="confirmPassword" data-pt="Confirmar senha" data-en="Confirm password">Confirmar senha</label>
+          <div class="password-wrap">
+            <input type="password" id="confirmPassword" placeholder="Digite a senha novamente" autocomplete="new-password" minlength="8" required>
+            <button type="button" class="password-toggle" id="toggleConfirmPassword">👁</button>
+          </div>
+        </div>
+
+        <label class="plan-label" data-pt="Escolha seu nível de acesso" data-en="Choose your access level">Escolha seu nível de acesso</label>
+        <div class="plan-options">
+          <div class="plan-option">
+            <input type="radio" id="planBasic" name="plan" value="basico">
+            <label for="planBasic"><span class="plan-name" data-pt="Básico" data-en="Basic">Básico</span><span class="plan-detail" data-pt="Recursos essenciais" data-en="Essential features">Recursos essenciais</span></label>
+          </div>
+          <div class="plan-option">
+            <input type="radio" id="planProfessional" name="plan" value="profissional">
+            <label for="planProfessional"><span class="most-popular" data-pt="MAIS ESCOLHIDO" data-en="MOST POPULAR">MAIS ESCOLHIDO</span><span class="plan-name" data-pt="Profissional" data-en="Professional">Profissional</span><span class="plan-detail" data-pt="Mais recursos e controle" data-en="More features and control">Mais recursos e controle</span></label>
+          </div>
+          <div class="plan-option">
+            <input type="radio" id="planPremium" name="plan" value="premium">
+            <label for="planPremium"><span class="plan-name" data-pt="Premium" data-en="Premium">Premium</span><span class="plan-detail" data-pt="Recursos completos" data-en="Full features">Recursos completos</span></label>
+          </div>
+        </div>
+
+        <label class="terms">
+          <input type="checkbox" id="terms" required>
+          <span data-pt="Concordo com os termos de uso e política de privacidade." data-en="I agree to the terms of use and privacy policy.">Concordo com os termos de uso e política de privacidade.</span>
         </label>
 
+        <button type="submit" class="submit-button" id="registerButton" data-pt="CRIAR MINHA CONTA" data-en="CREATE MY ACCOUNT">CRIAR MINHA CONTA</button>
+      </form>
+
+      <div id="message" class="message"></div>
+
+      <div class="security-mini" data-pt="🔒 Seus dados de acesso são utilizados para autenticar sua conta. Nunca compartilhe sua senha." data-en="🔒 Your access data is used to authenticate your account. Never share your password.">🔒 Seus dados de acesso são utilizados para autenticar sua conta. Nunca compartilhe sua senha.</div>
+
+      <div class="already-account">
+        <span data-pt="Já possui uma conta?" data-en="Already have an account?">Já possui uma conta?</span>&nbsp;
+        <a href="login.html" data-pt="Entrar" data-en="Sign in">Entrar</a>
       </div>
-
-
-      <!-- PROFISSIONAL -->
-
-      <div class="plan-option">
-
-        <input
-          type="radio"
-          id="planProfessional"
-          name="plan"
-          value="profissional"
-        >
-
-
-        <label for="planProfessional">
-
-          <span class="most-popular"
-                data-pt="MAIS ESCOLHIDO"
-                data-en="MOST POPULAR">
-            MAIS ESCOLHIDO
-          </span>
-
-
-          <span
-            class="plan-name"
-            data-pt="Profissional"
-            data-en="Professional"
-          >
-            Profissional
-          </span>
-
-
-          <span class="plan-price">
-            R$ 99,90
-          </span>
-
-
-          <span
-            class="plan-period"
-            data-pt="/ mês"
-            data-en="/ month"
-          >
-            / mês
-          </span>
-
-        </label>
-
-      </div>
-
-
-      <!-- PREMIUM -->
-
-      <div class="plan-option">
-
-        <input
-          type="radio"
-          id="planPremium"
-          name="plan"
-          value="premium"
-        >
-
-
-        <label for="planPremium">
-
-          <span
-            class="plan-name"
-            data-pt="Premium"
-            data-en="Premium"
-          >
-            Premium
-          </span>
-
-
-          <span class="plan-price">
-            R$ 199,90
-          </span>
-
-
-          <span
-            class="plan-period"
-            data-pt="/ mês"
-            data-en="/ month"
-          >
-            / mês
-          </span>
-
-        </label>
-
-      </div>
-
-
-    </div>
-
-
-    <!-- TERMOS -->
-
-    <label class="terms">
-
-      <input
-        type="checkbox"
-        id="terms"
-        required
-      >
-
-
-      <span>
-
-        <span
-          data-pt="Concordo com os termos de uso e política de privacidade."
-          data-en="I agree to the terms of use and privacy policy."
-        >
-          Concordo com os termos de uso
-          e política de privacidade.
-        </span>
-
-      </span>
-
-    </label>
-
-
-    <!-- BOTÃO -->
-
-    <button
-      type="submit"
-      class="submit-button"
-      id="registerButton"
-      data-pt="CRIAR MINHA CONTA"
-      data-en="CREATE MY ACCOUNT"
-    >
-
-      CRIAR MINHA CONTA
-
-    </button>
-
-
-  </form>
-
-
-  <div
-    id="message"
-    class="message"
-  ></div>
-
-
-  <div class="already-account">
-
-    <span
-      data-pt="Já possui uma conta?"
-      data-en="Already have an account?"
-    >
-      Já possui uma conta?
-    </span>
-
-
-    &nbsp;
-
-
-    <a
-      href="login.html"
-      data-pt="Entrar"
-      data-en="Sign in"
-    >
-      Entrar
-    </a>
-
+    </section>
   </div>
 
-
-</section>
-
-
-</div>
-
-
-<footer class="footer">
-
-  <span>
-    CriptoPro — Automação inteligente.
-  </span>
-
-  <span>
-    Segurança • Controle • Transparência
-  </span>
-
-</footer>
-
-
+  <footer class="footer">
+    <span>CriptoPro — Automação inteligente.</span>
+    <span>Segurança • Controle • Transparência</span>
+  </footer>
 </main>
 
-
 <script>
-
 /* =========================================================
    IDIOMA
 ========================================================= */
@@ -2386,9 +798,29 @@ registerForm.addEventListener(
   }
 );
 
+(function initCriptoProTheme(){
+  const body=document.body;
+  const button=document.getElementById("themeToggle");
+  const saved=localStorage.getItem("criptopro_theme")||"light";
+  function applyTheme(theme){
+    const dark=theme==="dark";
+    body.classList.toggle("dark",dark);
+    if(button){
+      button.textContent=dark?"☀":"☾";
+      button.title=dark?"Usar tema claro":"Usar tema escuro";
+      button.setAttribute("aria-label",dark?"Usar tema claro":"Usar tema escuro");
+    }
+    localStorage.setItem("criptopro_theme",dark?"dark":"light");
+  }
+  applyTheme(saved);
+  if(button){
+    button.addEventListener("click",()=>{
+      const current=localStorage.getItem("criptopro_theme")||"light";
+      applyTheme(current==="dark"?"light":"dark");
+    });
+  }
+})();
 </script>
-
-
+<script src="/js/support.js?v=20260922"></script>
 </body>
-
 </html>

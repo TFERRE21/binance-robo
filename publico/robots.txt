@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://criptoprobot.com.br/sitemap.xml

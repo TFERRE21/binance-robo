@@ -78,6 +78,26 @@ h1{margin:0 0 7px;font-size:30px}.sub{color:var(--muted)}
 .empty{padding:25px;text-align:center;color:var(--muted)}
 .error{display:none;background:#34151b;border:1px solid #6d303a;color:#ffb5bd;padding:13px;border-radius:11px;margin-bottom:18px}
 .loading{color:var(--muted)}
+
+.modal-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;align-items:center;justify-content:center;padding:20px}
+.modal-backdrop.open{display:flex}
+.modal{width:min(900px,100%);max-height:90vh;background:#0b141e;border:1px solid #304258;border-radius:18px;box-shadow:0 25px 80px rgba(0,0,0,.55);display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:18px 20px;border-bottom:1px solid #263547;display:flex;justify-content:space-between;align-items:flex-start;gap:15px}
+.modal-title{font-size:18px;font-weight:900}.modal-meta{font-size:12px;color:var(--muted);margin-top:5px}
+.close-btn{border:0;background:#172433;color:#fff;border-radius:9px;width:36px;height:36px;cursor:pointer;font-size:20px}
+.messages{padding:20px;overflow:auto;display:flex;flex-direction:column;gap:12px;min-height:300px;max-height:52vh}
+.msg{max-width:78%;padding:12px 14px;border-radius:14px;border:1px solid #27384b;white-space:pre-wrap;word-break:break-word}
+.msg.user{align-self:flex-start;background:#101e2c}
+.msg.admin{align-self:flex-end;background:#102b24;border-color:#205442}
+.msg .who{font-size:10px;font-weight:900;color:var(--muted);margin-bottom:5px}
+.msg .time{font-size:9px;color:#718096;margin-top:6px}
+.reply{border-top:1px solid #263547;padding:15px 18px;background:#09111a}
+.reply-row{display:flex;gap:10px}.reply textarea{flex:1;resize:vertical;min-height:70px;max-height:150px;background:#0f1a26;color:#fff;border:1px solid #304258;border-radius:11px;padding:12px;font:inherit;outline:none}
+.reply textarea:focus{border-color:var(--gold)}
+.reply-actions{display:flex;justify-content:space-between;align-items:center;margin-top:10px}
+.status-select{background:#111e2b;color:#fff;border:1px solid #304258;border-radius:9px;padding:9px}
+.notify{display:none;background:#f0c52e;color:#111;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:900;margin-left:5px}
+
 @media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.support-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){header{padding:0 14px}.header-right .online{display:none}main{padding:17px}.grid,.support-grid{grid-template-columns:1fr}.hero{align-items:flex-start;flex-direction:column}h1{font-size:25px}}
 </style>
@@ -138,7 +158,7 @@ h1{margin:0 0 7px;font-size:30px}.sub{color:var(--muted)}
   </div>
 
   <div class="section">
-    <div class="section-title">🎫 Central de Chamados</div>
+    <div class="section-title">🎫 Central de Chamados <span id="ticketNotify" class="notify"></span></div>
     <div class="support-grid">
       <div class="support-card"><div class="label">Abertos</div><div class="n" id="tOpen">—</div></div>
       <div class="support-card"><div class="label">Em atendimento</div><div class="n" id="tWork">—</div></div>
@@ -171,6 +191,36 @@ h1{margin:0 0 7px;font-size:30px}.sub{color:var(--muted)}
     </div>
   </div>
 </main>
+
+
+<div class="modal-backdrop" id="ticketModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="modalTitle">Chamado</div>
+        <div class="modal-meta" id="modalMeta">Carregando...</div>
+      </div>
+      <button class="close-btn" onclick="closeTicket()">×</button>
+    </div>
+    <div class="messages" id="messages">
+      <div class="empty">Carregando conversa...</div>
+    </div>
+    <div class="reply">
+      <div class="reply-row">
+        <textarea id="replyText" placeholder="Digite sua resposta para o cliente..."></textarea>
+      </div>
+      <div class="reply-actions">
+        <select id="ticketStatus" class="status-select" onchange="changeTicketStatus()">
+          <option value="ABERTO">ABERTO</option>
+          <option value="EM_ATENDIMENTO">EM ATENDIMENTO</option>
+          <option value="RESPONDIDO">RESPONDIDO</option>
+          <option value="FECHADO">FECHADO</option>
+        </select>
+        <button class="btn" id="sendReplyBtn" onclick="sendReply()">✉️ Enviar resposta</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 const token=localStorage.getItem("token");
@@ -266,6 +316,7 @@ async function loadTickets(){
     const counts={ABERTO:0,EM_ATENDIMENTO:0,RESPONDIDO:0,FECHADO:0};
     rows.forEach(t=>{if(counts[t.status]!==undefined)counts[t.status]++});
     tOpen.textContent=counts.ABERTO;tWork.textContent=counts.EM_ATENDIMENTO;tAnswered.textContent=counts.RESPONDIDO;tClosed.textContent=counts.FECHADO;
+    const notify=document.getElementById("ticketNotify"); const newCount=counts.ABERTO+counts.RESPONDIDO; if(newCount){notify.style.display="inline-block";notify.textContent=newCount+" para atenção"}else notify.style.display="none";
     tickets.innerHTML=rows.length?rows.slice(0,30).map(t=>`<tr>
       <td>#${esc(t.id)}</td><td><b>${esc(t.user_name||"—")}</b><br><span style="color:var(--muted)">${esc(t.user_email||"")}</span></td>
       <td>${esc(t.subject)}</td><td>${esc(t.category||"—")}</td><td>${esc(t.priority||"—")}</td>
@@ -275,14 +326,100 @@ async function loadTickets(){
   }catch(e){showError(e.message)}
 }
 
+let currentTicketId=null;
+let ticketRefreshTimer=null;
+
 async function openTicket(id){
-  try{
-    const d=await api("/api/admin/support/tickets/"+id);
-    const t=d.chamado||{};
-    const msgs=(d.mensagens||[]).map(m=>`[${date(m.created_at)}] ${m.sender_type}: ${m.message}`).join("\n\n");
-    alert(`CHAMADO #${id}\n\nCliente: ${t.user_name||"—"}\nE-mail: ${t.user_email||"—"}\nAssunto: ${t.subject||"—"}\nStatus: ${t.status||"—"}\n\nCONVERSA:\n${msgs||"Sem mensagens."}\n\nA central completa de atendimento será adicionada no próximo passo.`);
-  }catch(e){showError(e.message)}
+  currentTicketId=Number(id);
+  document.getElementById("ticketModal").classList.add("open");
+  document.getElementById("messages").innerHTML='<div class="empty">Carregando conversa...</div>';
+  await loadTicketConversation();
+  clearInterval(ticketRefreshTimer);
+  ticketRefreshTimer=setInterval(loadTicketConversation,5000);
+  setTimeout(()=>document.getElementById("replyText").focus(),100);
 }
+
+async function loadTicketConversation(){
+  if(!currentTicketId)return;
+  try{
+    const d=await api("/api/admin/support/tickets/"+currentTicketId);
+    const t=d.chamado||{};
+    document.getElementById("modalTitle").textContent=`Chamado #${t.id||currentTicketId} — ${t.subject||"Sem assunto"}`;
+    document.getElementById("modalMeta").textContent=`${t.user_name||"—"} · ${t.user_email||"—"} · ${t.category||"—"} · Prioridade: ${t.priority||"NORMAL"}`;
+    document.getElementById("ticketStatus").value=t.status||"ABERTO";
+
+    const box=document.getElementById("messages");
+    const msgs=d.mensagens||[];
+    box.innerHTML=msgs.length?msgs.map(m=>{
+      const admin=String(m.sender_type||"").toUpperCase()==="ADMIN";
+      return `<div class="msg ${admin?"admin":"user"}">
+        <div class="who">${admin?"🛡️ ADMINISTRADOR":"👤 "+esc(t.user_name||"CLIENTE")}</div>
+        <div>${esc(m.message||"")}</div>
+        <div class="time">${date(m.created_at)}</div>
+      </div>`;
+    }).join(""):'<div class="empty">Nenhuma mensagem.</div>';
+    box.scrollTop=box.scrollHeight;
+  }catch(e){
+    document.getElementById("messages").innerHTML=`<div class="empty">${esc(e.message)}</div>`;
+  }
+}
+
+async function sendReply(){
+  if(!currentTicketId)return;
+  const input=document.getElementById("replyText");
+  const btn=document.getElementById("sendReplyBtn");
+  const message=input.value.trim();
+  if(!message){input.focus();return}
+
+  btn.disabled=true;
+  btn.textContent="Enviando...";
+  try{
+    await api(`/api/admin/support/tickets/${currentTicketId}/messages`,{
+      method:"POST",
+      body:JSON.stringify({message})
+    });
+    input.value="";
+    await loadTicketConversation();
+    await loadTickets();
+    await loadDashboard();
+  }catch(e){
+    alert(e.message);
+  }finally{
+    btn.disabled=false;
+    btn.textContent="✉️ Enviar resposta";
+  }
+}
+
+async function changeTicketStatus(){
+  if(!currentTicketId)return;
+  const status=document.getElementById("ticketStatus").value;
+  try{
+    await api(`/api/admin/support/tickets/${currentTicketId}/status`,{
+      method:"PATCH",
+      body:JSON.stringify({status})
+    });
+    await loadTicketConversation();
+    await loadTickets();
+  }catch(e){alert(e.message)}
+}
+
+function closeTicket(){
+  clearInterval(ticketRefreshTimer);
+  ticketRefreshTimer=null;
+  currentTicketId=null;
+  document.getElementById("ticketModal").classList.remove("open");
+}
+
+document.getElementById("ticketModal").addEventListener("click",e=>{
+  if(e.target.id==="ticketModal")closeTicket();
+});
+
+document.getElementById("replyText").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !e.shiftKey){
+    e.preventDefault();
+    sendReply();
+  }
+});
 
 loadDashboard();
 loadTickets();

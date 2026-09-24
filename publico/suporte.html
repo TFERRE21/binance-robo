@@ -705,6 +705,39 @@
     </div>
   </div>
 
+
+  <!-- MODAL CONVERSA DO CHAMADO -->
+  <div class="modal-backdrop" id="conversationModal">
+    <div class="modal" style="width:min(850px,100%);">
+      <div class="modal-head">
+        <div>
+          <h2 id="conversationTitle">Chamado</h2>
+          <div id="conversationStatus" style="color:#9fb0c5;font-size:13px;margin-top:5px;"></div>
+        </div>
+        <button class="close" type="button" onclick="fecharConversa()">×</button>
+      </div>
+
+      <div id="conversationMessages"
+           style="padding:22px 25px;max-height:48vh;overflow:auto;display:flex;flex-direction:column;gap:12px;">
+      </div>
+
+      <form id="conversationForm" class="form" style="border-top:1px solid #24374e;">
+        <div class="field">
+          <label for="conversationMessage">Sua mensagem</label>
+          <textarea id="conversationMessage"
+                    maxlength="10000"
+                    required
+                    placeholder="Digite sua resposta..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button class="cancel" type="button" onclick="fecharConversa()">Fechar</button>
+          <button class="submit" id="sendConversationButton" type="submit">📩 Enviar resposta</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -981,32 +1014,243 @@
       }
     }
 
-    function verConversa(id) {
-      window.location.href =
-        "/suporte.html?chamado=" +
-        encodeURIComponent(id);
+    let chamadoAtual = null;
+
+    async function verConversa(id) {
+
+      if (!token) {
+        mostrarToast("Faça login para acessar o chamado.");
+        return;
+      }
+
+      const modal = document.getElementById("conversationModal");
+      const messagesBox = document.getElementById("conversationMessages");
+      const title = document.getElementById("conversationTitle");
+      const statusBox = document.getElementById("conversationStatus");
+
+      modal.style.display = "flex";
+      messagesBox.innerHTML =
+        '<div style="text-align:center;color:#91a5bf;padding:25px;">Carregando conversa...</div>';
+
+      try {
+
+        const response = await fetch(
+          "/api/support/tickets/" + encodeURIComponent(id),
+          {
+            method: "GET",
+            headers: authHeaders(),
+            cache: "no-store"
+          }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.ok) {
+          throw new Error(
+            data.erro || "Não foi possível carregar a conversa."
+          );
+        }
+
+        chamadoAtual = data.chamado;
+
+        title.textContent =
+          "Chamado #" + data.chamado.id +
+          " — " +
+          (data.chamado.subject || "Sem assunto");
+
+        const status = statusInfo(data.chamado.status);
+
+        statusBox.textContent =
+          "Status: " + status.label;
+
+        messagesBox.innerHTML = "";
+
+        const mensagens =
+          Array.isArray(data.mensagens)
+            ? data.mensagens
+            : [];
+
+        if (!mensagens.length) {
+
+          messagesBox.innerHTML =
+            '<div style="text-align:center;color:#91a5bf;padding:25px;">Nenhuma mensagem ainda.</div>';
+
+        } else {
+
+          mensagens.forEach(mensagem => {
+
+            const ehUsuario =
+              String(mensagem.sender_type || "").toUpperCase() === "USER";
+
+            const box =
+              document.createElement("div");
+
+            box.style.maxWidth = "82%";
+            box.style.padding = "14px 16px";
+            box.style.borderRadius = "12px";
+            box.style.alignSelf =
+              ehUsuario ? "flex-end" : "flex-start";
+            box.style.background =
+              ehUsuario ? "#123452" : "#172537";
+            box.style.border =
+              "1px solid " +
+              (ehUsuario ? "#1e5d88" : "#30455e");
+
+            const who =
+              document.createElement("strong");
+
+            who.textContent =
+              ehUsuario ? "Você" : "Equipe CriptoPro";
+
+            who.style.display = "block";
+            who.style.marginBottom = "6px";
+            who.style.color =
+              ehUsuario ? "#6fc4ff" : "#ffd34d";
+
+            const text =
+              document.createElement("div");
+
+            text.textContent =
+              mensagem.message || "";
+
+            text.style.whiteSpace = "pre-wrap";
+            text.style.lineHeight = "1.5";
+
+            const date =
+              document.createElement("small");
+
+            date.textContent =
+              formatDate(mensagem.created_at);
+
+            date.style.display = "block";
+            date.style.marginTop = "8px";
+            date.style.color = "#8297ae";
+
+            box.appendChild(who);
+            box.appendChild(text);
+            box.appendChild(date);
+
+            messagesBox.appendChild(box);
+          });
+
+          messagesBox.scrollTop =
+            messagesBox.scrollHeight;
+        }
+
+        const form =
+          document.getElementById("conversationForm");
+
+        const textarea =
+          document.getElementById("conversationMessage");
+
+        const sendButton =
+          document.getElementById("sendConversationButton");
+
+        const fechado =
+          String(data.chamado.status || "").toUpperCase() === "FECHADO";
+
+        textarea.disabled = fechado;
+        sendButton.disabled = fechado;
+
+        if (fechado) {
+          textarea.placeholder =
+            "Este chamado está fechado.";
+        } else {
+          textarea.placeholder =
+            "Digite sua resposta...";
+        }
+
+      } catch (error) {
+
+        messagesBox.innerHTML =
+          '<div style="text-align:center;color:#ff7b86;padding:25px;">' +
+          escapeHtml(error.message || "Erro ao carregar conversa.") +
+          '</div>';
+
+      }
+    }
+
+    function fecharConversa() {
+      document.getElementById("conversationModal").style.display = "none";
+      chamadoAtual = null;
+    }
+
+    async function enviarMensagemConversa(event) {
+
+      event.preventDefault();
+
+      if (!chamadoAtual) {
+        mostrarToast("Nenhum chamado selecionado.");
+        return;
+      }
+
+      const textarea =
+        document.getElementById("conversationMessage");
+
+      const button =
+        document.getElementById("sendConversationButton");
+
+      const message =
+        textarea.value.trim();
+
+      if (!message) {
+        mostrarToast("Digite uma mensagem.");
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = "⏳ Enviando...";
+
+      try {
+
+        const response = await fetch(
+          "/api/support/tickets/" +
+          encodeURIComponent(chamadoAtual.id) +
+          "/messages",
+          {
+            method: "POST",
+            headers: authHeaders(true),
+            body: JSON.stringify({
+              message: message
+            })
+          }
+        );
+
+        const data =
+          await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.ok) {
+          throw new Error(
+            data.erro || "Não foi possível enviar a resposta."
+          );
+        }
+
+        textarea.value = "";
+
+        await verConversa(chamadoAtual.id);
+        await carregarChamados();
+
+        mostrarToast("Resposta enviada com sucesso.");
+
+      } catch (error) {
+
+        mostrarToast(
+          error.message ||
+          "Erro ao enviar resposta."
+        );
+
+      } finally {
+
+        button.disabled = false;
+        button.textContent = "📩 Enviar resposta";
+
+      }
     }
 
     function voltarDashboard() {
 
-      const params =
-        new URLSearchParams(window.location.search);
-
-      const origem =
-        params.get("origem");
-
-      // Quando o chamado foi aberto a partir do painel principal,
-      // retorna exatamente para ele.
-      if (
-        origem === "/index.html" ||
-        origem === "index.html"
-      ) {
-        window.location.href = "/index.html";
-        return;
-      }
-
-      // Compatibilidade com acessos antigos.
-      window.location.href = "/dashboard.html";
+      // Sempre retorna ao painel principal atual.
+      window.location.href = "/index.html";
     }
 
     function logout() {
@@ -1049,11 +1293,25 @@
       enviarNovoChamado
     );
 
+    document.getElementById("conversationForm").addEventListener(
+      "submit",
+      enviarMensagemConversa
+    );
+
     document.getElementById("newTicketModal").addEventListener(
       "click",
       event => {
         if (event.target.id === "newTicketModal") {
           fecharNovoChamado();
+        }
+      }
+    );
+
+    document.getElementById("conversationModal").addEventListener(
+      "click",
+      event => {
+        if (event.target.id === "conversationModal") {
+          fecharConversa();
         }
       }
     );

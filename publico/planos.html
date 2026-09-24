@@ -1346,6 +1346,28 @@
 
 
 
+    /* TESTE PREMIUM - 3 DIAS */
+    .trial-card{
+      width:94%;max-width:1200px;margin:0 auto 35px;padding:24px 28px;
+      border:1px solid rgba(212,175,55,.45);border-radius:18px;
+      background:linear-gradient(135deg,rgba(212,175,55,.10),rgba(34,197,94,.06));
+      box-shadow:0 15px 45px rgba(0,0,0,.16);display:flex;align-items:center;
+      justify-content:space-between;gap:22px;
+    }
+    .trial-card-content h2{font-size:22px;margin-bottom:7px;color:#fff}
+    .trial-card-content p{color:#cbd5e1;font-size:13px;line-height:1.6}
+    .trial-card-content strong{color:#d4af37}
+    .trial-button{flex:0 0 auto;min-height:50px;padding:0 22px;border:0;border-radius:10px;
+      background:linear-gradient(135deg,#d4af37,#f1d76b);color:#111827;font-size:13px;
+      font-weight:900;cursor:pointer;box-shadow:0 8px 25px rgba(212,175,55,.18)}
+    .trial-button:hover{background:#f1d76b;transform:translateY(-1px)}
+    .trial-button:disabled{opacity:.65;cursor:not-allowed;transform:none}
+    body.light-theme .trial-card{background:linear-gradient(135deg,#fffaf0,#f8fafc);
+      border-color:rgba(212,175,55,.38);box-shadow:0 15px 45px rgba(15,23,42,.07)}
+    body.light-theme .trial-card-content h2{color:#111827}
+    body.light-theme .trial-card-content p{color:#475569}
+    @media(max-width:700px){.trial-card{flex-direction:column;align-items:stretch;text-align:center;padding:22px}.trial-button{width:100%}}
+
     /* ========================================================
        MODAL DE PAGAMENTO
        ======================================================== */
@@ -2047,6 +2069,21 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
 
     </p>
 
+  </section>
+
+  <!-- TESTE PREMIUM GRATUITO - 3 DIAS -->
+  <section class="trial-card" id="trialCard">
+    <div class="trial-card-content">
+      <h2>🎁 Teste Premium grátis por 3 dias</h2>
+      <p>
+        Experimente o <strong>CriptoPro Premium</strong> sem pagar nada.
+        Tenha acesso a 3 operações simultâneas, 3 contas Binance e até 5 robôs.
+        <strong>O teste pode ser utilizado apenas uma vez por usuário.</strong>
+      </p>
+    </div>
+    <button type="button" class="trial-button" id="trialButton" onclick="ativarTestePremium()">
+      🎁 ATIVAR TESTE GRÁTIS
+    </button>
   </section>
 
 
@@ -3696,6 +3733,50 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
       if (paymentMethodOverlay) {
         paymentMethodOverlay.style.display = "none";
         paymentMethodOverlay.setAttribute("aria-hidden", "true");
+      }
+    }
+
+    // TESTE PREMIUM GRATUITO - 3 DIAS
+    async function ativarTestePremium() {
+      const button = document.getElementById("trialButton");
+
+      if (!token) {
+        window.location.href = "/login.html";
+        return;
+      }
+
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Ativando teste...";
+      }
+
+      try {
+        const response = await fetch("/api/subscription/trial", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          cache: "no-store"
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.message || data.error || "Não foi possível ativar o teste gratuito.");
+        }
+
+        alert("🎉 Teste Premium ativado com sucesso!\n\nVocê recebeu 3 dias de acesso ao Premium.");
+        window.location.reload();
+
+      } catch (error) {
+        console.error("ERRO AO ATIVAR TESTE PREMIUM:", error);
+        alert(error.message || "Não foi possível ativar o teste gratuito.");
+
+        if (button) {
+          button.disabled = false;
+          button.textContent = "🎁 ATIVAR TESTE GRÁTIS";
+        }
       }
     }
 

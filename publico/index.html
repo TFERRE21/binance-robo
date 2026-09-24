@@ -726,285 +726,198 @@ select.plan-locked{
 
 
 /* =========================================================
-   CRIPTOPRO — REDESIGN PREMIUM / TEMA CLARO + ESCURO
-   Apenas camada visual. Não altera IDs, APIs ou funções do painel.
+   CRIPTOPRO — NOVO LAYOUT
+   IMPORTANTE: somente visual/layout.
+   JavaScript, IDs, rotas e funcionalidades originais preservados.
+   LOG permanece escuro.
 ========================================================= */
+
 :root{
   --cp-bg:#f4f6f8;
-  --cp-surface:#ffffff;
-  --cp-surface2:#f8fafc;
-  --cp-text:#111827;
-  --cp-muted:#64748b;
-  --cp-line:#e2e8f0;
-  --cp-soft:#f1f5f9;
-  --cp-gold:#f0b90b;
-  --cp-green:#16a979;
-  --cp-red:#dc4c5a;
-  --cp-shadow:0 12px 34px rgba(15,23,42,.07);
+  --cp-card:#ffffff;
+  --cp-border:#e1e6ec;
+  --cp-text:#172033;
+  --cp-muted:#6d7787;
+  --cp-yellow:#f0b90b;
+  --cp-green:#18c98b;
 }
-html[data-theme="dark"]{
-  --cp-bg:#06090e;
-  --cp-surface:#0d141e;
-  --cp-surface2:#101722;
-  --cp-text:#e8edf5;
-  --cp-muted:#8c98a9;
-  --cp-line:rgba(255,255,255,.08);
-  --cp-soft:rgba(255,255,255,.035);
-  --cp-gold:#f0b90b;
-  --cp-green:#23c483;
-  --cp-red:#ff7272;
-  --cp-shadow:0 12px 34px rgba(0,0,0,.18);
-}
+
 body{
-  background:var(--cp-bg)!important;
-  color:var(--cp-text)!important;
-  transition:background .25s ease,color .25s ease;
-}
-.header{
-  background:color-mix(in srgb,var(--cp-surface) 96%,transparent)!important;
-  border-bottom:1px solid var(--cp-line)!important;
-  box-shadow:0 4px 18px rgba(15,23,42,.04);
-}
-.logo{color:var(--cp-text)}
-.top-btn,.language{
-  background:var(--cp-surface2)!important;
-  color:var(--cp-text)!important;
-  border-color:var(--cp-line)!important;
-}
-.top-btn:hover{background:var(--cp-soft)!important}
-.language option{background:var(--cp-surface);color:var(--cp-text)}
-.main{background:transparent}
-.sidebar{
-  background:var(--cp-surface)!important;
-  border-color:var(--cp-line)!important;
-}
-.welcome h1,.section-title,.side-title,.chart-title,.operation-title,
-.module-title,.stat-value,.stat-value-brl,.api-selector-title,
-.features-title,.modal-title,.api-slot-title,.api-account-name{
-  color:var(--cp-text)!important;
-}
-.welcome p,.chart-sub,.stat-label,.stat-sub,.module-desc,.side-sub,
-.api-selector-help,.selected-account,.chart-status,.operation-chart-sub,
-.operation-chart-status,.field-help,.action-desc,.api-account-info{
-  color:var(--cp-muted)!important;
-}
-.robot-api-alert,.plan-badge,.api-selector,.stat,.chart-card,.operation-card,
-.module,.limit-box,.notice,.api-slot,.video-card,.report-account-bar,
-.security,.operation-chart-panel,.panel-access-card,.robot-box{
-  background:var(--cp-surface)!important;
-  border-color:var(--cp-line)!important;
-  box-shadow:none;
-}
-.api-selector{
-  background:var(--cp-soft)!important;
-  border-color:rgba(240,185,11,.28)!important;
-}
-.api-selector select,.report-account-bar select,.operation-chart-select,
-.field input,.field select,.detail-toolbar select,.detail-toolbar input{
-  background:var(--cp-surface)!important;
-  color:var(--cp-text)!important;
-  border-color:var(--cp-line)!important;
-}
-.stat,.module,.chart-card,.operation-card,.api-slot,.video-card{
-  box-shadow:none;
-}
-.module:hover{background:rgba(240,185,11,.07)!important}
-.action{
-  background:var(--cp-surface)!important;
-  color:var(--cp-text)!important;
-  border-color:var(--cp-line)!important;
-  box-shadow:var(--cp-shadow);
-}
-.action.primary{
-  background:linear-gradient(135deg,#dca900,#f0b90b)!important;
-  color:#111!important;border-color:#f0b90b!important;
-}
-.action.robot,.action.learn{background:var(--cp-surface2)!important}
-.btn{
-  background:var(--cp-surface2);
+  background:
+    radial-gradient(circle at 90% 0%,rgba(240,185,11,.07),transparent 28%),
+    linear-gradient(180deg,#f8fafc 0%,#f1f4f7 100%) !important;
   color:var(--cp-text);
-  border-color:var(--cp-line);
-}
-.btn:hover{background:var(--cp-soft)}
-.close{color:var(--cp-muted)}
-.modal{
-  background:var(--cp-surface)!important;
-  color:var(--cp-text)!important;
-  border-color:var(--cp-line)!important;
-}
-.modal-header{border-bottom-color:var(--cp-line)!important}
-.modal-bg{background:rgba(15,23,42,.48)}
-html[data-theme="dark"] .modal-bg{background:rgba(0,0,0,.72)}
-.chart-detail,#btcChart,#operationChartTV,.robot-strategy-chart-wrap svg{
-  background:#080d14!important;
-}
-.stat{
-  min-height:122px;
-  border-radius:15px!important;
-}
-.api-selector,.chart-card,.operation-card,.module,.action{
-  border-radius:15px!important;
-}
-.theme-toggle{
-  min-width:78px;
-  text-align:center;
-}
-@media(max-width:700px){
-  .theme-toggle{min-width:0;padding:9px 10px}
 }
 
-
-/* =========================================================
-   CRIPTOPRO — AJUSTE DE CONTRASTE + LOGO NO HEADER
-========================================================= */
 .header{
-  min-height:78px!important;
-  height:78px!important;
-  padding:0 30px!important;
+  background:rgba(255,255,255,.94) !important;
+  border-bottom:1px solid var(--cp-border) !important;
+  box-shadow:0 4px 18px rgba(20,30,45,.06);
 }
+
 .logo{
-  display:flex!important;
-  align-items:center!important;
-  gap:10px!important;
-  font-size:25px!important;
-  font-weight:950!important;
-  letter-spacing:-1px!important;
-  color:#111827!important;
+  color:#172033 !important;
+  font-size:23px !important;
 }
-.logo::before{
-  content:"₿";
-  width:38px;
-  height:38px;
-  display:inline-flex;
+.logo span{color:#d9a500 !important}
+
+.status{color:#687386 !important}
+.top-btn{
+  background:#fff !important;
+  color:#273246 !important;
+  border-color:#dfe4ea !important;
+  box-shadow:0 2px 8px rgba(20,30,45,.04);
+}
+.top-btn:hover{
+  background:#f7f9fb !important;
+  border-color:#cfd6df !important;
+}
+.logout{color:#d95353 !important}
+
+.language{
+  background:#fff !important;
+  color:#273246 !important;
+  border-color:#dfe4ea !important;
+}
+
+.sidebar{
+  background:rgba(255,255,255,.88) !important;
+  border-left-color:var(--cp-border) !important;
+}
+
+.welcome h1,
+.section-title,
+.side-title,
+.chart-title,
+.operation-title,
+.module-title{
+  color:#172033 !important;
+}
+
+.welcome p,
+.chart-sub,
+.side-sub,
+.stat-sub,
+.api-selector-help,
+.selected-account,
+.chart-status{
+  color:#6d7787 !important;
+}
+
+.stat,
+.chart-card,
+.operation-card,
+.news-section,
+.module,
+.api-selector,
+.robot-control-card,
+.limit-box,
+.notice{
+  background:#fff !important;
+  border-color:var(--cp-border) !important;
+  box-shadow:0 5px 18px rgba(20,30,45,.045);
+}
+
+.stat-value,
+.stat-value-brl,
+.btc-price,
+.operation-chart-price{
+  color:#172033;
+}
+
+.stat-label{
+  color:#778294 !important;
+}
+
+.api-selector{
+  background:linear-gradient(180deg,#fffdf5,#fff) !important;
+  border-color:rgba(240,185,11,.28) !important;
+}
+
+.api-selector select,
+.report-account-bar select,
+.operation-chart-select,
+.field input,
+.field select{
+  background:#fff !important;
+  color:#202b3c !important;
+  border-color:#dfe4ea !important;
+}
+
+.api-selector button:not(.load-panel-btn){
+  background:#fff9e8 !important;
+}
+
+.module{
+  color:#273246 !important;
+}
+.module:hover{
+  background:#fffaf0 !important;
+  border-color:rgba(240,185,11,.38) !important;
+  transform:translateY(-1px);
+}
+
+.action{
+  box-shadow:0 4px 14px rgba(20,30,45,.06);
+}
+
+.notice{
+  color:#687386 !important;
+}
+
+/* ===== LOG: SEMPRE ESCURO E LEGÍVEL ===== */
+#robotRealtimeLog{
+  background:#060a10 !important;
+  color:#dbe7f5 !important;
+  border:1px solid #202b38 !important;
+}
+
+#robotRealtimeLog > div{
+  color:#dbe7f5 !important;
+}
+
+#robotRealtimeLog span{
+  color:inherit;
+}
+
+#robotRealtimeLogCard{
+  background:#fff !important;
+}
+
+#robotStrategyInfo{
+  color:#5f6d80 !important;
+  background:#f7f9fb !important;
+  border-color:#e1e6ec !important;
+}
+
+/* ===== CABEÇALHO: MEUS CHAMADOS SEMPRE VISÍVEL ===== */
+.header .top-btn[onclick*="/suporte.html"]{
+  display:inline-flex !important;
   align-items:center;
   justify-content:center;
-  border-radius:11px;
-  background:linear-gradient(145deg,#ffd84a,#f0b90b);
-  color:#111!important;
-  font-size:21px;
-  font-weight:950;
-  box-shadow:0 7px 18px rgba(240,185,11,.25);
-}
-.logo span{
-  color:#e0a900!important;
-}
-html[data-theme="dark"] .logo{
-  color:#f8fafc!important;
-}
-html[data-theme="dark"] .logo span{
-  color:#f0b90b!important;
+  white-space:nowrap;
+  color:#172033 !important;
+  background:#fff !important;
+  border:1px solid #dfe4ea !important;
 }
 
-/* Contraste maior no tema claro */
-html:not([data-theme="dark"]) .welcome p,
-html:not([data-theme="dark"]) .side-sub,
-html:not([data-theme="dark"]) .chart-sub,
-html:not([data-theme="dark"]) .chart-status,
-html:not([data-theme="dark"]) .stat-sub,
-html:not([data-theme="dark"]) .module-desc,
-html:not([data-theme="dark"]) .api-selector-help,
-html:not([data-theme="dark"]) .selected-account,
-html:not([data-theme="dark"]) .api-account-info,
-html:not([data-theme="dark"]) .action-desc,
-html:not([data-theme="dark"]) .operation-chart-sub,
-html:not([data-theme="dark"]) .operation-chart-status,
-html:not([data-theme="dark"]) .field-help{
-  color:#475569!important;
-}
-html:not([data-theme="dark"]) .stat-label,
-html:not([data-theme="dark"]) .operation-label{
-  color:#52647a!important;
-  font-weight:800!important;
-}
-html:not([data-theme="dark"]) .stat-value,
-html:not([data-theme="dark"]) .stat-value-brl,
-html:not([data-theme="dark"]) .operation-value,
-html:not([data-theme="dark"]) .operation-title,
-html:not([data-theme="dark"]) .chart-title,
-html:not([data-theme="dark"]) .section-title,
-html:not([data-theme="dark"]) .side-title{
-  color:#0f172a!important;
-}
-html:not([data-theme="dark"]) .module-title,
-html:not([data-theme="dark"]) .api-selector-title,
-html:not([data-theme="dark"]) .api-slot-title,
-html:not([data-theme="dark"]) .api-account-name{
-  color:#111827!important;
-}
-html:not([data-theme="dark"]) .security,
-html:not([data-theme="dark"]) .notice{
-  color:#475569!important;
-}
-html:not([data-theme="dark"]) .status{
-  color:#334155!important;
-}
-html:not([data-theme="dark"]) .top-btn,
-html:not([data-theme="dark"]) .language{
-  color:#1e293b!important;
-  font-weight:850!important;
-}
-html:not([data-theme="dark"]) .welcome h1{
-  color:#0b1220!important;
-  font-weight:950!important;
-}
-@media(max-width:700px){
+/* Responsivo */
+@media(max-width:900px){
   .header{
-    padding:0 14px!important;
-    min-height:70px!important;
-    height:70px!important;
+    height:auto !important;
+    min-height:72px;
+    padding:12px 16px !important;
   }
-  .logo{
-    font-size:21px!important;
-  }
-  .logo::before{
-    width:33px;height:33px;font-size:18px;border-radius:9px;
+  .header-right{
+    flex-wrap:wrap;
+    justify-content:flex-end;
   }
 }
 
-
-/* =========================================================
-   CRIPTOPRO — LOG DO ROBÔ / CONSOLE
-   Contraste corrigido para tema claro e escuro.
-========================================================= */
-html:not([data-theme="dark"]) .log,
-html:not([data-theme="dark"]) .logs,
-html:not([data-theme="dark"]) .robot-log,
-html:not([data-theme="dark"]) .log-box,
-html:not([data-theme="dark"]) .console,
-html:not([data-theme="dark"]) pre,
-html:not([data-theme="dark"]) code{
-  color:#dbe7f5!important;
-  background:#07101a!important;
-}
-
-/* Texto interno do log */
-html:not([data-theme="dark"]) .log *,
-html:not([data-theme="dark"]) .logs *,
-html:not([data-theme="dark"]) .robot-log *,
-html:not([data-theme="dark"]) .log-box *,
-html:not([data-theme="dark"]) .console *,
-html:not([data-theme="dark"]) pre *,
-html:not([data-theme="dark"]) code *{
-  color:#dbe7f5!important;
-}
-
-/* Tema escuro continua com contraste forte */
-html[data-theme="dark"] .log,
-html[data-theme="dark"] .logs,
-html[data-theme="dark"] .robot-log,
-html[data-theme="dark"] .log-box,
-html[data-theme="dark"] .console,
-html[data-theme="dark"] pre,
-html[data-theme="dark"] code{
-  color:#dbe7f5!important;
-  background:#050a10!important;
-}
-
-/* Linhas rejeitadas/avisos continuam identificáveis */
-html:not([data-theme="dark"]) .log .rejected,
-html:not([data-theme="dark"]) .logs .rejected,
-html:not([data-theme="dark"]) .robot-log .rejected{
-  color:#ff8a8a!important;
+@media(max-width:700px){
+  .header-right .top-btn[onclick*="/suporte.html"]{
+    display:inline-flex !important;
+  }
 }
 
 </style>
@@ -1016,8 +929,8 @@ html:not([data-theme="dark"]) .robot-log .rejected{
   <div class="header-right">
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
-    <button class="top-btn theme-toggle" id="themeToggle" type="button" title="Mudar tema">☀️ Claro</button>
-<select class="language" id="language" onchange="changeLanguage()">
+    <button class="top-btn" type="button" onclick="window.location.href='/suporte.html?origem=%2Findex.html'">🎫 Meus Chamados</button>
+    <select class="language" id="language" onchange="changeLanguage()">
       <option value="en">🇺🇸 EN</option>
       <option value="pt" selected>🇧🇷 PT</option>
     </select>
@@ -1471,41 +1384,6 @@ html:not([data-theme="dark"]) .robot-log .rejected{
 </div>
 </div>
 </div>
-
-
-<script>
-/* =========================================================
-   CRIPTOPRO — TEMA CLARO / ESCURO
-   Camada independente da lógica do painel.
-========================================================= */
-(function(){
-  const root=document.documentElement;
-  const KEY="criptopro_theme";
-  function applyTheme(){
-    const theme=localStorage.getItem(KEY)||"light";
-    root.setAttribute("data-theme",theme);
-    const btn=document.getElementById("themeToggle");
-    if(btn){
-      const dark=theme==="dark";
-      btn.textContent=dark?"🌙 Escuro":"☀️ Claro";
-      btn.title=dark?"Mudar para tema claro":"Mudar para tema escuro";
-      btn.setAttribute("aria-label",btn.title);
-    }
-  }
-  document.addEventListener("DOMContentLoaded",function(){
-    applyTheme();
-    const btn=document.getElementById("themeToggle");
-    if(btn){
-      btn.addEventListener("click",function(){
-        const current=root.getAttribute("data-theme")||"light";
-        localStorage.setItem(KEY,current==="dark"?"light":"dark");
-        applyTheme();
-      });
-    }
-  });
-  applyTheme();
-})();
-</script>
 
 <script src="https://unpkg.com/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>

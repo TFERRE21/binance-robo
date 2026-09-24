@@ -77,7 +77,7 @@ h1 span{color:var(--gold)}
 /* MARKET */
 .market-strip{border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--surface)}
 .market-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px 0}
-.market-card{border:1px solid var(--line);border-radius:12px;padding:11px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface)}
+.market-card{border:1px solid var(--line);border-radius:12px;padding:11px 12px;display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:8px;background:var(--surface);text-align:center}.market-card .coin{justify-content:center}.market-card .market-price{text-align:center}
 .coin{display:flex;align-items:center;gap:8px}.coin-icon{width:29px;height:29px;border-radius:50%;display:grid;place-items:center;background:var(--surface2);font-size:13px;font-weight:900}
 .coin b{font-size:10px}.coin small{display:block;color:var(--muted);font-size:8px;margin-top:2px}
 .market-price{text-align:right}.market-price b{display:block;font-size:10px}.market-price span{font-size:9px;font-weight:900;color:var(--green)}.market-price span.down{color:var(--red)}
@@ -187,8 +187,8 @@ h1 span{color:var(--gold)}
   <div class="market-card"><div class="coin"><div class="coin-icon">₿</div><div><b>Bitcoin</b><small>BTC/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
   <div class="market-card"><div class="coin"><div class="coin-icon">Ξ</div><div><b>Ethereum</b><small>ETH/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
   <div class="market-card"><div class="coin"><div class="coin-icon">BNB</div><div><b>BNB</b><small>BNB/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
-  <div class="market-card"><div class="coin"><div class="coin-icon">S</div><div><b>Solana</b><small>SOL/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
   <div class="market-card"><div class="coin"><div class="coin-icon">X</div><div><b>XRP</b><small>XRP/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
+  <div class="market-card"><div class="coin"><div class="coin-icon">S</div><div><b>Solana</b><small>SOL/USDT</small></div></div><div class="market-price"><b>Carregando</b><span>...</span></div></div>
 </div>
 </section>
 
@@ -313,23 +313,65 @@ if(forgotPassword)forgotPassword.addEventListener("click",function(e){
   };
 });
 
-/* Mercado público: somente dados de mercado, nenhuma chave privada */
-(async function loadMarket(){
-  const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-  const names={BTCUSDT:"Bitcoin",ETHUSDT:"Ethereum",BNBUSDT:"BNB",SOLUSDT:"Solana",XRPUSDT:"XRP"};
-  const icons={BTCUSDT:"₿",ETHUSDT:"Ξ",BNBUSDT:"BNB",SOLUSDT:"S",XRPUSDT:"X"};
-  try{
-    const res=await fetch("https://api.binance.com/api/v3/ticker/24hr?symbols="+encodeURIComponent(JSON.stringify(symbols)),{cache:"no-store"});
-    if(!res.ok)throw new Error("market");
-    const data=await res.json(),row=document.getElementById("marketRow");
-    row.innerHTML=data.map(x=>{
-      const price=Number(x.lastPrice),change=Number(x.priceChangePercent),down=change<0;
-      const priceText=price>=1000?price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4});
-      return `<div class="market-card"><div class="coin"><div class="coin-icon">${icons[x.symbol]}</div><div><b>${names[x.symbol]}</b><small>${x.symbol.slice(0,-4)}/USDT</small></div></div><div class="market-price"><b>${priceText}</b><span class="${down?"down":""}">${down?"":"+"}${change.toFixed(2)}%</span></div></div>`;
+/* MERCADO REAL — dados públicos da Binance, atualizados automaticamente.
+   Os valores mostrados no print são um retrato do mercado naquele momento.
+   O site NÃO grava esses números: consulta a cotação pública atual. */
+(function loadMarket(){
+  const symbols=["BTCUSDT","ETHUSDT","BNBUSDT","XRPUSDT","SOLUSDT"];
+  const names={BTCUSDT:"Bitcoin",ETHUSDT:"Ethereum",BNBUSDT:"BNB",XRPUSDT:"XRP",SOLUSDT:"Solana"};
+  const icons={BTCUSDT:"₿",ETHUSDT:"Ξ",BNBUSDT:"BNB",XRPUSDT:"X",SOLUSDT:"S"};
+
+  function render(data){
+    const row=document.getElementById("marketRow");
+    if(!row)return;
+
+    const ordered=symbols.map(s=>data.find(x=>x.symbol===s)).filter(Boolean);
+
+    row.innerHTML=ordered.map(x=>{
+      const price=Number(x.lastPrice);
+      const change=Number(x.priceChangePercent);
+      const down=change<0;
+
+      let priceText;
+      if(price>=1000){
+        priceText=price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+      }else if(price>=10){
+        priceText=price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2});
+      }else{
+        priceText=price.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4});
+      }
+
+      return `
+        <div class="market-card">
+          <div class="coin">
+            <div class="coin-icon">${icons[x.symbol]}</div>
+            <div>
+              <b>${names[x.symbol]}</b>
+              <small>${x.symbol.replace("USDT","")}/USDT</small>
+            </div>
+          </div>
+          <div class="market-price">
+            <b>${priceText}</b>
+            <span class="${down?"down":""}">${down?"":"+"}${change.toFixed(2)}%</span>
+          </div>
+        </div>`;
     }).join("");
-  }catch(e){
-    console.warn("Não foi possível carregar mercado em tempo real.",e);
   }
+
+  async function update(){
+    try{
+      const url="https://api.binance.com/api/v3/ticker/24hr?symbols="+encodeURIComponent(JSON.stringify(symbols));
+      const response=await fetch(url,{cache:"no-store"});
+      if(!response.ok)throw new Error("HTTP "+response.status);
+      const data=await response.json();
+      render(data);
+    }catch(error){
+      console.warn("Mercado em tempo real indisponível:",error);
+    }
+  }
+
+  update();
+  setInterval(update,30000);
 })();
 </script>
 </body>

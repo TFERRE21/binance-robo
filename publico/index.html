@@ -961,6 +961,52 @@ html:not([data-theme="dark"]) .welcome h1{
   }
 }
 
+
+/* =========================================================
+   CRIPTOPRO — LOG DO ROBÔ / CONSOLE
+   Contraste corrigido para tema claro e escuro.
+========================================================= */
+html:not([data-theme="dark"]) .log,
+html:not([data-theme="dark"]) .logs,
+html:not([data-theme="dark"]) .robot-log,
+html:not([data-theme="dark"]) .log-box,
+html:not([data-theme="dark"]) .console,
+html:not([data-theme="dark"]) pre,
+html:not([data-theme="dark"]) code{
+  color:#dbe7f5!important;
+  background:#07101a!important;
+}
+
+/* Texto interno do log */
+html:not([data-theme="dark"]) .log *,
+html:not([data-theme="dark"]) .logs *,
+html:not([data-theme="dark"]) .robot-log *,
+html:not([data-theme="dark"]) .log-box *,
+html:not([data-theme="dark"]) .console *,
+html:not([data-theme="dark"]) pre *,
+html:not([data-theme="dark"]) code *{
+  color:#dbe7f5!important;
+}
+
+/* Tema escuro continua com contraste forte */
+html[data-theme="dark"] .log,
+html[data-theme="dark"] .logs,
+html[data-theme="dark"] .robot-log,
+html[data-theme="dark"] .log-box,
+html[data-theme="dark"] .console,
+html[data-theme="dark"] pre,
+html[data-theme="dark"] code{
+  color:#dbe7f5!important;
+  background:#050a10!important;
+}
+
+/* Linhas rejeitadas/avisos continuam identificáveis */
+html:not([data-theme="dark"]) .log .rejected,
+html:not([data-theme="dark"]) .logs .rejected,
+html:not([data-theme="dark"]) .robot-log .rejected{
+  color:#ff8a8a!important;
+}
+
 </style>
 </head>
 

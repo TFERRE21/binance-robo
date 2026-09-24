@@ -503,17 +503,15 @@ router.patch("/support/tickets/:id/status", authMiddleware, async (req, res) => 
   }
 
   try {
+    // Atualiza primeiro o status do chamado.
+    // O fechamento da data é tratado separadamente para não impedir
+    // a mudança de status caso closed_at não esteja disponível.
     const result = await db.query(
       `
       UPDATE support_tickets
       SET
         status = $1,
-        updated_at = CURRENT_TIMESTAMP,
-        closed_at = CASE
-          WHEN $1 = 'FECHADO'
-            THEN CURRENT_TIMESTAMP
-          ELSE NULL
-        END
+        updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
       RETURNING
         id,
@@ -523,8 +521,7 @@ router.patch("/support/tickets/:id/status", authMiddleware, async (req, res) => 
         priority,
         status,
         created_at,
-        updated_at,
-        closed_at
+        updated_at
       `,
       [
         status,
@@ -539,9 +536,54 @@ router.patch("/support/tickets/:id/status", authMiddleware, async (req, res) => 
       });
     }
 
+    let chamado = result.rows[0];
+
+    // Registra closed_at separadamente.
+    try {
+      if (status === "FECHADO") {
+        const fechado = await db.query(
+          `
+          UPDATE support_tickets
+          SET closed_at = CURRENT_TIMESTAMP
+          WHERE id = $1
+          RETURNING closed_at
+          `,
+          [ticketId]
+        );
+
+        if (fechado.rows.length) {
+          chamado = {
+            ...chamado,
+            closed_at: fechado.rows[0].closed_at
+          };
+        }
+      } else {
+        await db.query(
+          `
+          UPDATE support_tickets
+          SET closed_at = NULL
+          WHERE id = $1
+          `,
+          [ticketId]
+        );
+
+        chamado = {
+          ...chamado,
+          closed_at: null
+        };
+      }
+    } catch (closedAtError) {
+      // O status já foi atualizado. Um eventual problema em closed_at
+      // não deve impedir o fechamento/alteração do chamado.
+      console.warn(
+        "ADMIN SUPORTE — closed_at indisponível:",
+        closedAtError.message
+      );
+    }
+
     return res.json({
       ok: true,
-      chamado: result.rows[0]
+      chamado
     });
 
   } catch (error) {

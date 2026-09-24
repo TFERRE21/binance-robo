@@ -123,25 +123,16 @@ h1 span{color:var(--gold)}
 
 @media(max-width:1000px){.nav{display:none}.hero-grid{grid-template-columns:1fr}.market-row{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:650px){.online,.header-login{display:none}.hero{padding-top:40px}h1{font-size:48px;letter-spacing:-2.7px}.hero-text{font-size:14px}.market-row{grid-template-columns:1fr 1fr}.cards,.testimonials{grid-template-columns:1fr}.security-panel{grid-template-columns:1fr}.stats-grid{grid-template-columns:1fr 1fr;gap:20px}.stat:nth-child(2){border:0}.cta{display:flex;padding:26px}.cta .btn-primary{display:inline-flex;margin-top:5px}.security-mini{grid-template-columns:1fr}}
-</style>
-<!-- Meta Pixel Code -->
-<script>
-!function(f,b,e,v,n,t,s)
-{if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-n.queue=[];t=b.createElement(e);t.async=!0;
-t.src=v;s=b.getElementsByTagName(e)[0];
-s.parentNode.insertBefore(t,s)}(window, document,'script',
-'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '1869366867779995');
-fbq('track', 'PageView');
-</script>
-<noscript><img height="1" width="1" style="display:none"
-src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
-/></noscript>
-<!-- End Meta Pixel Code -->
 
+.free-trial-banner{display:flex;align-items:center;gap:14px;max-width:590px;margin:24px 0 18px;padding:15px 17px;border:1px solid rgba(240,185,11,.55);border-radius:14px;background:linear-gradient(135deg,rgba(240,185,11,.12),rgba(255,255,255,.7));box-shadow:0 12px 35px rgba(240,185,11,.10),inset 0 1px 0 rgba(255,255,255,.8)}
+.free-trial-icon{width:42px;height:42px;flex:0 0 42px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:linear-gradient(145deg,#ffd83e,#efa900);font-size:21px;box-shadow:0 8px 20px rgba(240,185,11,.22)}
+.free-trial-content{display:flex;flex-direction:column;gap:3px}.free-trial-content strong{font-size:11px;letter-spacing:.35px;color:#121b2d}.free-trial-content span{font-size:12px;line-height:1.45;color:#46566b}.free-trial-content span b{color:#d99500}.free-trial-content small{font-size:8px;color:#718096;font-weight:700}
+
+
+.trial-security-note{margin-top:12px;color:#607087;font-size:9px;line-height:1.5}.trial-security-note b{color:#16a66b}
+@media(max-width:650px){.free-trial-banner{align-items:flex-start}.free-trial-content strong{font-size:10px}.free-trial-content span{font-size:11px}}
+
+</style>
 </head>
 
 <body>
@@ -170,12 +161,21 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
   <div class="eyebrow"><i></i> AUTOMAÇÃO • SEGURANÇA • CONTROLE</div>
   <h1>Mais controle<br><span>para seu futuro.</span></h1>
   <p class="hero-text">O CriptoPro centraliza sua automação de operações na Binance em um único painel. Acompanhe suas contas, configure seus robôs e visualize o que está acontecendo sem precisar operar manualmente o tempo todo.</p>
-  <div class="hero-actions"><a class="btn-primary" href="#login-card">Acessar minha conta →</a><a class="btn-secondary" href="#recursos">Conhecer o sistema</a></div>
+  <div class="free-trial-banner" role="note">
+    <div class="free-trial-icon">🎁</div>
+    <div class="free-trial-content">
+      <strong>CADASTRE-SE E TESTE O PREMIUM GRÁTIS</strong>
+      <span>Crie sua conta e ganhe <b>3 dias de acesso Premium</b> para conhecer a CriptoPro.</span>
+      <small>Sem cobrança pelo período de teste • Acesso Premium • 3 dias</small>
+    </div>
+  </div>
+  <div class="hero-actions"><a class="btn-primary" href="/cadastro.html">Criar minha conta →</a><a class="btn-secondary" href="#recursos">Conhecer o sistema</a></div>
   <div class="trust-row">
     <span><b class="check">✓</b> Integração Binance via API</span>
     <span><b class="check">✓</b> Monitoramento contínuo</span>
     <span><b class="check">✓</b> Controle das operações</span>
   </div>
+  <div class="trial-security-note"><b>🔐 Teste com segurança:</b> crie sua conta gratuitamente e conheça os recursos Premium por 3 dias.</div>
 </div>
 
 <aside class="login-card" id="login-card">

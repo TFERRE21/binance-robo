@@ -2374,6 +2374,133 @@ router.post(
 );
 
 // ============================================================
+// TESTE PREMIUM GRATUITO - 3 DIAS
+// ============================================================
+router.post("/trial", authMiddleware, async (req, res) => {
+  try {
+    const userId = Number(req.user?.id || req.user?.userId);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Usuário não identificado."
+      });
+    }
+
+    // Verifica se o usuário já utilizou o teste anteriormente
+    const trialAnterior = await db.query(
+      `
+      SELECT id, status, started_at, expires_at
+      FROM subscriptions
+      WHERE user_id = $1
+        AND payment_provider = 'TRIAL'
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (trialAnterior.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "O teste gratuito de 3 dias já foi utilizado nesta conta."
+      });
+    }
+
+    // Não permite iniciar teste enquanto já existir assinatura ativa
+    const assinaturaAtiva = await db.query(
+      `
+      SELECT id, plan, status, expires_at
+      FROM subscriptions
+      WHERE user_id = $1
+        AND status = 'ACTIVE'
+        AND (expires_at IS NULL OR expires_at > NOW())
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+      [userId]
+    );
+
+    if (assinaturaAtiva.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        message: "Você já possui uma assinatura ativa."
+      });
+    }
+
+    // Cria o Premium gratuito por 3 dias
+    const resultado = await db.query(
+      `
+      INSERT INTO subscriptions (
+        user_id,
+        plan,
+        status,
+        amount,
+        payment_provider,
+        payment_method,
+        created_at,
+        updated_at,
+        started_at,
+        expires_at
+      )
+      VALUES (
+        $1,
+        'premium',
+        'ACTIVE',
+        0,
+        'TRIAL',
+        'TRIAL',
+        NOW(),
+        NOW(),
+        NOW(),
+        NOW() + INTERVAL '3 days'
+      )
+      RETURNING
+        id,
+        plan,
+        status,
+        amount,
+        payment_provider,
+        payment_method,
+        started_at,
+        expires_at
+      `,
+      [userId]
+    );
+
+    const assinatura = resultado.rows[0];
+
+    return res.json({
+      success: true,
+      message: "Teste Premium ativado por 3 dias.",
+      trial: true,
+      subscription: {
+        id: assinatura.id,
+        plan: "premium",
+        planName: PLANOS.premium.nome,
+        status: "ACTIVE",
+        amount: 0,
+        paymentProvider: "TRIAL",
+        paymentMethod: "TRIAL",
+        operacoesSimultaneas: PLANOS.premium.operacoesSimultaneas,
+        contasBinance: PLANOS.premium.contasBinance,
+        robos: PLANOS.premium.robos,
+        started_at: assinatura.started_at,
+        expires_at: assinatura.expires_at
+      }
+    });
+
+  } catch (error) {
+    console.error("ERRO AO ATIVAR TESTE PREMIUM:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Não foi possível ativar o teste gratuito."
+    });
+  }
+});
+
+// ============================================================
 // STATUS DA ASSINATURA
 // ============================================================
 

@@ -388,19 +388,53 @@ async function saveConfig(userId,accountId,c,robotId=1){
 }
 
 async function top20(client,exchangeInfo,maxCoins){
-  const response=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false',{headers:{'User-Agent':'CriptoPro/1.0'}});
+  // Universo de busca:
+  // somente moedas listadas na Binance há pelo menos 3 meses.
+  // Moedas novas ficam fora de TODOS os robôs até completar essa idade.
+  const response=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false',{headers:{'User-Agent':'CriptoPro/1.0'}});
   if(!response.ok) throw new Error(`CoinGecko HTTP ${response.status}`);
-  const coins=await response.json(); const out=[];
-  console.log(`[ROBO] SCANNER V7.1 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas.`);
+
+  const coins=await response.json();
+  const out=[];
+  const cutoff=new Date();
+  cutoff.setMonth(cutoff.getMonth()-3);
+  const cutoffMs=cutoff.getTime();
+
+  console.log(`[ROBO] SCANNER V7.2 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas | idade mínima Binance=3 meses | máximo solicitado=${maxCoins}.`);
+
   for(const coin of coins){
     if(out.length>=maxCoins)break;
+
     const base=String(coin.symbol||'').toUpperCase();
     if(!base||isStable(base)||isLeveraged(base)||BLOCKED.has(base))continue;
-    const pair=exchangeInfo.symbols.find(s=>s.status==='TRADING'&&s.quoteAsset==='USDT'&&String(s.baseAsset).toUpperCase()===base);
+
+    const pair=exchangeInfo.symbols.find(
+      s =>
+        s.status==='TRADING' &&
+        s.quoteAsset==='USDT' &&
+        String(s.baseAsset).toUpperCase()===base
+    );
+
     if(!pair)continue;
-    if(pair.onboardDate && Date.now()-Number(pair.onboardDate)<365*86400000)continue;
-    out.push({symbol:pair.symbol,baseAsset:base,rank:num(coin.market_cap_rank),name:coin.name});
+
+    // Segurança: se a Binance não informar a data de listagem,
+    // não consideramos o ativo elegível para compra.
+    const onboardMs=Number(pair.onboardDate||0);
+    if(!Number.isFinite(onboardMs)||onboardMs<=0)continue;
+
+    // Somente ativos que já estão na Binance há mais de 3 meses.
+    if(onboardMs>=cutoffMs)continue;
+
+    out.push({
+      symbol:pair.symbol,
+      baseAsset:base,
+      rank:num(coin.market_cap_rank),
+      name:coin.name,
+      onboardDate:onboardMs
+    });
   }
+
+  console.log(`[ROBO] SCANNER V7.2 | ${out.length} moedas elegíveis após filtro de idade.`);
   return out;
 }
 

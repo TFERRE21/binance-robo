@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CRIPTOPRO | Copy Trading</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-width:1100px;margin:auto;padding:20px}.card{background:#0d1626;border:1px solid #21304a;border-radius:14px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.trader{border:1px solid #263650;border-radius:12px;padding:16px;background:#101a2b}.trader button,.primary{background:#1677ff;color:white;border:0;border-radius:8px;padding:11px 16px;cursor:pointer}.muted{color:#8290a8}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}input,select{width:100%;box-sizing:border-box;background:#08101e;color:#fff;border:1px solid #263650;border-radius:8px;padding:12px;margin-top:6px}.field{margin-bottom:12px}.switch{display:flex;gap:10px;align-items:center;margin:10px 0}.switch input{width:auto}.danger{background:#8d2335!important}.ok{color:#20df96}.err{color:#ff6177}
+</style>
+</head>
+<body><div class="wrap">
+<div class="card"><div class="row"><button onclick="history.back()">← Voltar</button><h1>📋 Copy Trading</h1></div><p class="muted">Copie estratégias autorizadas por outros usuários do CRIPTOPRO usando sua conta Binance.</p><div id="access">Validando plano...</div></div>
+<div id="app" style="display:none">
+<div class="card"><h2>Escolha quem copiar</h2><div id="traders" class="grid">Carregando...</div></div>
+<div class="card"><h2>Configuração da cópia</h2>
+<div class="field"><label>Conta Binance</label><select id="account"></select></div>
+<div class="field"><label>Capital destinado (USDT)</label><input id="capital" type="number" min="1" step="0.01" placeholder="Ex.: 100"></div>
+<div class="switch"><input id="entry" type="checkbox" checked><label for="entry">Copiar <b>ENTRADAS</b></label></div>
+<div class="switch"><input id="stop" type="checkbox"><label for="stop">Copiar <b>STOP LOSS</b></label></div>
+<div class="row"><button class="primary" onclick="startCopy()">ATIVAR CÓPIA</button><button class="primary danger" onclick="stopCopy()">PARAR CÓPIA</button></div>
+<div id="msg" class="muted" style="margin-top:12px"></div></div>
+<div class="card"><h2>Minha estratégia para outros copiarem</h2><p class="muted">Você pode autorizar uma conta sua a aparecer como trader no CRIPTOPRO.</p>
+<div class="field"><label>Conta</label><select id="pubAccount"></select></div>
+<div class="field"><label>Nome da estratégia</label><input id="pubName" placeholder="Ex.: Estratégia Premium"></div>
+<div class="field"><label>Descrição</label><input id="pubDesc" placeholder="Ex.: Entradas seletivas e gestão de risco"></div>
+<button class="primary" onclick="publish()">PUBLICAR ESTRATÉGIA</button></div>
+<div class="card"><h2>Últimas operações copiadas</h2><div id="events" class="muted">Selecione uma conta.</div></div>
+</div></div>
+<script>
+const token=localStorage.getItem('token');let selectedTrader=null;
+if(!token)location.href='/login.html';
+const h={'Authorization':'Bearer '+token,'Content-Type':'application/json'};
+async function api(url,opt={}){const r=await fetch(url,{...opt,headers:{...h,...(opt.headers||{})}});const d=await r.json();if(!r.ok)throw Error(d.message||d.error||'Erro');return d}
+async function init(){try{const a=await api('/api/copy-trading/access');if(!a.allowed){document.getElementById('access').innerHTML='<span class="err">🔒 Recurso liberado somente para os planos Profissional e Premium.</span>';return}document.getElementById('access').innerHTML='<span class="ok">✓ Plano '+a.plan+' com acesso ao Copy Trading.</span>';document.getElementById('app').style.display='block';const ac=await api('/api/binance/accounts');const sels=[document.getElementById('account'),document.getElementById('pubAccount')];sels.forEach(s=>s.innerHTML='');(ac.accounts||[]).forEach(x=>sels.forEach(s=>s.add(new Option(x.name+' (#'+x.id+')',x.id))));const t=await api('/api/copy-trading/traders');document.getElementById('traders').innerHTML=t.traders.length?t.traders.map(x=>'<div class="trader"><h3>'+esc(x.name)+'</h3><p class="muted">'+esc(x.description)+'</p><p>Trader: '+esc(x.owner)+'</p><button onclick="choose('+x.id+',this)">COPIAR ESTE TRADER</button></div>').join(''):'<div class="muted">Ainda não há traders publicados. Publique uma estratégia abaixo para começar.</div>';}catch(e){document.getElementById('access').innerHTML='<span class="err">'+esc(e.message)+'</span>'}}
+function choose(id,b){selectedTrader=id;document.querySelectorAll('.trader').forEach(x=>x.style.borderColor='#263650');b.parentElement.style.borderColor='#1677ff';document.getElementById('msg').textContent='Trader selecionado. Agora informe o capital e as opções de entrada/stop.'}
+async function startCopy(){try{if(!selectedTrader)throw Error('Escolha um trader primeiro.');const d=await api('/api/copy-trading/start',{method:'POST',body:JSON.stringify({accountId:Number(document.getElementById('account').value),traderId:selectedTrader,capitalUSDT:Number(document.getElementById('capital').value),copyEntry:document.getElementById('entry').checked,copyStop:document.getElementById('stop').checked})});document.getElementById('msg').innerHTML='<span class="ok">'+esc(d.message)+'</span>';loadEvents()}catch(e){document.getElementById('msg').innerHTML='<span class="err">'+esc(e.message)+'</span>'}}
+async function stopCopy(){try{const d=await api('/api/copy-trading/stop',{method:'POST',body:JSON.stringify({accountId:Number(document.getElementById('account').value)})});document.getElementById('msg').textContent=d.message;loadEvents()}catch(e){document.getElementById('msg').textContent=e.message}}
+async function publish(){try{const d=await api('/api/copy-trading/publish',{method:'POST',body:JSON.stringify({accountId:Number(document.getElementById('pubAccount').value),name:document.getElementById('pubName').value,description:document.getElementById('pubDesc').value})});document.getElementById('msg').innerHTML='<span class="ok">Estratégia publicada.</span>';init()}catch(e){document.getElementById('msg').innerHTML='<span class="err">'+esc(e.message)+'</span>'}}
+async function loadEvents(){try{const d=await api('/api/copy-trading/events?accountId='+Number(document.getElementById('account').value));document.getElementById('events').innerHTML=d.events.length?d.events.map(x=>'<div style="padding:9px 0;border-bottom:1px solid #21304a">'+x.created_at+' — '+x.trader_name+' — <b>'+x.side+'</b> '+x.symbol+' — '+x.status+'</div>').join(''):'Nenhuma operação copiada ainda.'}catch(e){}}
+document.getElementById('account').addEventListener('change',loadEvents);
+function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+init();
+</script></body></html>

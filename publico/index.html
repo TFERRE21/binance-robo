@@ -870,7 +870,46 @@ body.cp-light .cp-theme-toggle{font-weight:900 !important}
 <style>
 html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !important}
 </style>
-</head>
+<style id="copy-robot-level-theme">
+/* CRIPTOPRO — Copy Trading + níveis visuais dos robôs */
+.action.copy-trading-action{
+  position:relative;
+  overflow:hidden;
+  background:linear-gradient(135deg,#8f6500 0%,#c99a18 48%,#f0c34a 100%);
+  color:#130f05;
+  border:1px solid rgba(255,215,92,.95);
+  box-shadow:0 0 22px rgba(240,185,11,.18),inset 0 1px rgba(255,255,255,.22);
+}
+.action.copy-trading-action:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(240,185,11,.30)}
+.copy-new-badge{
+  position:absolute;top:10px;right:10px;
+  padding:4px 7px;border-radius:20px;
+  background:#fff;color:#8a6100;font-size:8px;font-weight:1000;
+  letter-spacing:.5px;box-shadow:0 2px 8px rgba(0,0,0,.22)
+}
+.copy-trading-action .action-desc{color:#2a210e;opacity:.82}
+.copy-trading-action .action-title{color:#111}
+.robot-slot-card.level-1{border-color:rgba(113,156,255,.42);background:linear-gradient(135deg,rgba(65,105,180,.12),rgba(255,255,255,.025))}
+.robot-slot-card.level-2{border-color:rgba(61,205,151,.48);background:linear-gradient(135deg,rgba(35,150,110,.12),rgba(255,255,255,.025))}
+.robot-slot-card.level-3{border-color:rgba(240,185,11,.58);background:linear-gradient(135deg,rgba(240,185,11,.13),rgba(255,255,255,.025))}
+.robot-slot-card.level-4{border-color:rgba(177,105,255,.58);background:linear-gradient(135deg,rgba(130,70,190,.13),rgba(255,255,255,.025))}
+.robot-slot-card.level-5{border-color:rgba(255,112,112,.62);background:linear-gradient(135deg,rgba(190,55,55,.13),rgba(255,255,255,.025))}
+.robot-slot-card.level-1 .robot-slot-title{color:#8bb5ff}
+.robot-slot-card.level-2 .robot-slot-title{color:#55e0ae}
+.robot-slot-card.level-3 .robot-slot-title{color:#ffd45e}
+.robot-slot-card.level-4 .robot-slot-title{color:#c895ff}
+.robot-slot-card.level-5 .robot-slot-title{color:#ff8e8e}
+.robot-slot-card.level-1 .robot-slot-status.stopped{color:#8bb5ff;background:rgba(113,156,255,.10)}
+.robot-slot-card.level-2 .robot-slot-status.stopped{color:#55e0ae;background:rgba(61,205,151,.10)}
+.robot-slot-card.level-3 .robot-slot-status.stopped{color:#ffd45e;background:rgba(240,185,11,.10)}
+.robot-slot-card.level-4 .robot-slot-status.stopped{color:#c895ff;background:rgba(177,105,255,.10)}
+.robot-slot-card.level-5 .robot-slot-status.stopped{color:#ff8e8e;background:rgba(255,112,112,.10)}
+.robot-strategy-tab[data-strategy="basico"]{border-color:rgba(113,156,255,.38)}
+.robot-strategy-tab[data-strategy="medio"]{border-color:rgba(61,205,151,.38)}
+.robot-strategy-tab[data-strategy="premium"]{border-color:rgba(240,185,11,.48)}
+.robot-strategy-tab[data-strategy="avancado"]{border-color:rgba(177,105,255,.48)}
+.robot-strategy-tab[data-strategy="elite"]{border-color:rgba(255,112,112,.48)}
+</style></head>
 
 <body>
 <header class="header">
@@ -1068,6 +1107,13 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div class="action-icon">🎓</div>
     <div class="action-title" id="learnActionTitle">Aprenda a cadastrar API</div>
     <div class="action-desc" id="learnActionDesc">Vídeo em português, vídeo em inglês e passo a passo.</div>
+  </button>
+
+  <button id="copyTradingAction" class="action copy-trading-action" onclick="window.location.href='/copy-trading.html'">
+    <span class="copy-new-badge">NOVO</span>
+    <div class="action-icon">📋</div>
+    <div class="action-title">Copy Trading</div>
+    <div class="action-desc">Copie estratégias autorizadas. Exclusivo para planos Profissional e Premium.</div>
   </button>
 
   <button class="action robot" onclick="openRobot()">
@@ -2770,7 +2816,7 @@ function robotSlotCard(item){
     ? `${strategy} · ${c.interval} · ${Number(c.max_operations||1)} operação(ões) · ${Number(c.max_coins||0)} moedas`
     : "Configure este robô para começar.";
   const selected=id===activeRobotId;
-  return `<div class="robot-slot-card ${locked?"locked":""} ${selected?"robot-selected":""}" data-robot-slot="${id}" onclick="if(!event.target.closest('button'))selectRobotLive(${id})">
+  return `<div class="robot-slot-card level-${id} ${locked?"locked":""} ${selected?"robot-selected":""}" data-robot-slot="${id}" onclick="if(!event.target.closest('button'))selectRobotLive(${id})">
     <div class="robot-slot-head">
       <div><div class="robot-slot-title">🤖 Robô ${id} · ${ROBOT_NAMES[id]||"Automação"}</div><div class="robot-slot-sub">${locked?"Bloqueado pelo seu plano":meta}</div></div>
       <span class="robot-slot-status ${locked?"locked":running?"running":"stopped"}">${locked?"🔒 BLOQUEADO":running?"● RODANDO":"PARADO"}</span>

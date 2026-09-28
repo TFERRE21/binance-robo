@@ -595,6 +595,7 @@ app.use("/api/admin", adminRoutes);
 // =========================================================
 app.use("/api/panel/report", reportRoutes);
 app.use("/api/news", newsRoutes);
+app.use("/api/copy-trading", copyTradingRoutes);
 
 // =========================================================
 // TERMO DE RESPONSABILIDADE DO ROBÔ

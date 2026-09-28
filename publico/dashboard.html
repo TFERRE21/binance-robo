@@ -590,6 +590,18 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
     })();
   </script>
 
+<script>
+(async function(){
+  try{
+    const token=localStorage.getItem("token");
+    const card=document.getElementById("copyTradingCard");
+    if(!token||!card)return;
+    const r=await fetch("/api/copy-trading/access",{headers:{"Authorization":"Bearer "+token},cache:"no-store"});
+    const d=await r.json();
+    if(!d.allowed) card.style.display="none";
+  }catch(e){}
+})();
+</script>
 </body>
 
 </html>

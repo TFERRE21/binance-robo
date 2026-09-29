@@ -10,7 +10,6 @@ const newsRoutes = require("./routes/news");
 const robotRoutes = require("./routes/robot");
 const robotRiskRoutes = require("./routes/robotRisk");
 const adminRoutes = require("./routes/admin");
-const copyTradingRoutes = require("./routes/copyTrading");
 const robotEngine = require("./services/robotEngine");
 
 const authMiddleware = require("./middleware/auth");
@@ -596,7 +595,6 @@ app.use("/api/admin", adminRoutes);
 // =========================================================
 app.use("/api/panel/report", reportRoutes);
 app.use("/api/news", newsRoutes);
-app.use("/api/copy-trading", copyTradingRoutes);
 
 // =========================================================
 // TERMO DE RESPONSABILIDADE DO ROBÔ

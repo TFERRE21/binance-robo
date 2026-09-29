@@ -43,6 +43,7 @@ async function schema() {
       strategy_key VARCHAR(100) NOT NULL DEFAULT 'CRIPTOPRO',
       capital_usdt NUMERIC(30,8) NOT NULL,
       allocation_pct NUMERIC(8,4) NOT NULL DEFAULT 100,
+      max_concurrent_operations INTEGER NOT NULL DEFAULT 3,
       active BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -77,6 +78,7 @@ async function schema() {
     ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS exit_price NUMERIC(30,12) DEFAULT 0;
     ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS pnl_usdt NUMERIC(30,12) DEFAULT 0;
     ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS pnl_pct NUMERIC(12,6) DEFAULT 0;
+    ALTER TABLE tv_copy_configs ADD COLUMN IF NOT EXISTS max_concurrent_operations INTEGER NOT NULL DEFAULT 3;
   `);
   ready = true;
 }
@@ -156,6 +158,14 @@ async function executeSignal(cfg, signal) {
   const r = await rules(c, symbol);
 
   if (side === 'BUY') {
+    const maxOps = Math.max(1, Math.min(50, Number(cfg.max_concurrent_operations) || 3));
+    const activePos = await db.query(
+      'SELECT COUNT(*)::int AS count FROM tv_copy_positions WHERE copy_config_id=$1 AND quantity>0',
+      [cfg.id]
+    );
+    if (Number(activePos.rows[0]?.count || 0) >= maxOps) {
+      throw Error('Limite de operações simultâneas atingido (' + maxOps + '). O sinal foi recebido, mas não abriu nova posição.');
+    }
     const amount = n(cfg.capital_usdt) * Math.min(100, Math.max(0.01, n(cfg.allocation_pct))) / 100;
     const quote = amount;
     if (!(quote > 0)) throw Error('Capital de Copy Trading inválido.');
@@ -328,6 +338,7 @@ router.get('/status', auth, gate, async (req, res) => {
         accountName: x.account_name,
         capitalUSDT: n(x.capital_usdt),
         allocationPct: n(x.allocation_pct),
+        maxConcurrentOperations: Number(x.max_concurrent_operations)||3,
         active: x.active
       } : null
     });
@@ -342,10 +353,14 @@ router.post('/start', auth, gate, async (req, res) => {
     const aid = Number(req.body?.accountId);
     const capital = n(req.body?.capitalUSDT);
     const allocation = n(req.body?.allocationPct || 100);
+    const maxOps = Math.max(1, Math.min(50, Math.floor(n(req.body?.maxConcurrentOperations || 3))));
     const strategy = String(req.body?.strategyKey || 'CRIPTOPRO').trim() || 'CRIPTOPRO';
 
     if (!Number.isInteger(aid) || !(capital > 0)) {
       return res.status(400).json({ success: false, message: 'Conta Binance e capital são obrigatórios.' });
+    }
+    if (!(maxOps >= 1 && maxOps <= 50)) {
+      return res.status(400).json({ success: false, message: 'Operações simultâneas deve estar entre 1 e 50.' });
     }
     if (!(allocation > 0 && allocation <= 100)) {
       return res.status(400).json({ success: false, message: 'A alocação deve estar entre 0,01% e 100%.' });
@@ -355,13 +370,13 @@ router.post('/start', auth, gate, async (req, res) => {
     }
 
     const r = await db.query(
-      `INSERT INTO tv_copy_configs(user_id,account_id,strategy_key,capital_usdt,allocation_pct,active,updated_at)
-       VALUES($1,$2,$3,$4,$5,true,NOW())
+      `INSERT INTO tv_copy_configs(user_id,account_id,strategy_key,capital_usdt,allocation_pct,max_concurrent_operations,active,updated_at)
+       VALUES($1,$2,$3,$4,$5,$6,true,NOW())
        ON CONFLICT(user_id,account_id)
        DO UPDATE SET strategy_key=EXCLUDED.strategy_key,capital_usdt=EXCLUDED.capital_usdt,
-                     allocation_pct=EXCLUDED.allocation_pct,active=true,updated_at=NOW()
+                     allocation_pct=EXCLUDED.allocation_pct,max_concurrent_operations=EXCLUDED.max_concurrent_operations,active=true,updated_at=NOW()
        RETURNING id`,
-      [uid, aid, strategy, capital, allocation]
+      [uid, aid, strategy, capital, allocation, maxOps]
     );
     res.json({ success: true, message: 'Copy Trading do TradingView ativado.', copyConfigId: r.rows[0].id });
   } catch (e) {
@@ -442,7 +457,7 @@ router.get('/summary', auth, gate, async (req, res) => {
       } catch(e){}
     }
     res.json({success:true,active:Boolean(c.active),summary:{
-      strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),
+      strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),maxConcurrentOperations:Number(c.max_concurrent_operations)||3,
       realizedPnl:realized,unrealizedPnl:unrealized,totalPnl:realized+unrealized,
       totalPnlPct:n(c.capital_usdt)>0?((realized+unrealized)/n(c.capital_usdt))*100:0,currentValue,
       winCount:wins,lossCount:losses,openPositions:positions.rows.length,

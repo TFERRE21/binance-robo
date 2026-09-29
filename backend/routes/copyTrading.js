@@ -1,33 +1,387 @@
-const express=require('express');
-const db=require('../services/db');
-const auth=require('../middleware/auth');
-const crypto=require('../services/cryptoService');
-const Binance=require('binance-api-node').default;
-const router=express.Router();
-const ALLOWED=new Set(['profissional','premium']);
-const STABLE=new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
-let ready=false,busy=false;
-const n=v=>{const x=Number(v);return Number.isFinite(x)?x:0};
-function down(v,s){if(!(v>0)||!(s>0))return 0;const d=Math.max(0,(String(s).split('.')[1]||'').length);return Number((Math.floor(v/s)*s).toFixed(d));}
-async function schema(){if(ready)return;await db.query('CREATE TABLE IF NOT EXISTS copy_traders (id BIGSERIAL PRIMARY KEY,owner_user_id INTEGER NOT NULL,source_account_id INTEGER NOT NULL UNIQUE,name VARCHAR(100) NOT NULL,description VARCHAR(500),active BOOLEAN NOT NULL DEFAULT true,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW());CREATE TABLE IF NOT EXISTS copy_configs (id BIGSERIAL PRIMARY KEY,user_id INTEGER NOT NULL,account_id INTEGER NOT NULL,trader_id BIGINT NOT NULL REFERENCES copy_traders(id) ON DELETE CASCADE,capital_usdt NUMERIC(30,8) NOT NULL,copy_entry BOOLEAN NOT NULL DEFAULT true,copy_stop BOOLEAN NOT NULL DEFAULT false,active BOOLEAN NOT NULL DEFAULT false,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(user_id,account_id));CREATE TABLE IF NOT EXISTS copy_events (id BIGSERIAL PRIMARY KEY,copy_config_id BIGINT NOT NULL REFERENCES copy_configs(id) ON DELETE CASCADE,source_trade_id VARCHAR(100) NOT NULL,symbol VARCHAR(30) NOT NULL,side VARCHAR(10) NOT NULL,source_qty NUMERIC(30,12) NOT NULL DEFAULT 0,source_quote_qty NUMERIC(30,12) NOT NULL DEFAULT 0,follower_order_id VARCHAR(100),status VARCHAR(20) NOT NULL DEFAULT \'PENDING\',error_message TEXT,created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),UNIQUE(copy_config_id,source_trade_id));CREATE INDEX IF NOT EXISTS idx_copy_active ON copy_configs(active,trader_id);');ready=true}
-async function plan(uid){const r=await db.query("SELECT plan FROM subscriptions WHERE user_id=$1 AND status='ACTIVE' AND (expires_at IS NULL OR expires_at>NOW()) ORDER BY created_at DESC LIMIT 1",[uid]);return String(r.rows[0]?.plan||'').toLowerCase()}
-async function gate(req,res,next){try{await schema();const p=await plan(req.user.id);if(!ALLOWED.has(p))return res.status(403).json({success:false,allowed:false,message:'Copy Trading está disponível somente nos planos Profissional e Premium.'});req.copyPlan=p;next()}catch(e){res.status(500).json({success:false,message:'Erro ao validar o plano.'})}}
-function client(a){return Binance({apiKey:crypto.decrypt(a.api_key_encrypted),apiSecret:crypto.decrypt(a.api_secret_encrypted),recvWindow:60000})}
-async function account(uid,id){const r=await db.query('SELECT id,user_id,name,api_key_encrypted,api_secret_encrypted,active FROM binance_accounts WHERE id=$1 AND user_id=$2 AND active=true LIMIT 1',[id,uid]);return r.rows[0]||null}
-router.get('/access',auth,async(req,res)=>{try{const p=await plan(req.user.id);res.json({success:true,allowed:ALLOWED.has(p),plan:p||null,allowedPlans:['profissional','premium']})}catch(e){res.status(500).json({success:false,message:'Erro ao verificar acesso.'})}});
-router.get('/traders',auth,gate,async(req,res)=>{try{const r=await db.query('SELECT ct.id,ct.name,ct.description,u.name owner FROM copy_traders ct JOIN users u ON u.id=ct.owner_user_id WHERE ct.active=true ORDER BY ct.created_at DESC');res.json({success:true,traders:r.rows.map(x=>({id:x.id,name:x.name,description:x.description||'',owner:x.owner||'Trader CRIPTOPRO'}))})}catch(e){res.status(500).json({success:false,message:'Não foi possível carregar os traders.'})}});
-router.post('/publish',auth,gate,async(req,res)=>{try{const id=Number(req.body?.accountId),name=String(req.body?.name||'').trim(),description=String(req.body?.description||'').trim();const a=await account(req.user.id,id);if(!a||!name)return res.status(400).json({success:false,message:'Informe uma conta Binance válida e o nome da estratégia.'});const r=await db.query("INSERT INTO copy_traders(owner_user_id,source_account_id,name,description,active,updated_at) VALUES($1,$2,$3,$4,true,NOW()) ON CONFLICT(source_account_id) DO UPDATE SET name=EXCLUDED.name,description=EXCLUDED.description,active=true,updated_at=NOW() RETURNING id,name,description",[req.user.id,id,name,description]);res.json({success:true,trader:r.rows[0]})}catch(e){res.status(400).json({success:false,message:e.message||'Não foi possível publicar a estratégia.'})}});
-router.post('/unpublish',auth,gate,async(req,res)=>{try{await db.query('UPDATE copy_traders SET active=false,updated_at=NOW() WHERE source_account_id=$1 AND owner_user_id=$2',[Number(req.body?.accountId),req.user.id]);res.json({success:true})}catch(e){res.status(500).json({success:false,message:'Não foi possível desativar a estratégia.'})}});
-router.get('/status',auth,gate,async(req,res)=>{try{const r=await db.query('SELECT cc.*,ct.name trader_name,ct.description trader_description FROM copy_configs cc JOIN copy_traders ct ON ct.id=cc.trader_id WHERE cc.user_id=$1 AND cc.account_id=$2 LIMIT 1',[req.user.id,Number(req.query.accountId)]);const x=r.rows[0];res.json({success:true,config:x?{id:x.id,traderId:x.trader_id,traderName:x.trader_name,traderDescription:x.trader_description,capitalUSDT:n(x.capital_usdt),copyEntry:x.copy_entry,copyStop:x.copy_stop,active:x.active}:null})}catch(e){res.status(500).json({success:false,message:'Não foi possível carregar a configuração.'})}});
-router.post('/start',auth,gate,async(req,res)=>{try{const uid=req.user.id,aid=Number(req.body?.accountId),tid=Number(req.body?.traderId),capital=n(req.body?.capitalUSDT),entry=req.body?.copyEntry!==false,stop=req.body?.copyStop===true;if(!Number.isInteger(aid)||!Number.isInteger(tid)||!(capital>0))return res.status(400).json({success:false,message:'Conta, trader e capital são obrigatórios.'});if(!await account(uid,aid))return res.status(404).json({success:false,message:'Conta Binance não encontrada.'});const t=await db.query('SELECT id FROM copy_traders WHERE id=$1 AND active=true',[tid]);if(!t.rows.length)return res.status(404).json({success:false,message:'Trader não encontrado.'});const r=await db.query('INSERT INTO copy_configs(user_id,account_id,trader_id,capital_usdt,copy_entry,copy_stop,active,updated_at) VALUES($1,$2,$3,$4,$5,$6,true,NOW()) ON CONFLICT(user_id,account_id) DO UPDATE SET trader_id=EXCLUDED.trader_id,capital_usdt=EXCLUDED.capital_usdt,copy_entry=EXCLUDED.copy_entry,copy_stop=EXCLUDED.copy_stop,active=true,updated_at=NOW() RETURNING id',[uid,aid,tid,capital,entry,stop]);res.json({success:true,message:'Copy Trading ativado.',copyConfigId:r.rows[0].id})}catch(e){res.status(400).json({success:false,message:e.message||'Não foi possível ativar o Copy Trading.'})}});
-router.post('/stop',auth,gate,async(req,res)=>{try{await db.query('UPDATE copy_configs SET active=false,updated_at=NOW() WHERE user_id=$1 AND account_id=$2',[req.user.id,Number(req.body?.accountId)]);res.json({success:true,message:'Copy Trading parado.'})}catch(e){res.status(500).json({success:false,message:'Não foi possível parar o Copy Trading.'})}});
-router.get('/events',auth,gate,async(req,res)=>{try{const r=await db.query('SELECT ce.id,ce.symbol,ce.side,ce.source_qty,ce.source_quote_qty,ce.follower_order_id,ce.status,ce.error_message,ce.created_at,ct.name trader_name FROM copy_events ce JOIN copy_configs cc ON cc.id=ce.copy_config_id JOIN copy_traders ct ON ct.id=cc.trader_id WHERE cc.user_id=$1 AND cc.account_id=$2 ORDER BY ce.id DESC LIMIT 50',[req.user.id,Number(req.query.accountId)]);res.json({success:true,events:r.rows})}catch(e){res.status(500).json({success:false,message:'Não foi possível carregar o histórico.'})}});
-async function equity(c){const a=await c.accountInfo(),p=await c.prices();let v=0;for(const b of a.balances||[]){const q=n(b.free)+n(b.locked),s=String(b.asset||'').toUpperCase();if(q<=0)continue;if(s==='USDT')v+=q;else if(!STABLE.has(s)){const z=n(p[s+'USDT']);if(z>0)v+=q*z}}return v}
-async function sourceAssets(c){const a=await c.accountInfo();return (a.balances||[]).map(b=>({asset:String(b.asset||'').toUpperCase(),total:n(b.free)+n(b.locked)})).filter(x=>x.total>0&&!STABLE.has(x.asset)&&x.asset!=='USDT').slice(0,20)}
-async function free(c,a){const x=await c.accountInfo(),b=(x.balances||[]).find(y=>String(y.asset||'').toUpperCase()===a);return n(b?.free)}
-async function rules(c,s){const x=await c.exchangeInfo(),z=x.symbols.find(y=>y.symbol===s),f=(z?.filters||[]).find(y=>y.filterType==='LOT_SIZE');if(!z)throw Error('Par não disponível: '+s);return {step:n(f?.stepSize),min:n(f?.minQty)}}
-async function copyTrade(cfg,trader,sc,fc,t){const eid=String(t.id??(t.orderId+':'+t.time));const ins=await db.query("INSERT INTO copy_events(copy_config_id,source_trade_id,symbol,side,source_qty,source_quote_qty) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(copy_config_id,source_trade_id) DO NOTHING RETURNING id",[cfg.id,eid,t.symbol,t.isBuyer?'BUY':'SELL',n(t.qty),n(t.quoteQty)]);if(!ins.rows.length)return;const id=ins.rows[0].id;try{if(t.isBuyer&&!cfg.copy_entry){await db.query("UPDATE copy_events SET status='SKIPPED',error_message='Entrada desativada.' WHERE id=$1",[id]);return}const sca=await equity(sc),scale=sca>0?n(cfg.capital_usdt)/sca:0;if(!(scale>0))throw Error('Capital do trader indisponível.');let o;if(t.isBuyer){const q=n(t.quoteQty)*scale;if(q<6){await db.query("UPDATE copy_events SET status='SKIPPED',error_message='Abaixo do mínimo.' WHERE id=$1",[id]);return}o=await fc.order({symbol:t.symbol,side:'BUY',type:'MARKET',quoteOrderQty:q,newClientOrderId:'CP'+cfg.id+'B'+id})}else{const base=String(t.symbol).replace(/USDT$/,''),r=await rules(fc,t.symbol),q=down(Math.min(await free(fc,base),n(t.qty)*scale),r.step);if(!(q>0)||q<r.min){await db.query("UPDATE copy_events SET status='SKIPPED',error_message='Saldo insuficiente.' WHERE id=$1",[id]);return}o=await fc.order({symbol:t.symbol,side:'SELL',type:'MARKET',quantity:q,newClientOrderId:'CP'+cfg.id+'S'+id})}await db.query('UPDATE copy_events SET status=\'DONE\',follower_order_id=$1 WHERE id=$2',[String(o?.orderId||''),id])}catch(e){await db.query('UPDATE copy_events SET status=\'ERROR\',error_message=$1 WHERE id=$2',[String(e.message||e),id])}}
-async function copyStops(cfg,sc,fc,symbol){let os=[];try{os=await sc.openOrders({symbol})}catch(e){return}for(const o of os||[]){const type=String(o.type||'').toUpperCase();if(String(o.side).toUpperCase()!=='SELL'||!['STOP_LOSS','STOP_LOSS_LIMIT'].includes(type))continue;try{const base=symbol.replace(/USDT$/,''),r=await rules(fc,symbol),q=down(await free(fc,base),r.step);if(!(q>0)||q<r.min)continue;const mine=await fc.openOrders({symbol});const exists=(mine||[]).some(x=>String(x.side).toUpperCase()==='SELL'&&['STOP_LOSS','STOP_LOSS_LIMIT'].includes(String(x.type||'').toUpperCase())&&Math.abs(n(x.stopPrice)-n(o.stopPrice))<Math.max(n(o.stopPrice)*0.000001,0.00000001));if(exists)continue;const p={symbol,side:'SELL',type,quantity:q,stopPrice:n(o.stopPrice),newClientOrderId:'CPS'+cfg.id+o.orderId};if(type==='STOP_LOSS_LIMIT'){p.price=n(o.price)||n(o.stopPrice);p.timeInForce='GTC'}await fc.order(p)}catch(e){console.error('[COPY STOP]',symbol,e.message||e)}}}
-async function run(){if(busy)return;busy=true;try{await schema();const r=await db.query('SELECT cc.*,ct.name,ct.source_account_id,sa.api_key_encrypted,sa.api_secret_encrypted,fa.api_key_encrypted follower_key,fa.api_secret_encrypted follower_secret FROM copy_configs cc JOIN copy_traders ct ON ct.id=cc.trader_id JOIN binance_accounts sa ON sa.id=ct.source_account_id JOIN binance_accounts fa ON fa.id=cc.account_id WHERE cc.active=true AND ct.active=true AND sa.active=true AND fa.active=true LIMIT 50');for(const x of r.rows){try{const sc=client(x),fc=Binance({apiKey:crypto.decrypt(x.follower_key),apiSecret:crypto.decrypt(x.follower_secret),recvWindow:60000});for(const a of await sourceAssets(sc)){const s=a.asset+'USDT';let ts=[];try{ts=await sc.myTrades({symbol:s,limit:20})}catch(e){}for(const t of (ts||[]).filter(t=>n(t.time)>Date.now()-60000))await copyTrade(x,x.name,sc,fc,{...t,symbol:s});if(x.copy_stop)await copyStops(x,sc,fc,s)}}catch(e){console.error('[COPY]',x.id,e.message||e)}}}finally{busy=false}}
-setInterval(()=>run().catch(e=>console.error('[COPY GLOBAL]',e)),10000);run().catch(e=>console.error('[COPY START]',e));
-module.exports=router;
+const express = require('express');
+const db = require('../services/db');
+const auth = require('../middleware/auth');
+const crypto = require('../services/cryptoService');
+const Binance = require('binance-api-node').default;
+
+const router = express.Router();
+const ALLOWED = new Set(['profissional', 'premium']);
+const STABLE = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
+let ready = false;
+let busy = false;
+
+const n = v => {
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+};
+
+function down(v, s) {
+  if (!(v > 0) || !(s > 0)) return 0;
+  const d = Math.max(0, (String(s).split('.')[1] || '').length);
+  return Number((Math.floor(v / s) * s).toFixed(d));
+}
+
+async function schema() {
+  if (ready) return;
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS tv_copy_configs (
+      id BIGSERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      account_id INTEGER NOT NULL,
+      strategy_key VARCHAR(100) NOT NULL DEFAULT 'CRIPTOPRO',
+      capital_usdt NUMERIC(30,8) NOT NULL,
+      allocation_pct NUMERIC(8,4) NOT NULL DEFAULT 100,
+      active BOOLEAN NOT NULL DEFAULT false,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, account_id)
+    );
+    CREATE TABLE IF NOT EXISTS tv_copy_positions (
+      id BIGSERIAL PRIMARY KEY,
+      copy_config_id BIGINT NOT NULL REFERENCES tv_copy_configs(id) ON DELETE CASCADE,
+      symbol VARCHAR(30) NOT NULL,
+      quantity NUMERIC(30,12) NOT NULL DEFAULT 0,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(copy_config_id, symbol)
+    );
+    CREATE TABLE IF NOT EXISTS tv_copy_events (
+      id BIGSERIAL PRIMARY KEY,
+      copy_config_id BIGINT NOT NULL REFERENCES tv_copy_configs(id) ON DELETE CASCADE,
+      signal_id VARCHAR(150) NOT NULL,
+      strategy_key VARCHAR(100),
+      symbol VARCHAR(30) NOT NULL,
+      side VARCHAR(10) NOT NULL,
+      quantity_pct NUMERIC(8,4) NOT NULL DEFAULT 100,
+      order_id VARCHAR(100),
+      status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+      error_message TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(copy_config_id, signal_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_tv_copy_active ON tv_copy_configs(active);
+  `);
+  ready = true;
+}
+
+async function plan(uid) {
+  const r = await db.query(
+    "SELECT plan FROM subscriptions WHERE user_id=$1 AND status='ACTIVE' AND (expires_at IS NULL OR expires_at>NOW()) ORDER BY created_at DESC LIMIT 1",
+    [uid]
+  );
+  return String(r.rows[0]?.plan || '').toLowerCase();
+}
+
+async function gate(req, res, next) {
+  try {
+    await schema();
+    const p = await plan(req.user.id);
+    if (!ALLOWED.has(p)) {
+      return res.status(403).json({
+        success: false,
+        allowed: false,
+        message: 'Copy Trading está disponível somente nos planos Profissional e Premium.'
+      });
+    }
+    req.copyPlan = p;
+    next();
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao validar o plano.' });
+  }
+}
+
+function client(a) {
+  return Binance({
+    apiKey: crypto.decrypt(a.api_key_encrypted),
+    apiSecret: crypto.decrypt(a.api_secret_encrypted),
+    recvWindow: 60000
+  });
+}
+
+async function account(uid, id) {
+  const r = await db.query(
+    'SELECT id,user_id,name,api_key_encrypted,api_secret_encrypted,active FROM binance_accounts WHERE id=$1 AND user_id=$2 AND active=true LIMIT 1',
+    [id, uid]
+  );
+  return r.rows[0] || null;
+}
+
+async function rules(c, symbol) {
+  const x = await c.exchangeInfo();
+  const z = x.symbols.find(y => y.symbol === symbol);
+  if (!z) throw Error('Par não disponível na Binance: ' + symbol);
+  const f = (z.filters || []).find(y => y.filterType === 'LOT_SIZE');
+  return { step: n(f?.stepSize), min: n(f?.minQty) };
+}
+
+async function free(c, asset) {
+  const x = await c.accountInfo();
+  const b = (x.balances || []).find(y => String(y.asset || '').toUpperCase() === asset);
+  return n(b?.free);
+}
+
+async function executeSignal(cfg, signal) {
+  const ar = await db.query(
+    'SELECT id,user_id,name,api_key_encrypted,api_secret_encrypted FROM binance_accounts WHERE id=$1 AND user_id=$2 AND active=true LIMIT 1',
+    [cfg.account_id, cfg.user_id]
+  );
+  const a = ar.rows[0];
+  if (!a) throw Error('Conta Binance não encontrada ou inativa.');
+
+  const symbol = String(signal.symbol || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const side = String(signal.side || '').toUpperCase();
+  const pct = Math.min(100, Math.max(0.01, n(signal.quantityPercent ?? signal.quantity_pct ?? 100)));
+
+  if (!symbol || !/^[A-Z0-9]{5,30}$/.test(symbol)) throw Error('Símbolo inválido.');
+  if (!['BUY', 'SELL'].includes(side)) throw Error('Sinal deve ser BUY ou SELL.');
+
+  const c = client(a);
+  const r = await rules(c, symbol);
+
+  if (side === 'BUY') {
+    const amount = n(cfg.capital_usdt) * Math.min(100, Math.max(0.01, n(cfg.allocation_pct))) / 100;
+    const quote = amount;
+    if (!(quote > 0)) throw Error('Capital de Copy Trading inválido.');
+
+    const o = await c.order({
+      symbol,
+      side: 'BUY',
+      type: 'MARKET',
+      quoteOrderQty: quote,
+      newClientOrderId: 'TVB' + cfg.id + Date.now()
+    });
+
+    const qty = n(o?.executedQty);
+    if (qty > 0) {
+      await db.query(
+        `INSERT INTO tv_copy_positions(copy_config_id,symbol,quantity,updated_at)
+         VALUES($1,$2,$3,NOW())
+         ON CONFLICT(copy_config_id,symbol)
+         DO UPDATE SET quantity=tv_copy_positions.quantity+EXCLUDED.quantity,updated_at=NOW()`,
+        [cfg.id, symbol, qty]
+      );
+    }
+    return o;
+  }
+
+  const base = symbol.endsWith('USDT') ? symbol.slice(0, -4) : null;
+  if (!base) throw Error('Por segurança, o Copy Trading externo opera somente pares USDT.');
+
+  const pr = await db.query(
+    'SELECT quantity FROM tv_copy_positions WHERE copy_config_id=$1 AND symbol=$2 LIMIT 1',
+    [cfg.id, symbol]
+  );
+  const tracked = n(pr.rows[0]?.quantity);
+  if (!(tracked > 0)) throw Error('Não há posição do Copy Trading para vender.');
+
+  const available = await free(c, base);
+  const quantity = down(Math.min(tracked, available) * pct / 100, r.step);
+  if (!(quantity > 0) || quantity < r.min) throw Error('Quantidade abaixo do mínimo da Binance.');
+
+  const o = await c.order({
+    symbol,
+    side: 'SELL',
+    type: 'MARKET',
+    quantity,
+    newClientOrderId: 'TVS' + cfg.id + Date.now()
+  });
+
+  const sold = n(o?.executedQty) || quantity;
+  await db.query(
+    'UPDATE tv_copy_positions SET quantity=GREATEST(quantity-$1,0),updated_at=NOW() WHERE copy_config_id=$2 AND symbol=$3',
+    [sold, cfg.id, symbol]
+  );
+  return o;
+}
+
+async function dispatchSignal(signal) {
+  await schema();
+  const strategy = String(signal.strategy || signal.strategyKey || 'CRIPTOPRO').trim() || 'CRIPTOPRO';
+  const r = await db.query(
+    "SELECT * FROM tv_copy_configs WHERE active=true AND (strategy_key=$1 OR strategy_key='*')",
+    [strategy]
+  );
+
+  for (const cfg of r.rows) {
+    const signalId = String(signal.id || signal.signalId || (strategy + ':' + signal.symbol + ':' + signal.side + ':' + Date.now()));
+    const ins = await db.query(
+      `INSERT INTO tv_copy_events(copy_config_id,signal_id,strategy_key,symbol,side,quantity_pct)
+       VALUES($1,$2,$3,$4,$5,$6)
+       ON CONFLICT(copy_config_id,signal_id) DO NOTHING
+       RETURNING id`,
+      [cfg.id, signalId, strategy, String(signal.symbol || '').toUpperCase(), String(signal.side || '').toUpperCase(), n(signal.quantityPercent ?? 100)]
+    );
+    if (!ins.rows.length) continue;
+
+    try {
+      const order = await executeSignal(cfg, signal);
+      await db.query(
+        "UPDATE tv_copy_events SET status='DONE',order_id=$1 WHERE id=$2",
+        [String(order?.orderId || ''), ins.rows[0].id]
+      );
+    } catch (e) {
+      await db.query(
+        "UPDATE tv_copy_events SET status='ERROR',error_message=$1 WHERE id=$2",
+        [String(e.message || e), ins.rows[0].id]
+      );
+    }
+  }
+}
+
+router.get('/access', auth, async (req, res) => {
+  try {
+    const p = await plan(req.user.id);
+    res.json({
+      success: true,
+      allowed: ALLOWED.has(p),
+      plan: p || null,
+      allowedPlans: ['profissional', 'premium']
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Erro ao verificar acesso.' });
+  }
+});
+
+router.get('/status', auth, gate, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT c.*,a.name account_name
+       FROM tv_copy_configs c
+       LEFT JOIN binance_accounts a ON a.id=c.account_id
+       WHERE c.user_id=$1 AND c.account_id=$2 LIMIT 1`,
+      [req.user.id, Number(req.query.accountId)]
+    );
+    const x = r.rows[0];
+    res.json({
+      success: true,
+      config: x ? {
+        id: x.id,
+        strategyKey: x.strategy_key,
+        strategyName: 'TradingView',
+        accountId: x.account_id,
+        accountName: x.account_name,
+        capitalUSDT: n(x.capital_usdt),
+        allocationPct: n(x.allocation_pct),
+        active: x.active
+      } : null
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Não foi possível carregar a configuração.' });
+  }
+});
+
+router.post('/start', auth, gate, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const aid = Number(req.body?.accountId);
+    const capital = n(req.body?.capitalUSDT);
+    const allocation = n(req.body?.allocationPct || 100);
+    const strategy = String(req.body?.strategyKey || 'CRIPTOPRO').trim() || 'CRIPTOPRO';
+
+    if (!Number.isInteger(aid) || !(capital > 0)) {
+      return res.status(400).json({ success: false, message: 'Conta Binance e capital são obrigatórios.' });
+    }
+    if (!(allocation > 0 && allocation <= 100)) {
+      return res.status(400).json({ success: false, message: 'A alocação deve estar entre 0,01% e 100%.' });
+    }
+    if (!await account(uid, aid)) {
+      return res.status(404).json({ success: false, message: 'Conta Binance não encontrada.' });
+    }
+
+    const r = await db.query(
+      `INSERT INTO tv_copy_configs(user_id,account_id,strategy_key,capital_usdt,allocation_pct,active,updated_at)
+       VALUES($1,$2,$3,$4,$5,true,NOW())
+       ON CONFLICT(user_id,account_id)
+       DO UPDATE SET strategy_key=EXCLUDED.strategy_key,capital_usdt=EXCLUDED.capital_usdt,
+                     allocation_pct=EXCLUDED.allocation_pct,active=true,updated_at=NOW()
+       RETURNING id`,
+      [uid, aid, strategy, capital, allocation]
+    );
+    res.json({ success: true, message: 'Copy Trading do TradingView ativado.', copyConfigId: r.rows[0].id });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message || 'Não foi possível ativar o Copy Trading.' });
+  }
+});
+
+router.post('/stop', auth, gate, async (req, res) => {
+  try {
+    await db.query(
+      'UPDATE tv_copy_configs SET active=false,updated_at=NOW() WHERE user_id=$1 AND account_id=$2',
+      [req.user.id, Number(req.body?.accountId)]
+    );
+    res.json({ success: true, message: 'Copy Trading parado.' });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Não foi possível parar o Copy Trading.' });
+  }
+});
+
+router.get('/events', auth, gate, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT e.id,e.strategy_key,e.symbol,e.side,e.quantity_pct,e.order_id,e.status,e.error_message,e.created_at
+       FROM tv_copy_events e
+       JOIN tv_copy_configs c ON c.id=e.copy_config_id
+       WHERE c.user_id=$1 AND c.account_id=$2
+       ORDER BY e.id DESC LIMIT 50`,
+      [req.user.id, Number(req.query.accountId)]
+    );
+    res.json({ success: true, events: r.rows });
+  } catch (e) {
+    res.status(500).json({ success: false, message: 'Não foi possível carregar o histórico.' });
+  }
+});
+
+/*
+ * WEBHOOK TRADINGVIEW
+ * Configure TRADINGVIEW_WEBHOOK_SECRET no ambiente do servidor.
+ * O alerta do TradingView deve enviar JSON com:
+ * {"secret":"...","id":"...","strategy":"CRIPTOPRO","symbol":"BTCUSDT","side":"BUY","quantityPercent":100}
+ */
+router.post('/webhook/tradingview', async (req, res) => {
+  try {
+    const configured = String(process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim();
+    if (!configured) return res.status(503).json({ success: false, message: 'Webhook TradingView não configurado.' });
+
+    const secret = String(req.body?.secret || req.headers['x-tradingview-secret'] || '').trim();
+    if (!secret || secret !== configured) {
+      return res.status(401).json({ success: false, message: 'Webhook não autorizado.' });
+    }
+
+    const side = String(req.body?.side || '').toUpperCase();
+    const symbol = String(req.body?.symbol || '').toUpperCase();
+    if (!symbol || !['BUY', 'SELL'].includes(side)) {
+      return res.status(400).json({ success: false, message: 'Sinal inválido. Use symbol e side BUY/SELL.' });
+    }
+
+    await dispatchSignal({
+      id: req.body?.id,
+      strategy: req.body?.strategy || 'CRIPTOPRO',
+      symbol,
+      side,
+      quantityPercent: req.body?.quantityPercent ?? req.body?.quantity_pct ?? 100
+    });
+
+    res.json({ success: true, message: 'Sinal TradingView recebido.' });
+  } catch (e) {
+    console.error('[TRADINGVIEW WEBHOOK]', e);
+    res.status(500).json({ success: false, message: 'Erro ao processar sinal TradingView.' });
+  }
+});
+
+router.get('/webhook/status', async (req, res) => {
+  res.json({
+    success: true,
+    provider: 'TradingView',
+    configured: Boolean(String(process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim()),
+    endpoint: '/api/copy-trading/webhook/tradingview'
+  });
+});
+
+async function run() {
+  // O Copy Trading agora é dirigido por webhooks do TradingView.
+  // Não há polling nem cópia de contas de usuários.
+}
+
+setInterval(() => run().catch(e => console.error('[COPY GLOBAL]', e)), 30000);
+run().catch(e => console.error('[COPY START]', e));
+
+module.exports = router;

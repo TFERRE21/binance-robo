@@ -872,23 +872,6 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
 </style>
 <style id="copy-robot-level-theme">
 /* CRIPTOPRO — Copy Trading + níveis visuais dos robôs */
-.action.copy-trading-action{
-  position:relative;
-  overflow:hidden;
-  background:linear-gradient(135deg,#8f6500 0%,#c99a18 48%,#f0c34a 100%);
-  color:#130f05;
-  border:1px solid rgba(255,215,92,.95);
-  box-shadow:0 0 22px rgba(240,185,11,.18),inset 0 1px rgba(255,255,255,.22);
-}
-.action.copy-trading-action:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(240,185,11,.30)}
-.copy-new-badge{
-  position:absolute;top:10px;right:10px;
-  padding:4px 7px;border-radius:20px;
-  background:#fff;color:#8a6100;font-size:8px;font-weight:1000;
-  letter-spacing:.5px;box-shadow:0 2px 8px rgba(0,0,0,.22)
-}
-.copy-trading-action .action-desc{color:#2a210e;opacity:.82}
-.copy-trading-action .action-title{color:#111}
 .robot-slot-card.level-1{border-color:rgba(113,156,255,.42);background:linear-gradient(135deg,rgba(65,105,180,.12),rgba(255,255,255,.025))}
 .robot-slot-card.level-2{border-color:rgba(61,205,151,.48);background:linear-gradient(135deg,rgba(35,150,110,.12),rgba(255,255,255,.025))}
 .robot-slot-card.level-3{border-color:rgba(240,185,11,.58);background:linear-gradient(135deg,rgba(240,185,11,.13),rgba(255,255,255,.025))}
@@ -909,7 +892,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
 .robot-strategy-tab[data-strategy="premium"]{border-color:rgba(240,185,11,.48)}
 .robot-strategy-tab[data-strategy="avancado"]{border-color:rgba(177,105,255,.48)}
 .robot-strategy-tab[data-strategy="elite"]{border-color:rgba(255,112,112,.48)}
-</style><style id="copy-live-dashboard">.copy-dashboard-main{margin-top:14px}.copy-dashboard-main .copy-live-card{margin-top:0;width:100%;box-sizing:border-box}.copy-dashboard-main .copy-live-grid{grid-template-columns:repeat(4,1fr)}.copy-dashboard-main .copy-live-list{max-height:220px}.copy-dashboard-main .copy-live-head{min-height:28px}@media(max-width:900px){.copy-dashboard-main .copy-live-grid{grid-template-columns:1fr 1fr}}.copy-live-card{margin-top:12px;border:1px solid rgba(240,185,11,.35);border-radius:12px;padding:13px;background:linear-gradient(135deg,rgba(240,185,11,.08),rgba(255,255,255,.02))}.copy-live-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.copy-live-title{font-size:11px;font-weight:900}.copy-live-badge{font-size:8px;padding:4px 7px;border-radius:20px;background:rgba(35,196,131,.1);color:#35d394;font-weight:900}.copy-live-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.copy-live-box{padding:8px;border-radius:8px;background:rgba(0,0,0,.14);border:1px solid rgba(255,255,255,.05)}.copy-live-box span{display:block;color:#778395;font-size:7px;text-transform:uppercase}.copy-live-box strong{display:block;font-size:11px;margin-top:3px}.copy-live-list{margin-top:9px;max-height:120px;overflow:auto}.copy-live-row{display:flex;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:8px}.copy-pos{color:#35d394}.copy-neg{color:#ff8585}.copy-neutral{color:#f0b90b}.copy-market{font-weight:900}</style>
+</style>
 </head>
 
 <body>
@@ -1011,30 +994,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   <div class="chart-status" id="btcStatus">Conectando à Binance...</div>
   <div class="chart-tv-note">Dados reais da Binance · candles, volume, escala de preço e atualização ao vivo.</div>
 </section>
-<section class="copy-dashboard-main" id="copyDashboardMain">
-  <div class="copy-live-card" id="copyLiveCard" style="display:block">
-    <div class="copy-live-head">
-      <div class="copy-live-title">📡 COPY TRADING</div>
-      <span class="copy-live-badge" id="copyLiveBadge">● RODANDO</span>
-    </div>
-    <div style="font-size:8px;color:#778395;margin-top:4px">TradingView → CRIPTOPRO → Binance</div>
-    <div class="copy-live-grid">
-      <div class="copy-live-box"><span>Status</span><strong class="copy-pos">● ATIVO</strong></div>
-      <div class="copy-live-box"><span>Fonte / Estratégia</span><strong id="copySource">TradingView</strong></div>
-      <div class="copy-live-box"><span>Mercado</span><strong id="copyMarket">—</strong></div>
-      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div>
-      <div class="copy-live-box"><span>Resultado %</span><strong id="copyTotalPnlPct">0,00%</strong></div>
-      <div class="copy-live-box"><span>Realizado</span><strong id="copyRealizedPnl">US$ 0,00</strong></div>
-      <div class="copy-live-box"><span>Aberto</span><strong id="copyUnrealizedPnl">US$ 0,00</strong></div>
-      <div class="copy-live-box"><span>Capital</span><strong id="copyCapital">US$ 0,00</strong></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:8px;color:#778395">
-      <span id="copyPositions">Posições: 0</span><span id="copyLastSignal">Último sinal: —</span>
-    </div>
-    <div class="copy-live-list" id="copySignalList"><div style="color:#778395">Aguardando sinais do TradingView...</div></div>
-    <button type="button" class="robot-strategy-open" style="width:100%;margin-top:9px" onclick="window.location.href='/copy-trading.html'">Abrir Copy Trading</button>
-  </div>
-</section>
+
   </div>
   <div class="robot-live-column">
     <section class="operation-card" id="robotLiveCard" style="margin-top:14px">
@@ -1134,13 +1094,6 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div class="action-icon">🎓</div>
     <div class="action-title" id="learnActionTitle">Aprenda a cadastrar API</div>
     <div class="action-desc" id="learnActionDesc">Vídeo em português, vídeo em inglês e passo a passo.</div>
-  </button>
-
-  <button id="copyTradingAction" class="action copy-trading-action" onclick="window.location.href='/copy-trading.html'">
-    <span class="copy-new-badge">NOVO</span>
-    <div class="action-icon">📋</div>
-    <div class="action-title">Copy Trading</div>
-    <div class="action-desc">Copie estratégias autorizadas. Exclusivo para planos Profissional e Premium.</div>
   </button>
 
   <button class="action robot" onclick="openRobot()">
@@ -3610,89 +3563,6 @@ async function loadReport(){
   }
 }
 
-async function loadCopyTradingDashboard(){
-  const card=document.getElementById("copyLiveCard");
-  if(!card)return;
-  try{
-    // Primeiro procura uma configuração ativa do usuário.
-    // Assim, trocar de API no painel não faz o Copy Trading parecer desligado.
-    const active=await apiFetch("/api/copy-trading/active");
-    if(active?.active && active?.config?.accountId){
-      const activeAccountId=String(active.config.accountId);
-      if(String(selectedAccountId)!==activeAccountId){
-        selectedAccountId=activeAccountId;
-        localStorage.setItem("selected_binance_account",selectedAccountId);
-        const selector=document.getElementById("accountSelector");
-        if(selector)selector.value=selectedAccountId;
-        renderAccountSelector();
-      }
-    }
-    if(!active?.active){
-      card.style.display="block";
-      document.getElementById("copyLiveBadge").textContent="● DESLIGADO";
-      document.getElementById("copyLiveBadge").className="copy-live-badge copy-neutral";
-      document.getElementById("copySource").textContent="TradingView";
-      document.getElementById("copyMarket").textContent="—";
-      document.getElementById("copyTotalPnl").textContent="US$ 0,00";
-      document.getElementById("copyTotalPnlPct").textContent="0,00%";
-      document.getElementById("copyRealizedPnl").textContent="US$ 0,00";
-      document.getElementById("copyUnrealizedPnl").textContent="US$ 0,00";
-      document.getElementById("copyCapital").textContent="US$ 0,00";
-      document.getElementById("copyPositions").textContent="Posições: 0";
-      document.getElementById("copyLastSignal").textContent="Nenhuma configuração ativa";
-      document.getElementById("copySignalList").innerHTML='<div style="color:#778395;padding:8px 0">Copy Trading parado. Ele só será desligado pelo botão <b>PARAR CÓPIA</b>.</div>';
-      return;
-    }
-    const d=await apiFetch("/api/copy-trading/summary?accountId="+encodeURIComponent(active.config.accountId));
-    card.style.display="block";
-    if(!d?.summary){
-      document.getElementById("copyLiveBadge").textContent="● ATIVO / AGUARDANDO DADOS";
-      document.getElementById("copyLiveBadge").className="copy-live-badge copy-neutral";
-      document.getElementById("copySource").textContent=active.config.strategyKey||"TradingView";
-      document.getElementById("copyCapital").textContent="Capital: US$ "+Number(active.config.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
-      document.getElementById("copyPositions").textContent="Posições: 0";
-      return;
-    }
-    const s=d.summary;
-    document.getElementById("copyLiveBadge").textContent="● RODANDO";
-    document.getElementById("copyLiveBadge").className="copy-live-badge copy-pos";
-    const market=document.getElementById("copyMarket");
-    market.textContent=(s.marketLabel||s.market||"—")+(Number.isFinite(Number(s.marketChange))?" "+Number(s.marketChange).toFixed(2)+"%":"");
-    market.className="copy-market "+((s.marketLabel==="Favorável")?"copy-pos":(s.marketLabel==="Atenção"?"copy-neg":"copy-neutral"));
-    const fmt=v=>{const x=Number(v)||0;return "US$ "+x.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})};
-    const total=Number(s.totalPnl)||0,real=Number(s.realizedPnl)||0,unreal=Number(s.unrealizedPnl)||0,totalPct=Number(s.totalPnlPct)||0;
-    const totalEl=document.getElementById("copyTotalPnl"),realEl=document.getElementById("copyRealizedPnl"),unrealEl=document.getElementById("copyUnrealizedPnl");
-    totalEl.textContent=fmt(total); realEl.textContent=fmt(real); unrealEl.textContent=fmt(unreal);
-    totalEl.className=total>0?"copy-pos":total<0?"copy-neg":"copy-neutral";
-    realEl.className=real>0?"copy-pos":real<0?"copy-neg":"copy-neutral";
-    unrealEl.className=unreal>0?"copy-pos":unreal<0?"copy-neg":"copy-neutral";
-    const pctEl=document.getElementById("copyTotalPnlPct"); pctEl.textContent=(totalPct>0?"+":"")+totalPct.toFixed(2)+"%"; pctEl.className=totalPct>0?"copy-pos":totalPct<0?"copy-neg":"copy-neutral";
-    document.getElementById("copyCapital").textContent="Capital: US$ "+Number(s.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
-    document.getElementById("copyPositions").textContent="Posições: "+(s.openPositions||0);
-    document.getElementById("copySource").textContent=s.sourceLabel||"TradingView";
-    const last=d.signals&&d.signals[0];
-    document.getElementById("copyLastSignal").textContent=last?"Último: "+(last.side||"")+" "+(last.symbol||""):"Último sinal: —";
-    const list=document.getElementById("copySignalList");
-    const positions=d.positions||[];
-    const posHtml=positions.map(x=>{
-      const p=Number(x.pnlUSDT)||0, pp=Number(x.pnlPct)||0;
-      const cls=p>0?"positive":p<0?"negative":"neutral";
-      return '<div class="copy-live-position"><span><b>'+escapeHtml(x.symbol||"")+'</b><small>Qtd: '+Number(x.quantity||0).toFixed(6)+' • Entrada: '+Number(x.avgPrice||0).toFixed(4)+'</small></span><span class="pnl '+cls+'">'+(p>0?"+":"")+p.toFixed(2)+' USDT<br><small class="'+cls+'">'+(pp>0?"+":"")+pp.toFixed(2)+'%</small></span></div>';
-    }).join("");
-    const recent=(d.signals||[]).slice(0,3).map(x=>{
-      const p=Number(x.pnl_usdt)||0, pp=Number(x.pnl_pct)||0;
-      return '<div class="copy-live-row"><span><b>'+escapeHtml(x.side||"")+'</b> '+escapeHtml(x.symbol||"")+'<br><span style="color:#66778d">'+escapeHtml(x.status||"")+'</span></span><span class="'+(p>0?"copy-pos":p<0?"copy-neg":"copy-neutral")+'">'+(p?((p>0?"+":"")+p.toFixed(2)+" USDT ("+(pp>0?"+":"")+pp.toFixed(2)+"%)"):"—")+'</span></div>';
-    }).join("");
-    list.innerHTML=(posHtml||recent)||'<div style="color:#778395;padding:8px 0">Aguardando sinais do TradingView...</div>';
-  }catch(e){
-    card.style.display="block";
-    const badge=document.getElementById("copyLiveBadge");
-    if(badge){badge.textContent="● MONITORANDO";badge.className="copy-live-badge copy-neutral";}
-    const list=document.getElementById("copySignalList");
-    if(list)list.innerHTML='<div style="color:#ffd166;padding:8px 0">Monitoramento indisponível neste momento. O estado do Copy Trading não é alterado por sair do painel.</div>';
-  }
-}
-
 function formatDate(s){return new Date(s+"T00:00:00").toLocaleDateString("pt-BR")}
 function printReport(){
   if(!window.lastReport){alert("Gere o relatório antes de imprimir.");return}
@@ -3874,9 +3744,7 @@ async function init(){
   robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
 
-// Monitor independente: sair/trocar de página nunca altera o estado do Copy Trading.
 init();
-setTimeout(()=>{try{loadCopyTradingDashboard();}catch(e){}},1200);
 </script>
 
 <!-- CRIPTOPRO - SUPORTE IA -->

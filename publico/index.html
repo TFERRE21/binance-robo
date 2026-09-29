@@ -1139,7 +1139,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div style="font-size:8px;color:#778395;margin-top:4px">TradingView → CRIPTOPRO → Binance</div>
     <div class="copy-live-grid">
       <div class="copy-live-box"><span>Mercado</span><strong id="copyMarket">—</strong></div>
-      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div>
+      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div><div class="copy-live-box"><span>Resultado %</span><strong id="copyTotalPnlPct">0,00%</strong></div>
       <div class="copy-live-box"><span>Realizado</span><strong id="copyRealizedPnl">US$ 0,00</strong></div>
       <div class="copy-live-box"><span>Aberto</span><strong id="copyUnrealizedPnl">US$ 0,00</strong></div>
     </div>
@@ -3610,12 +3610,13 @@ async function loadCopyTradingDashboard(){
     market.textContent=(s.marketLabel||s.market||"—")+(Number.isFinite(Number(s.marketChange))?" "+Number(s.marketChange).toFixed(2)+"%":"");
     market.className="copy-market "+((s.marketLabel==="Favorável")?"copy-pos":(s.marketLabel==="Atenção"?"copy-neg":"copy-neutral"));
     const fmt=v=>{const x=Number(v)||0;return "US$ "+x.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})};
-    const total=Number(s.totalPnl)||0,real=Number(s.realizedPnl)||0,unreal=Number(s.unrealizedPnl)||0;
+    const total=Number(s.totalPnl)||0,real=Number(s.realizedPnl)||0,unreal=Number(s.unrealizedPnl)||0,totalPct=Number(s.totalPnlPct)||0;
     const totalEl=document.getElementById("copyTotalPnl"),realEl=document.getElementById("copyRealizedPnl"),unrealEl=document.getElementById("copyUnrealizedPnl");
     totalEl.textContent=fmt(total); realEl.textContent=fmt(real); unrealEl.textContent=fmt(unreal);
     totalEl.className=total>0?"copy-pos":total<0?"copy-neg":"copy-neutral";
     realEl.className=real>0?"copy-pos":real<0?"copy-neg":"copy-neutral";
     unrealEl.className=unreal>0?"copy-pos":unreal<0?"copy-neg":"copy-neutral";
+    const pctEl=document.getElementById("copyTotalPnlPct"); pctEl.textContent=(totalPct>0?"+":"")+totalPct.toFixed(2)+"%"; pctEl.className=totalPct>0?"copy-pos":totalPct<0?"copy-neg":"copy-neutral";
     document.getElementById("copyCapital").textContent="Capital: US$ "+Number(s.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
     document.getElementById("copyPositions").textContent="Posições: "+(s.openPositions||0);
     const list=document.getElementById("copySignalList");

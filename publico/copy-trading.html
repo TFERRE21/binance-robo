@@ -40,7 +40,7 @@ body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-wid
 <div class="card"><div class="log-head"><h2>🟢 Log operacional em tempo real</h2><button class="log-clear" onclick="loadLogs()">↻ Atualizar</button></div>
 <div class="statusbar"><span><span class="status-dot"></span>Motor online</span><span id="tvStatus">TradingView: verificando...</span><span id="lastSignal">Último sinal: nenhum</span></div>
 <div id="liveLog" class="live-log"><div class="muted">Conectando ao monitor...</div></div></div>
-<div class="card"><h2>Últimas operações</h2><div id="events" class="muted">Selecione uma conta.</div></div>
+<div class="card"><h2>Últimas operações / resultado</h2><div id="events" class="muted">Selecione uma conta.</div></div>
 </div></div>
 <script>
 const token=localStorage.getItem('token');
@@ -78,7 +78,7 @@ async function stopCopy(){
 async function loadEvents(){
  try{
   const d=await api('/api/copy-trading/events?accountId='+Number(document.getElementById('account').value));
-  document.getElementById('events').innerHTML=d.events.length?d.events.map(x=>'<div style="padding:9px 0;border-bottom:1px solid #21304a">'+x.created_at+' — '+x.strategy_key+' — <b>'+x.side+'</b> '+x.symbol+' — '+x.status+(x.error_message?' — '+esc(x.error_message):'')+'</div>').join(''):'Nenhuma operação recebida ainda.'
+  document.getElementById('events').innerHTML=d.events.length?d.events.map(x=>'<div style="padding:9px 0;border-bottom:1px solid #21304a">'+x.created_at+' — '+x.strategy_key+' — <b>'+x.side+'</b> '+x.symbol+' — '+x.status+(x.pnl_usdt?' — <b>'+(Number(x.pnl_usdt)>0?'+':'')+Number(x.pnl_usdt).toFixed(2)+' USDT ('+(Number(x.pnl_pct)>0?'+':'')+Number(x.pnl_pct).toFixed(2)+'%)</b>':'')+(x.error_message?' — '+esc(x.error_message):'')+'</div>').join(''):'Nenhuma operação recebida ainda.'
  }catch(e){}
 }
 document.getElementById('account').addEventListener('change',loadEvents);

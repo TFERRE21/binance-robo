@@ -10,7 +10,7 @@ body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-wid
 </style>
 </head>
 <body><div class="wrap">
-<div class="card"><div class="row"><button onclick="history.back()">← Voltar</button><h1>📋 Copy Trading</h1></div><p class="muted">Copie estratégias autorizadas por outros usuários do CRIPTOPRO usando sua conta Binance.</p><div id="access">Validando plano...</div></div>
+<div class="card"><div class="row"><button onclick="history.back()">← Voltar</button><h1>📋 Copy Trading</h1></div><p class="muted">Receba sinais externos do TradingView e execute-os automaticamente na sua própria conta Binance.</p><div id="access">Validando plano...</div></div>
 <div id="app" style="display:none">
 <div class="card tv"><h2>📡 TradingView → CRIPTOPRO → Binance</h2>
 <p>O CRIPTOPRO recebe sinais da sua estratégia no TradingView e executa automaticamente as ordens na sua própria conta Binance. <b>Nenhum usuário do CRIPTOPRO é copiado.</b></p>
@@ -28,7 +28,7 @@ body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-wid
 <pre>{"secret":"SUA_CHAVE","id":"{{timenow}}-{{ticker}}","strategy":"CRIPTOPRO","symbol":"{{ticker}}","side":"BUY","quantityPercent":100}</pre>
 <p class="muted">O webhook deve ser HTTPS. O sinal BUY usa o capital configurado; SELL encerra somente a posição registrada pelo Copy Trading.</p></div>
 <div class="card"><h2>Últimas operações</h2><div id="events" class="muted">Selecione uma conta.</div></div>
-</div></div>/div>
+</div></div>
 <script>
 const token=localStorage.getItem('token');
 if(!token)location.href='/login.html';

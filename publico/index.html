@@ -3713,24 +3713,22 @@ async function init(){
   await loadExchangeRate();
   // Copy Trading é independente do carregamento do painel Binance.
   // Se alguma consulta da conta falhar, o status do Copy Trading continua sendo carregado.
-  try{
-}catch(e){ console.warn("COPY TRADING STATUS:",e); }
+  try{ await loadCopyTradingDashboard(); }catch(e){ console.warn("COPY TRADING STATUS:",e); }
   await loadAccounts();
-  try{
-}catch(e){ console.warn("COPY TRADING STATUS:",e); }
+  try{ await loadCopyTradingDashboard(); }catch(e){ console.warn("COPY TRADING STATUS:",e); }
   await updateOperationRealtime();
   await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
   await loadCryptoNews();
   refreshTimer=setInterval(async()=>{
     await loadExchangeRate();
     await loadAccounts();
-await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
+    await loadCopyTradingDashboard();
+    await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
     await loadCryptoNews();
   },30000);
 
   if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
-  const copyDashboardTimer=setInterval(async()=>{try{
-}catch(_e){}} ,5000);
+  const copyDashboardTimer=setInterval(async()=>{try{await loadCopyTradingDashboard();}catch(_e){}} ,5000);
 
   if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
   operationRealtimeTimer=setInterval(async()=>{
@@ -3747,6 +3745,7 @@ await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
 }
 
 init();
+setTimeout(()=>{try{loadCopyTradingDashboard();}catch(e){}},1200);
 </script>
 
 <!-- CRIPTOPRO - SUPORTE IA -->

@@ -1135,16 +1135,25 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   </div>
 
   <div class="copy-live-card" id="copyLiveCard" style="display:none">
-    <div class="copy-live-head"><div class="copy-live-title">📡 Copy Trading</div><span class="copy-live-badge" id="copyLiveBadge">ATIVO</span></div>
+    <div class="copy-live-head">
+      <div class="copy-live-title">📡 COPY TRADING</div>
+      <span class="copy-live-badge" id="copyLiveBadge">● RODANDO</span>
+    </div>
     <div style="font-size:8px;color:#778395;margin-top:4px">TradingView → CRIPTOPRO → Binance</div>
     <div class="copy-live-grid">
+      <div class="copy-live-box"><span>Status</span><strong class="copy-pos">● ATIVO</strong></div>
+      <div class="copy-live-box"><span>Fonte / Estratégia</span><strong id="copySource">TradingView</strong></div>
       <div class="copy-live-box"><span>Mercado</span><strong id="copyMarket">—</strong></div>
-      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div><div class="copy-live-box"><span>Resultado %</span><strong id="copyTotalPnlPct">0,00%</strong></div>
+      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div>
+      <div class="copy-live-box"><span>Resultado %</span><strong id="copyTotalPnlPct">0,00%</strong></div>
       <div class="copy-live-box"><span>Realizado</span><strong id="copyRealizedPnl">US$ 0,00</strong></div>
       <div class="copy-live-box"><span>Aberto</span><strong id="copyUnrealizedPnl">US$ 0,00</strong></div>
+      <div class="copy-live-box"><span>Capital</span><strong id="copyCapital">US$ 0,00</strong></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:8px;color:#778395"><span id="copyCapital">Capital: —</span><span id="copyPositions">Posições: 0</span></div>
-    <div class="copy-live-list" id="copySignalList"><div style="color:#778395">Nenhum sinal recebido.</div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:8px;color:#778395">
+      <span id="copyPositions">Posições: 0</span><span id="copyLastSignal">Último sinal: —</span>
+    </div>
+    <div class="copy-live-list" id="copySignalList"><div style="color:#778395">Aguardando sinais do TradingView...</div></div>
     <button type="button" class="robot-strategy-open" style="width:100%;margin-top:9px" onclick="window.location.href='/copy-trading.html'">Abrir Copy Trading</button>
   </div>
 
@@ -3619,12 +3628,21 @@ async function loadCopyTradingDashboard(){
     const pctEl=document.getElementById("copyTotalPnlPct"); pctEl.textContent=(totalPct>0?"+":"")+totalPct.toFixed(2)+"%"; pctEl.className=totalPct>0?"copy-pos":totalPct<0?"copy-neg":"copy-neutral";
     document.getElementById("copyCapital").textContent="Capital: US$ "+Number(s.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
     document.getElementById("copyPositions").textContent="Posições: "+(s.openPositions||0);
+    document.getElementById("copySource").textContent=s.sourceLabel||"TradingView";
+    const last=d.signals&&d.signals[0];
+    document.getElementById("copyLastSignal").textContent=last?"Último: "+(last.side||"")+" "+(last.symbol||""):"Último sinal: —";
     const list=document.getElementById("copySignalList");
-    list.innerHTML=(d.signals||[]).slice(0,6).map(x=>{
-      const p=Number(x.pnl_usdt)||0;
-      const cls=p>0?"copy-pos":p<0?"copy-neg":"copy-neutral";
-      return '<div class="copy-live-row"><span><b>'+escapeHtml(x.side||"")+'</b> '+escapeHtml(x.symbol||"")+'<br><span style="color:#66778d">'+escapeHtml(x.status||"")+'</span></span><span class="'+cls+'">'+(p?((p>0?"+":"")+p.toFixed(2)+" USDT"):"—")+'</span></div>';
-    }).join("")||'<div style="color:#778395;padding:8px 0">Aguardando sinais do TradingView...</div>';
+    const positions=d.positions||[];
+    const posHtml=positions.map(x=>{
+      const p=Number(x.pnlUSDT)||0, pp=Number(x.pnlPct)||0;
+      const cls=p>0?"positive":p<0?"negative":"neutral";
+      return '<div class="copy-live-position"><span><b>'+escapeHtml(x.symbol||"")+'</b><small>Qtd: '+Number(x.quantity||0).toFixed(6)+' • Entrada: '+Number(x.avgPrice||0).toFixed(4)+'</small></span><span class="pnl '+cls+'">'+(p>0?"+":"")+p.toFixed(2)+' USDT<br><small class="'+cls+'">'+(pp>0?"+":"")+pp.toFixed(2)+'%</small></span></div>';
+    }).join("");
+    const recent=(d.signals||[]).slice(0,3).map(x=>{
+      const p=Number(x.pnl_usdt)||0, pp=Number(x.pnl_pct)||0;
+      return '<div class="copy-live-row"><span><b>'+escapeHtml(x.side||"")+'</b> '+escapeHtml(x.symbol||"")+'<br><span style="color:#66778d">'+escapeHtml(x.status||"")+'</span></span><span class="'+(p>0?"copy-pos":p<0?"copy-neg":"copy-neutral")+'">'+(p?((p>0?"+":"")+p.toFixed(2)+" USDT ("+(pp>0?"+":"")+pp.toFixed(2)+"%)"):"—")+'</span></div>';
+    }).join("");
+    list.innerHTML=(posHtml||recent)||'<div style="color:#778395;padding:8px 0">Aguardando sinais do TradingView...</div>';
   }catch(e){
     if(e&&e.message&&/403|Copy Trading/i.test(e.message))card.style.display="none";
   }

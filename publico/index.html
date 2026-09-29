@@ -909,7 +909,8 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
 .robot-strategy-tab[data-strategy="premium"]{border-color:rgba(240,185,11,.48)}
 .robot-strategy-tab[data-strategy="avancado"]{border-color:rgba(177,105,255,.48)}
 .robot-strategy-tab[data-strategy="elite"]{border-color:rgba(255,112,112,.48)}
-</style></head>
+</style><style id="copy-live-dashboard">.copy-live-card{margin-top:12px;border:1px solid rgba(240,185,11,.35);border-radius:12px;padding:13px;background:linear-gradient(135deg,rgba(240,185,11,.08),rgba(255,255,255,.02))}.copy-live-head{display:flex;justify-content:space-between;align-items:center;gap:8px}.copy-live-title{font-size:11px;font-weight:900}.copy-live-badge{font-size:8px;padding:4px 7px;border-radius:20px;background:rgba(35,196,131,.1);color:#35d394;font-weight:900}.copy-live-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.copy-live-box{padding:8px;border-radius:8px;background:rgba(0,0,0,.14);border:1px solid rgba(255,255,255,.05)}.copy-live-box span{display:block;color:#778395;font-size:7px;text-transform:uppercase}.copy-live-box strong{display:block;font-size:11px;margin-top:3px}.copy-live-list{margin-top:9px;max-height:120px;overflow:auto}.copy-live-row{display:flex;justify-content:space-between;gap:6px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.05);font-size:8px}.copy-pos{color:#35d394}.copy-neg{color:#ff8585}.copy-neutral{color:#f0b90b}.copy-market{font-weight:900}</style>
+</head>
 
 <body>
 <header class="header">
@@ -1131,6 +1132,20 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <button type="button" class="robot-strategy-open" onclick="openRobotStrategies()">
       📖 Ver estratégias dos robôs
     </button>
+  </div>
+
+  <div class="copy-live-card" id="copyLiveCard" style="display:none">
+    <div class="copy-live-head"><div class="copy-live-title">📡 Copy Trading</div><span class="copy-live-badge" id="copyLiveBadge">ATIVO</span></div>
+    <div style="font-size:8px;color:#778395;margin-top:4px">TradingView → CRIPTOPRO → Binance</div>
+    <div class="copy-live-grid">
+      <div class="copy-live-box"><span>Mercado</span><strong id="copyMarket">—</strong></div>
+      <div class="copy-live-box"><span>Resultado</span><strong id="copyTotalPnl">US$ 0,00</strong></div>
+      <div class="copy-live-box"><span>Realizado</span><strong id="copyRealizedPnl">US$ 0,00</strong></div>
+      <div class="copy-live-box"><span>Aberto</span><strong id="copyUnrealizedPnl">US$ 0,00</strong></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:9px;font-size:8px;color:#778395"><span id="copyCapital">Capital: —</span><span id="copyPositions">Posições: 0</span></div>
+    <div class="copy-live-list" id="copySignalList"><div style="color:#778395">Nenhum sinal recebido.</div></div>
+    <button type="button" class="robot-strategy-open" style="width:100%;margin-top:9px" onclick="window.location.href='/copy-trading.html'">Abrir Copy Trading</button>
   </div>
 
   <div class="limit-box">
@@ -3583,6 +3598,37 @@ async function loadReport(){
   }
 }
 
+async function loadCopyTradingDashboard(){
+  const card=document.getElementById("copyLiveCard");
+  if(!card||!selectedAccountId)return;
+  try{
+    const d=await apiFetch("/api/copy-trading/summary?accountId="+encodeURIComponent(selectedAccountId));
+    if(!d.active||!d.summary){card.style.display="none";return;}
+    card.style.display="block";
+    const s=d.summary;
+    const market=document.getElementById("copyMarket");
+    market.textContent=(s.marketLabel||s.market||"—")+(Number.isFinite(Number(s.marketChange))?" "+Number(s.marketChange).toFixed(2)+"%":"");
+    market.className="copy-market "+((s.marketLabel==="Favorável")?"copy-pos":(s.marketLabel==="Atenção"?"copy-neg":"copy-neutral"));
+    const fmt=v=>{const x=Number(v)||0;return "US$ "+x.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})};
+    const total=Number(s.totalPnl)||0,real=Number(s.realizedPnl)||0,unreal=Number(s.unrealizedPnl)||0;
+    const totalEl=document.getElementById("copyTotalPnl"),realEl=document.getElementById("copyRealizedPnl"),unrealEl=document.getElementById("copyUnrealizedPnl");
+    totalEl.textContent=fmt(total); realEl.textContent=fmt(real); unrealEl.textContent=fmt(unreal);
+    totalEl.className=total>0?"copy-pos":total<0?"copy-neg":"copy-neutral";
+    realEl.className=real>0?"copy-pos":real<0?"copy-neg":"copy-neutral";
+    unrealEl.className=unreal>0?"copy-pos":unreal<0?"copy-neg":"copy-neutral";
+    document.getElementById("copyCapital").textContent="Capital: US$ "+Number(s.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+    document.getElementById("copyPositions").textContent="Posições: "+(s.openPositions||0);
+    const list=document.getElementById("copySignalList");
+    list.innerHTML=(d.signals||[]).slice(0,6).map(x=>{
+      const p=Number(x.pnl_usdt)||0;
+      const cls=p>0?"copy-pos":p<0?"copy-neg":"copy-neutral";
+      return '<div class="copy-live-row"><span><b>'+escapeHtml(x.side||"")+'</b> '+escapeHtml(x.symbol||"")+'<br><span style="color:#66778d">'+escapeHtml(x.status||"")+'</span></span><span class="'+cls+'">'+(p?((p>0?"+":"")+p.toFixed(2)+" USDT"):"—")+'</span></div>';
+    }).join("")||'<div style="color:#778395;padding:8px 0">Aguardando sinais do TradingView...</div>';
+  }catch(e){
+    if(e&&e.message&&/403|Copy Trading/i.test(e.message))card.style.display="none";
+  }
+}
+
 function formatDate(s){return new Date(s+"T00:00:00").toLocaleDateString("pt-BR")}
 function printReport(){
   if(!window.lastReport){alert("Gere o relatório antes de imprimir.");return}
@@ -3732,15 +3778,20 @@ async function init(){
   if(!active)return;
   await loadExchangeRate();
   await loadAccounts();
+  await loadCopyTradingDashboard();
   await updateOperationRealtime();
   await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
   await loadCryptoNews();
   refreshTimer=setInterval(async()=>{
     await loadExchangeRate();
     await loadAccounts();
+    await loadCopyTradingDashboard();
     await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
     await loadCryptoNews();
   },30000);
+
+  if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
+  const copyDashboardTimer=setInterval(async()=>{try{await loadCopyTradingDashboard();}catch(_e){}} ,5000);
 
   if(operationRealtimeTimer)clearInterval(operationRealtimeTimer);
   operationRealtimeTimer=setInterval(async()=>{

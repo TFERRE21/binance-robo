@@ -9,6 +9,18 @@ const ALLOWED = new Set(['profissional', 'premium']);
 const STABLE = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
 let ready = false;
 let busy = false;
+const runtimeLogs = [];
+function logEvent(level, message, meta = {}) {
+  runtimeLogs.unshift({
+    time: new Date().toISOString(),
+    level,
+    message,
+    ...meta
+  });
+  if (runtimeLogs.length > 100) runtimeLogs.length = 100;
+  console.log('[COPY TRADING]', level, message, meta);
+}
+logEvent('INFO', 'Motor Copy Trading iniciado. Aguardando sinais do TradingView.');
 
 const n = v => {
   const x = Number(v);
@@ -195,12 +207,18 @@ async function executeSignal(cfg, signal) {
 
 async function dispatchSignal(signal) {
   await schema();
+  logEvent('SIGNAL', 'Sinal recebido do TradingView', {
+    symbol: String(signal.symbol || '').toUpperCase(),
+    side: String(signal.side || '').toUpperCase(),
+    strategy: String(signal.strategy || 'CRIPTOPRO')
+  });
   const strategy = String(signal.strategy || signal.strategyKey || 'CRIPTOPRO').trim() || 'CRIPTOPRO';
   const r = await db.query(
     "SELECT * FROM tv_copy_configs WHERE active=true AND (strategy_key=$1 OR strategy_key='*')",
     [strategy]
   );
 
+  logEvent('INFO', 'Configurações ativas encontradas', { count: r.rows.length, strategy });
   for (const cfg of r.rows) {
     const signalId = String(signal.id || signal.signalId || (strategy + ':' + signal.symbol + ':' + signal.side + ':' + Date.now()));
     const ins = await db.query(
@@ -210,7 +228,19 @@ async function dispatchSignal(signal) {
        RETURNING id`,
       [cfg.id, signalId, strategy, String(signal.symbol || '').toUpperCase(), String(signal.side || '').toUpperCase(), n(signal.quantityPercent ?? 100)]
     );
-    if (!ins.rows.length) continue;
+    if (!ins.rows.length) {
+      logEvent('INFO', 'Sinal já processado anteriormente', { configId: cfg.id, signalId });
+      continue;
+    }
+
+    logEvent('EXEC', 'Enviando sinal para a Binance', {
+      configId: cfg.id,
+      accountId: cfg.account_id,
+      symbol: signal.symbol,
+      side: signal.side,
+      capitalUSDT: n(cfg.capital_usdt),
+      allocationPct: n(cfg.allocation_pct)
+    });
 
     try {
       const order = await executeSignal(cfg, signal);
@@ -218,11 +248,25 @@ async function dispatchSignal(signal) {
         "UPDATE tv_copy_events SET status='DONE',order_id=$1 WHERE id=$2",
         [String(order?.orderId || ''), ins.rows[0].id]
       );
+      logEvent('SUCCESS', 'Ordem executada na Binance', {
+        configId: cfg.id,
+        accountId: cfg.account_id,
+        symbol: signal.symbol,
+        side: signal.side,
+        orderId: String(order?.orderId || '')
+      });
     } catch (e) {
       await db.query(
         "UPDATE tv_copy_events SET status='ERROR',error_message=$1 WHERE id=$2",
         [String(e.message || e), ins.rows[0].id]
       );
+      logEvent('ERROR', 'Falha ao executar ordem na Binance', {
+        configId: cfg.id,
+        accountId: cfg.account_id,
+        symbol: signal.symbol,
+        side: signal.side,
+        error: String(e.message || e)
+      });
     }
   }
 }
@@ -352,6 +396,7 @@ router.post('/webhook/tradingview', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Sinal inválido. Use symbol e side BUY/SELL.' });
     }
 
+    logEvent('INFO', 'Webhook TradingView autenticado.');
     await dispatchSignal({
       id: req.body?.id,
       strategy: req.body?.strategy || 'CRIPTOPRO',
@@ -360,11 +405,22 @@ router.post('/webhook/tradingview', async (req, res) => {
       quantityPercent: req.body?.quantityPercent ?? req.body?.quantity_pct ?? 100
     });
 
-    res.json({ success: true, message: 'Sinal TradingView recebido.' });
+    res.json({ success: true, message: 'Sinal TradingView recebido.', logged: true });
   } catch (e) {
     console.error('[TRADINGVIEW WEBHOOK]', e);
     res.status(500).json({ success: false, message: 'Erro ao processar sinal TradingView.' });
   }
+});
+
+router.get('/logs', auth, gate, async (req, res) => {
+  res.json({
+    success: true,
+    serverTime: new Date().toISOString(),
+    provider: 'TradingView',
+    webhook: '/api/copy-trading/webhook/tradingview',
+    configured: Boolean(String(process.env.TRADINGVIEW_WEBHOOK_SECRET || '').trim()),
+    logs: runtimeLogs.slice(0, 60)
+  });
 });
 
 router.get('/webhook/status', async (req, res) => {
@@ -378,6 +434,7 @@ router.get('/webhook/status', async (req, res) => {
 
 async function run() {
   // O Copy Trading agora é dirigido por webhooks do TradingView.
+  logEvent('HEARTBEAT', 'Motor ativo. Aguardando próximo sinal do TradingView.');
   // Não há polling nem cópia de contas de usuários.
 }
 

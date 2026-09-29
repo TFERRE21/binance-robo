@@ -54,6 +54,8 @@ async function schema() {
       symbol VARCHAR(30) NOT NULL,
       quantity NUMERIC(30,12) NOT NULL DEFAULT 0,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      avg_price NUMERIC(30,12) NOT NULL DEFAULT 0,
+      invested_usdt NUMERIC(30,12) NOT NULL DEFAULT 0,
       UNIQUE(copy_config_id, symbol)
     );
     CREATE TABLE IF NOT EXISTS tv_copy_events (
@@ -71,6 +73,10 @@ async function schema() {
       UNIQUE(copy_config_id, signal_id)
     );
     CREATE INDEX IF NOT EXISTS idx_tv_copy_active ON tv_copy_configs(active);
+    ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS entry_price NUMERIC(30,12) DEFAULT 0;
+    ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS exit_price NUMERIC(30,12) DEFAULT 0;
+    ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS pnl_usdt NUMERIC(30,12) DEFAULT 0;
+    ALTER TABLE tv_copy_events ADD COLUMN IF NOT EXISTS pnl_pct NUMERIC(12,6) DEFAULT 0;
   `);
   ready = true;
 }
@@ -163,14 +169,26 @@ async function executeSignal(cfg, signal) {
     });
 
     const qty = n(o?.executedQty);
+    const quoteSpent = n(o?.cummulativeQuoteQty) || n(o?.quoteOrderQty) || n(cfg.capital_usdt);
+    const entryPrice = qty > 0 ? quoteSpent / qty : 0;
     if (qty > 0) {
       await db.query(
-        `INSERT INTO tv_copy_positions(copy_config_id,symbol,quantity,updated_at)
-         VALUES($1,$2,$3,NOW())
+        `INSERT INTO tv_copy_positions(copy_config_id,symbol,quantity,avg_price,invested_usdt,updated_at)
+         VALUES($1,$2,$3,$4,$5,NOW())
          ON CONFLICT(copy_config_id,symbol)
-         DO UPDATE SET quantity=tv_copy_positions.quantity+EXCLUDED.quantity,updated_at=NOW()`,
-        [cfg.id, symbol, qty]
+         DO UPDATE SET
+           avg_price=CASE WHEN tv_copy_positions.quantity+EXCLUDED.quantity>0
+             THEN ((tv_copy_positions.avg_price*tv_copy_positions.quantity)+EXCLUDED.avg_price*EXCLUDED.quantity)/(tv_copy_positions.quantity+EXCLUDED.quantity)
+             ELSE 0 END,
+           quantity=tv_copy_positions.quantity+EXCLUDED.quantity,
+           invested_usdt=tv_copy_positions.invested_usdt+EXCLUDED.invested_usdt,
+           updated_at=NOW()`,
+        [cfg.id, symbol, qty, entryPrice, quoteSpent]
       );
+      await db.query(
+        "UPDATE tv_copy_events SET entry_price=$1 WHERE copy_config_id=$2 AND symbol=$3 AND side='BUY' AND status='PENDING' ORDER BY id DESC LIMIT 1",
+        [entryPrice, cfg.id, symbol]
+      ).catch(()=>{});
     }
     return o;
   }
@@ -179,10 +197,11 @@ async function executeSignal(cfg, signal) {
   if (!base) throw Error('Por segurança, o Copy Trading externo opera somente pares USDT.');
 
   const pr = await db.query(
-    'SELECT quantity FROM tv_copy_positions WHERE copy_config_id=$1 AND symbol=$2 LIMIT 1',
+    'SELECT quantity,avg_price,invested_usdt FROM tv_copy_positions WHERE copy_config_id=$1 AND symbol=$2 LIMIT 1',
     [cfg.id, symbol]
   );
-  const tracked = n(pr.rows[0]?.quantity);
+  const pos = pr.rows[0];
+  const tracked = n(pos?.quantity);
   if (!(tracked > 0)) throw Error('Não há posição do Copy Trading para vender.');
 
   const available = await free(c, base);
@@ -198,10 +217,16 @@ async function executeSignal(cfg, signal) {
   });
 
   const sold = n(o?.executedQty) || quantity;
+  const quoteReceived = n(o?.cummulativeQuoteQty);
+  const exitPrice = quoteReceived > 0 && sold > 0 ? quoteReceived / sold : 0;
+  const investedPart = n(pos.invested_usdt) * Math.min(1, sold / tracked);
+  const pnl = exitPrice > 0 ? quoteReceived - investedPart : 0;
+  const pnlPct = investedPart > 0 ? (pnl / investedPart) * 100 : 0;
   await db.query(
-    'UPDATE tv_copy_positions SET quantity=GREATEST(quantity-$1,0),updated_at=NOW() WHERE copy_config_id=$2 AND symbol=$3',
-    [sold, cfg.id, symbol]
+    'UPDATE tv_copy_positions SET quantity=GREATEST(quantity-$1,0),invested_usdt=GREATEST(invested_usdt-$2,0),updated_at=NOW() WHERE copy_config_id=$3 AND symbol=$4',
+    [sold, investedPart, cfg.id, symbol]
   );
+  signal._result = { entryPrice:n(pos.avg_price), exitPrice, pnl, pnlPct };
   return o;
 }
 
@@ -245,8 +270,8 @@ async function dispatchSignal(signal) {
     try {
       const order = await executeSignal(cfg, signal);
       await db.query(
-        "UPDATE tv_copy_events SET status='DONE',order_id=$1 WHERE id=$2",
-        [String(order?.orderId || ''), ins.rows[0].id]
+        "UPDATE tv_copy_events SET status='DONE',order_id=$1,entry_price=$2,exit_price=$3,pnl_usdt=$4,pnl_pct=$5 WHERE id=$6",
+        [String(order?.orderId || ''), n(signal._result?.entryPrice), n(signal._result?.exitPrice), n(signal._result?.pnl), n(signal._result?.pnlPct), ins.rows[0].id]
       );
       logEvent('SUCCESS', 'Ordem executada na Binance', {
         configId: cfg.id,
@@ -372,6 +397,35 @@ router.get('/events', auth, gate, async (req, res) => {
   } catch (e) {
     res.status(500).json({ success: false, message: 'Não foi possível carregar o histórico.' });
   }
+});
+
+router.get('/summary', auth, gate, async (req, res) => {
+  try {
+    const accountId = Number(req.query.accountId);
+    const cfg = await db.query('SELECT * FROM tv_copy_configs WHERE user_id=$1 AND account_id=$2 LIMIT 1',[req.user.id,accountId]);
+    if (!cfg.rows.length) return res.json({success:true,active:false,summary:null,signals:[]});
+    const c = cfg.rows[0];
+    const ev = await db.query(`SELECT id,strategy_key,symbol,side,quantity_pct,order_id,status,error_message,created_at,entry_price,exit_price,pnl_usdt,pnl_pct
+      FROM tv_copy_events WHERE copy_config_id=$1 ORDER BY id DESC LIMIT 30`,[c.id]);
+    const positions = await db.query('SELECT symbol,quantity,avg_price,invested_usdt FROM tv_copy_positions WHERE copy_config_id=$1 AND quantity>0',[c.id]);
+    let realized=0, wins=0, losses=0;
+    for(const x of ev.rows){ const p=n(x.pnl_usdt); realized+=p; if(p>0)wins++; if(p<0)losses++; }
+    const account = await account(req.user.id,accountId);
+    let market='Indisponível', marketChange=0;
+    if(account){
+      try {
+        const bc=client(account);
+        const prices=await bc.prices();
+        const btc=n(prices.BTCUSDT);
+        if(btc>0){ market='Ativo'; marketChange=0; }
+      } catch(e){}
+    }
+    res.json({success:true,active:Boolean(c.active),summary:{
+      strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),
+      realizedPnl:realized,winCount:wins,lossCount:losses,openPositions:positions.rows.length,
+      market,marketChange
+    },signals:ev.rows,positions:positions.rows});
+  } catch(e){ res.status(500).json({success:false,message:'Não foi possível carregar o resumo do Copy Trading.'}); }
 });
 
 /*

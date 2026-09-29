@@ -7,12 +7,22 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
 body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-width:1100px;margin:auto;padding:20px}.card{background:#0d1626;border:1px solid #21304a;border-radius:14px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.trader{border:1px solid #263650;border-radius:12px;padding:16px;background:#101a2b}.trader button,.primary{background:#1677ff;color:white;border:0;border-radius:8px;padding:11px 16px;cursor:pointer}.muted{color:#8290a8}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}input,select{width:100%;box-sizing:border-box;background:#08101e;color:#fff;border:1px solid #263650;border-radius:8px;padding:12px;margin-top:6px}.field{margin-bottom:12px}.switch{display:flex;gap:10px;align-items:center;margin:10px 0}.switch input{width:auto}.danger{background:#8d2335!important}.ok{color:#20df96}.err{color:#ff6177}
-.live-log{background:#050b14;border:1px solid #1d3554;border-radius:10px;padding:12px;height:260px;overflow:auto;font-family:Consolas,monospace;font-size:12px}.log-line{padding:5px 0;border-bottom:1px solid #122238}.log-time{color:#667d9b}.log-INFO{color:#6ea8ff}.log-HEARTBEAT{color:#9aa9bc}.log-SIGNAL{color:#ffd166}.log-EXEC{color:#c084fc}.log-SUCCESS{color:#20df96}.log-ERROR{color:#ff6177}.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#20df96;box-shadow:0 0 10px #20df96;margin-right:7px}.statusbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:#08101e;border-radius:9px;padding:10px;margin-top:10px;font-size:12px}.log-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.log-clear{background:#17263b;color:#9fb1c9;border:1px solid #29415e;border-radius:6px;padding:5px 9px;cursor:pointer}</style>
+.live-log{background:#050b14;border:1px solid #1d3554;border-radius:10px;padding:12px;height:260px;overflow:auto;font-family:Consolas,monospace;font-size:12px}.log-line{padding:5px 0;border-bottom:1px solid #122238}.log-time{color:#667d9b}.log-INFO{color:#6ea8ff}.log-HEARTBEAT{color:#9aa9bc}.log-SIGNAL{color:#ffd166}.log-EXEC{color:#c084fc}.log-SUCCESS{color:#20df96}.log-ERROR{color:#ff6177}.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#20df96;box-shadow:0 0 10px #20df96;margin-right:7px}.statusbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:#08101e;border-radius:9px;padding:10px;margin-top:10px;font-size:12px}.log-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.log-clear{background:#17263b;color:#9fb1c9;border:1px solid #29415e;border-radius:6px;padding:5px 9px;cursor:pointer}.hero-status{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}.status-card{background:#08111f;border:1px solid #203653;border-radius:10px;padding:13px}.status-label{font-size:10px;color:#7890ac;text-transform:uppercase;letter-spacing:.5px}.status-value{font-size:15px;font-weight:700;margin-top:5px}.online{color:#20df96}.waiting{color:#ffd166}.offline{color:#ff6177}.copy-title{display:flex;align-items:center;gap:10px}.copy-badge{font-size:10px;background:#b8860b;color:#fff;border-radius:20px;padding:4px 8px}.signal-box{margin-top:12px;background:#06101c;border:1px dashed #29415e;border-radius:10px;padding:12px;font-family:Consolas,monospace;font-size:12px}.live-log{height:320px}.step-list{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}.step{background:#08111f;border:1px solid #1d3049;border-radius:8px;padding:10px;text-align:center;font-size:11px;color:#8195ad}.step.active{border-color:#20df96;color:#20df96}.step.wait{border-color:#66531d;color:#ffd166}@media(max-width:700px){.hero-status,.step-list{grid-template-columns:1fr 1fr}}</style>
 </head>
 <body><div class="wrap">
-<div class="card"><div class="row"><button onclick="history.back()">← Voltar</button><h1>📋 Copy Trading</h1></div><p class="muted">Receba sinais externos do TradingView e execute-os automaticamente na sua própria conta Binance.</p><div id="access">Validando plano...</div></div>
+<div class="card">
+<div class="copy-title"><h1>📋 Copy Trading</h1><span class="copy-badge">TRADINGVIEW</span></div>
+<p class="muted">TradingView → CRIPTOPRO → sua Binance. Nenhum usuário é copiado.</p>
+<div id="access">Validando plano...</div>
+<div class="hero-status">
+<div class="status-card"><div class="status-label">Motor</div><div id="motorStatus" class="status-value online">● ONLINE</div></div>
+<div class="status-card"><div class="status-label">Webhook</div><div id="heroWebhook" class="status-value waiting">● VERIFICANDO</div></div>
+<div class="status-card"><div class="status-label">Operação</div><div id="heroOperation" class="status-value waiting">AGUARDANDO SINAL</div></div>
+</div>
+<div class="step-list"><div class="step active">1. CRIPTOPRO ONLINE</div><div id="step2" class="step wait">2. WEBHOOK</div><div id="step3" class="step wait">3. SINAL</div><div id="step4" class="step wait">4. BINANCE</div></div>
+</div>
 <div id="app" style="display:none">
-<div class="card tv"><h2>📡 TradingView → CRIPTOPRO → Binance</h2>
+<div class="card tv"><h2>📡 TradingView → CRIPTOPRO → Binance</h2><div class="signal-box">STATUS: aguardando o próximo alerta do TradingView...<br>Quando chegar um BUY/SELL, ele aparecerá aqui e no log abaixo.</div>
 <p>O CRIPTOPRO recebe sinais da sua estratégia no TradingView e executa automaticamente as ordens na sua própria conta Binance. <b>Nenhum usuário do CRIPTOPRO é copiado.</b></p>
 <div class="field"><label>Conta Binance</label><select id="account"></select></div>
 <div class="field"><label>Capital destinado ao Copy Trading (USDT)</label><input id="capital" type="number" min="1" step="0.01" placeholder="Ex.: 100"></div>
@@ -76,12 +86,22 @@ async function loadLogs(){
  try{
   const d=await api('/api/copy-trading/logs');
   document.getElementById('tvStatus').textContent='TradingView: '+(d.configured?'webhook configurado':'webhook NÃO configurado');
+  const hw=document.getElementById('heroWebhook');
+  hw.textContent=d.configured?'● CONFIGURADO':'● NÃO CONFIGURADO';
+  hw.className='status-value '+(d.configured?'online':'offline');
+  document.getElementById('step2').className='step '+(d.configured?'active':'wait');
   const logs=d.logs||[];
   const signal=logs.find(x=>x.level==='SIGNAL');
-  if(signal) document.getElementById('lastSignal').textContent='Último sinal: '+signal.side+' '+signal.symbol;
+  if(signal){
+   document.getElementById('lastSignal').textContent='Último sinal: '+signal.side+' '+signal.symbol;
+   document.getElementById('heroOperation').textContent='ÚLTIMO: '+signal.side+' '+signal.symbol;
+   document.getElementById('heroOperation').className='status-value online';
+   document.getElementById('step3').className='step active';
+  }
   document.getElementById('liveLog').innerHTML=logs.length?logs.map(x=>{
     const t=new Date(x.time).toLocaleTimeString('pt-BR');
     const extra=x.orderId?' | ordem #'+x.orderId:(x.error?' | '+esc(x.error):'');
+    if(x.level==='SUCCESS') document.getElementById('step4').className='step active';
     return '<div class="log-line"><span class="log-time">['+t+']</span> <b class="log-'+esc(x.level)+'">'+esc(x.level)+'</b> '+esc(x.message)+extra+'</div>';
   }).join(''):'<div class="muted">Aguardando atividade...</div>';
  }catch(e){document.getElementById('liveLog').innerHTML='<div class="log-ERROR">Erro ao consultar log: '+esc(e.message)+'</div>'}

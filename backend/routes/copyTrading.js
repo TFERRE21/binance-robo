@@ -406,7 +406,19 @@ router.get('/summary', auth, gate, async (req, res) => {
     const ev = await db.query(`SELECT id,strategy_key,symbol,side,quantity_pct,order_id,status,error_message,created_at,entry_price,exit_price,pnl_usdt,pnl_pct
       FROM tv_copy_events WHERE copy_config_id=$1 ORDER BY id DESC LIMIT 30`,[c.id]);
     const positions = await db.query('SELECT symbol,quantity,avg_price,invested_usdt FROM tv_copy_positions WHERE copy_config_id=$1 AND quantity>0',[c.id]);
-    let realized=0, wins=0, losses=0;
+    let realized=0, wins=0, losses=0, unrealized=0, currentValue=0;
+    if(account){
+      try{
+        const bc=client(account);
+        const prices=await bc.prices();
+        for(const p of positions.rows){
+          const price=n(prices[p.symbol]);
+          const value=n(p.quantity)*price;
+          currentValue+=value;
+          unrealized += value-n(p.invested_usdt);
+        }
+      }catch(e){}
+    }
     for(const x of ev.rows){ const p=n(x.pnl_usdt); realized+=p; if(p>0)wins++; if(p<0)losses++; }
     const account = await account(req.user.id,accountId);
     let market='Indisponível', marketChange=0, marketLabel='Indisponível';
@@ -424,7 +436,8 @@ router.get('/summary', auth, gate, async (req, res) => {
     }
     res.json({success:true,active:Boolean(c.active),summary:{
       strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),
-      realizedPnl:realized,winCount:wins,lossCount:losses,openPositions:positions.rows.length,
+      realizedPnl:realized,unrealizedPnl:unrealized,totalPnl:realized+unrealized,currentValue,
+      winCount:wins,lossCount:losses,openPositions:positions.rows.length,
       market,marketLabel,marketChange
     },signals:ev.rows,positions:positions.rows});
   } catch(e){ res.status(500).json({success:false,message:'Não foi possível carregar o resumo do Copy Trading.'}); }

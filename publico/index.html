@@ -3611,11 +3611,23 @@ async function loadReport(){
 
 async function loadCopyTradingDashboard(){
   const card=document.getElementById("copyLiveCard");
-  if(!card||!selectedAccountId)return;
+  if(!card)return;
   try{
-    const d=await apiFetch("/api/copy-trading/summary?accountId="+encodeURIComponent(selectedAccountId));
-    card.style.display="block";
-    if(!d.active||!d.summary){
+    // Primeiro procura uma configuração ativa do usuário.
+    // Assim, trocar de API no painel não faz o Copy Trading parecer desligado.
+    const active=await apiFetch("/api/copy-trading/active");
+    if(active?.active && active?.config?.accountId){
+      const activeAccountId=String(active.config.accountId);
+      if(String(selectedAccountId)!==activeAccountId){
+        selectedAccountId=activeAccountId;
+        localStorage.setItem("selected_binance_account",selectedAccountId);
+        const selector=document.getElementById("accountSelector");
+        if(selector)selector.value=selectedAccountId;
+        renderAccountSelector();
+      }
+    }
+    if(!active?.active){
+      card.style.display="block";
       document.getElementById("copyLiveBadge").textContent="● DESLIGADO";
       document.getElementById("copyLiveBadge").className="copy-live-badge copy-neutral";
       document.getElementById("copySource").textContent="TradingView";
@@ -3630,6 +3642,8 @@ async function loadCopyTradingDashboard(){
       document.getElementById("copySignalList").innerHTML='<div style="color:#778395;padding:8px 0">Copy Trading parado. Ele só será desligado pelo botão <b>PARAR CÓPIA</b>.</div>';
       return;
     }
+    const d=await apiFetch("/api/copy-trading/summary?accountId="+encodeURIComponent(active.config.accountId));
+    card.style.display="block";
     const s=d.summary;
     document.getElementById("copyLiveBadge").textContent="● RODANDO";
     document.getElementById("copyLiveBadge").className="copy-live-badge copy-pos";

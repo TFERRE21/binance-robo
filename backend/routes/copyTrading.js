@@ -436,7 +436,8 @@ router.get('/summary', auth, gate, async (req, res) => {
     }
     res.json({success:true,active:Boolean(c.active),summary:{
       strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),
-      realizedPnl:realized,unrealizedPnl:unrealized,totalPnl:realized+unrealized,currentValue,
+      realizedPnl:realized,unrealizedPnl:unrealized,totalPnl:realized+unrealized,
+      totalPnlPct:n(c.capital_usdt)>0?((realized+unrealized)/n(c.capital_usdt))*100:0,currentValue,
       winCount:wins,lossCount:losses,openPositions:positions.rows.length,
       market,marketLabel,marketChange
     },signals:ev.rows,positions:positions.rows});

@@ -31,7 +31,7 @@ body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-wid
 <div class="field"><label>Máximo de operações simultâneas</label><select id="maxOps"><option value="1">1 operação</option><option value="2">2 operações</option><option value="3" selected>3 operações</option><option value="5">5 operações</option><option value="10">10 operações</option></select><div class="muted">Quando atingir o limite, novos BUYs aguardam até uma posição ser encerrada. SELLs continuam sendo processados.</div></div>
 <div class="field"><label>Estratégia TradingView</label><input id="strategy" value="CRIPTOPRO" maxlength="100"></div>
 <div class="row"><button class="primary" onclick="startCopy()">ATIVAR COPY TRADING</button><button class="primary danger" onclick="stopCopy()">PARAR CÓPIA</button></div>
-<div id="msg" class="muted" style="margin-top:12px"></div></div>
+<div id="copyStatusBadge" class="muted" style="margin-top:10px;font-weight:800">● DESLIGADO</div><div id="msg" class="muted" style="margin-top:12px"></div></div>
 <div class="card"><h2>🔐 Como conectar o TradingView</h2>
 <p>1. No servidor, configure <code>TRADINGVIEW_WEBHOOK_SECRET</code>.</p>
 <p>2. No alerta do TradingView, use a URL:</p>
@@ -59,8 +59,39 @@ async function init(){
   const ac=await api('/api/binance/accounts');
   const s=document.getElementById('account');s.innerHTML='';
   (ac.accounts||[]).forEach(x=>s.add(new Option(x.name+' (#'+x.id+')',x.id)));
-  loadEvents();
+  await loadActiveConfig();
  }catch(e){document.getElementById('access').innerHTML='<span class="err">'+esc(e.message)+'</span>'}
+}
+
+async function loadActiveConfig(){
+ try{
+  const d=await api('/api/copy-trading/active');
+  if(!d.active||!d.config){
+    updateCopyUi(false);
+    if(document.getElementById('account').value)loadEvents();
+    return;
+  }
+  const x=d.config;
+  document.getElementById('account').value=String(x.accountId);
+  document.getElementById('capital').value=Number(x.capitalUSDT||0);
+  document.getElementById('allocation').value=Number(x.allocationPct||100);
+  document.getElementById('maxOps').value=String(x.maxConcurrentOperations||3);
+  document.getElementById('strategy').value=x.strategyKey||'CRIPTOPRO';
+  localStorage.setItem('selected_binance_account',String(x.accountId));
+  updateCopyUi(true,x);
+  await loadEvents();
+ }catch(e){
+  document.getElementById('msg').innerHTML='<span class="err">Status do Copy Trading: '+esc(e.message)+'</span>';
+ }
+}
+
+function updateCopyUi(active,x={}){
+ const start=document.querySelector('button[onclick="startCopy()"]');
+ const stop=document.querySelector('button[onclick="stopCopy()"]');
+ if(start){start.textContent=active?'✓ COPY TRADING ATIVO':'ATIVAR COPY TRADING';start.disabled=active;start.classList.toggle('success',active);}
+ if(stop){stop.disabled=!active;stop.textContent=active?'■ PARAR CÓPIA':'■ PARAR CÓPIA';}
+ const badge=document.getElementById('copyStatusBadge');
+ if(badge){badge.textContent=active?'● RODANDO':'● DESLIGADO';badge.className=active?'ok':'muted';}
 }
 async function startCopy(){
  try{
@@ -72,11 +103,11 @@ async function startCopy(){
    maxConcurrentOperations:Number(document.getElementById('maxOps').value),
    strategyKey:document.getElementById('strategy').value.trim()||'CRIPTOPRO'
   })});
-  document.getElementById('msg').innerHTML='<span class="ok">'+esc(d.message)+'</span>';loadEvents()
+  document.getElementById('msg').innerHTML='<span class="ok">'+esc(d.message)+'</span>';updateCopyUi(true);loadEvents()
  }catch(e){document.getElementById('msg').innerHTML='<span class="err">'+esc(e.message)+'</span>'}
 }
 async function stopCopy(){
- try{const d=await api('/api/copy-trading/stop',{method:'POST',body:JSON.stringify({accountId:Number(document.getElementById('account').value)})});document.getElementById('msg').textContent=d.message;loadEvents()}
+ try{const d=await api('/api/copy-trading/stop',{method:'POST',body:JSON.stringify({accountId:Number(document.getElementById('account').value)})});document.getElementById('msg').textContent=d.message;updateCopyUi(false);loadEvents()}
  catch(e){document.getElementById('msg').textContent=e.message}
 }
 async function loadEvents(){

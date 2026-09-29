@@ -3832,8 +3832,11 @@ async function init(){
   const active=await loadSubscription();
   if(!active)return;
   await loadExchangeRate();
+  // Copy Trading é independente do carregamento do painel Binance.
+  // Se alguma consulta da conta falhar, o status do Copy Trading continua sendo carregado.
+  try{ await loadCopyTradingDashboard(); }catch(e){ console.warn("COPY TRADING STATUS:",e); }
   await loadAccounts();
-  await loadCopyTradingDashboard();
+  try{ await loadCopyTradingDashboard(); }catch(e){ console.warn("COPY TRADING STATUS:",e); }
   await updateOperationRealtime();
   await loadBtcChart(document.getElementById("btcInterval")?.value||"15m");
   await loadCryptoNews();
@@ -3861,7 +3864,10 @@ async function init(){
   if(robotLogTimer)clearInterval(robotLogTimer);
   robotLogTimer=setInterval(async()=>{if(selectedAccountId){try{await loadRobotInstances();}catch(_e){}}},3000);
 }
+
+// Monitor independente: sair/trocar de página nunca altera o estado do Copy Trading.
 init();
+setTimeout(()=>{try{loadCopyTradingDashboard();}catch(e){}},1200);
 </script>
 
 <!-- CRIPTOPRO - SUPORTE IA -->

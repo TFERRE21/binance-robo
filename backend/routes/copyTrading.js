@@ -412,6 +412,33 @@ router.get('/events', auth, gate, async (req, res) => {
   }
 });
 
+router.get('/active', auth, gate, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT c.*, a.name account_name
+       FROM tv_copy_configs c
+       LEFT JOIN binance_accounts a ON a.id=c.account_id
+       WHERE c.user_id=$1 AND c.active=true
+       ORDER BY c.updated_at DESC LIMIT 1`,
+      [req.user.id]
+    );
+    const x=r.rows[0];
+    res.json({
+      success:true,
+      active:Boolean(x),
+      config:x?{
+        id:x.id, accountId:x.account_id, accountName:x.account_name,
+        strategyKey:x.strategy_key, capitalUSDT:n(x.capital_usdt),
+        allocationPct:n(x.allocation_pct),
+        maxConcurrentOperations:Number(x.max_concurrent_operations)||3,
+        active:true
+      }:null
+    });
+  } catch(e) {
+    res.status(500).json({success:false,message:'Não foi possível consultar o Copy Trading ativo.'});
+  }
+});
+
 router.get('/summary', auth, gate, async (req, res) => {
   try {
     const accountId = Number(req.query.accountId);

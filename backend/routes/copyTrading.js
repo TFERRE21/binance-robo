@@ -185,11 +185,9 @@ async function executeSignal(cfg, signal) {
            updated_at=NOW()`,
         [cfg.id, symbol, qty, entryPrice, quoteSpent]
       );
-      await db.query(
-        "UPDATE tv_copy_events SET entry_price=$1 WHERE copy_config_id=$2 AND symbol=$3 AND side='BUY' AND status='PENDING' ORDER BY id DESC LIMIT 1",
-        [entryPrice, cfg.id, symbol]
-      ).catch(()=>{});
+
     }
+    signal._result = { entryPrice, exitPrice:0, pnl:0, pnlPct:0 };
     return o;
   }
 
@@ -411,19 +409,23 @@ router.get('/summary', auth, gate, async (req, res) => {
     let realized=0, wins=0, losses=0;
     for(const x of ev.rows){ const p=n(x.pnl_usdt); realized+=p; if(p>0)wins++; if(p<0)losses++; }
     const account = await account(req.user.id,accountId);
-    let market='Indisponível', marketChange=0;
+    let market='Indisponível', marketChange=0, marketLabel='Indisponível';
     if(account){
       try {
         const bc=client(account);
-        const prices=await bc.prices();
-        const btc=n(prices.BTCUSDT);
-        if(btc>0){ market='Ativo'; marketChange=0; }
+        const candles=await bc.candles({symbol:'BTCUSDT',interval:'1h',limit:2});
+        const prev=n(candles?.[0]?.close), last=n(candles?.[1]?.close);
+        if(prev>0 && last>0){
+          marketChange=((last-prev)/prev)*100;
+          marketLabel=marketChange>=0?'Favorável':'Atenção';
+          market=marketLabel;
+        }
       } catch(e){}
     }
     res.json({success:true,active:Boolean(c.active),summary:{
       strategy:c.strategy_key,capitalUSDT:n(c.capital_usdt),allocationPct:n(c.allocation_pct),
       realizedPnl:realized,winCount:wins,lossCount:losses,openPositions:positions.rows.length,
-      market,marketChange
+      market,marketLabel,marketChange
     },signals:ev.rows,positions:positions.rows});
   } catch(e){ res.status(500).json({success:false,message:'Não foi possível carregar o resumo do Copy Trading.'}); }
 });

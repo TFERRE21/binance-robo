@@ -1011,25 +1011,8 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   <div class="chart-status" id="btcStatus">Conectando à Binance...</div>
   <div class="chart-tv-note">Dados reais da Binance · candles, volume, escala de preço e atualização ao vivo.</div>
 </section>
-  </div>
-  <div class="robot-live-column">
-    <section class="operation-card" id="robotLiveCard" style="margin-top:14px">
-  <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
-  <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
-</section>
-    <section class="operation-card" id="robotRealtimeLogCard" style="margin-top:14px">
-  <div class="operation-head">
-    <div class="operation-title">📡 LOG DO ROBÔ — TEMPO REAL</div>
-    <div class="operation-badge" id="robotLogBadge">AGUARDANDO</div>
-  </div>
-  <div id="robotStrategyInfo" class="security" style="margin-bottom:10px">Estratégia: — · Indicadores: —</div>
-  <div id="robotRealtimeLog" style="height:280px;overflow:auto;background:#060a10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.55"><div style="color:#718096">Aguardando dados do robô...</div></div>
-</section>
-  </div>
-</section>
-
 <section class="copy-dashboard-main" id="copyDashboardMain">
-  <div class="copy-live-card" id="copyLiveCard" style="display:none">
+  <div class="copy-live-card" id="copyLiveCard" style="display:block">
     <div class="copy-live-head">
       <div class="copy-live-title">📡 COPY TRADING</div>
       <span class="copy-live-badge" id="copyLiveBadge">● RODANDO</span>
@@ -1052,6 +1035,24 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <button type="button" class="robot-strategy-open" style="width:100%;margin-top:9px" onclick="window.location.href='/copy-trading.html'">Abrir Copy Trading</button>
   </div>
 </section>
+  </div>
+  <div class="robot-live-column">
+    <section class="operation-card" id="robotLiveCard" style="margin-top:14px">
+  <div class="operation-head"><div class="operation-title">🤖 ROBÔ CRIPTOPRO</div><div class="operation-badge" id="robotLiveBadge">PARADO</div></div>
+  <div id="robotLiveContent" class="operation-empty">Configure o robô para esta API.</div>
+</section>
+    <section class="operation-card" id="robotRealtimeLogCard" style="margin-top:14px">
+  <div class="operation-head">
+    <div class="operation-title">📡 LOG DO ROBÔ — TEMPO REAL</div>
+    <div class="operation-badge" id="robotLogBadge">AGUARDANDO</div>
+  </div>
+  <div id="robotStrategyInfo" class="security" style="margin-bottom:10px">Estratégia: — · Indicadores: —</div>
+  <div id="robotRealtimeLog" style="height:280px;overflow:auto;background:#060a10;border:1px solid rgba(255,255,255,.08);border-radius:10px;padding:10px;font-family:Consolas,monospace;font-size:10px;line-height:1.55"><div style="color:#718096">Aguardando dados do robô...</div></div>
+</section>
+  </div>
+</section>
+
+
 
 <section class="operation-card">
   <div class="operation-head">
@@ -3644,6 +3645,14 @@ async function loadCopyTradingDashboard(){
     }
     const d=await apiFetch("/api/copy-trading/summary?accountId="+encodeURIComponent(active.config.accountId));
     card.style.display="block";
+    if(!d?.summary){
+      document.getElementById("copyLiveBadge").textContent="● ATIVO / AGUARDANDO DADOS";
+      document.getElementById("copyLiveBadge").className="copy-live-badge copy-neutral";
+      document.getElementById("copySource").textContent=active.config.strategyKey||"TradingView";
+      document.getElementById("copyCapital").textContent="Capital: US$ "+Number(active.config.capitalUSDT||0).toLocaleString("pt-BR",{minimumFractionDigits:2});
+      document.getElementById("copyPositions").textContent="Posições: 0";
+      return;
+    }
     const s=d.summary;
     document.getElementById("copyLiveBadge").textContent="● RODANDO";
     document.getElementById("copyLiveBadge").className="copy-live-badge copy-pos";

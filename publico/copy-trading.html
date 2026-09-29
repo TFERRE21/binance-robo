@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="css/style.css">
 <style>
 body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-width:1100px;margin:auto;padding:20px}.card{background:#0d1626;border:1px solid #21304a;border-radius:14px;padding:20px;margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}.trader{border:1px solid #263650;border-radius:12px;padding:16px;background:#101a2b}.trader button,.primary{background:#1677ff;color:white;border:0;border-radius:8px;padding:11px 16px;cursor:pointer}.muted{color:#8290a8}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}input,select{width:100%;box-sizing:border-box;background:#08101e;color:#fff;border:1px solid #263650;border-radius:8px;padding:12px;margin-top:6px}.field{margin-bottom:12px}.switch{display:flex;gap:10px;align-items:center;margin:10px 0}.switch input{width:auto}.danger{background:#8d2335!important}.ok{color:#20df96}.err{color:#ff6177}
-</style>
+.live-log{background:#050b14;border:1px solid #1d3554;border-radius:10px;padding:12px;height:260px;overflow:auto;font-family:Consolas,monospace;font-size:12px}.log-line{padding:5px 0;border-bottom:1px solid #122238}.log-time{color:#667d9b}.log-INFO{color:#6ea8ff}.log-HEARTBEAT{color:#9aa9bc}.log-SIGNAL{color:#ffd166}.log-EXEC{color:#c084fc}.log-SUCCESS{color:#20df96}.log-ERROR{color:#ff6177}.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#20df96;box-shadow:0 0 10px #20df96;margin-right:7px}.statusbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;background:#08101e;border-radius:9px;padding:10px;margin-top:10px;font-size:12px}.log-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.log-clear{background:#17263b;color:#9fb1c9;border:1px solid #29415e;border-radius:6px;padding:5px 9px;cursor:pointer}</style>
 </head>
 <body><div class="wrap">
 <div class="card"><div class="row"><button onclick="history.back()">← Voltar</button><h1>📋 Copy Trading</h1></div><p class="muted">Receba sinais externos do TradingView e execute-os automaticamente na sua própria conta Binance.</p><div id="access">Validando plano...</div></div>
@@ -27,6 +27,9 @@ body{background:#050812;color:#f7f9fd;font-family:Arial,sans-serif}.wrap{max-wid
 <p>3. No corpo do alerta, envie JSON:</p>
 <pre>{"secret":"SUA_CHAVE","id":"{{timenow}}-{{ticker}}","strategy":"CRIPTOPRO","symbol":"{{ticker}}","side":"BUY","quantityPercent":100}</pre>
 <p class="muted">O webhook deve ser HTTPS. O sinal BUY usa o capital configurado; SELL encerra somente a posição registrada pelo Copy Trading.</p></div>
+<div class="card"><div class="log-head"><h2>🟢 Log operacional em tempo real</h2><button class="log-clear" onclick="loadLogs()">↻ Atualizar</button></div>
+<div class="statusbar"><span><span class="status-dot"></span>Motor online</span><span id="tvStatus">TradingView: verificando...</span><span id="lastSignal">Último sinal: nenhum</span></div>
+<div id="liveLog" class="live-log"><div class="muted">Conectando ao monitor...</div></div></div>
 <div class="card"><h2>Últimas operações</h2><div id="events" class="muted">Selecione uma conta.</div></div>
 </div></div>
 <script>
@@ -69,6 +72,21 @@ async function loadEvents(){
  }catch(e){}
 }
 document.getElementById('account').addEventListener('change',loadEvents);
+async function loadLogs(){
+ try{
+  const d=await api('/api/copy-trading/logs');
+  document.getElementById('tvStatus').textContent='TradingView: '+(d.configured?'webhook configurado':'webhook NÃO configurado');
+  const logs=d.logs||[];
+  const signal=logs.find(x=>x.level==='SIGNAL');
+  if(signal) document.getElementById('lastSignal').textContent='Último sinal: '+signal.side+' '+signal.symbol;
+  document.getElementById('liveLog').innerHTML=logs.length?logs.map(x=>{
+    const t=new Date(x.time).toLocaleTimeString('pt-BR');
+    const extra=x.orderId?' | ordem #'+x.orderId:(x.error?' | '+esc(x.error):'');
+    return '<div class="log-line"><span class="log-time">['+t+']</span> <b class="log-'+esc(x.level)+'">'+esc(x.level)+'</b> '+esc(x.message)+extra+'</div>';
+  }).join(''):'<div class="muted">Aguardando atividade...</div>';
+ }catch(e){document.getElementById('liveLog').innerHTML='<div class="log-ERROR">Erro ao consultar log: '+esc(e.message)+'</div>'}
+}
+setInterval(loadLogs,3000);
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 init();
 </script></body></html>

@@ -405,17 +405,24 @@ router.get('/summary', auth, gate, async (req, res) => {
     const c = cfg.rows[0];
     const ev = await db.query(`SELECT id,strategy_key,symbol,side,quantity_pct,order_id,status,error_message,created_at,entry_price,exit_price,pnl_usdt,pnl_pct
       FROM tv_copy_events WHERE copy_config_id=$1 ORDER BY id DESC LIMIT 30`,[c.id]);
-    const positions = await db.query('SELECT symbol,quantity,avg_price,invested_usdt FROM tv_copy_positions WHERE copy_config_id=$1 AND quantity>0',[c.id]);
+    const positions = await db.query('SELECT symbol,quantity,avg_price,invested_usdt FROM tv_copy_positions WHERE copy_config_id=$1 AND quantity>0 ORDER BY symbol',[c.id]);
     let realized=0, wins=0, losses=0, unrealized=0, currentValue=0;
+    const livePositions = positions.rows.map(p => ({
+      symbol:p.symbol, quantity:n(p.quantity), avgPrice:n(p.avg_price),
+      investedUSDT:n(p.invested_usdt), currentPrice:0, valueUSDT:0, pnlUSDT:0, pnlPct:0
+    }));
     if(account){
       try{
         const bc=client(account);
         const prices=await bc.prices();
-        for(const p of positions.rows){
+        for(const p of livePositions){
           const price=n(prices[p.symbol]);
-          const value=n(p.quantity)*price;
-          currentValue+=value;
-          unrealized += value-n(p.invested_usdt);
+          p.currentPrice=price;
+          p.valueUSDT=p.quantity*price;
+          p.pnlUSDT=p.valueUSDT-p.investedUSDT;
+          p.pnlPct=p.investedUSDT>0?(p.pnlUSDT/p.investedUSDT)*100:0;
+          currentValue+=p.valueUSDT;
+          unrealized+=p.pnlUSDT;
         }
       }catch(e){}
     }
@@ -439,8 +446,9 @@ router.get('/summary', auth, gate, async (req, res) => {
       realizedPnl:realized,unrealizedPnl:unrealized,totalPnl:realized+unrealized,
       totalPnlPct:n(c.capital_usdt)>0?((realized+unrealized)/n(c.capital_usdt))*100:0,currentValue,
       winCount:wins,lossCount:losses,openPositions:positions.rows.length,
+      source:'TradingView', sourceLabel:'TradingView • '+String(c.strategy_key||'CRIPTOPRO'),
       market,marketLabel,marketChange
-    },signals:ev.rows,positions:positions.rows});
+    },signals:ev.rows,positions:livePositions});
   } catch(e){ res.status(500).json({success:false,message:'Não foi possível carregar o resumo do Copy Trading.'}); }
 });
 

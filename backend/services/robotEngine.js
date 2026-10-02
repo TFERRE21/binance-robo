@@ -606,7 +606,7 @@ async function buy(userId,account,config,symbol,robotId=1){
     robotLog(
       userId,account.id,robotId,
       `COMPRA EXECUTADA | ${symbol} | TAKE PROFIT pendente para recriação | erro=${errText(e)}`,
-      'ERROR'
+      'INFO'
     );
   }
 
@@ -623,7 +623,7 @@ async function buy(userId,account,config,symbol,robotId=1){
     `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder?tpOrder.orderId:'PENDENTE'} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
-  return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder.orderId,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
+  return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder?tpOrder.orderId:null,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
 }
 
 async function executeApprovedSetups(userId,account,config,setups,robotId=1){

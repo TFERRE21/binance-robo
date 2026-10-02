@@ -174,6 +174,7 @@ button{cursor:pointer}
 .pnl-positive{color:#35d394!important}
 .pnl-negative{color:#ff7272!important}
 .pnl-neutral{color:#dfe6ef!important}
+.pnl-opportunity{color:#f0b90b!important}
 
 /* WORKSPACE DO ROBÔ — mapa à esquerda + informações/log à direita */
 .robot-workspace{
@@ -2750,7 +2751,8 @@ function renderRobotLive(d){
   </div><div class="security">${open.length?`🟢 ${open.length} operação(ões) aberta(s) · limite ${c.max_operations}.`:'ℹ️ Nenhuma operação do robô aberta neste momento.'} · Intervalo ${escapeHtml(c.interval)} · até ${c.max_coins} moedas.</div>`;
   if(logBox){
     const logs=Array.isArray(d?.robotLogs)?d.robotLogs:[];
-    logBox.innerHTML=logs.length?logs.map(l=>{const ts=new Date(l.created_at).toLocaleTimeString('pt-BR');const cls=l.level==='ERROR'?'pnl-negative':(String(l.message).includes('APROVADA')?'pnl-positive':'');return `<div class="${cls}" style="border-bottom:1px solid rgba(255,255,255,.045);padding:3px 0"><span style="color:#64748b">[${ts}]</span> ${escapeHtml(l.message)}</div>`}).join(''):'<div style="color:#718096">Nenhum evento registrado ainda.</div>';
+    logBox.innerHTML=logs.length?logs.map(l=>{const ts=new Date(l.created_at).toLocaleTimeString('pt-BR');const msg=String(l.message);
+      const cls=l.level==='ERROR'?'pnl-negative':(/COMPRA REALIZADA|POSIÇÃO ABERTA|SAÍDA AUTOMÁTICA|PROTEÇÃO RECRIADA/.test(msg)?'pnl-positive':(/APROVADA/.test(msg)?'pnl-opportunity':''));return `<div class="${cls}" style="border-bottom:1px solid rgba(255,255,255,.045);padding:3px 0"><span style="color:#64748b">[${ts}]</span> ${escapeHtml(l.message)}</div>`}).join(''):'<div style="color:#718096">Nenhum evento registrado ainda.</div>';
     logBox.scrollTop=logBox.scrollHeight;
   }
 }

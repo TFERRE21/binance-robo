@@ -600,23 +600,27 @@ async function buy(userId,account,config,symbol,robotId=1){
       `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${num(config.take_profit)}%`
     );
   }catch(e){
-    // Se o TP não puder ser criado, não deixamos a posição sem registro.
-    // O monitor poderá atuar pelo stop, mas o evento fica explícito no log.
-    robotLog(userId,account.id,robotId,`COMPRA EXECUTADA | ${symbol} | mas TAKE PROFIT não foi criado | ${errText(e)}`,'ERROR');
-    throw e;
+    // A COMPRA já foi executada. Falha ao criar o TP não pode apagar a operação
+    // nem fazer o painel informar falsamente que a entrada não aconteceu.
+    // O monitorOpenOps() detectará tp_order_id nulo e tentará recriar a proteção.
+    robotLog(
+      userId,account.id,robotId,
+      `COMPRA EXECUTADA | ${symbol} | TAKE PROFIT pendente para recriação | erro=${errText(e)}`,
+      'ERROR'
+    );
   }
 
   await db.query(
     `INSERT INTO robot_operations(user_id,account_id,robot_id,symbol,buy_order_id,tp_order_id,buy_price,quantity,tp_price,stop_price,status,opened_at,updated_at)
      VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'OPEN',NOW(),NOW())`,
-    [userId,account.id,robotId,symbol,String(order.orderId),String(tpOrder.orderId),buyPrice,qty,tp,stop]
+    [userId,account.id,robotId,symbol,String(order.orderId),tpOrder?String(tpOrder.orderId):null,buyPrice,qty,tp,stop]
   );
 
   robotLog(userId,account.id,
     `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preço=${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT`
   );
   robotLog(userId,account.id,
-    `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder.orderId} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
+    `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder?tpOrder.orderId:'PENDENTE'} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
   return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder.orderId,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
@@ -643,7 +647,7 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
       const result=await buy(userId,account,config,setup.symbol,robotId);
       open++;
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId} | próxima saída automática no TP${config.stop_loss_active?' ou SL':''}.`
+        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | próxima saída automática no TP${config.stop_loss_active?' ou SL':''}.`
       );
     }catch(e){
       robotLog(userId,account.id,robotId,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${errText(e)}`,'ERROR');

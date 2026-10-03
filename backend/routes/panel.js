@@ -904,13 +904,64 @@ router.get(
         bloqueada;
 
 
-      const precoMedio =
-        await calcularPrecoMedio(
-          client,
-          symbol,
-          quantidadeTotal,
-          filtros
+      /*
+       * FONTE PRINCIPAL DA OPERAÇÃO DO ROBÔ:
+       * quando existe uma posição OPEN registrada pelo motor,
+       * usamos o preço REAL da compra e o TP REAL calculado no
+       * momento da entrada. Não usamos o preço médio genérico
+       * da Binance para representar a entrada do robô.
+       *
+       * Isso garante que:
+       * COMPRA = buy_price da ordem executada pelo robô
+       * VENDA/TP = tp_price calculado pela configuração do robô
+       * ATUAL = ticker em tempo real da Binance
+       */
+      const robotOperationResult =
+        await db.query(
+          `
+            SELECT
+              id,
+              robot_id,
+              buy_order_id,
+              tp_order_id,
+              buy_price,
+              quantity,
+              tp_price,
+              stop_price,
+              opened_at
+            FROM robot_operations
+            WHERE user_id = $1
+              AND account_id = $2
+              AND symbol = $3
+              AND status = 'OPEN'
+            ORDER BY opened_at DESC, id DESC
+            LIMIT 1
+          `,
+          [
+            req.user.id,
+            req.params.id,
+            symbol
+          ]
         );
+
+      const robotOperation =
+        robotOperationResult.rows[0] || null;
+
+      const precoEntradaRobo =
+        numero(robotOperation?.buy_price);
+
+      const precoTpRobo =
+        numero(robotOperation?.tp_price);
+
+      const precoMedio =
+        precoEntradaRobo > 0
+          ? precoEntradaRobo
+          : await calcularPrecoMedio(
+              client,
+              symbol,
+              quantidadeTotal,
+              filtros
+            );
 
 
       let pnlUSDT = null;
@@ -997,6 +1048,46 @@ router.get(
         );
 
 
+      /*
+       * Se o TP do robô existe no banco mas a ordem SELL ainda
+       * não apareceu/foi recriada na Binance, mantém o alvo no
+       * gráfico para não perder a referência da operação.
+       */
+      if (
+        sellOrders.length === 0 &&
+        precoTpRobo > 0 &&
+        quantidadeTotal > 0
+      ) {
+        sellOrders.push({
+          orderId:
+            robotOperation?.tp_order_id
+              ? String(robotOperation.tp_order_id)
+              : "ROBO-TP",
+
+          symbol,
+
+          price:
+            precoTpRobo,
+
+          origQty:
+            numero(robotOperation?.quantity) || quantidadeTotal,
+
+          executedQty: 0,
+
+          status:
+            "ALVO DO ROBÔ",
+
+          type:
+            "LIMIT",
+
+          time:
+            robotOperation?.opened_at || null,
+
+          robotTarget: true
+        });
+      }
+
+
       const currentValue =
         ticker *
         quantidadeTotal;
@@ -1029,6 +1120,35 @@ router.get(
 
           averageEntry:
             precoMedio,
+
+          /*
+           * Dados exatos da posição registrada pelo robô.
+           * O frontend usa estes campos para desenhar os pontos
+           * COMPRA e VENDA/TP no gráfico.
+           */
+          robotOperationId:
+            robotOperation?.id || null,
+
+          robotId:
+            robotOperation?.robot_id || null,
+
+          robotEntryPrice:
+            precoEntradaRobo || null,
+
+          robotTpPrice:
+            precoTpRobo || null,
+
+          robotStopPrice:
+            numero(robotOperation?.stop_price) || null,
+
+          robotBuyOrderId:
+            robotOperation?.buy_order_id || null,
+
+          robotTpOrderId:
+            robotOperation?.tp_order_id || null,
+
+          robotOpenedAt:
+            robotOperation?.opened_at || null,
 
           currentValue,
 

@@ -2012,6 +2012,9 @@ async function renderOperation(assets){
       const op=data.operation;
       if(!op||Number(op.totalQuantity||0)<=0)continue;
 
+      // CVPUSDT está bloqueada e não deve ser exibida como posição.
+      if(String(op.symbol||symbol).toUpperCase()==="CVPUSDT")continue;
+
       const pnl=Number(op.pnlUSDT||0);
       const pnlPct=Number(op.pnlPercentual||0);
       const cls=pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral";

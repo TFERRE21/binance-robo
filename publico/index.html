@@ -1072,7 +1072,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
       <div id="operationChartTV" class="tv-chart"></div>
     </div>
     <div class="operation-chart-status" id="operationChartStatus">Aguardando confirmação da posição na Binance...</div>
-    <div class="operation-chart-note">AO VIVO = WebSocket da Binance · cada moeda mostra seu P/L em % e R$, além do valor atual da posição em R$.</div>
+    <div class="operation-chart-note">Gráfico ao vivo · linhas discretas · foco no lucro em % e R$ até o alvo de venda.</div>
   </div>
 
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
@@ -2550,9 +2550,9 @@ async function loadOpenOperationChart(symbol){
     if(avg>0){
       operationEntryPriceLine=operationTVChart.candles.createPriceLine({
         price:avg,
-        title:`COMPRA | EXECUTADA ${moneyUSDT(avg)} | ${moneyBRL(avg*brlRate)} | TOTAL ${moneyBRL(entryExecutedValue*brlRate)}`,
-        color:"#23c483",
-        lineWidth:2,
+        title:`COMPRA · ${moneyBRL(avg*brlRate)}`,
+        color:"rgba(35,196,131,.62)",
+        lineWidth:1,
         lineStyle:2,
         axisLabelVisible:true,
         lineVisible:true
@@ -2564,13 +2564,11 @@ async function loadOpenOperationChart(symbol){
       const distancePct=current>0
         ? ((sellPrice/current)-1)*100
         : (avg>0 ? ((sellPrice/avg)-1)*100 : 0);
-      const orderQty=Number(o.origQty||0);
-      const orderValueUSDT=sellPrice*orderQty;
       const line=operationTVChart.candles.createPriceLine({
         price:sellPrice,
-        title:`VENDA ${i===0?"(TP)":i+1} | +${Math.max(0,distancePct).toFixed(2)}% ATÉ | ${moneyUSDT(sellPrice)} | ${moneyBRL(sellPrice*brlRate)} | ORDEM ${moneyBRL(orderValueUSDT*brlRate)}`,
-        color:"#ff4d5b",
-        lineWidth:2,
+        title:`VENDA ${i===0?"(TP)":i+1} · +${Math.max(0,distancePct).toFixed(2)}% · ${moneyBRL(sellPrice*brlRate)}`,
+        color:"rgba(255,77,91,.62)",
+        lineWidth:1,
         lineStyle:2,
         axisLabelVisible:true,
         lineVisible:true
@@ -2580,13 +2578,17 @@ async function loadOpenOperationChart(symbol){
 
     if(current>0){
       const pct=avg>0?((current/avg)-1)*100:0;
-      const pnlLabel=Number.isFinite(pnlUSDT)&&pnlUSDT>=0?"+":"";
-      const valueNow=currentValue>0?currentValue:(positionQty*current);
+      const pnlBRL=Number.isFinite(pnlUSDT)
+        ? pnlUSDT*brlRate
+        : null;
       operationCurrentPriceLine=operationTVChart.candles.createPriceLine({
         price:current,
-        title:`ATUAL | ${pct>=0?"+":""}${pct.toFixed(2)}% DA COMPRA | ${moneyUSDT(current)} | ${moneyBRL(current*brlRate)} | P/L ${pnlLabel}${Number.isFinite(pnlUSDT)?pnlUSDT.toFixed(2):"—"} USDT | SALDO ${moneyBRL(valueNow*brlRate)}`,
-        color:"#f0b90b",
-        lineWidth:2,
+        title:
+          pnlBRL===null
+            ? `ATUAL · ${pct>=0?"+":""}${pct.toFixed(2)}%`
+            : `ATUAL · ${pct>=0?"+":""}${pct.toFixed(2)}% · ${moneyBRL(pnlBRL)}`,
+        color:"rgba(240,185,11,.72)",
+        lineWidth:1,
         lineStyle:0,
         axisLabelVisible:true,
         lineVisible:true
@@ -2696,23 +2698,22 @@ async function loadOpenOperationChart(symbol){
             price:livePrice,
             title:
               livePnl===null
-                ? `ATUAL | ${moneyUSDT(livePrice)} | ${moneyBRL(livePrice*(Number(usdBrl)||0))} | SALDO ${moneyBRL(liveValueBRL)}`
-                : `ATUAL | ${livePct>=0?"+":""}${livePct.toFixed(2)}% DA COMPRA | ${moneyUSDT(livePrice)} | ${moneyBRL(livePrice*(Number(usdBrl)||0))} | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT / ${moneyBRL(livePnlBRL)} | SALDO ${moneyBRL(liveValueBRL)}`
+                ? `ATUAL · ${livePct>=0?"+":""}${livePct.toFixed(2)}%`
+                : `ATUAL · ${livePct>=0?"+":""}${livePct.toFixed(2)}% · ${moneyBRL(livePnlBRL)}`
           });
         }
 
-        // A distância até cada venda/TP muda conforme o preço atual.
-        // Atualiza a própria linha da ordem em tempo real.
+        // Mantém somente o essencial na linha de venda:
+        // distância percentual até o TP + valor em reais da ordem.
         operationTakeProfitLines.forEach((line,index)=>{
           const order=sellOrders[index];
           if(!line || !order)return;
           const sellPrice=Number(order.price||0);
-          const orderQty=Number(order.origQty||0);
           const distancePct=livePrice>0
             ? ((sellPrice/livePrice)-1)*100
             : 0;
           line.applyOptions({
-            title:`VENDA ${index===0?"(TP)":index+1} | ${distancePct>=0?"+":""}${distancePct.toFixed(2)}% ATÉ | ${moneyUSDT(sellPrice)} | ${moneyBRL(sellPrice*(Number(usdBrl)||0))} | ORDEM ${moneyBRL(sellPrice*orderQty*(Number(usdBrl)||0))}`
+            title:`VENDA ${index===0?"(TP)":index+1} · ${distancePct>=0?"+":""}${distancePct.toFixed(2)}% · ${moneyBRL(sellPrice*(Number(usdBrl)||0))}`
           });
         });
 

@@ -5,11 +5,6 @@ const cryptoService = require('../services/cryptoService');
 const runners = new Map();
 let schemaReady = false;
 
-// Data de listagem Spot não vem no /api/v3/exchangeInfo atual.
-// Mantemos cache local da primeira vela diária encontrada na Binance
-// para aplicar corretamente o filtro de idade mínima dos ativos.
-const spotListingCache = new Map();
-
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
 const BLOCKED = new Set(['TRX']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
@@ -409,34 +404,6 @@ async function saveConfig(userId,accountId,c,robotId=1){
   return r.rows[0];
 }
 
-async function getSpotListingTime(client,symbol){
-  const key=String(symbol||'').toUpperCase();
-  if(!key)return 0;
-
-  if(spotListingCache.has(key)){
-    return spotListingCache.get(key);
-  }
-
-  try{
-    // O Spot /api/v3/exchangeInfo não fornece onboardDate para os símbolos
-    // atuais. A primeira vela diária disponível é usada como referência
-    // verificável da antiguidade do par na Binance.
-    const rows=await client.candles({
-      symbol:key,
-      interval:'1d',
-      startTime:0,
-      limit:1
-    });
-
-    const first=Array.isArray(rows)&&rows[0] ? num(rows[0].openTime||rows[0][0]) : 0;
-    spotListingCache.set(key,first);
-    return first;
-  }catch(e){
-    console.warn(`[ROBO] SCANNER V7.2 | falha ao consultar idade Spot de ${key} | ${errText(e)}`);
-    return 0;
-  }
-}
-
 async function top20(client,exchangeInfo,maxCoins){
   // Universo de busca:
   // somente moedas listadas na Binance há pelo menos 3 meses.
@@ -449,11 +416,8 @@ async function top20(client,exchangeInfo,maxCoins){
   const cutoff=new Date();
   cutoff.setMonth(cutoff.getMonth()-3);
   const cutoffMs=cutoff.getTime();
-  let ageChecked=0;
-  let ageRejected=0;
-  let ageErrors=0;
 
-  console.log(`[ROBO] SCANNER V7.3 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas | idade mínima Binance=3 meses | máximo solicitado=${maxCoins}.`);
+  console.log(`[ROBO] SCANNER V7.2 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas | idade mínima Binance=3 meses | máximo solicitado=${maxCoins}.`);
 
   for(const coin of coins){
     if(out.length>=maxCoins)break;
@@ -470,36 +434,24 @@ async function top20(client,exchangeInfo,maxCoins){
 
     if(!pair)continue;
 
-    // Algumas modalidades da API podem trazer onboardDate. Quando não
-    // vier (caso atual do Spot), usamos a primeira vela diária da Binance.
-    let listingMs=Number(pair.onboardDate||0);
+    // Segurança: se a Binance não informar a data de listagem,
+    // não consideramos o ativo elegível para compra.
+    const onboardMs=Number(pair.onboardDate||0);
+    if(!Number.isFinite(onboardMs)||onboardMs<=0)continue;
 
-    if(!Number.isFinite(listingMs)||listingMs<=0){
-      ageChecked++;
-      listingMs=await getSpotListingTime(client,pair.symbol);
-      if(!listingMs){
-        ageErrors++;
-        continue;
-      }
-    }
-
-    // Somente ativos que já possuem histórico Spot anterior ao corte
-    // de 3 meses. A primeira vela disponível é o marco usado pelo filtro.
-    if(listingMs>=cutoffMs){
-      ageRejected++;
-      continue;
-    }
+    // Somente ativos que já estão na Binance há mais de 3 meses.
+    if(onboardMs>=cutoffMs)continue;
 
     out.push({
       symbol:pair.symbol,
       baseAsset:base,
       rank:num(coin.market_cap_rank),
       name:coin.name,
-      onboardDate:listingMs
+      onboardDate:onboardMs
     });
   }
 
-  console.log(`[ROBO] SCANNER V7.3 | ${out.length} moedas elegíveis após filtro de idade | idade consultada=${ageChecked} | novas rejeitadas=${ageRejected} | sem histórico=${ageErrors}.`);
+  console.log(`[ROBO] SCANNER V7.2 | ${out.length} moedas elegíveis após filtro de idade.`);
   return out;
 }
 

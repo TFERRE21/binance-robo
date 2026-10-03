@@ -972,6 +972,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
       <option value="">Carregando APIs...</option>
     </select>
     <button class="load-panel-btn" id="loadPanelBtn" onclick="loadPendingAccount()">↻ Carregar painel</button>
+    <button class="load-panel-btn" id="smallBalancesTopBtn" onclick="document.getElementById('smallBalancesCard')?.scrollIntoView({behavior:'smooth',block:'center'})">🧹 Pequenos saldos → USDT</button>
     <button onclick="openApiModal()" id="manageApiBtn">🔑 Gerenciar APIs</button>
   </div>
   <div class="selected-account" id="selectedAccountText">Nenhuma API selecionada.</div>

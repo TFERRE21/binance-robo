@@ -1006,6 +1006,33 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   </div>
 </section>
 
+<section class="operation-card" id="smallBalancesCard" style="margin-top:14px">
+  <div class="operation-head">
+    <div class="operation-title">🧹 PEQUENOS SALDOS</div>
+    <div class="operation-badge">SPOT → USDT</div>
+  </div>
+  <div style="padding:14px">
+    <div style="font-size:14px;font-weight:700;margin-bottom:6px">
+      Converter saldos menores que US$ 5 para USDT
+    </div>
+    <div style="font-size:12px;opacity:.72;margin-bottom:12px">
+      Consulta a conta selecionada e mostra primeiro o que será convertido.
+      Não mexe em USDT, LDUSDT nem em moedas com operação aberta pelo robô.
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="load-panel-btn" id="smallBalancesPreviewBtn" onclick="consultarPequenosSaldos()">
+        🔎 Ver saldos &lt; US$ 5
+      </button>
+      <button class="load-panel-btn" id="smallBalancesConvertBtn" onclick="converterPequenosSaldos()" disabled>
+        💱 Converter para USDT
+      </button>
+    </div>
+    <div id="smallBalancesResult" style="margin-top:12px;font-size:12px;line-height:1.6;opacity:.9">
+      Nenhuma consulta realizada.
+    </div>
+  </div>
+</section>
+
 <section class="robot-workspace">
   <div class="robot-map-column">
     <section class="chart-card">
@@ -1412,6 +1439,129 @@ let usdBrl=0;
 let refreshTimer=null;
 let operationRealtimeTimer=null;
 let robotLogTimer=null;
+
+let smallBalancesCandidates = [];
+
+function moneyUSDTLocal(value){
+  return new Intl.NumberFormat("pt-BR",{
+    style:"currency",
+    currency:"USD",
+    minimumFractionDigits:2,
+    maximumFractionDigits:6
+  }).format(Number(value)||0);
+}
+
+async function consultarPequenosSaldos(){
+  const result=document.getElementById("smallBalancesResult");
+  const previewBtn=document.getElementById("smallBalancesPreviewBtn");
+  const convertBtn=document.getElementById("smallBalancesConvertBtn");
+
+  if(!selectedAccountId){
+    if(result)result.innerHTML="⚠️ Selecione uma API Binance primeiro.";
+    return;
+  }
+
+  previewBtn.disabled=true;
+  convertBtn.disabled=true;
+  if(result)result.innerHTML="⏳ Consultando saldos e cotações na Binance...";
+
+  try{
+    const data=await apiFetch(
+      "/api/binance/small-balances?accountId="+
+      encodeURIComponent(selectedAccountId)
+    );
+
+    smallBalancesCandidates=data.candidates||[];
+
+    if(!smallBalancesCandidates.length){
+      if(result)result.innerHTML="✅ Nenhum saldo Spot elegível abaixo de US$ 5 foi encontrado.";
+      return;
+    }
+
+    result.innerHTML=
+      "<b>Encontrados:</b> "+
+      smallBalancesCandidates.map(item=>
+        escapeHtml(item.asset)+
+        " · "+
+        Number(item.free).toLocaleString("pt-BR",{maximumFractionDigits:12})+
+        " · "+
+        moneyUSDTLocal(item.toAmount)+
+        " USDT"
+      ).join("<br>")+
+      "<br><br>⚠️ A cotação será renovada no momento da conversão.";
+
+    convertBtn.disabled=false;
+  }catch(error){
+    if(result)result.innerHTML="❌ "+escapeHtml(error.message||"Erro ao consultar pequenos saldos.");
+  }finally{
+    previewBtn.disabled=false;
+  }
+}
+
+async function converterPequenosSaldos(){
+  const result=document.getElementById("smallBalancesResult");
+  const convertBtn=document.getElementById("smallBalancesConvertBtn");
+
+  if(!selectedAccountId){
+    if(result)result.innerHTML="⚠️ Selecione uma API Binance primeiro.";
+    return;
+  }
+
+  if(!smallBalancesCandidates.length){
+    await consultarPequenosSaldos();
+    if(!smallBalancesCandidates.length)return;
+  }
+
+  const lista=smallBalancesCandidates.map(x=>x.asset).join(", ");
+  const confirmado=window.confirm(
+    "CONFIRMAR CONVERSÃO\n\n"+
+    "Os seguintes saldos serão convertidos para USDT:\n"+
+    lista+
+    "\n\nA Binance fornecerá uma nova cotação antes de cada conversão.\n"+
+    "Deseja continuar?"
+  );
+
+  if(!confirmado)return;
+
+  convertBtn.disabled=true;
+  if(result)result.innerHTML="⏳ Executando conversões pela Binance...";
+
+  try{
+    const data=await apiFetch("/api/binance/small-balances/convert",{
+      method:"POST",
+      body:JSON.stringify({accountId:Number(selectedAccountId)})
+    });
+
+    const converted=data.converted||[];
+    const skipped=data.skipped||[];
+
+    result.innerHTML=
+      (converted.length
+        ? "<b>✅ Convertidos:</b><br>"+
+          converted.map(x=>
+            escapeHtml(x.asset)+
+            " → USDT · "+
+            moneyUSDTLocal(x.toAmount)
+          ).join("<br>")
+        : "<b>ℹ️ Nenhuma conversão realizada.</b>")+
+      (skipped.length
+        ? "<br><br><b>Não convertidos:</b><br>"+
+          skipped.map(x=>
+            escapeHtml(x.asset)+" · "+escapeHtml(x.reason)
+          ).join("<br>")
+        : "");
+
+    smallBalancesCandidates=[];
+    if(typeof loadPanelData==="function"){
+      try{await loadPanelData(selectedAccountId)}catch(_){}
+    }
+  }catch(error){
+    if(result)result.innerHTML="❌ "+escapeHtml(error.message||"Erro ao converter pequenos saldos.");
+  }finally{
+    convertBtn.disabled=true;
+  }
+}
+
 
 async function apiFetch(url,options={}){
   const headers={...(options.headers||{}),"Authorization":"Bearer "+token,"Content-Type":"application/json"};

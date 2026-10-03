@@ -2464,6 +2464,10 @@ async function loadOpenOperationChart(symbol){
 
     const avg=Number(op.averageEntry||0);
     const current=Number(op.currentPrice||0);
+    const positionQty=Number(op.totalQuantity||0);
+    const currentValue=Number(op.currentValue||0);
+    const pnlUSDT=Number(op.pnlUSDT||0);
+    const pnlPercentual=Number(op.pnlPercentual||0);
     const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
 
     operationEntryPriceLine=null;
@@ -2496,9 +2500,11 @@ async function loadOpenOperationChart(symbol){
 
     if(current>0){
       const pct=avg>0?((current/avg)-1)*100:0;
+      const pnlLabel=pnlUSDT>=0?"+":"";
+      const valueNow=currentValue>0?currentValue:(positionQty*current);
       operationCurrentPriceLine=operationTVChart.candles.createPriceLine({
         price:current,
-        title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}%`,
+        title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}% | P/L ${pnlLabel}${pnlUSDT.toFixed(2)} USDT | SALDO ${valueNow.toFixed(2)}`,
         color:"#f0b90b",
         lineWidth:2,
         lineStyle:0,
@@ -2546,11 +2552,13 @@ async function loadOpenOperationChart(symbol){
     if(title)title.textContent=`📈 ${asset} / USDT`;
     if(sub)sub.textContent=`Busca ${interval} · candle Binance ${candleInterval} · COMPRA / VENDA(TP) / ATUAL`;
     if(priceEl){
+      const pnlPrefix=pnlUSDT>=0?"+":"";
+      const valueNow=currentValue>0?currentValue:(positionQty*current);
       priceEl.innerHTML=
         moneyUSDT(current)+
-        `<small>${asset}USDT · busca ${interval} · candle ${candleInterval} · AO VIVO</small>`;
+        `<small>${asset}USDT · P/L ${pnlPrefix}${pnlUSDT.toFixed(2)} USDT (${pnlPercentual.toFixed(2)}%) · saldo atual ${moneyUSDT(valueNow)} · AO VIVO</small>`;
     }
-    if(status)status.textContent="Dados reais da Binance · atualização ao vivo";
+    if(status)status.textContent="Dados reais da Binance · P/L e saldo da posição atualizados em tempo real";
 
     operationSocket=new WebSocket(
       `wss://stream.binance.com:9443/ws/${cleanSymbol.toLowerCase()}@kline_${candleInterval}`
@@ -2577,20 +2585,24 @@ async function loadOpenOperationChart(symbol){
         });
 
         const avgNow=Number(op.averageEntry||0);
+        const qtyNow=Number(op.totalQuantity||0);
         const livePrice=Number(k.c||0);
         const livePct=avgNow>0?((livePrice/avgNow)-1)*100:0;
+        const liveValue=qtyNow*livePrice;
+        const livePnl=avgNow>0?(livePrice-avgNow)*qtyNow:0;
+        const livePnlPrefix=livePnl>=0?"+":"";
 
         if(operationCurrentPriceLine){
           operationCurrentPriceLine.applyOptions({
             price:livePrice,
-            title:`ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}%`
+            title:`ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}% | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT | SALDO ${liveValue.toFixed(2)}`
           });
         }
 
         if(priceEl){
           priceEl.innerHTML=
             moneyUSDT(livePrice)+
-            `<small>${asset}USDT · busca ${interval} · candle ${candleInterval} · AO VIVO</small>`;
+            `<small>${asset}USDT · P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT (${livePct.toFixed(2)}%) · saldo atual ${moneyUSDT(liveValue)} · AO VIVO</small>`;
         }
       }catch(e){}
     };

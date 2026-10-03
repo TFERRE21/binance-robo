@@ -257,8 +257,17 @@ button{cursor:pointer}
   font-size:8px;
   line-height:1.45;
 }
+.operation-chart-controls{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:6px;
+  flex-wrap:wrap;
+  margin-bottom:6px;
+}
 .operation-chart-select{
   height:30px;
+  min-width:92px;
   border:1px solid rgba(255,255,255,.10);
   border-radius:7px;
   background:rgba(255,255,255,.035);
@@ -267,7 +276,23 @@ button{cursor:pointer}
   padding:0 8px;
   outline:none;
 }
+.operation-chart-select:focus{
+  border-color:rgba(240,185,11,.5);
+}
 .operation-chart-select option{color:#111;background:#fff}
+.operation-chart-interval-label{
+  color:#778395;
+  font-size:8px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.3px;
+}
+@media(max-width:700px){
+  .operation-chart-head{flex-direction:column}
+  .operation-chart-head>div:last-child{width:100%}
+  .operation-chart-controls{justify-content:flex-start}
+  .operation-chart-price{text-align:left}
+}
 .operation-view-chart-btn{
   margin-top:10px;
   width:100%;
@@ -1028,7 +1053,18 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
         <div class="operation-chart-sub" id="operationChartSub">Aguardando uma posição aberta...</div>
       </div>
       <div>
-        <select id="operationChartSelector" class="operation-chart-select" onchange="loadOpenOperationChart(this.value)" style="display:none"></select>
+        <div class="operation-chart-controls">
+          <span class="operation-chart-interval-label">⏱ Tempo</span>
+          <select id="operationChartInterval" class="operation-chart-select" onchange="changeOperationChartInterval(this.value)" aria-label="Intervalo do gráfico">
+            <option value="1m">1 min</option>
+            <option value="3m">3 min</option>
+            <option value="5m">5 min</option>
+            <option value="15m" selected>15 min</option>
+            <option value="30m">30 min</option>
+            <option value="1h">1 hora</option>
+          </select>
+          <select id="operationChartSelector" class="operation-chart-select" onchange="loadOpenOperationChart(this.value)" style="display:none" aria-label="Moeda da operação"></select>
+        </div>
         <div class="operation-chart-price" id="operationChartPrice">US$ 0,00<small>sem operação aberta</small></div>
       </div>
     </div>
@@ -1036,7 +1072,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
       <div id="operationChartTV" class="tv-chart"></div>
     </div>
     <div class="operation-chart-status" id="operationChartStatus">Aguardando confirmação da posição na Binance...</div>
-    <div class="operation-chart-note">COMPRA = entrada real · VENDA/TP = saída real ou ordem de proteção · ATUAL = preço em tempo real da Binance.</div>
+    <div class="operation-chart-note">AO VIVO = WebSocket da Binance · escolha 1m, 3m, 5m, 15m, 30m ou 1h · P/L e saldo atual acompanham a posição aberta.</div>
   </div>
 
   <div id="operationContent" class="operation-empty">Selecione uma API para acompanhar suas posições.</div>
@@ -2271,6 +2307,7 @@ let btcTVChart=null, btcCandleSeries=null, btcVolumeSeries=null, btcSocket=null;
 let detailTVChart=null, detailCandleSeries=null, detailVolumeSeries=null, detailSocket=null;
 let operationTVChart=null, operationCandleSeries=null, operationVolumeSeries=null, operationSocket=null;
 let operationChartSymbol="";
+let operationChartInterval="15m";
 let operationCurrentPriceLine=null;
 let operationEntryPriceLine=null;
 let operationTakeProfitLines=[];
@@ -2385,12 +2422,17 @@ function updateOperationChartLive(op){
 
   const price=Number(op.currentPrice||0);
   const avg=Number(op.averageEntry||0);
+  const qty=Number(op.totalQuantity||0);
+  const value=Number(op.currentValue||0) || (qty*price);
+  const pnl=Number(op.pnlUSDT||0);
+  const pnlPct=Number(op.pnlPercentual||0);
   const pct=avg>0?((price/avg)-1)*100:0;
+  const pnlPrefix=pnl>=0?"+":"";
 
   if(operationCurrentPriceLine && price>0){
     operationCurrentPriceLine.applyOptions({
       price,
-      title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}%`
+      title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}% | P/L ${pnlPrefix}${pnl.toFixed(2)} USDT | SALDO ${value.toFixed(2)}`
     });
   }
 
@@ -2398,7 +2440,20 @@ function updateOperationChartLive(op){
   if(priceEl){
     priceEl.innerHTML=
       moneyUSDT(price)+
-      `<small>${escapeHtml(op.symbol||operationChartSymbol)} · AO VIVO</small>`;
+      `<small>${escapeHtml(op.symbol||operationChartSymbol)} · P/L ${pnlPrefix}${pnl.toFixed(2)} USDT (${pnlPct.toFixed(2)}%) · saldo atual ${moneyUSDT(value)} · AO VIVO</small>`;
+  }
+}
+
+function changeOperationChartInterval(interval){
+  const allowed=["1m","3m","5m","15m","30m","1h"];
+  const next=allowed.includes(String(interval))?String(interval):"15m";
+  operationChartInterval=next;
+
+  const selector=document.getElementById("operationChartInterval");
+  if(selector)selector.value=next;
+
+  if(operationChartSymbol){
+    loadOpenOperationChart(operationChartSymbol);
   }
 }
 
@@ -2415,9 +2470,13 @@ async function loadOpenOperationChart(symbol){
   if(!cleanSymbol.endsWith("USDT"))return;
 
   const asset=cleanSymbol.replace(/USDT$/,"");
-  const cfg=getRobotConfig();
-  const interval=cfg.interval||"1h";
+  const interval=operationChartInterval||"15m";
   const candleInterval=binanceCandleInterval(interval);
+
+  // Troca de intervalo deve ser realmente em tempo real:
+  // encerra o stream anterior antes de abrir o novo.
+  closeSocket(operationSocket);
+  operationSocket=null;
 
   try{
     const [klineRes,opRes,tradeInfoRes]=await Promise.all([
@@ -2550,7 +2609,7 @@ async function loadOpenOperationChart(symbol){
     const status=document.getElementById("operationChartStatus");
 
     if(title)title.textContent=`📈 ${asset} / USDT`;
-    if(sub)sub.textContent=`Busca ${interval} · candle Binance ${candleInterval} · COMPRA / VENDA(TP) / ATUAL`;
+    if(sub)sub.textContent=`Gráfico ao vivo · ${interval} · Binance ${candleInterval} · COMPRA / VENDA(TP) / ATUAL`;
     if(priceEl){
       const pnlPrefix=pnlUSDT>=0?"+":"";
       const valueNow=currentValue>0?currentValue:(positionQty*current);
@@ -2559,6 +2618,9 @@ async function loadOpenOperationChart(symbol){
         `<small>${asset}USDT · P/L ${pnlPrefix}${pnlUSDT.toFixed(2)} USDT (${pnlPercentual.toFixed(2)}%) · saldo atual ${moneyUSDT(valueNow)} · AO VIVO</small>`;
     }
     if(status)status.textContent="Dados reais da Binance · P/L e saldo da posição atualizados em tempo real";
+
+    const intervalSelector=document.getElementById("operationChartInterval");
+    if(intervalSelector)intervalSelector.value=interval;
 
     operationSocket=new WebSocket(
       `wss://stream.binance.com:9443/ws/${cleanSymbol.toLowerCase()}@kline_${candleInterval}`

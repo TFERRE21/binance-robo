@@ -128,13 +128,20 @@ function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function normalizedAsset(asset){ return String(asset||'').toUpperCase().replace(/^LD/,''); }
 function freeBalance(ac,asset){
+  /*
+   * SALDO NEGOCIÁVEL NA SPOT:
+   * Não normalizamos LDUSDT -> USDT aqui.
+   *
+   * LDUSDT é um ativo diferente, usado pela Binance como ativo de
+   * margem/recompensa para Futures. O fato de o painel mostrar o valor
+   * patrimonial equivalente não significa que exista USDT livre na
+   * carteira Spot para uma ordem AVAXUSDT.
+   */
   const target=String(asset||'').toUpperCase();
-  return (ac?.balances||[]).reduce((sum,b)=>{
-    const raw=String(b?.asset||'').toUpperCase();
-    const normalized=normalizedAsset(raw);
-    if(raw===target || normalized===target) return sum+num(b?.free);
-    return sum;
-  },0);
+  const row=(ac?.balances||[]).find(b=>
+    String(b?.asset||'').toUpperCase()===target
+  );
+  return num(row?.free);
 }
 function isStable(a){ return STABLECOINS.has(String(a||'').toUpperCase()); }
 function isLeveraged(a){ const s=String(a||'').toUpperCase(); return LEVERAGED_SUFFIXES.some(x=>s.endsWith(x)); }
@@ -572,7 +579,11 @@ async function buy(userId,account,config,symbol,robotId=1){
   // para não enxergar saldo disponível como zero.
   const usdt=freeBalance(ac,'USDT');
   const usdtRaw=(ac.balances||[])
-    .filter(b=>normalizedAsset(b?.asset)==='USDT')
+    .filter(b=>String(b?.asset||'').toUpperCase()==='USDT')
+    .map(b=>({asset:b.asset,free:num(b.free),locked:num(b.locked)}));
+
+  const ldUsdt=(ac.balances||[])
+    .filter(b=>String(b?.asset||'').toUpperCase()==='LDUSDT')
     .map(b=>({asset:b.asset,free:num(b.free),locked:num(b.locked)}));
   const price=num((await client.prices({symbol}))[symbol]);
 
@@ -580,7 +591,15 @@ async function buy(userId,account,config,symbol,robotId=1){
     `SALDO PARA ENTRADA | USDT disponível=${usdt.toFixed(8)} | detalhes=${JSON.stringify(usdtRaw)}`
   );
 
-  if(!(usdt>0))throw new Error(`Saldo USDT disponível é zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
+  if(!(usdt>0)){
+    const ld=num(ldUsdt.reduce((sum,b)=>sum+num(b.free),0));
+    if(ld>0){
+      throw new Error(
+        `USDT Spot disponível é zero | encontrado LDUSDT=${ld.toFixed(8)} | LDUSDT não é USDT Spot negociável neste endpoint. Transfira/resgate o saldo para USDT Spot antes da entrada.`
+      );
+    }
+    throw new Error(`Saldo USDT Spot disponível é zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
+  }
   if(!(price>0))throw new Error('Preço atual inválido');
 
   /*

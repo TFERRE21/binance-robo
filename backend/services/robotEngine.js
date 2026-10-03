@@ -606,7 +606,7 @@ async function buy(userId,account,config,symbol,robotId=1){
 
   const ac2=await client.accountInfo();
   const asset=symbol.replace(/USDT$/,'');
-  const free=num(ac2.balances.find(b=>b.asset===asset)?.free);
+  const free=freeBalance(ac2,asset);
   qty=roundDown(Math.min(executedQty,free||executedQty),step);
   if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
 
@@ -650,9 +650,15 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
   const limit=Math.max(1,Number(config.max_operations)||1);
   let open=await openCount(userId,account.id,robotId);
 
+  const resultSummary={
+    executed:0,
+    failed:0,
+    retryableBalance:false
+  };
+
   if(open>=limit){
     robotLog(userId,account.id,robotId,`ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas já abertas.`);
-    return;
+    return resultSummary;
   }
 
   for(const setup of setups){
@@ -666,15 +672,22 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
     try{
       const result=await buy(userId,account,config,setup.symbol,robotId);
       open++;
+      resultSummary.executed++;
       robotLog(userId,account.id,robotId,
         `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | próxima saída automática no TP${config.stop_loss_active?' ou SL':''}.`
       );
     }catch(e){
-      robotLog(userId,account.id,robotId,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${errText(e)}`,'ERROR');
+      resultSummary.failed++;
+      const erro=errText(e);
+      if(/saldo usdt disponível é zero|insufficient balance|account has insufficient balance|saldo.*zero/i.test(erro)){
+        resultSummary.retryableBalance=true;
+      }
+      robotLog(userId,account.id,robotId,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${erro}`,'ERROR');
     }
   }
-}
 
+  return resultSummary;
+}
 async function monitorOpenOps(userId,account,config,robotId=1){
   const client=clientFor(account);
   await ensureSchema();
@@ -1103,9 +1116,15 @@ async function loop(userId,accountId,robotId=1){
           /*
            * EXECUÇÃO DAS ENTRADAS APROVADAS
            */
+          let executionSummary={
+            executed:0,
+            failed:0,
+            retryableBalance:false
+          };
+
           if(setups.length){
 
-            await executeApprovedSetups(
+            executionSummary=await executeApprovedSetups(
               userId,
               account,
               config,
@@ -1124,18 +1143,25 @@ async function loop(userId,accountId,robotId=1){
           }
 
           /*
-           * O intervalo começa após a conclusão da pesquisa.
-           *
-           * Assim, se a análise demorar, o robô não inicia outra
-           * pesquisa imediatamente após terminar.
+           * Se uma oportunidade foi aprovada mas a compra falhou por
+           * saldo indisponível, não esperamos o intervalo completo.
+           * Isso permite que uma API recém-carregada/atualizada seja
+           * testada novamente rapidamente.
            */
-          nextScanAt=Date.now()+intervalMs;
+          const retryInMs=
+            executionSummary.retryableBalance
+              ? 60*1000
+              : intervalMs;
+
+          nextScanAt=Date.now()+retryInMs;
 
           robotLog(
             userId,
             account.id,
             robotId,
-            `PRÓXIMA PESQUISA AGENDADA | intervalo=${interval} | aproximadamente em ${Math.round(intervalMs/60000)} minuto(s).`
+            executionSummary.retryableBalance
+              ? `RETESTE DE COMPRA AGENDADO | saldo/API indisponível na tentativa anterior | nova pesquisa em aproximadamente 1 minuto.`
+              : `PRÓXIMA PESQUISA AGENDADA | intervalo=${interval} | aproximadamente em ${Math.round(intervalMs/60000)} minuto(s).`
           );
         }
 

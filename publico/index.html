@@ -2614,19 +2614,39 @@ async function loadOpenOperationChart(symbol){
 
     const markers=[];
 
-    const buyMarkerTime=
-      op.robotOpenedAt ||
-      op.lastBuy?.time ||
-      null;
+    /*
+     * A seta precisa ficar no MESMO candle da compra real.
+     * O horário vem da ordem BUY da Binance e é aproximado ao
+     * candle escolhido (1m/3m/5m/15m/30m/1h).
+     */
+    const buyMarkerMs=
+      Number(op.robotBuyTime||0) ||
+      (op.lastBuy?.time ? Number(op.lastBuy.time) : 0) ||
+      (op.robotOpenedAt ? new Date(op.robotOpenedAt).getTime() : 0);
 
-    if(buyMarkerTime){
-      markers.push({
-        time:Math.floor(new Date(buyMarkerTime).getTime()/1000),
-        position:"belowBar",
-        color:"#23c483",
-        shape:"arrowUp",
-        text:`COMPRA ${moneyUSDT(avg)}`
-      });
+    if(buyMarkerMs>0 && rows.length){
+      const buySec=buyMarkerMs/1000;
+      let nearestTime=Number(candleData[0]?.time||0);
+      let nearestDiff=Math.abs(nearestTime-buySec);
+
+      for(const candle of candleData){
+        const t=Number(candle.time||0);
+        const diff=Math.abs(t-buySec);
+        if(diff<nearestDiff){
+          nearestTime=t;
+          nearestDiff=diff;
+        }
+      }
+
+      if(nearestTime>0){
+        markers.push({
+          time:nearestTime,
+          position:"belowBar",
+          color:"#23c483",
+          shape:"arrowUp",
+          text:"COMPRA"
+        });
+      }
     }
 
     // A venda/TP é uma referência de preço, não um evento passado.

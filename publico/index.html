@@ -2521,12 +2521,15 @@ async function loadOpenOperationChart(symbol){
     operationTVChart.candles.setData(candleData);
     operationTVChart.volume.setData(volumeData);
 
-    const avg=Number(op.averageEntry||0);
+    // Para uma posição do robô, a referência da operação é a
+    // ordem BUY executada e o TP calculado pela configuração do robô.
+    // Só usamos averageEntry como fallback para posições externas.
+    const avg=Number(op.robotEntryPrice||op.averageEntry||0);
     const current=Number(op.currentPrice||0);
     const positionQty=Number(op.totalQuantity||0);
     const currentValue=Number(op.currentValue||0);
-    const pnlUSDT=Number(op.pnlUSDT||0);
-    const pnlPercentual=Number(op.pnlPercentual||0);
+    const pnlUSDT=Number(op.pnlUSDT);
+    const pnlPercentual=Number(op.pnlPercentual);
     const sellOrders=(op.sellOrders||[]).filter(o=>Number(o.price)>0);
 
     operationEntryPriceLine=null;
@@ -2576,16 +2579,23 @@ async function loadOpenOperationChart(symbol){
 
     const markers=[];
 
-    if(op.lastBuy?.time){
+    const buyMarkerTime=
+      op.robotOpenedAt ||
+      op.lastBuy?.time ||
+      null;
+
+    if(buyMarkerTime){
       markers.push({
-        time:Math.floor(Number(op.lastBuy.time)/1000),
+        time:Math.floor(new Date(buyMarkerTime).getTime()/1000),
         position:"belowBar",
         color:"#23c483",
         shape:"arrowUp",
-        text:"COMPRA"
+        text:"COMPRA ROBÔ"
       });
     }
 
+    // A venda/TP é uma referência de preço, não um evento passado.
+    // Por isso ela fica marcada pela linha de preço do TP real do robô.
     if(op.lastSell?.time){
       markers.push({
         time:Math.floor(Number(op.lastSell.time)/1000),
@@ -2611,11 +2621,14 @@ async function loadOpenOperationChart(symbol){
     if(title)title.textContent=`📈 ${asset} / USDT`;
     if(sub)sub.textContent=`Gráfico ao vivo · ${interval} · Binance ${candleInterval} · COMPRA / VENDA(TP) / ATUAL`;
     if(priceEl){
-      const pnlPrefix=pnlUSDT>=0?"+":"";
       const valueNow=currentValue>0?currentValue:(positionQty*current);
+      const pnlDisponivel=Number.isFinite(pnlUSDT) && Number.isFinite(pnlPercentual);
+      const pnlPrefix=pnlUSDT>=0?"+":"";
       priceEl.innerHTML=
         moneyUSDT(current)+
-        `<small>${asset}USDT · P/L ${pnlPrefix}${pnlUSDT.toFixed(2)} USDT (${pnlPercentual.toFixed(2)}%) · saldo atual ${moneyUSDT(valueNow)} · AO VIVO</small>`;
+        `<small>${asset}USDT · ${pnlDisponivel
+          ? `P/L ${pnlPrefix}${pnlUSDT.toFixed(2)} USDT (${pnlPercentual.toFixed(2)}%)`
+          : "P/L indisponível — entrada do robô não encontrada"} · saldo atual ${moneyUSDT(valueNow)} · AO VIVO</small>`;
     }
     if(status)status.textContent="Dados reais da Binance · P/L e saldo da posição atualizados em tempo real";
 
@@ -2646,25 +2659,30 @@ async function loadOpenOperationChart(symbol){
             :"rgba(234,57,67,.28)"
         });
 
-        const avgNow=Number(op.averageEntry||0);
+        const avgNow=Number(op.robotEntryPrice||op.averageEntry||0);
         const qtyNow=Number(op.totalQuantity||0);
         const livePrice=Number(k.c||0);
-        const livePct=avgNow>0?((livePrice/avgNow)-1)*100:0;
+        const livePct=avgNow>0?((livePrice/avgNow)-1)*100:null;
         const liveValue=qtyNow*livePrice;
-        const livePnl=avgNow>0?(livePrice-avgNow)*qtyNow:0;
-        const livePnlPrefix=livePnl>=0?"+":"";
+        const livePnl=avgNow>0?(livePrice-avgNow)*qtyNow:null;
+        const livePnlPrefix=livePnl!==null&&livePnl>=0?"+":"";
 
         if(operationCurrentPriceLine){
           operationCurrentPriceLine.applyOptions({
             price:livePrice,
-            title:`ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}% | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT | SALDO ${liveValue.toFixed(2)}`
+            title:
+              livePnl===null
+                ? `ATUAL ${livePrice.toFixed(2)} | SALDO ${liveValue.toFixed(2)}`
+                : `ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}% | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT | SALDO ${liveValue.toFixed(2)}`
           });
         }
 
         if(priceEl){
           priceEl.innerHTML=
             moneyUSDT(livePrice)+
-            `<small>${asset}USDT · P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT (${livePct.toFixed(2)}%) · saldo atual ${moneyUSDT(liveValue)} · AO VIVO</small>`;
+            `<small>${asset}USDT · ${livePnl===null
+              ? "P/L indisponível — entrada do robô não encontrada"
+              : `P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT (${livePct.toFixed(2)}%)`} · saldo atual ${moneyUSDT(liveValue)} · AO VIVO</small>`;
         }
       }catch(e){}
     };

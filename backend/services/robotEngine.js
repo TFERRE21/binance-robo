@@ -6,7 +6,7 @@ const runners = new Map();
 let schemaReady = false;
 
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
-const BLOCKED = new Set(['TRX']);
+const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   basico: {

@@ -583,15 +583,34 @@ async function buy(userId,account,config,symbol,robotId=1){
   if(!(usdt>0))throw new Error(`Saldo USDT disponível é zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
   if(!(price>0))throw new Error('Preço atual inválido');
 
-  const value=usdt*(num(config.entry_percent)/100);
-  let qty=roundDown(value/price,step);
+  /*
+   * COMPRA MARKET COM quoteOrderQty:
+   *
+   * Antes enviávamos quantity = valor/preço. Entre a leitura do preço
+   * e a execução, o preço podia subir e a Binance rejeitava a ordem com
+   * "insufficient balance", mesmo havendo USDT disponível.
+   *
+   * quoteOrderQty limita diretamente quanto USDT será gasto na compra.
+   * Assim a variação do preço não faz o custo ultrapassar o saldo.
+   */
+  const value=Number((usdt*(num(config.entry_percent)/100)).toFixed(8));
 
-  if(qty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
-  if(qty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor=${(qty*price).toFixed(4)} USDT | mínimo=${minNot}`);
+  const estimatedQty=roundDown(value/price,step);
 
-  robotLog(userId,account.id,robotId,`ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | valor≈${(qty*price).toFixed(4)} USDT`);
+  if(!(value>0))throw new Error(`Valor calculado inválido | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(estimatedQty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor≈${(estimatedQty*price).toFixed(4)} USDT | mínimo=${minNot}`);
 
-  const order=await client.order({symbol,side:'BUY',type:'MARKET',quantity:qty});
+  robotLog(userId,account.id,robotId,
+    `ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | quoteOrderQty=${value.toFixed(8)} USDT | saldo=${usdt.toFixed(8)} USDT`
+  );
+
+  const order=await client.order({
+    symbol,
+    side:'BUY',
+    type:'MARKET',
+    quoteOrderQty:value
+  });
   await sleep(1200);
 
   let executedQty=num(order.executedQty)||qty;

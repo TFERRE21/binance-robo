@@ -2615,32 +2615,67 @@ async function loadOpenOperationChart(symbol){
     const markers=[];
 
     /*
-     * A seta precisa ficar no MESMO candle da compra real.
-     * O horário vem da ordem BUY da Binance e é aproximado ao
-     * candle escolhido (1m/3m/5m/15m/30m/1h).
+     * A seta da COMPRA precisa ficar visualmente no mesmo ponto
+     * da entrada: não basta usar somente o horário, porque uma
+     * conversão de timezone/horário pode deslocar o marcador.
+     *
+     * Primeiro procuramos candles cujo range (low/high) contém
+     * o preço REAL executado. Entre eles, escolhemos o mais próximo
+     * do horário da ordem BUY. Assim a seta acompanha a linha de
+     * compra e nunca aparece em um preço diferente da entrada.
      */
     const buyMarkerMs=
       Number(op.robotBuyTime||0) ||
       (op.lastBuy?.time ? Number(op.lastBuy.time) : 0) ||
       (op.robotOpenedAt ? new Date(op.robotOpenedAt).getTime() : 0);
 
-    if(buyMarkerMs>0 && rows.length){
-      const buySec=buyMarkerMs/1000;
-      let nearestTime=Number(candleData[0]?.time||0);
-      let nearestDiff=Math.abs(nearestTime-buySec);
+    if(rows.length && avg>0){
+      const buySec=buyMarkerMs>0 ? buyMarkerMs/1000 : 0;
 
-      for(const candle of candleData){
+      const candlesWithEntryPrice=candleData.filter(candle=>{
         const t=Number(candle.time||0);
-        const diff=Math.abs(t-buySec);
-        if(diff<nearestDiff){
-          nearestTime=t;
-          nearestDiff=diff;
+        const row=rows.find(r=>Math.floor(Number(r[0])/1000)===t);
+        if(!row)return false;
+        const low=Number(row[3]||0);
+        const high=Number(row[2]||0);
+        return low<=avg && avg<=high;
+      });
+
+      const candidates=candlesWithEntryPrice.length
+        ? candlesWithEntryPrice
+        : candleData;
+
+      let best=candidates[0];
+      let bestScore=Infinity;
+
+      for(const candle of candidates){
+        const t=Number(candle.time||0);
+        const timeScore=buySec>0
+          ? Math.abs(t-buySec)
+          : 0;
+
+        const row=rows.find(r=>Math.floor(Number(r[0])/1000)===t);
+        const low=Number(row?.[3]||0);
+        const high=Number(row?.[2]||0);
+        const priceScore=
+          low<=avg && avg<=high
+            ? 0
+            : Math.min(Math.abs(avg-low),Math.abs(avg-high));
+
+        // Prioridade: preço de entrada correto; depois horário.
+        const score=
+          (priceScore>0 ? 1000000+priceScore : 0) +
+          timeScore;
+
+        if(score<bestScore){
+          best=candle;
+          bestScore=score;
         }
       }
 
-      if(nearestTime>0){
+      if(best?.time){
         markers.push({
-          time:nearestTime,
+          time:Number(best.time),
           position:"belowBar",
           color:"#23c483",
           shape:"arrowUp",

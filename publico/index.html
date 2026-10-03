@@ -2542,10 +2542,15 @@ async function loadOpenOperationChart(symbol){
     operationEntryPriceLine=null;
     operationTakeProfitLines=[];
 
+    const brlRate=Number(usdBrl)||0;
+    const entryExecutedValue=avg>0 && positionQty>0
+      ? avg*positionQty
+      : 0;
+
     if(avg>0){
       operationEntryPriceLine=operationTVChart.candles.createPriceLine({
         price:avg,
-        title:"COMPRA",
+        title:`COMPRA | EXECUTADA ${moneyUSDT(avg)} | ${moneyBRL(avg*brlRate)} | TOTAL ${moneyBRL(entryExecutedValue*brlRate)}`,
         color:"#23c483",
         lineWidth:2,
         lineStyle:2,
@@ -2555,9 +2560,15 @@ async function loadOpenOperationChart(symbol){
     }
 
     sellOrders.forEach((o,i)=>{
+      const sellPrice=Number(o.price);
+      const distancePct=current>0
+        ? ((sellPrice/current)-1)*100
+        : (avg>0 ? ((sellPrice/avg)-1)*100 : 0);
+      const orderQty=Number(o.origQty||0);
+      const orderValueUSDT=sellPrice*orderQty;
       const line=operationTVChart.candles.createPriceLine({
-        price:Number(o.price),
-        title:`VENDA${i===0?" (TP)":` ${i+1}`}`,
+        price:sellPrice,
+        title:`VENDA ${i===0?"(TP)":i+1} | +${Math.max(0,distancePct).toFixed(2)}% ATÉ | ${moneyUSDT(sellPrice)} | ${moneyBRL(sellPrice*brlRate)} | ORDEM ${moneyBRL(orderValueUSDT*brlRate)}`,
         color:"#ff4d5b",
         lineWidth:2,
         lineStyle:2,
@@ -2569,11 +2580,11 @@ async function loadOpenOperationChart(symbol){
 
     if(current>0){
       const pct=avg>0?((current/avg)-1)*100:0;
-      const pnlLabel=pnlUSDT>=0?"+":"";
+      const pnlLabel=Number.isFinite(pnlUSDT)&&pnlUSDT>=0?"+":"";
       const valueNow=currentValue>0?currentValue:(positionQty*current);
       operationCurrentPriceLine=operationTVChart.candles.createPriceLine({
         price:current,
-        title:`ATUAL ${pct>=0?"+":""}${pct.toFixed(2)}% | P/L ${pnlLabel}${pnlUSDT.toFixed(2)} USDT | SALDO ${valueNow.toFixed(2)}`,
+        title:`ATUAL | ${pct>=0?"+":""}${pct.toFixed(2)}% DA COMPRA | ${moneyUSDT(current)} | ${moneyBRL(current*brlRate)} | P/L ${pnlLabel}${Number.isFinite(pnlUSDT)?pnlUSDT.toFixed(2):"—"} USDT | SALDO ${moneyBRL(valueNow*brlRate)}`,
         color:"#f0b90b",
         lineWidth:2,
         lineStyle:0,
@@ -2597,7 +2608,7 @@ async function loadOpenOperationChart(symbol){
         position:"belowBar",
         color:"#23c483",
         shape:"arrowUp",
-        text:"COMPRA ROBÔ"
+        text:`COMPRA ${moneyUSDT(avg)}`
       });
     }
 
@@ -2685,10 +2696,25 @@ async function loadOpenOperationChart(symbol){
             price:livePrice,
             title:
               livePnl===null
-                ? `ATUAL ${livePrice.toFixed(2)} | SALDO ${moneyBRL(liveValueBRL)}`
-                : `ATUAL ${livePct>=0?"+":""}${livePct.toFixed(2)}% | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT / ${moneyBRL(livePnlBRL)} | SALDO ${moneyBRL(liveValueBRL)}`
+                ? `ATUAL | ${moneyUSDT(livePrice)} | ${moneyBRL(livePrice*(Number(usdBrl)||0))} | SALDO ${moneyBRL(liveValueBRL)}`
+                : `ATUAL | ${livePct>=0?"+":""}${livePct.toFixed(2)}% DA COMPRA | ${moneyUSDT(livePrice)} | ${moneyBRL(livePrice*(Number(usdBrl)||0))} | P/L ${livePnlPrefix}${livePnl.toFixed(2)} USDT / ${moneyBRL(livePnlBRL)} | SALDO ${moneyBRL(liveValueBRL)}`
           });
         }
+
+        // A distância até cada venda/TP muda conforme o preço atual.
+        // Atualiza a própria linha da ordem em tempo real.
+        operationTakeProfitLines.forEach((line,index)=>{
+          const order=sellOrders[index];
+          if(!line || !order)return;
+          const sellPrice=Number(order.price||0);
+          const orderQty=Number(order.origQty||0);
+          const distancePct=livePrice>0
+            ? ((sellPrice/livePrice)-1)*100
+            : 0;
+          line.applyOptions({
+            title:`VENDA ${index===0?"(TP)":index+1} | ${distancePct>=0?"+":""}${distancePct.toFixed(2)}% ATÉ | ${moneyUSDT(sellPrice)} | ${moneyBRL(sellPrice*(Number(usdBrl)||0))} | ORDEM ${moneyBRL(sellPrice*orderQty*(Number(usdBrl)||0))}`
+          });
+        });
 
         if(priceEl){
           priceEl.innerHTML=

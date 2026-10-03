@@ -2560,22 +2560,9 @@ async function loadOpenOperationChart(symbol){
       ? avg*positionQty
       : 0;
 
-    if(avg>0){
-      const buyPct=current>0 ? ((current/avg)-1)*100 : 0;
-      const buyPnlBRL=Number.isFinite(pnlUSDT) ? pnlUSDT*brlRate : null;
-      operationEntryPriceLine=operationTVChart.candles.createPriceLine({
-        price:avg,
-        title:
-          buyPnlBRL===null
-            ? `COMPRA · ${moneyBRL(avg*brlRate)}`
-            : `COMPRA · ${moneyBRL(avg*brlRate)} · ATUAL ${buyPct>=0?"+":""}${buyPct.toFixed(2)}% · ${moneyBRL(buyPnlBRL)}`,
-        color:"rgba(35,196,131,.62)",
-        lineWidth:1,
-        lineStyle:2,
-        axisLabelVisible:true,
-        lineVisible:true
-      });
-    }
+    // A referência da compra permanece no candle/seta, mas a linha
+    // de preço da compra fica oculta para deixar o gráfico limpo.
+    operationEntryPriceLine=null;
 
     sellOrders.forEach((o,i)=>{
       const sellPrice=Number(o.price);
@@ -2722,16 +2709,8 @@ async function loadOpenOperationChart(symbol){
         }
 
         // A linha de COMPRA também acompanha a distância até o preço atual.
-        if(operationEntryPriceLine){
-          const entryPrice=Number(op.robotEntryPrice||op.averageEntry||0);
-          const entryPct=entryPrice>0
-            ? ((livePrice/entryPrice)-1)*100
-            : 0;
-          operationEntryPriceLine.applyOptions({
-            title:
-              `COMPRA · ${moneyBRL(entryPrice*(Number(usdBrl)||0))} · ATUAL ${entryPct>=0?"+":""}${entryPct.toFixed(2)}% · ${livePnl===null?"—":moneyBRL(livePnlBRL)}`
-          });
-        }
+        // A linha COMPRA foi ocultada; a seta continua marcando o
+        // candle exato da entrada.
 
         // Mantém somente o essencial na linha de venda:
         // distância percentual até o TP + valor em reais da ordem.

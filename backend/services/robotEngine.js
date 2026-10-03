@@ -434,10 +434,37 @@ async function top20(client,exchangeInfo,maxCoins){
 
     if(!pair)continue;
 
-    // Segurança: se a Binance não informar a data de listagem,
-    // não consideramos o ativo elegível para compra.
-    const onboardMs=Number(pair.onboardDate||0);
-    if(!Number.isFinite(onboardMs)||onboardMs<=0)continue;
+    /*
+     * Regra de idade mínima: 3 meses na Binance.
+     *
+     * Normalmente o exchangeInfo traz onboardDate. Em algumas respostas/
+     * versões do endpoint esse campo pode vir ausente ou zerado. Nesse
+     * caso NÃO descartamos silenciosamente a moeda: confirmamos a idade
+     * pelo candle diário mais antigo retornado pela Binance.
+     *
+     * Isso evita o problema de o robô ligar e terminar com TOP 0
+     * simplesmente porque onboardDate não veio preenchido.
+     */
+    let onboardMs=Number(pair.onboardDate||0);
+
+    if(!Number.isFinite(onboardMs)||onboardMs<=0){
+      try{
+        const daily=await client.candles({
+          symbol:pair.symbol,
+          interval:'1d',
+          limit:120
+        });
+
+        const firstOpenTime=Number(daily?.[0]?.openTime||daily?.[0]?.[0]||0);
+        if(firstOpenTime>0)onboardMs=firstOpenTime;
+      }catch(_){
+        onboardMs=0;
+      }
+    }
+
+    // Sem confirmação da idade, continua fora para preservar a regra
+    // de não comprar moedas com menos de 3 meses.
+    if(!(onboardMs>0))continue;
 
     // Somente ativos que já estão na Binance há mais de 3 meses.
     if(onboardMs>=cutoffMs)continue;
@@ -452,6 +479,13 @@ async function top20(client,exchangeInfo,maxCoins){
   }
 
   console.log(`[ROBO] SCANNER V7.2 | ${out.length} moedas elegíveis após filtro de idade.`);
+
+  if(out.length===0){
+    console.log(
+      '[ROBO] SCANNER V7.2 | NENHUMA MOEDA ELEGÍVEL | verifique resposta do Binance/CoinGecko e confirmação da idade mínima de 3 meses.'
+    );
+  }
+
   return out;
 }
 

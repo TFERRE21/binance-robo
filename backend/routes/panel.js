@@ -953,6 +953,22 @@ router.get(
       const precoTpRobo =
         numero(robotOperation?.tp_price);
 
+      /*
+       * Horário real da ordem BUY da Binance.
+       * Usado pelo gráfico para posicionar a seta no candle correto.
+       */
+      let robotBuyTime = null;
+      if(robotOperation?.buy_order_id){
+        try{
+          const buyOrder = await client.getOrder({
+            symbol,
+            orderId: robotOperation.buy_order_id
+          });
+          robotBuyTime =
+            Number(buyOrder?.transactTime || buyOrder?.time || 0) || null;
+        }catch(_){}
+      }
+
       const precoMedio =
         precoEntradaRobo > 0
           ? precoEntradaRobo
@@ -1143,6 +1159,9 @@ router.get(
 
           robotBuyOrderId:
             robotOperation?.buy_order_id || null,
+
+          robotBuyTime:
+            robotBuyTime,
 
           robotTpOrderId:
             robotOperation?.tp_order_id || null,

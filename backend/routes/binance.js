@@ -17,6 +17,82 @@ const router = express.Router();
  * Usada para consultar as permissões reais da API Key.
  */
 
+function binanceSignedPost(path, apiKey, apiSecret, params = {}) {
+  return new Promise((resolve, reject) => {
+    const bodyParams = {
+      ...params,
+      timestamp: Date.now().toString(),
+      recvWindow: '10000'
+    };
+
+    const body = new URLSearchParams(bodyParams).toString();
+
+    const signature = crypto
+      .createHmac('sha256', apiSecret)
+      .update(body)
+      .digest('hex');
+
+    const request = https.request(
+      {
+        hostname: 'api.binance.com',
+        path,
+        method: 'POST',
+        headers: {
+          'X-MBX-APIKEY': apiKey,
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Length': Buffer.byteLength(body + '&signature=' + signature)
+        },
+        timeout: 15000
+      },
+      (response) => {
+        let responseBody = '';
+
+        response.on('data', (chunk) => {
+          responseBody += chunk;
+        });
+
+        response.on('end', () => {
+          let data;
+
+          try {
+            data = JSON.parse(responseBody);
+          } catch {
+            data = {
+              code: response.statusCode,
+              msg: responseBody
+            };
+          }
+
+          if (response.statusCode >= 200 && response.statusCode < 300) {
+            resolve(data);
+          } else {
+            const error = new Error(
+              data?.msg || `Binance HTTP ${response.statusCode}`
+            );
+
+            error.binanceCode = data?.code;
+            error.statusCode = response.statusCode;
+
+            reject(error);
+          }
+        });
+      }
+    );
+
+    request.on('timeout', () => {
+      request.destroy(
+        new Error('Tempo esgotado ao conectar à Binance.')
+      );
+    });
+
+    request.on('error', reject);
+
+    request.write(body + '&signature=' + signature);
+    request.end();
+  });
+}
+
+
 function binanceSignedGet(path, apiKey, apiSecret, params = {}) {
   return new Promise((resolve, reject) => {
     const query = new URLSearchParams({
@@ -895,6 +971,280 @@ router.get(
 
     }
 
+  }
+);
+
+
+/*
+ * =========================================================
+ * CONSOLIDAR PEQUENOS SALDOS EM USDT
+ * =========================================================
+ *
+ * Somente Spot. Não movimenta USDT, LDUSDT, stablecoins nem
+ * ativos que estejam em posição OPEN do robô.
+ *
+ * O limite padrão é US$ 5 por ativo.
+ */
+
+async function obterCredenciaisConta(userId, accountId) {
+  const result = await db.query(
+    `SELECT id, api_key_encrypted, api_secret_encrypted, active
+       FROM binance_accounts
+      WHERE id = $1 AND user_id = $2`,
+    [accountId, userId]
+  );
+
+  return result.rows[0] || null;
+}
+
+async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
+  const account = await obterCredenciaisConta(userId, accountId);
+
+  if (!account) {
+    const error = new Error('Conta Binance não encontrada.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (account.active === false) {
+    const error = new Error('A conta Binance selecionada está inativa.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const apiKey = cryptoService.decrypt(account.api_key_encrypted);
+  const apiSecret = cryptoService.decrypt(account.api_secret_encrypted);
+
+  const client = Binance({
+    apiKey,
+    apiSecret,
+    recvWindow: 60000
+  });
+
+  const accountInfo = await client.accountInfo();
+  const prices = await client.prices();
+
+  const openResult = await db.query(
+    `SELECT DISTINCT UPPER(symbol) AS symbol
+       FROM robot_operations
+      WHERE user_id = $1
+        AND account_id = $2
+        AND status = 'OPEN'`,
+    [userId, accountId]
+  );
+
+  const openBases = new Set(
+    openResult.rows
+      .map(row => String(row.symbol || '').toUpperCase())
+      .map(symbol => symbol.endsWith('USDT') ? symbol.slice(0, -4) : '')
+      .filter(Boolean)
+  );
+
+  const candidates = [];
+
+  for (const balance of accountInfo.balances || []) {
+    const asset = String(balance.asset || '').toUpperCase();
+    const free = Number(balance.free || 0);
+
+    if (!asset || free <= 0) continue;
+    if (asset === 'USDT' || asset === 'LDUSDT') continue;
+    if (openBases.has(asset)) continue;
+
+    const directPrice = Number(
+      prices[asset + 'USDT'] ||
+      prices[asset + 'BUSD'] ||
+      0
+    );
+
+    if (directPrice <= 0) continue;
+
+    const estimatedUSD = free * directPrice;
+
+    if (estimatedUSD >= limiteUSD) continue;
+
+    try {
+      const quote = await binanceSignedPost(
+        '/sapi/v1/convert/getQuote',
+        apiKey,
+        apiSecret,
+        {
+          fromAsset: asset,
+          toAsset: 'USDT',
+          fromAmount: String(free),
+          validTime: '10s'
+        }
+      );
+
+      const toAmount = Number(quote?.toAmount || 0);
+
+      if (toAmount > 0 && toAmount < limiteUSD) {
+        candidates.push({
+          asset,
+          free,
+          estimatedUSD,
+          quoteId: quote.quoteId,
+          fromAmount: Number(quote.fromAmount || free),
+          toAmount,
+          ratio: Number(quote.ratio || 0)
+        });
+      }
+    } catch (error) {
+      // Ativo sem suporte/limite de Convert: apenas não entra na lista.
+      console.warn(
+        `[CONVERT] ${asset} não disponível para conversão:`,
+        error?.message || error
+      );
+    }
+  }
+
+  return {
+    limitUSD: limiteUSD,
+    candidates
+  };
+}
+
+router.get(
+  '/small-balances',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const accountId = Number(req.query.accountId);
+      const limitUSD = Math.min(
+        5,
+        Math.max(0.01, Number(req.query.limitUSD || 5))
+      );
+
+      if (!Number.isInteger(accountId) || accountId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conta Binance inválida.'
+        });
+      }
+
+      const result = await prepararPequenosSaldos(
+        req.user.id,
+        accountId,
+        limitUSD
+      );
+
+      return res.json({
+        success: true,
+        ...result
+      });
+    } catch (error) {
+      console.error('[CONVERT] ERRO AO CONSULTAR PEQUENOS SALDOS:', error);
+
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message:
+          error?.message ||
+          'Não foi possível consultar os pequenos saldos.'
+      });
+    }
+  }
+);
+
+router.post(
+  '/small-balances/convert',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const accountId = Number(req.body?.accountId);
+      const limitUSD = 5;
+
+      if (!Number.isInteger(accountId) || accountId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conta Binance inválida.'
+        });
+      }
+
+      /*
+       * Recalcula os candidatos no momento da execução para não
+       * usar uma cotação antiga. A cotação da Binance expira.
+       */
+      const prepared = await prepararPequenosSaldos(
+        req.user.id,
+        accountId,
+        limitUSD
+      );
+
+      const account = await obterCredenciaisConta(
+        req.user.id,
+        accountId
+      );
+
+      const apiKey = cryptoService.decrypt(account.api_key_encrypted);
+      const apiSecret = cryptoService.decrypt(account.api_secret_encrypted);
+
+      const converted = [];
+      const skipped = [];
+
+      for (const item of prepared.candidates) {
+        try {
+          const quote = await binanceSignedPost(
+            '/sapi/v1/convert/getQuote',
+            apiKey,
+            apiSecret,
+            {
+              fromAsset: item.asset,
+              toAsset: 'USDT',
+              fromAmount: String(item.fromAmount),
+              validTime: '10s'
+            }
+          );
+
+          if (!quote?.quoteId) {
+            skipped.push({
+              asset: item.asset,
+              reason: 'A Binance não retornou uma cotação válida.'
+            });
+            continue;
+          }
+
+          const accepted = await binanceSignedPost(
+            '/sapi/v1/convert/acceptQuote',
+            apiKey,
+            apiSecret,
+            {
+              quoteId: String(quote.quoteId)
+            }
+          );
+
+          converted.push({
+            asset: item.asset,
+            fromAmount: Number(quote.fromAmount || item.fromAmount),
+            toAmount: Number(quote.toAmount || 0),
+            orderId: accepted?.orderId || null,
+            status: accepted?.orderStatus || 'PROCESS'
+          });
+        } catch (error) {
+          skipped.push({
+            asset: item.asset,
+            reason: error?.message || 'Conversão rejeitada pela Binance.'
+          });
+        }
+      }
+
+      return res.json({
+        success: true,
+        converted,
+        skipped,
+        message:
+          converted.length
+            ? `${converted.length} saldo(s) enviado(s) para conversão em USDT.`
+            : 'Nenhum pequeno saldo pôde ser convertido.'
+      });
+    } catch (error) {
+      console.error('[CONVERT] ERRO AO CONVERTER PEQUENOS SALDOS:', error);
+
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message:
+          error?.message ||
+          'Não foi possível converter os pequenos saldos.'
+      });
+    }
   }
 );
 

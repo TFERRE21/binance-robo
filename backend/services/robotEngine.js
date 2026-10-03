@@ -126,6 +126,16 @@ function strategyInfo(version){
 
 function num(v){ const n=Number(v); return Number.isFinite(n)?n:0; }
 function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function normalizedAsset(asset){ return String(asset||'').toUpperCase().replace(/^LD/,''); }
+function freeBalance(ac,asset){
+  const target=String(asset||'').toUpperCase();
+  return (ac?.balances||[]).reduce((sum,b)=>{
+    const raw=String(b?.asset||'').toUpperCase();
+    const normalized=normalizedAsset(raw);
+    if(raw===target || normalized===target) return sum+num(b?.free);
+    return sum;
+  },0);
+}
 function isStable(a){ return STABLECOINS.has(String(a||'').toUpperCase()); }
 function isLeveraged(a){ const s=String(a||'').toUpperCase(); return LEVERAGED_SUFFIXES.some(x=>s.endsWith(x)); }
 function roundDown(v, step){ if(!(v>0)||!(step>0)) return 0; const p=Math.max(0,(String(step).split('.')[1]||'').length); return Number((Math.floor(v/step)*step).toFixed(p)); }
@@ -557,10 +567,20 @@ async function buy(userId,account,config,symbol,robotId=1){
   const step=num(lot?.stepSize),tick=num(pf?.tickSize),minNot=num(nf?.minNotional);
 
   const ac=await client.accountInfo();
-  const usdt=num(ac.balances.find(b=>b.asset==='USDT')?.free);
+  // Binance pode retornar ativos com prefixo LD (ex.: LDUSDT).
+  // O painel já normaliza esses ativos; o motor também precisa fazer isso
+  // para não enxergar saldo disponível como zero.
+  const usdt=freeBalance(ac,'USDT');
+  const usdtRaw=(ac.balances||[])
+    .filter(b=>normalizedAsset(b?.asset)==='USDT')
+    .map(b=>({asset:b.asset,free:num(b.free),locked:num(b.locked)}));
   const price=num((await client.prices({symbol}))[symbol]);
 
-  if(!(usdt>0))throw new Error('Saldo USDT disponível é zero');
+  robotLog(userId,account.id,robotId,
+    `SALDO PARA ENTRADA | USDT disponível=${usdt.toFixed(8)} | detalhes=${JSON.stringify(usdtRaw)}`
+  );
+
+  if(!(usdt>0))throw new Error(`Saldo USDT disponível é zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
   if(!(price>0))throw new Error('Preço atual inválido');
 
   const value=usdt*(num(config.entry_percent)/100);

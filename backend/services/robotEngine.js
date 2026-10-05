@@ -221,6 +221,9 @@ async function ensureSchema(){
       opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       closed_at TIMESTAMPTZ,
       close_reason VARCHAR(30),
+      close_price NUMERIC(30,12),
+      result_percent NUMERIC(12,6),
+      result_usdt NUMERIC(30,12),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
@@ -265,6 +268,9 @@ async function ensureSchema(){
       ADD COLUMN IF NOT EXISTS opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS close_reason VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS close_price NUMERIC(30,12),
+      ADD COLUMN IF NOT EXISTS result_percent NUMERIC(12,6),
+      ADD COLUMN IF NOT EXISTS result_usdt NUMERIC(30,12),
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
     CREATE INDEX IF NOT EXISTS idx_robot_ops_user_account_status
@@ -838,6 +844,29 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
 
   return resultSummary;
 }
+async function closeOperationResult(op,exitPrice,reason){
+  const buy=num(op.buy_price);
+  const qty=num(op.quantity);
+  const exit=num(exitPrice);
+  const pct=buy>0&&exit>0 ? ((exit/buy)-1)*100 : null;
+  const usdt=buy>0&&exit>0&&qty>0 ? (exit-buy)*qty : null;
+
+  await db.query(
+    `UPDATE robot_operations
+     SET status='CLOSED',
+         closed_at=NOW(),
+         close_reason=$1,
+         close_price=$2,
+         result_percent=$3,
+         result_usdt=$4,
+         updated_at=NOW()
+     WHERE id=$5`,
+    [reason,exit||null,pct,usdt,op.id]
+  );
+
+  return {exitPrice:exit,pct,usdt};
+}
+
 async function monitorOpenOps(userId,account,config,robotId=1){
   const client=clientFor(account);
   await ensureSchema();
@@ -869,10 +898,10 @@ async function monitorOpenOps(userId,account,config,robotId=1){
             userId,account.id,robotId,
             `SAÍDA AUTOMÁTICA | ${op.symbol} | STOP LOSS | SELL MARKET | preço≈${price} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
           );
-          await db.query(
-            `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='STOP',updated_at=NOW() WHERE id=$1`,
-            [op.id]
-          );
+          const stopExit=num(market?.cummulativeQuoteQty)>0 && num(market?.executedQty)>0
+            ? num(market.cummulativeQuoteQty)/num(market.executedQty)
+            : price;
+          const stopResult=await closeOperationResult(op,stopExit,'STOP');
         }else{
           robotLog(
             userId,account.id,robotId,
@@ -896,13 +925,13 @@ async function monitorOpenOps(userId,account,config,robotId=1){
 
       // TP já preenchido pela Binance.
       if(ord && String(ord.status).toUpperCase()==='FILLED'){
-        await db.query(
-          `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,
-          [op.id]
-        );
+        const filledPrice=num(ord?.cummulativeQuoteQty)>0 && num(ord?.executedQty)>0
+          ? num(ord.cummulativeQuoteQty)/num(ord.executedQty)
+          : (num(ord?.price)>0 ? num(ord.price) : price);
+        const tpResult=await closeOperationResult(op,filledPrice,'TAKE_PROFIT');
         robotLog(
           userId,account.id,robotId,
-          `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT preenchido | preço≈${price} | alvo=${tpPrice}`
+          `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT preenchido | preço≈${filledPrice} | alvo=${tpPrice} | resultado=${tpResult.pct===null?'-':tpResult.pct.toFixed(2)+'%'}`
         );
         continue;
       }
@@ -918,10 +947,10 @@ async function monitorOpenOps(userId,account,config,robotId=1){
             userId,account.id,robotId,
             `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT A MERCADO | preço≈${price} | alvo=${tpPrice} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
           );
-          await db.query(
-            `UPDATE robot_operations SET status='CLOSED',closed_at=NOW(),close_reason='TAKE_PROFIT',updated_at=NOW() WHERE id=$1`,
-            [op.id]
-          );
+          const marketExit=num(market?.cummulativeQuoteQty)>0 && num(market?.executedQty)>0
+            ? num(market.cummulativeQuoteQty)/num(market.executedQty)
+            : price;
+          const marketResult=await closeOperationResult(op,marketExit,'TAKE_PROFIT');
         }else{
           robotLog(
             userId,account.id,robotId,
@@ -1458,7 +1487,7 @@ async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SE
 async function getStatus(userId,accountId,robotId=1){
   await ensureSchema();
   const c=await getConfig(userId,accountId,robotId);
-  const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
+  const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason,close_price,result_percent,result_usdt FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
   const logs=await db.query(`SELECT id,level,message,created_at FROM robot_logs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 80`,[userId,accountId,robotId]);
   const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
 

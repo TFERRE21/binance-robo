@@ -59,22 +59,7 @@ router.post("/test", authMiddleware, async (req,res) => {
     await notifications.ensureSchema();
 
     const resumo = await robotEngine.getNotificationSummary(req.user.id);
-
-    const moedas = resumo.open.length
-      ? resumo.open.slice(0,6).map(o=>{
-          const s=o.pnlUsdt>=0?"+":"-";
-          return o.symbol+" "+s+"US$ "+Math.abs(o.pnlUsdt).toFixed(2);
-        }).join(" | ")
-      : "Nenhuma moeda em operação";
-
-    const body =
-      "🤖 Robô: "+(resumo.openCount>0?"OPERANDO":"ATIVO")+
-      "\n💰 Saldo: R$ "+resumo.totalBrl.toFixed(2)+" | US$ "+resumo.totalUsdt.toFixed(2)+
-      "\n📊 Resultado 24h: "+(resumo.combined24h>=0?"+":"-")+"US$ "+Math.abs(resumo.combined24h).toFixed(2)+
-      " | Operações abertas: "+resumo.openCount+
-      "\n🪙 Compradas: "+moedas+
-      "\n💵 Realizado 24h: "+(resumo.realized24h>=0?"+":"-")+"US$ "+Math.abs(resumo.realized24h).toFixed(2)+
-      " | P/L aberto: "+(resumo.unrealized>=0?"+":"-")+"US$ "+Math.abs(resumo.unrealized).toFixed(2);
+    const body = robotEngine.formatNotificationSummary(resumo,{teste:true});
 
     const result = await notifications.notifyUser(
       req.user.id,

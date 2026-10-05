@@ -6,7 +6,7 @@ const runners = new Map();
 let schemaReady = false;
 
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
-const QUICK_MIN_USDT = 3; // teste inicial: mínimo de US$ 3 por operação
+const QUICK_MIN_USDT = 6; // Operações Rápidas: mínimo operacional de US$ 6 por ordem
 const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
@@ -1310,11 +1310,16 @@ async function loop(userId,accountId,robotId=1){
          */
         if(runner.blockedByOpenLimit){
 
+          // Uma operação foi encerrada enquanto o limite estava cheio.
+          // A próxima busca deve acontecer imediatamente, sem esperar
+          // novamente o intervalo completo configurado.
+          nextScanAt=0;
+
           robotLog(
             userId,
             account.id,
             robotId,
-            `NOVA ENTRADA DISPONÍVEL | ${open}/${limit} operações abertas | aguardando o próximo intervalo de pesquisa.`
+            `OPERAÇÃO ENCERRADA | ${open}/${limit} operações abertas | nova oportunidade liberada | iniciando nova busca agora.`
           );
 
           runner.blockedByOpenLimit=false;

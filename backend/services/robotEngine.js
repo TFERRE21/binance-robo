@@ -1457,6 +1457,19 @@ async function start(userId,accountId,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
   }
 
+  // Operações Rápidas: o orçamento reservado precisa comportar pelo menos
+  // US$3 por operação configurada. A conversão é feita pela cotação atual.
+  if(String(c.strategy_version||'').toLowerCase()==='rapido'){
+    const rate=await usdtBrlRate(clientFor(account));
+    const reservedUsdt=num(c.quick_reserved_brl)/rate;
+    const requiredUsdt=QUICK_MIN_USDT*Math.max(1,Number(c.max_operations)||1);
+    if(reservedUsdt < requiredUsdt){
+      throw new Error(
+        `Reserva insuficiente para Operações Rápidas | reservado≈US$ ${reservedUsdt.toFixed(2)} | necessário≥US$ ${requiredUsdt.toFixed(2)} (${Math.max(1,Number(c.max_operations)||1)} operação(ões) × US$ ${QUICK_MIN_USDT.toFixed(2)})`
+      );
+    }
+  }
+
   // Compatibilidade: configurações antigas com Stop Loss 0 ficam sem SL.
   if(Number(c.stop_loss)<=0){
     await db.query(

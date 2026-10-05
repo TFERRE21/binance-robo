@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CriptoPro | Operações Rápidas</title>
+<style>
+:root{--bg:#050812;--card:#0d1626;--card2:#101c30;--line:#263955;--text:#f7f9fd;--muted:#8290a8;--blue:#4aa8ff;--green:#20df96;--red:#ff6177;--yellow:#ffc85a}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.top h1{margin:0;font-size:28px}.top p{margin:6px 0;color:var(--muted);font-size:12px}.back{background:#0d1a2c;border:1px solid var(--line);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:linear-gradient(180deg,#101c30,#091220);border:1px solid var(--line);border-radius:14px;padding:18px}.title{font-size:16px;font-weight:900;margin:0 0 6px}.sub{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:16px}.field{margin-bottom:12px}.label{display:block;font-size:9px;color:#71809a;font-weight:900;text-transform:uppercase;margin-bottom:6px}.input,.select{width:100%;background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:11px;font-size:11px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:1px solid #30435f;background:#17395f;color:#fff;border-radius:8px;padding:12px;font-size:11px;font-weight:900}.btn.on{background:#0e4c39;border-color:#19785a}.btn.off{background:#481522;border-color:#7b2838}.status{margin-top:12px;border-radius:9px;padding:11px;font-size:10px;line-height:1.5;background:#071321;border:1px solid var(--line)}.status.ok{border-color:#17573f;color:#7ff2c1}.status.err{border-color:#7b2838;color:#ff9aaa}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#091321;border:1px solid #20314b;border-radius:9px;padding:11px}.stat span{display:block;color:#71809a;font-size:8px}.stat b{display:block;margin-top:5px;font-size:13px}.warning{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:9px;padding:11px;font-size:9px;line-height:1.55}.log{height:280px;overflow:auto;background:#03070d;border:1px solid #1b2a40;border-radius:9px;padding:10px;font:10px/1.55 monospace;color:#b9c6da;white-space:pre-wrap}.green{color:#7ff2c1}.muted{color:#8290a8}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;gap:10px}.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>⚡ Operações Rápidas</h1><p>Scanner de curto prazo + execução automática na Binance.</p></div>
+    <button class="back" onclick="location.href='/dashboard.html'">← VOLTAR</button>
+  </div>
+
+  <div class="grid">
+    <section class="card">
+      <h2 class="title">Configuração</h2>
+      <div class="sub">O modo rápido procura várias moedas por volume, confirma EMA9/EMA21, RSI e volume relativo e prioriza as melhores oportunidades. Ele pode abrir mais de uma operação conforme o limite configurado.</div>
+
+      <div class="field"><label class="label">Conta Binance</label><select id="account" class="select"></select></div>
+      <div class="row">
+        <div class="field"><label class="label">Operações simultâneas</label><select id="ops" class="select"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option></select></div>
+        <div class="field"><label class="label">Intervalo de busca</label><select id="interval" class="select"><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option></select></div>
+      </div>
+      <div class="row">
+        <div class="field"><label class="label">Take Profit</label><select id="tp" class="select"><option value="0.5">0,5%</option><option value="1" selected>1%</option><option value="1.5">1,5%</option><option value="2">2%</option></select></div>
+        <div class="field"><label class="label">Moedas analisadas</label><select id="coins" class="select"><option value="10">10</option><option value="20" selected>20</option><option value="40">40</option></select></div>
+      </div>
+      <div class="field"><label class="label">Stop Loss</label><select id="sl" class="select"><option value="0" selected>Desativado</option><option value="0.5">0,5%</option><option value="1">1%</option><option value="1.5">1,5%</option></select></div>
+
+      <button id="toggle" class="btn on">⚡ LIGAR OPERAÇÕES RÁPIDAS</button>
+      <div id="status" class="status">Carregando conta e status...</div>
+      <div class="warning">⚠️ O sistema não promete lucro. O modo rápido aumenta a frequência das análises e pode gerar perdas. A estratégia reserva 10% do USDT e distribui o restante entre os slots disponíveis. Ordens abaixo dos filtros mínimos da Binance serão recusadas.</div>
+    </section>
+
+    <section class="card">
+      <h2 class="title">Visão em tempo real</h2>
+      <div class="stats">
+        <div class="stat"><span>SALDO DISPONÍVEL</span><b id="balance">—</b></div>
+        <div class="stat"><span>OPERAÇÕES ABERTAS</span><b id="open">—</b></div>
+        <div class="stat"><span>ESTADO</span><b id="state">—</b></div>
+      </div>
+      <div style="height:12px"></div>
+      <div class="log" id="log">Aguardando o motor...</div>
+    </section>
+  </div>
+</div>
+<script>
+const token=localStorage.getItem("token");
+if(!token)location.href="/login.html";
+const $=id=>document.getElementById(id);
+let accountId=null, timer=null, currentRunning=false;
+
+async function api(url,opt={}){
+  const r=await fetch(url,{...opt,cache:"no-store",headers:{...(opt.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
+  const d=await r.json().catch(()=>({}));
+  if(r.status===401){localStorage.removeItem("token");location.href="/login.html";return null}
+  if(!r.ok)throw new Error(d.message||"Erro na API");
+  return d;
+}
+async function loadAccounts(){
+  const d=await api("/api/binance/accounts");
+  const s=$("account");s.innerHTML="";
+  (d.accounts||[]).forEach(a=>{const o=document.createElement("option");o.value=a.id;o.textContent=a.name+" (#"+a.id+")";s.appendChild(o)});
+  if(!d.accounts?.length)throw new Error("Cadastre uma conta Binance antes de usar Operações Rápidas.");
+  accountId=String(s.value);
+  s.onchange=()=>{accountId=String(s.value);refresh()};
+}
+async function refresh(){
+  if(!accountId)return;
+  try{
+    const [st,b]=await Promise.all([
+      api("/api/robot/status?account="+encodeURIComponent(accountId)+"&robotId=1"),
+      api("/api/binance/accounts/"+encodeURIComponent(accountId)+"/balance")
+    ]);
+    currentRunning=!!st.engineRunning;
+    $("state").textContent=currentRunning?"🟢 LIGADO":"⚪ PARADO";
+    $("open").textContent=(st.openOperations??st.openCount??0)+" / "+$("ops").value;
+    $("balance").textContent=Number(b.balance?.available||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
+    $("status").className="status "+(currentRunning?"ok":"");
+    $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
+    $("toggle").textContent=currentRunning?"⏹ DESLIGAR OPERAÇÕES RÁPIDAS":"⚡ LIGAR OPERAÇÕES RÁPIDAS";
+    $("toggle").className="btn "+(currentRunning?"off":"on");
+  }catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
+}
+async function loadLog(){
+  try{
+    const st=await api("/api/robot/status?account="+encodeURIComponent(accountId)+"&robotId=1");
+    const lines=st.logs||st.recentLogs||[];
+    $("log").textContent=Array.isArray(lines)&&lines.length?lines.map(x=>typeof x==="string"?x:(x.created_at||"")+" "+(x.level||"")+" "+(x.message||"")).join("\n"):"Sem logs recentes.";
+    $("log").scrollTop=$("log").scrollHeight;
+  }catch(e){}
+}
+$("toggle").onclick=async()=>{
+  $("toggle").disabled=true;
+  try{
+    if(currentRunning){
+      await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:1})});
+    }else{
+      const stopLoss=Number($("sl").value);
+      await api("/api/robot/config",{method:"POST",body:JSON.stringify({
+        accountId,robotId:1,entryPercent:90,takeProfit:Number($("tp").value),
+        stopLoss,stopLossActive:stopLoss>0,maxOperations:Number($("ops").value),
+        interval:$("interval").value,maxCoins:Number($("coins").value),strategyVersion:"rapido"
+      })});
+      await api("/api/robot/start",{method:"POST",body:JSON.stringify({accountId,robotId:1})});
+    }
+    await refresh();await loadLog();
+  }catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
+  finally{$("toggle").disabled=false}
+};
+(async()=>{
+  try{await loadAccounts();await refresh();await loadLog();timer=setInterval(async()=>{await refresh();await loadLog()},5000)}
+  catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
+})();
+</script>
+</body>
+</html>

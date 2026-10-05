@@ -1792,6 +1792,91 @@ INTERFACE PREMIUM
 // A página principal é servida por express.static a partir de ../publico/index.html.
 // Não manter HTML embutido aqui para preservar o layout V7.
 
+// =========================================================
+// CRIPTOPRO — RESUMO AUTOMÁTICO DE ALERTAS
+// Envia um resumo curto por Push às 08:00 e 20:00
+// no horário de Brasília, todos os dias.
+// =========================================================
+let ultimoResumoAutomatico = "";
+
+function horarioBrasilia(){
+  return new Intl.DateTimeFormat("en-CA",{
+    timeZone:"America/Sao_Paulo",
+    year:"numeric",month:"2-digit",day:"2-digit",
+    hour:"2-digit",minute:"2-digit",hour12:false
+  }).formatToParts(new Date()).reduce((o,p)=>{o[p.type]=p.value;return o;},{});
+}
+
+async function enviarResumoAutomatico(){
+  try{
+    await notificationService.ensureSchema();
+
+    let mercado = "Mercado em acompanhamento";
+    let btc = null;
+
+    try{
+      const contaBase = clientes.find(c=>c.client);
+      if(contaBase && contaBase.client){
+        const stats = await contaBase.client.dailyStats({symbol:"BTCUSDT"});
+        const pct = Number(stats?.priceChangePercent);
+        if(Number.isFinite(pct)){
+          btc = pct;
+          mercado = pct >= 2
+            ? "📈 BTC em alta"
+            : pct <= -2
+              ? "📉 BTC em queda"
+              : "📊 BTC estável";
+        }
+      }
+    }catch(e){
+      console.warn("[NOTIFICAÇÕES] Não foi possível consultar BTC:",e.message||e);
+    }
+
+    const usuarios = await require("./services/db").query(
+      "SELECT DISTINCT user_id FROM push_subscriptions"
+    );
+
+    const body =
+      "Robô ativo e monitoramento em andamento. " +
+      mercado +
+      (btc !== null ? " (" + (btc >= 0 ? "+" : "") + btc.toFixed(2) + "% em 24h)." : ".") +
+      " Abra o CriptoPro para ver o resumo completo.";
+
+    for(const row of usuarios.rows){
+      await notificationService.notifyUser(
+        row.user_id,
+        "market",
+        "🔔 Resumo CriptoPro",
+        body,
+        {url:"/index.html",tag:"criptopro-resumo-diario",urgency:"normal"}
+      );
+    }
+
+    console.log("[NOTIFICAÇÕES] Resumo automático enviado | usuários="+usuarios.rows.length);
+  }catch(error){
+    console.error("[NOTIFICAÇÕES] Falha no resumo automático:",error);
+  }
+}
+
+function agendarResumoAutomatico(){
+  const agora = horarioBrasilia();
+  const data = new Date();
+  const hoje = agora.year+"-"+agora.month+"-"+agora.day;
+  const alvoHoje = ["08:00","20:00"].find(h=>{
+    const chave=hoje+" "+h;
+    return !ultimoResumoAutomatico || chave>ultimoResumoAutomatico;
+  });
+
+  if(alvoHoje && agora.hour+":"+agora.minute >= alvoHoje){
+    const chave=hoje+" "+alvoHoje;
+    ultimoResumoAutomatico=chave;
+    enviarResumoAutomatico();
+  }
+}
+
+setInterval(agendarResumoAutomatico,60000);
+agendarResumoAutomatico();
+
 app.listen(
   PORT,
   "0.0.0.0",

@@ -6,6 +6,7 @@ const runners = new Map();
 let schemaReady = false;
 
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
+const QUICK_MIN_USDT = 3; // teste inicial: mínimo de US$ 3 por operação
 const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
@@ -759,7 +760,7 @@ async function buy(userId,account,config,symbol,robotId=1){
     // O restante da carteira fica fora do orçamento do modo rápido.
     value=Number((reservedFree/remainingSlots).toFixed(8));
     robotLog(userId,account.id,robotId,
-      `ORÇAMENTO RÁPIDO SEPARADO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento≈${reservedUsdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | entrada≈${value.toFixed(8)} USDT | saldo livre fora do orçamento não será usado`
+      `ORÇAMENTO RÁPIDO SEPARADO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento≈${reservedUsdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | entrada≈${value.toFixed(8)} USDT | mínimo por operação=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orçamento não será usado`
     );
   }else{
     value=Number((operationalUsdt*(num(config.entry_percent)/100)).toFixed(8));
@@ -768,6 +769,9 @@ async function buy(userId,account,config,symbol,robotId=1){
   const estimatedQty=roundDown(value/price,step);
 
   if(!(value>0))throw new Error(`Valor calculado inválido | saldo operacional USDT=${operationalUsdt.toFixed(4)} | saldo total=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(String(config.strategy_version||'').toLowerCase()==='rapido' && value < QUICK_MIN_USDT){
+    throw new Error(`Orçamento da Operação Rápida abaixo do mínimo de teste | entrada≈${value.toFixed(4)} USDT | mínimo=US$ ${QUICK_MIN_USDT.toFixed(2)} por operação`);
+  }
   if(estimatedQty<=0)throw new Error(`Quantidade calculada inválida | saldo operacional USDT=${operationalUsdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
   if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor≈${(estimatedQty*price).toFixed(4)} USDT | mínimo=${minNot}`);
 

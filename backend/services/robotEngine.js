@@ -200,6 +200,7 @@ async function ensureSchema(){
       max_operations INTEGER NOT NULL DEFAULT 3,
       interval VARCHAR(8) NOT NULL DEFAULT '1h',
       max_coins INTEGER NOT NULL DEFAULT 20,
+      quick_reserved_brl NUMERIC(14,2) NOT NULL DEFAULT 0,
       running BOOLEAN NOT NULL DEFAULT false,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY(user_id,account_id,robot_id)
@@ -249,6 +250,7 @@ async function ensureSchema(){
       ADD COLUMN IF NOT EXISTS max_operations INTEGER NOT NULL DEFAULT 3,
       ADD COLUMN IF NOT EXISTS interval VARCHAR(8) NOT NULL DEFAULT '1h',
       ADD COLUMN IF NOT EXISTS max_coins INTEGER NOT NULL DEFAULT 20,
+      ADD COLUMN IF NOT EXISTS quick_reserved_brl NUMERIC(14,2) NOT NULL DEFAULT 0,
       ADD COLUMN IF NOT EXISTS running BOOLEAN NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
@@ -320,6 +322,7 @@ async function ensureSchema(){
       max_operations=COALESCE(max_operations,3),
       interval=COALESCE(interval,'1h'),
       max_coins=COALESCE(max_coins,20),
+      quick_reserved_brl=COALESCE(quick_reserved_brl,0),
       running=COALESCE(running,false),
       updated_at=COALESCE(updated_at,NOW())
   `);
@@ -388,6 +391,24 @@ async function getConfig(userId,accountId,robotId=1){
   const r=await db.query(`SELECT * FROM robot_configs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,[userId,accountId,robotId]);
   return r.rows[0]||null;
 }
+async function usdtBrlRate(client){
+  try{
+    const p=await client.prices({symbol:'USDTBRL'});
+    const direct=num(p?.USDTBRL);
+    if(direct>0)return direct;
+  }catch(_){}
+  try{
+    const p=await client.prices({symbol:'USDTUSDC'});
+    const u=num(p?.USDTUSDC);
+    if(u>0){
+      const b=await client.prices({symbol:'USDCBRL'});
+      const br=num(b?.USDCBRL);
+      if(br>0)return u*br;
+    }
+  }catch(_){}
+  throw new Error('Não foi possível obter a cotação USDT/BRL para reservar o valor.');
+}
+
 async function saveConfig(userId,accountId,c,robotId=1){
   await ensureSchema();
 
@@ -406,6 +427,12 @@ async function saveConfig(userId,accountId,c,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
   }
 
+  const reservedBrl=Number(c.quickReservedBrl||0);
+  if(!Number.isFinite(reservedBrl)||reservedBrl<0) throw new Error('Valor reservado para Operações Rápidas inválido.');
+  if(String(c.strategyVersion).toLowerCase()==='rapido' && reservedBrl<=0){
+    throw new Error('Informe quanto deseja separar para Operações Rápidas.');
+  }
+
   const allowedIntervals=new Set(['5m','15m','30m','1h','1h30','2h','2h30']);
   if(!allowedIntervals.has(String(c.interval||'1h'))){
     throw new Error('Intervalo de busca inválido. Use 5m, 15m, 30m, 1h, 1h30, 2h ou 2h30.');
@@ -421,7 +448,7 @@ async function saveConfig(userId,accountId,c,robotId=1){
   if(Boolean(c.stopLossActive) && !planRules.stopLoss){
     throw new Error(`Stop Loss está disponível a partir do plano Profissional.`);
   }
-  const r=await db.query(`INSERT INTO robot_configs(user_id,account_id,robot_id,strategy_version,entry_percent,take_profit,stop_loss,stop_loss_active,max_operations,interval,max_coins,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW()) ON CONFLICT(user_id,account_id,robot_id) DO UPDATE SET strategy_version=EXCLUDED.strategy_version,entry_percent=EXCLUDED.entry_percent,take_profit=EXCLUDED.take_profit,stop_loss=EXCLUDED.stop_loss,stop_loss_active=EXCLUDED.stop_loss_active,max_operations=EXCLUDED.max_operations,interval=EXCLUDED.interval,max_coins=EXCLUDED.max_coins,updated_at=NOW() RETURNING *`,[userId,accountId,robotId,c.strategyVersion,c.entryPercent,c.takeProfit,c.stopLoss,c.stopLossActive,c.maxOperations,c.interval,c.maxCoins]);
+  const r=await db.query(`INSERT INTO robot_configs(user_id,account_id,robot_id,strategy_version,entry_percent,take_profit,stop_loss,stop_loss_active,max_operations,interval,max_coins,quick_reserved_brl,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()) ON CONFLICT(user_id,account_id,robot_id) DO UPDATE SET strategy_version=EXCLUDED.strategy_version,entry_percent=EXCLUDED.entry_percent,take_profit=EXCLUDED.take_profit,stop_loss=EXCLUDED.stop_loss,stop_loss_active=EXCLUDED.stop_loss_active,max_operations=EXCLUDED.max_operations,interval=EXCLUDED.interval,max_coins=EXCLUDED.max_coins,quick_reserved_brl=EXCLUDED.quick_reserved_brl,updated_at=NOW() RETURNING *`,[userId,accountId,robotId,c.strategyVersion,c.entryPercent,c.takeProfit,c.stopLoss,c.stopLossActive,c.maxOperations,c.interval,c.maxCoins,reservedBrl]);
   return r.rows[0];
 }
 
@@ -650,6 +677,21 @@ function quickOperationLimit(setups,planMax){
   return 1;
 }
 
+async function quickReservedUsdt(client,userId,accountId,excludeRobotId=null){
+  const r=await db.query(
+    `SELECT quick_reserved_brl FROM robot_configs
+     WHERE user_id=$1 AND account_id=$2 AND LOWER(strategy_version)='rapido'
+       AND quick_reserved_brl>0
+       AND ($3::int IS NULL OR robot_id<>$3)`,
+    [userId,accountId,excludeRobotId]
+  );
+  if(!r.rows.length)return 0;
+  const totalBrl=r.rows.reduce((sum,row)=>sum+num(row.quick_reserved_brl),0);
+  if(totalBrl<=0)return 0;
+  const rate=await usdtBrlRate(client);
+  return rate>0?totalBrl/rate:0;
+}
+
 async function buy(userId,account,config,symbol,robotId=1){
   const client=clientFor(account);
   const info=await client.exchangeInfo();
@@ -666,6 +708,8 @@ async function buy(userId,account,config,symbol,robotId=1){
   // O painel já normaliza esses ativos; o motor também precisa fazer isso
   // para não enxergar saldo disponível como zero.
   const usdt=freeBalance(ac,'USDT');
+  const reservedOtherRobots=await quickReservedUsdt(client,userId,account.id,String(config.strategy_version).toLowerCase()==='rapido'?null:robotId);
+  const operationalUsdt=Math.max(0,usdt-reservedOtherRobots);
   const usdtRaw=(ac.balances||[])
     .filter(b=>String(b?.asset||'').toUpperCase()==='USDT')
     .map(b=>({asset:b.asset,free:num(b.free),locked:num(b.locked)}));
@@ -705,21 +749,24 @@ async function buy(userId,account,config,symbol,robotId=1){
     const openNow=await openCount(userId,account.id,robotId);
     const maxOps=Math.max(1,Number(config.max_operations)||1);
     const remainingSlots=Math.max(1,maxOps-openNow);
-    // Reserva 10% do saldo e distribui os 90% restantes pelos slots.
-    // Ex.: 3 operações -> 30% do saldo atual na 1ª, 45% na 2ª e
-    // o restante necessário na 3ª, totalizando no máximo 90%.
-    value=Number((usdt*(0.90/remainingSlots)).toFixed(8));
+    const rate=await usdtBrlRate(client);
+    const reservedBrl=num(config.quick_reserved_brl);
+    const reservedUsdt=rate>0?reservedBrl/rate:0;
+    const reservedFree=Math.max(0,reservedUsdt-(openNow>0?0:0));
+    // O modo rápido só usa o valor reservado pelo usuário.
+    // O restante da carteira fica fora do orçamento do modo rápido.
+    value=Number((reservedFree/remainingSlots).toFixed(8));
     robotLog(userId,account.id,robotId,
-      `ALOCAÇÃO RÁPIDA | saldo=${usdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | slots restantes=${remainingSlots} | valor desta entrada≈${value.toFixed(8)} USDT | reserva=10%`
+      `ORÇAMENTO RÁPIDO SEPARADO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento≈${reservedUsdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | entrada≈${value.toFixed(8)} USDT | saldo livre fora do orçamento não será usado`
     );
   }else{
-    value=Number((usdt*(num(config.entry_percent)/100)).toFixed(8));
+    value=Number((operationalUsdt*(num(config.entry_percent)/100)).toFixed(8));
   }
 
   const estimatedQty=roundDown(value/price,step);
 
-  if(!(value>0))throw new Error(`Valor calculado inválido | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
-  if(estimatedQty<=0)throw new Error(`Quantidade calculada inválida | saldo USDT=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(!(value>0))throw new Error(`Valor calculado inválido | saldo operacional USDT=${operationalUsdt.toFixed(4)} | saldo total=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(estimatedQty<=0)throw new Error(`Quantidade calculada inválida | saldo operacional USDT=${operationalUsdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
   if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor≈${(estimatedQty*price).toFixed(4)} USDT | mínimo=${minNot}`);
 
   robotLog(userId,account.id,robotId,

@@ -912,3 +912,113 @@ async function loadQuickResults(accountId) {
 loadUser();
 
 loadAccounts();
+
+
+/* =========================================================
+   CENTRAL DE NOTIFICAÇÕES
+========================================================= */
+function uint8FromBase64Url(base64) {
+  const padding = "=".repeat((4 - base64.length % 4) % 4);
+  const raw = atob((base64 + padding).replace(/-/g, "+").replace(/_/g, "/"));
+  const out = new Uint8Array(raw.length);
+  for (let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+  return out;
+}
+
+async function notificationApi(url, options={}) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      ...(options.headers || {}),
+      "Authorization": "Bearer " + token,
+      "Content-Type": "application/json"
+    },
+    cache:"no-store"
+  });
+}
+
+async function loadNotificationPreferences() {
+  const msg=document.getElementById("notificationMessage");
+  try {
+    const r=await notificationApi("/api/notifications/preferences");
+    const d=await r.json();
+    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível carregar as preferências.");
+    const p=d.preferences || {};
+    document.getElementById("notificationWhatsapp").value=p.whatsapp || "";
+    document.getElementById("notifyPush").checked=p.push_enabled !== false;
+    document.getElementById("notifyWhatsApp").checked=p.whatsapp_enabled !== false;
+    document.getElementById("notifyBuy").checked=p.buy_alert !== false;
+    document.getElementById("notifySell").checked=p.sell_alert !== false;
+    document.getElementById("notifyMarket").checked=p.market_alert !== false;
+    if (msg) msg.textContent="";
+  } catch(e) {
+    if(msg){msg.textContent=e.message;msg.className="message error";}
+  }
+}
+
+async function saveNotificationPreferences() {
+  const msg=document.getElementById("notificationMessage");
+  const r=await notificationApi("/api/notifications/preferences",{
+    method:"PUT",
+    body:JSON.stringify({
+      whatsapp:document.getElementById("notificationWhatsapp").value.trim(),
+      pushEnabled:document.getElementById("notifyPush").checked,
+      whatsappEnabled:document.getElementById("notifyWhatsApp").checked,
+      buyAlert:document.getElementById("notifyBuy").checked,
+      sellAlert:document.getElementById("notifySell").checked,
+      marketAlert:document.getElementById("notifyMarket").checked
+    })
+  });
+  const d=await r.json();
+  if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível salvar.");
+  if(msg){msg.textContent="Preferências salvas.";msg.className="message success";}
+}
+
+async function enablePushNotifications() {
+  const msg=document.getElementById("notificationMessage");
+  if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
+    throw new Error("Seu navegador não suporta notificações push.");
+  }
+  const keyResponse=await notificationApi("/api/notifications/vapid-public-key");
+  const keyData=await keyResponse.json();
+  if(!keyResponse.ok || !keyData.success) throw new Error(keyData.message || "Push ainda não configurado no servidor.");
+  const permission=await Notification.requestPermission();
+  if(permission!=="granted") throw new Error("Permissão de notificações não concedida.");
+  const registration=await navigator.serviceWorker.register("/sw.js");
+  let subscription=await registration.pushManager.getSubscription();
+  if(!subscription) {
+    subscription=await registration.pushManager.subscribe({
+      userVisibleOnly:true,
+      applicationServerKey:uint8FromBase64Url(keyData.publicKey)
+    });
+  }
+  const r=await notificationApi("/api/notifications/push/subscribe",{
+    method:"POST",
+    body:JSON.stringify({subscription})
+  });
+  const d=await r.json();
+  if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível ativar o push.");
+  document.getElementById("notifyPush").checked=true;
+  if(msg){msg.textContent="Notificações do celular ativadas.";msg.className="message success";}
+}
+
+async function testNotification() {
+  const msg=document.getElementById("notificationMessage");
+  const r=await notificationApi("/api/notifications/test",{method:"POST",body:"{}"});
+  const d=await r.json();
+  if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível enviar o teste.");
+  if(msg){msg.textContent=d.message || "Teste enviado.";msg.className="message success";}
+}
+
+function setupNotifications() {
+  const save=document.getElementById("saveNotificationButton");
+  const enable=document.getElementById("enablePushButton");
+  const test=document.getElementById("testNotificationButton");
+  if(save) save.addEventListener("click",async()=>{try{await saveNotificationPreferences();}catch(e){const m=document.getElementById("notificationMessage");m.textContent=e.message;m.className="message error";}});
+  if(enable) enable.addEventListener("click",async()=>{try{await enablePushNotifications();}catch(e){const m=document.getElementById("notificationMessage");m.textContent=e.message;m.className="message error";}});
+  if(test) test.addEventListener("click",async()=>{try{await testNotification();}catch(e){const m=document.getElementById("notificationMessage");m.textContent=e.message;m.className="message error";}});
+  loadNotificationPreferences();
+}
+
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",setupNotifications);
+else setupNotifications();

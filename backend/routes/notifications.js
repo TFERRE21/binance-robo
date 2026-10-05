@@ -56,8 +56,21 @@ router.post("/push/unsubscribe", authMiddleware, async (req,res) => {
 router.post("/test", authMiddleware, async (req,res) => {
   try {
     await notifications.ensureSchema();
-    await notifications.notifyUser(req.user.id,"market","🔔 Teste de alerta","Seu CriptoPro está configurado para enviar alertas de mercado.",{url:"/dashboard.html",tag:"criptopro-test"});
-    return res.json({success:true,message:"Teste de notificação enviado. Verifique o celular e/ou WhatsApp."});
+    const result = await notifications.notifyUser(req.user.id,"market","🔔 Teste de alerta","Seu CriptoPro está configurado para enviar alertas de mercado.",{url:"/dashboard.html",tag:"criptopro-test"});
+    const push = result?.push || {};
+    const whatsapp = result?.whatsapp || {};
+    if (!push.sent && !whatsapp.sent) {
+      return res.status(400).json({
+        success:false,
+        message:"Nenhum canal de alerta está ativo. Primeiro clique em 📲 ATIVAR NO CELULAR para cadastrar este dispositivo."
+      });
+    }
+    return res.json({
+      success:true,
+      message: push.sent
+        ? "Teste enviado para este dispositivo."
+        : "Teste enviado pelo canal configurado."
+    });
   } catch (error) {
     console.error("NOTIFICATION TEST:",error);
     return res.status(500).json({success:false,message:"Não foi possível enviar o teste."});

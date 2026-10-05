@@ -26,6 +26,11 @@
         <div class="field"><label class="label">Operações simultâneas</label><select id="ops" class="select"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option></select></div>
         <div class="field"><label class="label">Intervalo de busca</label><select id="interval" class="select"><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option></select></div>
       </div>
+      <div class="field">
+        <label class="label">💰 Valor separado para Operações Rápidas (R$)</label>
+        <input id="reservedBrl" class="select" type="number" min="10" step="0.01" value="50" placeholder="Ex.: 50">
+        <small style="display:block;margin-top:6px;color:#9aa4b2;">Esse valor fica reservado para este robô. Os outros robôs não poderão contar com essa parcela do saldo enquanto a reserva estiver ativa.</small>
+      </div>
       <div class="row">
         <div class="field"><label class="label">Take Profit automático</label><div class="select" style="display:flex;align-items:center;font-weight:700;">🤖 O robô decide: 1% a 2,5%</div></div>
         <div class="field"><label class="label">Moedas analisadas</label><select id="coins" class="select"><option value="10">10</option><option value="20" selected>20</option><option value="40">40</option></select></div>
@@ -132,7 +137,7 @@ $("toggle").onclick=async()=>{
       if(!free) throw new Error("Todos os robôs permitidos pelo seu plano estão ocupados. Pare um robô antes de iniciar Operações Rápidas.");
       quickRobotId=Number(free.robotId);
       await api("/api/robot/config",{method:"POST",body:JSON.stringify({
-        accountId,robotId:quickRobotId,entryPercent:90,takeProfit:1,
+        accountId,robotId:quickRobotId,entryPercent:90,takeProfit:1,quickReservedBrl:Number($("reservedBrl").value),
         stopLoss,stopLossActive:stopLoss>0,maxOperations:Number($("ops").value),
         interval:$("interval").value,maxCoins:Number($("coins").value),strategyVersion:"rapido"
       })});

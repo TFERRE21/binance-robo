@@ -1587,16 +1587,46 @@ async function stop(userId,accountId,robotId=1){
 async function getNotificationSummary(userId){
   await ensureSchema();
 
-  const accountsResult=await db.query(
-    `SELECT id,name,active FROM binance_accounts WHERE user_id=$1 AND active=true ORDER BY id`,
-    [userId]
-  );
+  const [userResult, planResult, robotResult, accountsResult] = await Promise.all([
+    db.query(`SELECT name FROM users WHERE id=$1 LIMIT 1`,[userId]),
+    db.query(`SELECT plan FROM subscriptions WHERE user_id=$1 AND status='ACTIVE' ORDER BY created_at DESC LIMIT 1`,[userId]),
+    db.query(`SELECT robot_id,account_id,strategy_version,interval,max_operations,take_profit,stop_loss,stop_loss_active,running
+              FROM robot_configs WHERE user_id=$1 ORDER BY account_id,robot_id`,[userId]),
+    db.query(`SELECT id,name,active FROM binance_accounts WHERE user_id=$1 AND active=true ORDER BY id`,[userId])
+  ]);
+
+  const userName=String(userResult.rows[0]?.name||"Cliente").trim();
+  const plan=String(planResult.rows[0]?.plan||"Sem plano").trim();
+
+  const robots=robotResult.rows.map(r=>({
+    robotId:Number(r.robot_id||1),
+    accountId:Number(r.account_id),
+    strategy:strategyInfo(r.strategy_version).name,
+    interval:String(r.interval||"1h"),
+    maxOperations:Number(r.max_operations||0),
+    takeProfit:num(r.take_profit),
+    stopLoss:num(r.stop_loss),
+    stopLossActive:Boolean(r.stop_loss_active),
+    running:Boolean(r.running)
+  }));
 
   const accounts=[];
-  let totalUsdt=0;
-  let totalRealized24h=0;
-  let totalUnrealized=0;
   const allOpen=[];
+  let totalUsdt=0;
+  let totalFreeUsdt=0;
+  let totalRealized24h=0;
+  let totalRealized7d=0;
+  let totalUnrealized=0;
+  let closed24h=0;
+  let wins24h=0;
+  let losses24h=0;
+  let winSum24h=0;
+  let lossSum24h=0;
+  let buys24h=0;
+  let sells24h=0;
+  let bestTrade=null;
+  let worstTrade=null;
+  let market={btc24h:null,eth24h:null};
 
   for(const account of accountsResult.rows){
     try{
@@ -1604,7 +1634,7 @@ async function getNotificationSummary(userId){
       if(!dbAccount) continue;
 
       const client=clientFor(dbAccount);
-      const [info,prices,usdtBrl] = await Promise.all([
+      const [info,prices,usdtBrl]=await Promise.all([
         client.accountInfo(),
         client.prices(),
         usdtBrlRate(client)
@@ -1612,6 +1642,9 @@ async function getNotificationSummary(userId){
 
       const assets=[];
       let accountUsdt=0;
+      let accountFreeUsdt=0;
+      let accountUnrealized=0;
+      let accountInvested=0;
 
       for(const b of (info.balances||[])){
         const free=num(b.free);
@@ -1619,193 +1652,243 @@ async function getNotificationSummary(userId){
         const total=free+locked;
         if(total<=0) continue;
 
-        const asset=String(b.asset||'').toUpperCase();
-        let valueUsdt=0;
+        const asset=String(b.asset||"").toUpperCase();
+        if(asset==="USDT") accountFreeUsdt+=free;
 
-        if(asset==='USDT'){
-          valueUsdt=total;
-        }else if(asset==='USDC'){
-          valueUsdt=total*num(prices.USDCUSDT||1);
-        }else{
-          const direct=num(prices[asset+'USDT']);
+        let valueUsdt=0;
+        if(asset==="USDT") valueUsdt=total;
+        else if(asset==="USDC") valueUsdt=total*num(prices.USDCUSDT||1);
+        else {
+          const direct=num(prices[asset+"USDT"]);
           if(direct>0) valueUsdt=total*direct;
         }
 
         if(valueUsdt>=0.01){
           accountUsdt+=valueUsdt;
-          assets.push({
-            asset,
-            total,
-            valueUsdt
-          });
+          assets.push({asset,total,valueUsdt,free,locked});
         }
       }
 
       assets.sort((a,b)=>b.valueUsdt-a.valueUsdt);
 
       const ops=await db.query(
-        `SELECT symbol,buy_price,quantity,status,result_usdt,result_percent,opened_at,closed_at
+        `SELECT symbol,buy_price,quantity,tp_price,stop_price,status,result_usdt,result_percent,
+                opened_at,closed_at,robot_id
          FROM robot_operations
          WHERE user_id=$1 AND account_id=$2
-         ORDER BY id DESC LIMIT 200`,
+         ORDER BY id DESC LIMIT 500`,
         [userId,account.id]
       );
 
+      const nowMs=Date.now();
+      const since24=nowMs-24*60*60*1000;
+      const since7=nowMs-7*24*60*60*1000;
       let realized24h=0;
-      const since=Date.now()-24*60*60*1000;
+      let realized7d=0;
 
       for(const op of ops.rows){
-        const closedTime=op.closed_at ? new Date(op.closed_at).getTime() : 0;
-        if(closedTime>=since && op.result_usdt!=null){
-          realized24h+=num(op.result_usdt);
-        }
+        const openedMs=op.opened_at?new Date(op.opened_at).getTime():0;
+        const closedMs=op.closed_at?new Date(op.closed_at).getTime():0;
+        const result=num(op.result_usdt);
 
-        if(String(op.status||'').toUpperCase()==='OPEN'){
-          const symbol=String(op.symbol||'').toUpperCase();
+        if(openedMs>=since24) buys24h++;
+        if(closedMs>=since24){
+          sells24h++;
+          if(op.result_usdt!=null){
+            realized24h+=result;
+            closed24h++;
+            if(result>0){wins24h++;winSum24h+=result;}
+            else if(result<0){losses24h++;lossSum24h+=Math.abs(result);}
+            const trade={
+              symbol:String(op.symbol||"").toUpperCase(),
+              resultUsdt:result,
+              resultPercent:num(op.result_percent)
+            };
+            if(!bestTrade||result>bestTrade.resultUsdt) bestTrade=trade;
+            if(!worstTrade||result<worstTrade.resultUsdt) worstTrade=trade;
+          }
+        }
+        if(closedMs>=since7 && op.result_usdt!=null) realized7d+=result;
+
+        if(String(op.status||"").toUpperCase()==="OPEN"){
+          const symbol=String(op.symbol||"").toUpperCase();
           const price=num(prices[symbol]);
           const buy=num(op.buy_price);
           const qty=num(op.quantity);
-          if(price>0 && buy>0 && qty>0){
-            const pnl=(price-buy)*qty;
+          if(price>0&&buy>0&&qty>0){
+            const invested=buy*qty;
+            const currentValue=price*qty;
+            const pnl=currentValue-invested;
+            const openedAt=openedMs||nowMs;
+            const durationMinutes=Math.max(0,Math.floor((nowMs-openedAt)/60000));
+
             totalUnrealized+=pnl;
+            accountUnrealized+=pnl;
+            accountInvested+=invested;
+
             allOpen.push({
               account:account.name,
-              symbol,
-              quantity:qty,
-              buyPrice:buy,
-              currentPrice:price,
-              pnlUsdt:pnl,
-              pnlPercent:(price/buy-1)*100
+              accountId:Number(account.id),
+              robotId:Number(op.robot_id||1),
+              symbol,quantity:qty,buyPrice:buy,currentPrice:price,
+              invested,currentValue,pnlUsdt:pnl,
+              pnlPercent:(price/buy-1)*100,
+              tpPrice:num(op.tp_price),
+              stopPrice:num(op.stop_price),
+              durationMinutes,
+              openedAt:op.opened_at
             });
           }
         }
       }
 
       totalRealized24h+=realized24h;
+      totalRealized7d+=realized7d;
       totalUsdt+=accountUsdt;
+      totalFreeUsdt+=accountFreeUsdt;
 
       accounts.push({
-        id:account.id,
+        id:Number(account.id),
         name:account.name,
         totalUsdt:accountUsdt,
         totalBrl:accountUsdt*usdtBrl,
-        usdtBrl,
+        freeUsdt:accountFreeUsdt,
+        invested:accountInvested,
+        unrealized:accountUnrealized,
         realized24h,
         assets:assets.slice(0,8)
       });
+
+      if(market.btc24h===null||market.eth24h===null){
+        try{
+          const [btcStats,ethStats]=await Promise.all([
+            client.dailyStats({symbol:"BTCUSDT"}),
+            client.dailyStats({symbol:"ETHUSDT"})
+          ]);
+          const btc=Number(btcStats?.priceChangePercent);
+          const eth=Number(ethStats?.priceChangePercent);
+          if(Number.isFinite(btc)) market.btc24h=btc;
+          if(Number.isFinite(eth)) market.eth24h=eth;
+        }catch(_){}
+      }
     }catch(error){
       console.error("[NOTIFICAÇÕES] resumo conta:",account.id,error.message||error);
     }
   }
 
-  allOpen.sort((a,b)=>Math.abs(b.pnlUsdt)-Math.abs(a.pnlUsdt));
+  allOpen.sort((a,b)=>b.pnlUsdt-a.pnlUsdt);
 
-  const openText=allOpen.length
-    ? allOpen.slice(0,6).map(o=>{
-        const sinal=o.pnlUsdt>=0?"+":"";
-        return o.symbol+" "+sinal+"US$ "+o.pnlUsdt.toFixed(2)+" ("+sinal+o.pnlPercent.toFixed(2)+"%)";
-      }).join(" | ")
-    : "Nenhuma operação aberta";
-
-  const coinText=accounts.flatMap(a=>a.assets.filter(x=>x.asset!=="USDT"&&x.asset!=="USDC").slice(0,6).map(x=>x.asset)).filter((v,i,a)=>a.indexOf(v)===i).slice(0,10).join(", ") || "Somente saldo em USDT";
-
-  const userResult=await db.query(
-    "SELECT name FROM users WHERE id=$1 LIMIT 1",
-    [userId]
-  );
-  const userName=String(userResult.rows[0]?.name||"Cliente").trim();
-
-  let bestTrade=null;
-  let worstTrade=null;
-
-  for(const account of accounts){
-    try{
-      const rows=await db.query(
-        `SELECT symbol,result_usdt,result_percent,status,closed_at
-         FROM robot_operations
-         WHERE user_id=$1 AND account_id=$2
-           AND closed_at >= NOW() - INTERVAL '24 hours'
-         ORDER BY closed_at DESC LIMIT 200`,
-        [userId,account.id]
-      );
-      for(const op of rows.rows){
-        const result=num(op.result_usdt);
-        const trade={symbol:op.symbol,resultUsdt:result,resultPercent:num(op.result_percent)};
-        if(!bestTrade || result>bestTrade.resultUsdt) bestTrade=trade;
-        if(!worstTrade || result<worstTrade.resultUsdt) worstTrade=trade;
-      }
-    }catch(_){}
-  }
+  const combined24h=totalRealized24h+totalUnrealized;
+  const winRate=closed24h>0?(wins24h/closed24h)*100:0;
+  const avgWin=wins24h>0?winSum24h/wins24h:0;
+  const avgLoss=losses24h>0?lossSum24h/losses24h:0;
 
   return {
-    userName,
+    userName,plan,robots,
     totalUsdt,
     totalBrl:accounts.reduce((s,a)=>s+a.totalBrl,0),
+    totalFreeUsdt,
+    totalInvested:accounts.reduce((s,a)=>s+a.invested,0),
+    totalCurrentOpenValue:accounts.reduce((s,a)=>s+a.invested,0)+totalUnrealized,
     realized24h:totalRealized24h,
+    realized7d:totalRealized7d,
     unrealized:totalUnrealized,
-    combined24h:totalRealized24h+totalUnrealized,
+    combined24h,
     openCount:allOpen.length,
     open:allOpen,
-    coinText,
-    bestTrade,
-    worstTrade,
-    accounts
+    closed24h,wins24h,losses24h,winRate,avgWin,avgLoss,
+    buys24h,sells24h,bestTrade,worstTrade,market,accounts
   };
 }
 
-async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
+function formatNotificationSummary(resumo,{teste=false}={}){
+  const sinal=v=>Number(v)>=0?"+":"-";
+  const money=v=>"US$ "+Math.abs(Number(v)||0).toFixed(2);
+  const pct=v=>sinal(v)+Math.abs(Number(v)||0).toFixed(2)+"%";
+  const status=resumo.robots.some(r=>r.running)?"OPERANDO":"PARADO";
 
-async function getStatus(userId,accountId,robotId=1){
-  await ensureSchema();
-  const c=await getConfig(userId,accountId,robotId);
-  const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason,close_price,result_percent,result_usdt FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
-  const logs=await db.query(`SELECT id,level,message,created_at FROM robot_logs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 80`,[userId,accountId,robotId]);
-  const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
+  const linhas=[
+    "👤 "+resumo.userName,
+    "💳 Plano: "+resumo.plan,
+    "🤖 Robôs: "+resumo.robots.filter(r=>r.running).length+" ativos / "+resumo.robots.length+" configurados",
+    "💰 Patrimônio: R$ "+resumo.totalBrl.toFixed(2)+" | "+money(resumo.totalUsdt),
+    "💵 Livre: "+money(resumo.totalFreeUsdt)+" | Investido: "+money(resumo.totalInvested),
+    "📊 24h: "+sinal(resumo.combined24h)+money(resumo.combined24h)+" | 7d realizado: "+sinal(resumo.realized7d)+money(resumo.realized7d),
+    "🟢 Robô: "+status+" | Abertas: "+resumo.openCount
+  ];
 
-  /*
-   * CORREÇÃO ETAPA 21:
-   * "running" é o estado oficial persistido no banco.
-   *
-   * Antes:
-   *   running: !!c?.running || engineRunning
-   *
-   * Isso fazia a interface continuar mostrando RODANDO enquanto
-   * o runner interno ainda existia no Map, mesmo depois de o usuário
-   * ter pressionado PARAR e robot_configs.running já estar FALSE.
-   *
-   * Agora:
-   *   running = somente robot_configs.running
-   *   engineRunning = informação técnica separada do motor interno
-   *
-   * Assim, depois de PARAR, o painel passa a receber running=false.
-   */
-  return {
-    success:true,
-    config:c,
-    running:!!c?.running,
-    engineRunning,
-    operations:r.rows,
-    robotLogs:logs.rows.reverse()
-  };
-}
-
-async function listRobots(userId,accountId){
-  await ensureSchema();
-  const planRules=await getUserPlanRules(userId);
-  const max=Number(planRules?.maxRobots||1);
-  const rows=[];
-  for(let robotId=1;robotId<=max;robotId++){
-    const status=await getStatus(userId,accountId,robotId);
-    rows.push({
-      robotId,
-      config:status.config,
-      running:status.running,
-      engineRunning:status.engineRunning,
-      operations:status.operations,
-      robotLogs:status.robotLogs
-    });
+  if(resumo.robots.length){
+    for(const r of resumo.robots.slice(0,6)){
+      linhas.push(
+        (r.running?"🟢 ":"⚪ ")+"Robô "+r.robotId+" • "+r.strategy+
+        " • "+r.interval+" • máx "+r.maxOperations+
+        " • TP "+r.takeProfit.toFixed(2)+"%"+
+        (r.stopLossActive?" • SL "+r.stopLoss.toFixed(2)+"%":" • sem SL")
+      );
+    }
   }
-  return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};
+
+  if(resumo.open.length){
+    linhas.push("🪙 OPERAÇÕES ABERTAS:");
+    for(const o of resumo.open.slice(0,8)){
+      const dur=o.durationMinutes<60
+        ? o.durationMinutes+"min"
+        : Math.floor(o.durationMinutes/60)+"h "+(o.durationMinutes%60)+"min";
+      const tp=o.tpPrice>0?" | TP "+o.tpPrice.toFixed(6):"";
+      const sl=o.stopPrice>0?" | SL "+o.stopPrice.toFixed(6):"";
+      linhas.push(
+        "• "+o.symbol+" ["+o.account+"] "+
+        sinal(o.pnlUsdt)+money(o.pnlUsdt)+" ("+pct(o.pnlPercent)+")"+
+        " | entrada "+o.buyPrice.toFixed(6)+" | atual "+o.currentPrice.toFixed(6)+
+        " | "+dur+tp+sl
+      );
+    }
+    if(resumo.open.length>8) linhas.push("• +"+(resumo.open.length-8)+" operações abertas...");
+  }else{
+    linhas.push("🪙 OPERAÇÕES ABERTAS: nenhuma");
+  }
+
+  linhas.push(
+    "📈 Fechadas 24h: "+resumo.closed24h+
+    " | 🏆 acerto "+resumo.winRate.toFixed(1)+"%"+
+    " | ganhos "+resumo.wins24h+
+    " | perdas "+resumo.losses24h,
+    "💵 Realizado 24h: "+sinal(resumo.realized24h)+money(resumo.realized24h)+
+      " | P/L aberto: "+sinal(resumo.unrealized)+money(resumo.unrealized),
+    "🔄 Compras 24h: "+resumo.buys24h+" | Vendas 24h: "+resumo.sells24h
+  );
+
+  if(resumo.bestTrade){
+    linhas.push("🏆 Melhor: "+resumo.bestTrade.symbol+" "+sinal(resumo.bestTrade.resultUsdt)+money(resumo.bestTrade.resultUsdt));
+  }
+  if(resumo.worstTrade){
+    linhas.push("⚠️ Pior: "+resumo.worstTrade.symbol+" "+sinal(resumo.worstTrade.resultUsdt)+money(resumo.worstTrade.resultUsdt));
+  }
+  if(resumo.closed24h){
+    linhas.push("📐 Média: ganho "+money(resumo.avgWin)+" | perda -"+money(resumo.avgLoss));
+  }
+
+  const btc=resumo.market?.btc24h;
+  const eth=resumo.market?.eth24h;
+  linhas.push(
+    "🌎 Mercado: BTC "+(Number.isFinite(btc)?pct(btc):"n/d")+
+    " | ETH "+(Number.isFinite(eth)?pct(eth):"n/d")
+  );
+
+  if(resumo.accounts.length){
+    linhas.push("🏦 CONTAS:");
+    for(const a of resumo.accounts.slice(0,6)){
+      linhas.push(
+        "• "+a.name+
+        " | "+money(a.totalUsdt)+
+        " | livre "+money(a.freeUsdt)+
+        " | aberto "+sinal(a.unrealized)+money(a.unrealized)
+      );
+    }
+  }
+
+  linhas.push("⏰ Resumo "+(teste?"de teste ":"")+"CriptoPro");
+  return linhas.join("\n");
 }
 
-module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary};
+module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary,formatNotificationSummary};

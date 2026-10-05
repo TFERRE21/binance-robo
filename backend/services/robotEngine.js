@@ -1584,6 +1584,144 @@ async function stop(userId,accountId,robotId=1){
 
   return getStatus(userId,accountId,robotId);
 }
+async function getNotificationSummary(userId){
+  await ensureSchema();
+
+  const accountsResult=await db.query(
+    `SELECT id,name,active FROM binance_accounts WHERE user_id=$1 AND active=true ORDER BY id`,
+    [userId]
+  );
+
+  const accounts=[];
+  let totalUsdt=0;
+  let totalRealized24h=0;
+  let totalUnrealized=0;
+  const allOpen=[];
+
+  for(const account of accountsResult.rows){
+    try{
+      const dbAccount=await getAccount(userId,account.id);
+      if(!dbAccount) continue;
+
+      const client=clientFor(dbAccount);
+      const [info,prices,usdtBrl] = await Promise.all([
+        client.accountInfo(),
+        client.prices(),
+        usdtBrlRate(client)
+      ]);
+
+      const assets=[];
+      let accountUsdt=0;
+
+      for(const b of (info.balances||[])){
+        const free=num(b.free);
+        const locked=num(b.locked);
+        const total=free+locked;
+        if(total<=0) continue;
+
+        const asset=String(b.asset||'').toUpperCase();
+        let valueUsdt=0;
+
+        if(asset==='USDT'){
+          valueUsdt=total;
+        }else if(asset==='USDC'){
+          valueUsdt=total*num(prices.USDCUSDT||1);
+        }else{
+          const direct=num(prices[asset+'USDT']);
+          if(direct>0) valueUsdt=total*direct;
+        }
+
+        if(valueUsdt>=0.01){
+          accountUsdt+=valueUsdt;
+          assets.push({
+            asset,
+            total,
+            valueUsdt
+          });
+        }
+      }
+
+      assets.sort((a,b)=>b.valueUsdt-a.valueUsdt);
+
+      const ops=await db.query(
+        `SELECT symbol,buy_price,quantity,status,result_usdt,result_percent,opened_at,closed_at
+         FROM robot_operations
+         WHERE user_id=$1 AND account_id=$2
+         ORDER BY id DESC LIMIT 200`,
+        [userId,account.id]
+      );
+
+      let realized24h=0;
+      const since=Date.now()-24*60*60*1000;
+
+      for(const op of ops.rows){
+        const closedTime=op.closed_at ? new Date(op.closed_at).getTime() : 0;
+        if(closedTime>=since && op.result_usdt!=null){
+          realized24h+=num(op.result_usdt);
+        }
+
+        if(String(op.status||'').toUpperCase()==='OPEN'){
+          const symbol=String(op.symbol||'').toUpperCase();
+          const price=num(prices[symbol]);
+          const buy=num(op.buy_price);
+          const qty=num(op.quantity);
+          if(price>0 && buy>0 && qty>0){
+            const pnl=(price-buy)*qty;
+            totalUnrealized+=pnl;
+            allOpen.push({
+              account:account.name,
+              symbol,
+              quantity:qty,
+              buyPrice:buy,
+              currentPrice:price,
+              pnlUsdt:pnl,
+              pnlPercent:(price/buy-1)*100
+            });
+          }
+        }
+      }
+
+      totalRealized24h+=realized24h;
+      totalUsdt+=accountUsdt;
+
+      accounts.push({
+        id:account.id,
+        name:account.name,
+        totalUsdt:accountUsdt,
+        totalBrl:accountUsdt*usdtBrl,
+        usdtBrl,
+        realized24h,
+        assets:assets.slice(0,8)
+      });
+    }catch(error){
+      console.error("[NOTIFICAÇÕES] resumo conta:",account.id,error.message||error);
+    }
+  }
+
+  allOpen.sort((a,b)=>Math.abs(b.pnlUsdt)-Math.abs(a.pnlUsdt));
+
+  const openText=allOpen.length
+    ? allOpen.slice(0,6).map(o=>{
+        const sinal=o.pnlUsdt>=0?"+":"";
+        return o.symbol+" "+sinal+"US$ "+o.pnlUsdt.toFixed(2)+" ("+sinal+o.pnlPercent.toFixed(2)+"%)";
+      }).join(" | ")
+    : "Nenhuma operação aberta";
+
+  const coinText=accounts.flatMap(a=>a.assets.filter(x=>x.asset!=="USDT"&&x.asset!=="USDC").slice(0,6).map(x=>x.asset)).filter((v,i,a)=>a.indexOf(v)===i).slice(0,10).join(", ") || "Somente saldo em USDT";
+
+  return {
+    totalUsdt,
+    totalBrl:accounts.reduce((s,a)=>s+a.totalBrl,0),
+    realized24h:totalRealized24h,
+    unrealized:totalUnrealized,
+    combined24h:totalRealized24h+totalUnrealized,
+    openCount:allOpen.length,
+    open:allOpen,
+    coinText,
+    accounts
+  };
+}
+
 async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
 
 async function getStatus(userId,accountId,robotId=1){
@@ -1639,4 +1777,4 @@ async function listRobots(userId,accountId){
   return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};
 }
 
-module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots};
+module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary};

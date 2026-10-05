@@ -1251,17 +1251,6 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <h2>🔔 Notificações do Robô</h2>
     <p>Receba no celular alertas de compra, venda e movimentos importantes do mercado.</p>
   </div>
-  <div style="margin-top:14px;">
-    <label for="notificationWhatsapp" style="display:block;color:#9aa4b2;font-size:10px;font-weight:800;margin-bottom:6px;">
-      📱 Número de telefone / WhatsApp para alertas
-    </label>
-    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-      <input id="notificationWhatsapp" type="tel" placeholder="+55 61 99931-1160"
-        autocomplete="tel" inputmode="tel"
-        style="flex:1;min-width:260px;height:42px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#080d14;color:#e5ebf3;padding:0 12px;outline:none;font-weight:800;">
-      <span style="color:#778395;font-size:9px;">Você pode adicionar ou trocar o número da sua conta.</span>
-    </div>
-  </div>
   <div class="notification-options">
     <label class="notification-option"><input id="notifyPush" type="checkbox"> 📱 Notificações no celular</label>
     <label class="notification-option"><input id="notifyBuy" type="checkbox"> 🟢 Alertas de compra</label>
@@ -4342,8 +4331,6 @@ init();
       const d=await r.json();
       if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível carregar as preferências.");
       const p=d.preferences || {};
-      const phone=document.getElementById("notificationWhatsapp");
-      if(phone) phone.value=p.whatsapp || "";
       const push=document.getElementById("notifyPush");
       const buy=document.getElementById("notifyBuy");
       const sell=document.getElementById("notifySell");
@@ -4361,7 +4348,6 @@ init();
     const r=await notificationApi("/api/notifications/preferences",{
       method:"PUT",
       body:JSON.stringify({
-        whatsapp:document.getElementById("notificationWhatsapp")?.value.trim() || "",
         pushEnabled:document.getElementById("notifyPush")?.checked !== false,
         whatsappEnabled:false,
         buyAlert:document.getElementById("notifyBuy")?.checked !== false,

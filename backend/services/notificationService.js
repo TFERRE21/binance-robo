@@ -263,10 +263,15 @@ async function notifyUser(userId, type, title, body, extra = {}) {
     urgency: extra.urgency || "high"
   };
 
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     sendPush(userId, payload),
     sendWhatsApp(userId, payload)
   ]);
+
+  const push = results[0]?.status === "fulfilled" ? (results[0].value || {}) : { sent:false, reason:"push_error" };
+  const whatsapp = results[1]?.status === "fulfilled" ? (results[1].value || {}) : { sent:false, reason:"whatsapp_error" };
+
+  return { push, whatsapp };
 }
 
 module.exports = {

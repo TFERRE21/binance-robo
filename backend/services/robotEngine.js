@@ -797,7 +797,8 @@ async function buy(userId,account,config,symbol,robotId=1){
   qty=roundDown(Math.min(executedQty,free||executedQty),step);
   if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
 
-  const takeProfit=num(config._quickTakeProfit)>0 ? num(config._quickTakeProfit) : num(config.take_profit);\n  const tp=roundPrice(buyPrice*(1+takeProfit/100),tick);
+  const takeProfit = num(config._quickTakeProfit) > 0 ? num(config._quickTakeProfit) : num(config.take_profit);
+  const tp = roundPrice(buyPrice * (1 + takeProfit / 100), tick);
   const stop=roundPrice(buyPrice*(1-num(config.stop_loss)/100),tick);
 
   let tpOrder=null;

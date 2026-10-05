@@ -9,6 +9,38 @@ const accountsContainer =
 const logoutButton =
   document.getElementById("logoutButton");
 
+
+// Acesso rápido às notificações no cabeçalho.
+// Criado via JS também para funcionar mesmo quando o navegador estiver usando
+// uma versão antiga do HTML em cache.
+function ensureNotificationsTopButton() {
+  if (document.getElementById("notificationsTopButton")) return;
+  const support = document.getElementById("supportTicketsButton");
+  if (!support || !support.parentElement) return;
+
+  const button = document.createElement("button");
+  button.id = "notificationsTopButton";
+  button.type = "button";
+  button.className = "btn-login";
+  button.style.marginRight = "10px";
+  button.textContent = "🔔 Notificações";
+  button.addEventListener("click", () => {
+    const card = document.getElementById("notificationsCard");
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      alert("O painel de notificações ainda não foi carregado. Atualize a página.");
+    }
+  });
+  support.insertAdjacentElement("afterend", button);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", ensureNotificationsTopButton);
+} else {
+  ensureNotificationsTopButton();
+}
+
 const showAddAccountButton =
   document.getElementById("showAddAccountButton");
 

@@ -9,6 +9,21 @@ const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','US
 const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
+  rapido: {
+    name:'Operações Rápidas',
+    description:'Scanner de curto prazo por volume, com entradas pequenas distribuídas entre as melhores oportunidades do momento.',
+    mode:'volume',
+    scoreMin:4,
+    rsiMin:40,
+    rsiMax:70,
+    volumeMin:0.70,
+    maxDist:0.040,
+    breakoutVolume:1.20,
+    requirePullback:false,
+    preferPullback:false,
+    marketMinScore:0,
+    blockHotBreakout:true
+  },
   basico: {
     name:'Básico',
     description:'Mais oportunidades, com filtros mínimos de tendência e qualidade.',
@@ -93,7 +108,7 @@ const PLAN_ROBOT_RULES={
 };
 
 function strategyLevel(version){
-  const levels={basico:1,medio:2,premium:3,avancado:4,elite:5};
+  const levels={basico:1,rapido:2,medio:2,premium:3,avancado:4,elite:5};
   return levels[String(version||'premium').toLowerCase()]||1;
 }
 
@@ -385,9 +400,9 @@ async function saveConfig(userId,accountId,c,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
   }
 
-  const allowedIntervals=new Set(['1h','1h30','2h','2h30']);
+  const allowedIntervals=new Set(['5m','15m','30m','1h','1h30','2h','2h30']);
   if(!allowedIntervals.has(String(c.interval||'1h'))){
-    throw new Error('Intervalo de busca inválido. Use 1h, 1h30, 2h ou 2h30.');
+    throw new Error('Intervalo de busca inválido. Use 5m, 15m, 30m, 1h, 1h30, 2h ou 2h30.');
   }
 
   // Stop Loss em 0% significa explicitamente "sem Stop Loss".
@@ -646,7 +661,21 @@ async function buy(userId,account,config,symbol,robotId=1){
    * quoteOrderQty limita diretamente quanto USDT será gasto na compra.
    * Assim a variação do preço não faz o custo ultrapassar o saldo.
    */
-  const value=Number((usdt*(num(config.entry_percent)/100)).toFixed(8));
+  let value;
+  if(String(config.strategy_version||'').toLowerCase()==='rapido'){
+    const openNow=await openCount(userId,account.id,robotId);
+    const maxOps=Math.max(1,Number(config.max_operations)||1);
+    const remainingSlots=Math.max(1,maxOps-openNow);
+    // Reserva 10% do saldo e distribui os 90% restantes pelos slots.
+    // Ex.: 3 operações -> 30% do saldo atual na 1ª, 45% na 2ª e
+    // o restante necessário na 3ª, totalizando no máximo 90%.
+    value=Number((usdt*(0.90/remainingSlots)).toFixed(8));
+    robotLog(userId,account.id,robotId,
+      `ALOCAÇÃO RÁPIDA | saldo=${usdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | slots restantes=${remainingSlots} | valor desta entrada≈${value.toFixed(8)} USDT | reserva=10%`
+    );
+  }else{
+    value=Number((usdt*(num(config.entry_percent)/100)).toFixed(8));
+  }
 
   const estimatedQty=roundDown(value/price,step);
 
@@ -1035,6 +1064,8 @@ function intervalToMs(interval){
     '5m':5*60*1000,
     '15m':15*60*1000,
     '30m':30*60*1000,
+    '15m':15*60*1000,
+    '30m':30*60*1000,
     '1h':60*60*1000,
     '1h30':90*60*1000,
     '2h':120*60*1000,
@@ -1059,6 +1090,9 @@ async function loop(userId,accountId,robotId=1){
    * CONTROLE DE TEMPO DAS PESQUISAS
    *
    * A pesquisa de novas moedas respeita o intervalo configurado:
+   * 5m   = 5 minutos
+   * 15m  = 15 minutos
+   * 30m  = 30 minutos
    * 1h   = 1 hora
    * 1h30 = 1 hora e 30 minutos
    * 2h   = 2 horas

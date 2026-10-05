@@ -1,0 +1,11 @@
+{
+  "name": "CriptoPro",
+  "short_name": "CriptoPro",
+  "description": "Painel de operações e robôs de criptomoedas.",
+  "start_url": "/index.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#050812",
+  "theme_color": "#07111f",
+  "lang": "pt-BR"
+}

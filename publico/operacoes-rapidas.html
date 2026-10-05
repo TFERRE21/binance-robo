@@ -23,13 +23,13 @@
 
       <div class="field"><label class="label">Conta Binance</label><select id="account" class="select"></select></div>
       <div class="row">
-        <div class="field"><label class="label">Operações simultâneas</label><select id="ops" class="select"><option value="1">1</option><option value="2">2</option><option value="3" selected>3</option></select></div>
+        <div class="field"><label class="label">Operações simultâneas</label><select id="ops" class="select"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
         <div class="field"><label class="label">Intervalo de busca</label><select id="interval" class="select"><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option></select></div>
       </div>
       <div class="field">
         <label class="label">💰 Valor separado para Operações Rápidas (R$)</label>
-        <input id="reservedBrl" class="select" type="number" min="10" step="0.01" value="50" placeholder="Ex.: 50">
-        <small style="display:block;margin-top:6px;color:#9aa4b2;">Esse valor fica reservado para este robô. Os outros robôs não poderão contar com essa parcela do saldo enquanto a reserva estiver ativa.</small>
+        <input id="reservedBrl" class="select" type="number" min="15.90" step="0.01" value="16.50" placeholder="Ex.: 16,50">
+        <small style="display:block;margin-top:6px;color:#9aa4b2;">Teste inicial: 1 operação com mínimo de US$ 3,00. O valor em reais é convertido pela cotação USDT/BRL no momento da entrada. Este valor fica reservado para este robô; os outros robôs não poderão contar com essa parcela enquanto a reserva estiver ativa.</small>
       </div>
       <div class="row">
         <div class="field"><label class="label">Take Profit automático</label><div class="select" style="display:flex;align-items:center;font-weight:700;">🤖 O robô decide: 1% a 2,5%</div></div>
@@ -40,7 +40,7 @@
       <button id="toggle" class="btn on">⚡ LIGAR OPERAÇÕES RÁPIDAS</button>
       <button id="stopQuick" class="btn off" style="margin-top:8px;" disabled>⏹ DESLIGAR ROBÔ</button>
       <div id="status" class="status">Carregando conta e status...</div>
-      <div class="warning">⚠️ O sistema não promete lucro. O robô analisa as oportunidades e decide sozinho quantas posições abrir (sem preencher slots à força). O alvo de lucro é automático entre 1% e 2,5%, conforme a força do sinal, e a ordem SELL/TAKE PROFIT é criada automaticamente após cada compra.</div>
+      <div class="warning">⚠️ O sistema não promete lucro. O robô analisa as oportunidades e decide sozinho quantas posições abrir (sem preencher slots à força). No teste atual, o limite está em 1 operação e cada entrada precisa ter pelo menos US$ 3,00. O alvo de lucro é automático entre 1% e 2,5%, conforme a força do sinal, e a ordem SELL/TAKE PROFIT é criada automaticamente após cada compra.</div>
     </section>
 
     <section class="card" style="border:1px solid rgba(0,255,170,.22);">

@@ -114,6 +114,7 @@ async function sendPush(userId, payload) {
   );
 
   let sent = 0;
+  const errors = [];
 
   for (const row of r.rows) {
     try {
@@ -135,15 +136,24 @@ async function sendPush(userId, payload) {
       sent++;
     } catch (e) {
       const status = Number(e.statusCode || 0);
+      const message = String(e.message || e);
       if (status === 404 || status === 410) {
         await db.query("DELETE FROM push_subscriptions WHERE id=$1", [row.id]);
+        errors.push({status, reason:"subscription_expired"});
       } else {
-        console.error("[PUSH] erro:", e.message || e);
+        console.error("[PUSH] erro:", message);
+        errors.push({status, reason:"provider_error", message});
       }
     }
   }
 
-  return { sent: sent > 0, count: sent, reason: sent > 0 ? null : "no_active_push_subscription" };
+  return {
+    sent: sent > 0,
+    count: sent,
+    subscriptions: r.rows.length,
+    reason: sent > 0 ? null : (r.rows.length ? "push_delivery_failed" : "no_active_push_subscription"),
+    errors
+  };
 }
 
 async function sendWhatsApp(userId, payload) {

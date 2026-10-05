@@ -294,3 +294,32 @@ WHERE status = 'ACTIVE';
 -- ============================================================
 -- 10. FIM
 -- ============================================================
+
+-- ============================================================
+-- 11. NOTIFICAÇÕES
+-- ============================================================
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp VARCHAR(30);
+
+CREATE TABLE IF NOT EXISTS notification_preferences (
+  user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  whatsapp_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  push_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  buy_alert BOOLEAN NOT NULL DEFAULT TRUE,
+  sell_alert BOOLEAN NOT NULL DEFAULT TRUE,
+  market_alert BOOLEAN NOT NULL DEFAULT TRUE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  subscription_json JSONB NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id
+  ON push_subscriptions(user_id);
+

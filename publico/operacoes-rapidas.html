@@ -174,9 +174,13 @@ $("toggle").onclick=async()=>{
   catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
 })();
 
-$("riskCancel").onclick=()=>{ $("riskModal").style.display="none"; if(window.__riskReject){window.__riskReject(new Error("Termo de Responsabilidade não aceito."));window.__riskReject=null;window.__riskResolve=null;} };
-$("riskAccept").onclick=async()=>{try{if(!$("riskCheck").checked){alert("Marque o aceite do Termo de Responsabilidade.");return;}const d=await api("/api/robot/risk/accept",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});if(!d.success)throw new Error(d.message||"Não foi possível registrar o termo.");$("riskModal").style.display="none";if(window.__riskResolve){window.__riskResolve();window.__riskResolve=null;window.__riskReject=null;}}catch(e){alert(e.message)}};
-$("stopQuick").onclick=async()=>{if(!currentRunning||!quickRobotId)return;if(!confirm("Deseja desligar o robô de Operações Rápidas?"))return;try{await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});quickRobotId=null;await refresh();await loadLog();await loadQuickResults();}catch(e){$("status").textContent="🔴 "+e.message;}};
+window.__bindQuickActions=function(){
+  const cancel=$("riskCancel"), accept=$("riskAccept"), stop=$("stopQuick");
+  if(cancel) cancel.onclick=()=>{ $("riskModal").style.display="none"; if(window.__riskReject){window.__riskReject(new Error("Termo de Responsabilidade não aceito."));window.__riskReject=null;window.__riskResolve=null;} };
+  if(accept) accept.onclick=async()=>{try{if(!$("riskCheck").checked){alert("Marque o aceite do Termo de Responsabilidade.");return;}const d=await api("/api/robot/risk/accept",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});if(!d.success)throw new Error(d.message||"Não foi possível registrar o termo.");$("riskModal").style.display="none";if(window.__riskResolve){window.__riskResolve();window.__riskResolve=null;window.__riskReject=null;}}catch(e){alert(e.message)}};
+  if(stop) stop.onclick=async()=>{if(!currentRunning||!quickRobotId)return;if(!confirm("Deseja desligar o robô de Operações Rápidas?"))return;try{await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});quickRobotId=null;await refresh();await loadLog();await loadQuickResults();}catch(e){$("status").textContent="🔴 "+e.message;}};
+};
+window.addEventListener("DOMContentLoaded",window.__bindQuickActions);
 </script>
 <div id="riskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center;padding:18px;">
   <div style="max-width:620px;width:100%;background:#0d1626;border:1px solid #30435f;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5);">

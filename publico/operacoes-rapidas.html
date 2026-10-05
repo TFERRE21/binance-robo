@@ -6,7 +6,7 @@
 <title>CriptoPro | Operações Rápidas</title>
 <style>
 :root{--bg:#050812;--card:#0d1626;--card2:#101c30;--line:#263955;--text:#f7f9fd;--muted:#8290a8;--blue:#4aa8ff;--green:#20df96;--red:#ff6177;--yellow:#ffc85a}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.top h1{margin:0;font-size:28px}.top p{margin:6px 0;color:var(--muted);font-size:12px}.back{background:#0d1a2c;border:1px solid var(--line);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:linear-gradient(180deg,#101c30,#091220);border:1px solid var(--line);border-radius:14px;padding:18px}.title{font-size:16px;font-weight:900;margin:0 0 6px}.sub{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:16px}.field{margin-bottom:12px}.label{display:block;font-size:9px;color:#71809a;font-weight:900;text-transform:uppercase;margin-bottom:6px}.input,.select{width:100%;background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:11px;font-size:11px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:1px solid #30435f;background:#17395f;color:#fff;border-radius:8px;padding:12px;font-size:11px;font-weight:900}.btn.on{background:#0e4c39;border-color:#19785a}.btn.off{background:#481522;border-color:#7b2838}.status{margin-top:12px;border-radius:9px;padding:11px;font-size:10px;line-height:1.5;background:#071321;border:1px solid var(--line)}.status.ok{border-color:#17573f;color:#7ff2c1}.status.err{border-color:#7b2838;color:#ff9aaa}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#091321;border:1px solid #20314b;border-radius:9px;padding:11px}.stat span{display:block;color:#71809a;font-size:8px}.stat b{display:block;margin-top:5px;font-size:13px}.warning{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:9px;padding:11px;font-size:9px;line-height:1.55}.log{height:280px;overflow:auto;background:#03070d;border:1px solid #1b2a40;border-radius:9px;padding:10px;font:10px/1.55 monospace;color:#b9c6da;white-space:pre-wrap}.green{color:#7ff2c1}.muted{color:#8290a8}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;gap:10px}.stats{grid-template-columns:1fr}}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.top h1{margin:0;font-size:28px}.top p{margin:6px 0;color:var(--muted);font-size:12px}.back{background:#0d1a2c;border:1px solid var(--line);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:linear-gradient(180deg,#101c30,#091220);border:1px solid var(--line);border-radius:14px;padding:18px}.title{font-size:16px;font-weight:900;margin:0 0 6px}.sub{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:16px}.field{margin-bottom:12px}.label{display:block;font-size:9px;color:#71809a;font-weight:900;text-transform:uppercase;margin-bottom:6px}.input,.select{width:100%;background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:11px;font-size:11px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:1px solid #30435f;background:#17395f;color:#fff;border-radius:8px;padding:12px;font-size:11px;font-weight:900}.btn.on{background:#0e4c39;border-color:#19785a}.btn.off{background:#481522;border-color:#7b2838}.status{margin-top:12px;border-radius:9px;padding:11px;font-size:10px;line-height:1.5;background:#071321;border:1px solid var(--line)}.status.ok{border-color:#17573f;color:#7ff2c1}.status.err{border-color:#7b2838;color:#ff9aaa}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#091321;border:1px solid #20314b;border-radius:9px;padding:11px}.stat span{display:block;color:#71809a;font-size:8px}.stat b{display:block;margin-top:5px;font-size:13px}.warning{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:9px;padding:11px;font-size:9px;line-height:1.55}.robotState{margin:12px 0;border-radius:10px;padding:14px 16px;border:1px solid #334968;background:#071321;display:flex;align-items:center;gap:12px}.robotDot{width:13px;height:13px;border-radius:50%;background:#7f8a99;box-shadow:0 0 0 4px rgba(127,138,153,.12);flex:0 0 auto}.robotState.on{border-color:#16845f;background:#061b14}.robotState.on .robotDot{background:#20df96;box-shadow:0 0 12px rgba(32,223,150,.8)}.robotState.wait{border-color:#8a6b16;background:#211a05}.robotState.wait .robotDot{background:#ffc85a;box-shadow:0 0 12px rgba(255,200,90,.7)}.robotState.off .robotDot{background:#ff6177;box-shadow:0 0 10px rgba(255,97,119,.45)}.robotState b{display:block;font-size:12px}.robotState small{display:block;margin-top:3px;color:#91a0b7;font-size:9px}.log{height:280px;overflow:auto;background:#03070d;border:1px solid #1b2a40;border-radius:9px;padding:10px;font:10px/1.55 monospace;color:#b9c6da;white-space:pre-wrap}.green{color:#7ff2c1}.muted{color:#8290a8}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;gap:10px}.stats{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -37,6 +37,10 @@
       </div>
       <div class="field"><label class="label">Stop Loss</label><select id="sl" class="select"><option value="0" selected>Desativado</option><option value="0.5">0,5%</option><option value="1">1%</option><option value="1.5">1,5%</option></select></div>
 
+      <div id="robotState" class="robotState off">
+        <span class="robotDot"></span>
+        <div><b id="robotStateTitle">ROBÔ PARADO</b><small id="robotStateText">Nenhuma operação nova será aberta.</small></div>
+      </div>
       <button id="toggle" class="btn on">⚡ LIGAR OPERAÇÕES RÁPIDAS</button>
       <button id="stopQuick" class="btn off" style="margin-top:8px;" disabled>⏹ DESLIGAR ROBÔ</button>
       <div id="status" class="status">Carregando conta e status...</div>
@@ -116,6 +120,11 @@ async function refresh(){
     const opened=(st?.operations||[]).filter(x=>String(x.status||"").toUpperCase()==="OPEN").length;
     $("state").textContent=currentRunning?"🟢 LIGADO":"⚪ PARADO";
     $("open").textContent=opened+" / "+$("ops").value;
+    $("robotState").className="robotState "+(currentRunning?"on":"off");
+    $("robotStateTitle").textContent=currentRunning?"ROBÔ LIGADO":"ROBÔ PARADO";
+    $("robotStateText").textContent=currentRunning
+      ? "Motor ativo: monitorando operações e procurando novas oportunidades."
+      : "Nenhuma operação nova será aberta enquanto estiver parado.";
     const lastLogs=Array.isArray(st?.robotLogs)?st.robotLogs:[];
     const decisionLine=lastLogs.slice().reverse().find(x=>String(x?.message||"").includes("DECISÃO DO ROBÔ RÁPIDO"));
     const execLine=lastLogs.slice().reverse().find(x=>String(x?.message||"").includes("POSIÇÃO ABERTA"));
@@ -160,9 +169,15 @@ $("toggle").onclick=async()=>{
       })});
       $("riskCheck").checked=false;
       $("riskModal").style.display="flex";
+      $("robotState").className="robotState wait";
+      $("robotStateTitle").textContent="AGUARDANDO ACEITE";
+      $("robotStateText").textContent="Leia e aceite o Termo de Responsabilidade para iniciar o robô.";
       await new Promise((resolve,reject)=>{
         window.__riskResolve=resolve; window.__riskReject=reject;
       });
+      $("robotState").className="robotState wait";
+      $("robotStateTitle").textContent="INICIANDO ROBÔ...";
+      $("robotStateText").textContent="Conectando ao motor e validando a configuração.";
       await api("/api/robot/start",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});
     }
     await refresh();await loadLog();await loadQuickResults();
@@ -176,7 +191,7 @@ $("toggle").onclick=async()=>{
 
 window.__bindQuickActions=function(){
   const cancel=$("riskCancel"), accept=$("riskAccept"), stop=$("stopQuick");
-  if(cancel) cancel.onclick=()=>{ $("riskModal").style.display="none"; if(window.__riskReject){window.__riskReject(new Error("Termo de Responsabilidade não aceito."));window.__riskReject=null;window.__riskResolve=null;} };
+  if(cancel) cancel.onclick=()=>{ $("riskModal").style.display="none"; $("robotState").className="robotState off"; $("robotStateTitle").textContent="ROBÔ PARADO"; $("robotStateText").textContent="O Termo não foi aceito. Nenhuma operação será aberta."; if(window.__riskReject){window.__riskReject(new Error("Termo de Responsabilidade não aceito."));window.__riskReject=null;window.__riskResolve=null;} };
   if(accept) accept.onclick=async()=>{try{if(!$("riskCheck").checked){alert("Marque o aceite do Termo de Responsabilidade.");return;}const d=await api("/api/robot/risk/accept",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});if(!d.success)throw new Error(d.message||"Não foi possível registrar o termo.");$("riskModal").style.display="none";if(window.__riskResolve){window.__riskResolve();window.__riskResolve=null;window.__riskReject=null;}}catch(e){alert(e.message)}};
   if(stop) stop.onclick=async()=>{if(!currentRunning||!quickRobotId)return;if(!confirm("Deseja desligar o robô de Operações Rápidas?"))return;try{await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});quickRobotId=null;await refresh();await loadLog();await loadQuickResults();}catch(e){$("status").textContent="🔴 "+e.message;}};
 };

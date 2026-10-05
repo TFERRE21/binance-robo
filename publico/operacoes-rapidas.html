@@ -79,7 +79,7 @@ async function refresh(){
     ]);
     currentRunning=!!st.engineRunning;
     $("state").textContent=currentRunning?"🟢 LIGADO":"⚪ PARADO";
-    $("open").textContent=(st.openOperations??st.openCount??0)+" / "+$("ops").value;
+    const opened=(st.operations||[]).filter(x=>String(x.status||"").toUpperCase()==="OPEN").length; $("open").textContent=opened+" / "+$("ops").value;
     $("balance").textContent=Number(b.balance?.available||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
     $("status").className="status "+(currentRunning?"ok":"");
     $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
@@ -90,7 +90,7 @@ async function refresh(){
 async function loadLog(){
   try{
     const st=await api("/api/robot/status?account="+encodeURIComponent(accountId)+"&robotId=1");
-    const lines=st.logs||st.recentLogs||[];
+    const lines=st.robotLogs||[];
     $("log").textContent=Array.isArray(lines)&&lines.length?lines.map(x=>typeof x==="string"?x:(x.created_at||"")+" "+(x.level||"")+" "+(x.message||"")).join("\n"):"Sem logs recentes.";
     $("log").scrollTop=$("log").scrollHeight;
   }catch(e){}

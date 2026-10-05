@@ -1249,7 +1249,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
 <section id="notificationsCard">
   <div>
     <h2>🔔 Notificações do Robô</h2>
-    <p>Receba no celular um resumo automático do CriptoPro todos os dias às 08:00 e 20:00, além dos alertas importantes do robô.</p>
+    <p>Receba no celular um resumo automático do CriptoPro todos os dias às 08:00 e 20:00, além dos alertas importantes do robô. Use TESTAR RESUMO para visualizar o formato.</p>
   </div>
   <div class="notification-options">
     <label class="notification-option"><input id="notifyPush" type="checkbox"> 📱 Notificações no celular</label>
@@ -1259,7 +1259,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   </div>
   <div class="notification-actions">
     <button id="saveNotificationButton" type="button">💾 SALVAR NOTIFICAÇÕES</button>
-    <button id="enablePushButton" type="button">📲 ATIVAR NO CELULAR</button>
+    <button id="enablePushButton" type="button">📲 ATIVAR NO CELULAR</button><button id="testNotificationButton" type="button">🔔 TESTAR RESUMO</button>
   </div>
   <div id="notificationMessage" class="notification-message"></div>
 </section>
@@ -4396,6 +4396,13 @@ init();
     notificationMessage("Notificações do celular ativadas.","success");
   }
 
+  async function testCriptoProNotification(){
+    const r=await notificationApi("/api/notifications/test",{method:"POST",body:"{}"});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível enviar o resumo de teste.");
+    notificationMessage(d.message || "Resumo de teste enviado.","success");
+  }
+
   function setupCriptoProNotifications(){
     const top=document.getElementById("notificationsTopButton");
     const card=document.getElementById("notificationsCard");
@@ -4407,6 +4414,8 @@ init();
     const enable=document.getElementById("enablePushButton");
     if(save) save.addEventListener("click",()=>saveCriptoProNotifications().catch(e=>notificationMessage(e.message,"error")));
     if(enable) enable.addEventListener("click",()=>enableCriptoProPush().catch(e=>notificationMessage(e.message,"error")));
+    const test=document.getElementById("testNotificationButton");
+    if(test) test.addEventListener("click",()=>testCriptoProNotification().catch(e=>notificationMessage(e.message,"error")));
 
     loadCriptoProNotifications();
   }

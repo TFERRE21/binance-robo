@@ -166,6 +166,38 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
 
 
       <!-- =====================================================
+           RESULTADOS DAS OPERAÇÕES RÁPIDAS
+      ====================================================== -->
+      <section class="dashboard-card" id="quickResultsCard">
+        <div class="section-header">
+          <div>
+            <h2>📊 Resultados — Operações Rápidas</h2>
+            <p>Últimas 20 operações rápidas encerradas. O robô usa esses resultados para acompanhar a qualidade real da estratégia.</p>
+          </div>
+        </div>
+        <div class="balance-grid">
+          <div class="balance-card"><span class="balance-label">Operações</span><strong id="quick20Count">0 / 20</strong></div>
+          <div class="balance-card"><span class="balance-label">Vitórias</span><strong id="quick20Wins">0</strong></div>
+          <div class="balance-card"><span class="balance-label">Taxa de acerto</span><strong id="quick20WinRate">—</strong></div>
+          <div class="balance-card"><span class="balance-label">Resultado</span><strong id="quick20Pnl">—</strong></div>
+        </div>
+        <div style="overflow:auto;margin-top:18px;">
+          <table style="width:100%;border-collapse:collapse;min-width:650px;">
+            <thead><tr>
+              <th style="text-align:left;padding:10px;">Moeda</th>
+              <th style="text-align:right;padding:10px;">Entrada</th>
+              <th style="text-align:right;padding:10px;">Saída</th>
+              <th style="text-align:right;padding:10px;">Resultado</th>
+              <th style="text-align:left;padding:10px;">Motivo</th>
+            </tr></thead>
+            <tbody id="quick20Table"><tr><td colspan="5" style="padding:12px;">Carregando resultados...</td></tr></tbody>
+          </table>
+        </div>
+        <small style="display:block;margin-top:12px;color:#9aa4b2;">Os resultados passados não garantem resultados futuros. O modo rápido decide sozinho quantas entradas abrir e define o alvo de +1% a +2,5% conforme a força do sinal.</small>
+      </section>
+
+
+      <!-- =====================================================
            COPY TRADING
       ====================================================== -->
       <section class="dashboard-card" id="copyTradingCard">

@@ -1709,7 +1709,36 @@ async function getNotificationSummary(userId){
 
   const coinText=accounts.flatMap(a=>a.assets.filter(x=>x.asset!=="USDT"&&x.asset!=="USDC").slice(0,6).map(x=>x.asset)).filter((v,i,a)=>a.indexOf(v)===i).slice(0,10).join(", ") || "Somente saldo em USDT";
 
+  const userResult=await db.query(
+    "SELECT name FROM users WHERE id=$1 LIMIT 1",
+    [userId]
+  );
+  const userName=String(userResult.rows[0]?.name||"Cliente").trim();
+
+  let bestTrade=null;
+  let worstTrade=null;
+
+  for(const account of accounts){
+    try{
+      const rows=await db.query(
+        `SELECT symbol,result_usdt,result_percent,status,closed_at
+         FROM robot_operations
+         WHERE user_id=$1 AND account_id=$2
+           AND closed_at >= NOW() - INTERVAL '24 hours'
+         ORDER BY closed_at DESC LIMIT 200`,
+        [userId,account.id]
+      );
+      for(const op of rows.rows){
+        const result=num(op.result_usdt);
+        const trade={symbol:op.symbol,resultUsdt:result,resultPercent:num(op.result_percent)};
+        if(!bestTrade || result>bestTrade.resultUsdt) bestTrade=trade;
+        if(!worstTrade || result<worstTrade.resultUsdt) worstTrade=trade;
+      }
+    }catch(_){}
+  }
+
   return {
+    userName,
     totalUsdt,
     totalBrl:accounts.reduce((s,a)=>s+a.totalBrl,0),
     realized24h:totalRealized24h,
@@ -1718,6 +1747,8 @@ async function getNotificationSummary(userId){
     openCount:allOpen.length,
     open:allOpen,
     coinText,
+    bestTrade,
+    worstTrade,
     accounts
   };
 }

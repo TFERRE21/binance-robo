@@ -56,45 +56,40 @@ router.post("/push/unsubscribe", authMiddleware, async (req,res) => {
 router.post("/test", authMiddleware, async (req,res) => {
   try {
     await notifications.ensureSchema();
-    const result = await notifications.notifyUser(req.user.id,"market","🔔 Teste de alerta","Seu CriptoPro está configurado para enviar alertas de mercado.",{url:"/dashboard.html",tag:"criptopro-test"});
-    const push = result?.push || {};
-    const whatsapp = result?.whatsapp || {};
-    if (!push.sent && !whatsapp.sent) {
-      let message = "Nenhum canal de alerta está ativo.";
-      if (push.reason === "no_active_push_subscription") {
-        message = "❌ Este celular ainda não está cadastrado para Push. Clique em 📲 ATIVAR NO CELULAR e permita as notificações.";
-      } else if (push.reason === "push_delivery_failed") {
-        message = "❌ O celular está cadastrado, mas o servidor não conseguiu entregar o Push. Veja os detalhes abaixo.";
-      } else if (push.reason === "push_disabled") {
-        message = "❌ As notificações Push estão desativadas nas preferências. Marque 'Notificações no celular' e clique em SALVAR NOTIFICAÇÕES.";
-      } else if (push.reason === "push_not_configured") {
-        message = "❌ O Push não está configurado no servidor (VAPID).";
+
+    let body = "🤖 Robô: ativo | 📊 Mercado: monitorando | 📈 BTC: consulte o painel para detalhes.";
+    try {
+      const db = require("../services/db");
+      const result = await db.query("SELECT DISTINCT user_id FROM push_subscriptions WHERE user_id=$1", [req.user.id]);
+      if (!result.rows.length) {
+        return res.status(400).json({
+          success:false,
+          message:"❌ Este celular ainda não está cadastrado para Push. Clique em 📲 ATIVAR NO CELULAR."
+        });
       }
+    } catch(e) {}
+
+    const result = await notifications.notifyUser(
+      req.user.id,
+      "market",
+      "🔔 Resumo CriptoPro — TESTE",
+      body,
+      {url:"/index.html",tag:"criptopro-resumo-teste",urgency:"normal"}
+    );
+
+    const push = result?.push || {};
+    if (!push.sent) {
       return res.status(400).json({
         success:false,
-        message,
-        diagnostics:{
-          push:{
-            sent:!!push.sent,
-            reason:push.reason || null,
-            subscriptions:Number(push.subscriptions || 0),
-            errors:Array.isArray(push.errors) ? push.errors.slice(0,3) : []
-          }
-        }
+        message:"❌ Não foi possível enviar o resumo de teste.",
+        diagnostics:{push}
       });
     }
+
     return res.json({
       success:true,
-      message: push.sent
-        ? "✅ Teste Push enviado para este dispositivo."
-        : "✅ Teste enviado pelo canal configurado.",
-      diagnostics:{
-        push:{
-          sent:!!push.sent,
-          subscriptions:Number(push.subscriptions || 0),
-          reason:push.reason || null
-        }
-      }
+      message:"✅ Resumo de teste enviado para o celular.",
+      diagnostics:{push}
     });
   } catch (error) {
     console.error("NOTIFICATION TEST:",error);

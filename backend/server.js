@@ -1795,5 +1795,12 @@ app.listen(
       "Binance-Robo Painel Premium V7.1 — Compacto rodando na porta " +
       PORT
     );
+
+    // Retoma automaticamente os robôs que estavam marcados como ativos
+    // antes de um restart/deploy do servidor. Sair da tela do usuário
+    // não deve desligar um robô que está rodando.
+    robotEngine.resumeRunning().catch(function(error){
+      console.error("[ROBO] FALHA AO RETOMAR ROBÔS ATIVOS:", error);
+    });
   }
 );

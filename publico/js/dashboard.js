@@ -417,6 +417,10 @@ async function loadAccounts() {
       primeiraConta.id
     );
 
+    await loadQuickResults(
+      primeiraConta.id
+    );
+
   } catch (error) {
 
     console.error(error);
@@ -840,6 +844,66 @@ if (logoutButton) {
 
 }
 
+
+// =========================================================
+// RESULTADOS — OPERAÇÕES RÁPIDAS
+// =========================================================
+async function loadQuickResults(accountId) {
+  const table=document.getElementById("quick20Table");
+  if(!table || !accountId) return;
+
+  try {
+    const response=await fetch("/api/robot/instances?account="+encodeURIComponent(accountId),{
+      headers:{"Authorization":`Bearer ${token}`},
+      cache:"no-store"
+    });
+    const data=await response.json();
+    if(!response.ok || !data.success) throw new Error(data.message||"Não foi possível carregar os resultados.");
+
+    const ops=[];
+    for(const robot of (data.robots||[])){
+      if(String(robot.config?.strategy_version||"").toLowerCase()!=="rapido") continue;
+      for(const op of (robot.operations||[])){
+        if(String(op.status||"").toUpperCase()==="CLOSED") ops.push(op);
+      }
+    }
+
+    ops.sort((a,b)=>new Date(b.closed_at||0)-new Date(a.closed_at||0));
+    const last=ops.slice(0,20);
+    const wins=last.filter(o=>Number(o.result_percent)>0).length;
+    const pnl=last.reduce((sum,o)=>sum+Number(o.result_usdt||0),0);
+    const avg=last.length?pnl/last.length:0;
+
+    const c=document.getElementById("quick20Count");
+    const w=document.getElementById("quick20Wins");
+    const wr=document.getElementById("quick20WinRate");
+    const p=document.getElementById("quick20Pnl");
+    if(c)c.textContent=`${last.length} / 20`;
+    if(w)w.textContent=String(wins);
+    if(wr)wr.textContent=last.length?`${((wins/last.length)*100).toFixed(1)}%`:"—";
+    if(p)p.textContent=last.length?`${pnl>=0?"+":""}${pnl.toFixed(4)} USDT (média ${avg.toFixed(4)})`:"—";
+
+    if(!last.length){
+      table.innerHTML='<tr><td colspan="5" style="padding:12px;">Ainda não há 20 operações rápidas encerradas.</td></tr>';
+      return;
+    }
+
+    table.innerHTML=last.map(o=>{
+      const pct=Number(o.result_percent);
+      const sign=pct>=0?"+":"";
+      const cls=pct>=0?"color:#2ee68a;":"color:#ff6b6b;";
+      return `<tr style="border-top:1px solid rgba(255,255,255,.08);">
+        <td style="padding:10px;font-weight:700;">${o.symbol}</td>
+        <td style="padding:10px;text-align:right;">${Number(o.buy_price||0).toFixed(6)}</td>
+        <td style="padding:10px;text-align:right;">${Number(o.close_price||0).toFixed(6)}</td>
+        <td style="padding:10px;text-align:right;${cls}">${Number.isFinite(pct)?sign+pct.toFixed(2)+"%":"—"}</td>
+        <td style="padding:10px;">${o.close_reason==="TAKE_PROFIT"?"TAKE PROFIT":(o.close_reason||"—")}</td>
+      </tr>`;
+    }).join("");
+  } catch(e) {
+    table.innerHTML=`<tr><td colspan="5" style="padding:12px;">${e.message}</td></tr>`;
+  }
+}
 
 // =========================================================
 // INICIAR

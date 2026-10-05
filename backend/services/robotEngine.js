@@ -1801,23 +1801,40 @@ async function getNotificationSummary(userId){
   };
 }
 
-function formatNotificationSummary(resumo,{teste=false}={}){
+function formatNotificationSummary(resumo,{teste=false}={}) {
   const sinal=v=>Number(v)>=0?"+":"-";
   const money=v=>"US$ "+Math.abs(Number(v)||0).toFixed(2);
   const pct=v=>sinal(v)+Math.abs(Number(v)||0).toFixed(2)+"%";
   const status=resumo.robots.some(r=>r.running)?"OPERANDO":"PARADO";
+  const ativos=resumo.robots.filter(r=>r.running).length;
 
+  // As primeiras linhas são propositalmente curtas para aparecerem
+  // na notificação recolhida do Android/Samsung.
   const linhas=[
     "👤 "+resumo.userName,
-    "💳 Plano: "+resumo.plan,
-    "🤖 Robôs: "+resumo.robots.filter(r=>r.running).length+" ativos / "+resumo.robots.length+" configurados",
-    "💰 Patrimônio: R$ "+resumo.totalBrl.toFixed(2)+" | "+money(resumo.totalUsdt),
-    "💵 Livre: "+money(resumo.totalFreeUsdt)+" | Investido: "+money(resumo.totalInvested),
-    "📊 24h: "+sinal(resumo.combined24h)+money(resumo.combined24h)+" | 7d realizado: "+sinal(resumo.realized7d)+money(resumo.realized7d),
-    "🟢 Robô: "+status+" | Abertas: "+resumo.openCount
+    "🤖 "+status+" | Robôs: "+ativos+"/"+resumo.robots.length+" | Abertas: "+resumo.openCount,
+    "💰 R$ "+resumo.totalBrl.toFixed(2)+" | "+money(resumo.totalUsdt),
+    "📊 24h: "+sinal(resumo.combined24h)+money(resumo.combined24h)+" | 7d: "+sinal(resumo.realized7d)+money(resumo.realized7d),
   ];
 
+  if(resumo.open.length){
+    const compact=resumo.open.slice(0,4).map(o=>
+      o.symbol+" "+sinal(o.pnlUsdt)+money(o.pnlUsdt)
+    ).join(" | ");
+    linhas.push("🪙 "+compact);
+    if(resumo.open.length>4) linhas.push("🪙 +"+(resumo.open.length-4)+" operações abertas");
+  }else{
+    linhas.push("🪙 Nenhuma operação aberta");
+  }
+
+  linhas.push(
+    "💳 Plano: "+resumo.plan,
+    "💵 Livre: "+money(resumo.totalFreeUsdt)+" | Investido: "+money(resumo.totalInvested),
+    "📈 Realizado 24h: "+sinal(resumo.realized24h)+money(resumo.realized24h)+" | P/L aberto: "+sinal(resumo.unrealized)+money(resumo.unrealized)
+  );
+
   if(resumo.robots.length){
+    linhas.push("🤖 CONFIGURAÇÃO DOS ROBÔS:");
     for(const r of resumo.robots.slice(0,6)){
       linhas.push(
         (r.running?"🟢 ":"⚪ ")+"Robô "+r.robotId+" • "+r.strategy+
@@ -1844,8 +1861,6 @@ function formatNotificationSummary(resumo,{teste=false}={}){
       );
     }
     if(resumo.open.length>8) linhas.push("• +"+(resumo.open.length-8)+" operações abertas...");
-  }else{
-    linhas.push("🪙 OPERAÇÕES ABERTAS: nenhuma");
   }
 
   linhas.push(
@@ -1853,8 +1868,6 @@ function formatNotificationSummary(resumo,{teste=false}={}){
     " | 🏆 acerto "+resumo.winRate.toFixed(1)+"%"+
     " | ganhos "+resumo.wins24h+
     " | perdas "+resumo.losses24h,
-    "💵 Realizado 24h: "+sinal(resumo.realized24h)+money(resumo.realized24h)+
-      " | P/L aberto: "+sinal(resumo.unrealized)+money(resumo.unrealized),
     "🔄 Compras 24h: "+resumo.buys24h+" | Vendas 24h: "+resumo.sells24h
   );
 

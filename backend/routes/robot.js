@@ -59,6 +59,7 @@ router.post("/config", authMiddleware, async (req,res) => {
       maxOperations: Number(req.body?.maxOperations),
       interval: String(req.body?.interval || "15m"),
       maxCoins: Number(req.body?.maxCoins),
+      quickReservedBrl: Number(req.body?.quickReservedBrl || 0),
       strategyVersion: String(req.body?.strategyVersion || "premium").toLowerCase()
     };
 

@@ -1811,45 +1811,66 @@ async function enviarResumoAutomatico(){
   try{
     await notificationService.ensureSchema();
 
-    let mercado = "Mercado em acompanhamento";
-    let btc = null;
-
-    try{
-      const contaBase = clientes.find(c=>c.client);
-      if(contaBase && contaBase.client){
-        const stats = await contaBase.client.dailyStats({symbol:"BTCUSDT"});
-        const pct = Number(stats?.priceChangePercent);
-        if(Number.isFinite(pct)){
-          btc = pct;
-          mercado = pct >= 2
-            ? "📈 BTC em alta"
-            : pct <= -2
-              ? "📉 BTC em queda"
-              : "📊 BTC estável";
-        }
-      }
-    }catch(e){
-      console.warn("[NOTIFICAÇÕES] Não foi possível consultar BTC:",e.message||e);
-    }
-
     const usuarios = await require("./services/db").query(
       "SELECT DISTINCT user_id FROM push_subscriptions"
     );
 
-    const body =
-      "Robô ativo e monitoramento em andamento. " +
-      mercado +
-      (btc !== null ? " (" + (btc >= 0 ? "+" : "") + btc.toFixed(2) + "% em 24h)." : ".") +
-      " Abra o CriptoPro para ver o resumo completo.";
-
     for(const row of usuarios.rows){
-      await notificationService.notifyUser(
-        row.user_id,
-        "market",
-        "🔔 Resumo CriptoPro",
-        body,
-        {url:"/index.html",tag:"criptopro-resumo-diario",urgency:"normal"}
-      );
+      try{
+        const resumo = await robotEngine.getNotificationSummary(row.user_id);
+
+        let btc = null;
+        try{
+          const contaBase = clientes.find(c=>c.client);
+          if(contaBase && contaBase.client){
+            const stats = await contaBase.client.dailyStats({symbol:"BTCUSDT"});
+            const pct = Number(stats?.priceChangePercent);
+            if(Number.isFinite(pct)) btc = pct;
+          }
+        }catch(e){}
+
+        const mercado = btc === null
+          ? "📊 Mercado: acompanhamento ativo"
+          : btc >= 2
+            ? "📈 Mercado: favorável"
+            : btc <= -2
+              ? "📉 Mercado: atenção"
+              : "📊 Mercado: estável";
+
+        const resultado = resumo.combined24h;
+        const resultadoTexto = (resultado>=0?"+":"-")+"US$ "+Math.abs(resultado).toFixed(2);
+
+        const moedas = resumo.open.length
+          ? resumo.open.slice(0,6).map(o=>{
+              const s=o.pnlUsdt>=0?"+":"-";
+              return o.symbol+" "+s+"US$ "+Math.abs(o.pnlUsdt).toFixed(2);
+            }).join(" | ")
+          : "Nenhuma moeda em operação";
+
+        const saldoBrl = "R$ "+resumo.totalBrl.toFixed(2);
+        const saldoUsd = "US$ "+resumo.totalUsdt.toFixed(2);
+
+        const body =
+          "🤖 Robô: "+(resumo.openCount>0?"OPERANDO":"ATIVO")+
+          " | "+mercado+
+          (btc!==null ? " | BTC 24h: "+(btc>=0?"+":"")+btc.toFixed(2)+"%" : "")+
+          "\n💰 Saldo: "+saldoBrl+" | "+saldoUsd+
+          "\n📊 Resultado 24h: "+resultadoTexto+
+          " | Operações abertas: "+resumo.openCount+
+          "\n🪙 Compradas: "+moedas+
+          "\n💵 Lucro realizado 24h: "+(resumo.realized24h>=0?"+":"-")+"US$ "+Math.abs(resumo.realized24h).toFixed(2)+
+          " | P/L aberto: "+(resumo.unrealized>=0?"+":"-")+"US$ "+Math.abs(resumo.unrealized).toFixed(2);
+
+        await notificationService.notifyUser(
+          row.user_id,
+          "market",
+          "🔔 Resumo CriptoPro",
+          body,
+          {url:"/index.html",tag:"criptopro-resumo-diario",urgency:"normal"}
+        );
+      }catch(error){
+        console.error("[NOTIFICAÇÕES] resumo usuário "+row.user_id+":",error.message||error);
+      }
     }
 
     console.log("[NOTIFICAÇÕES] Resumo automático enviado | usuários="+usuarios.rows.length);

@@ -201,6 +201,7 @@ async function ensureSchema(){
       interval VARCHAR(8) NOT NULL DEFAULT '1h',
       max_coins INTEGER NOT NULL DEFAULT 20,
       quick_reserved_brl NUMERIC(14,2) NOT NULL DEFAULT 0,
+      risk_accepted_at TIMESTAMPTZ,
       running BOOLEAN NOT NULL DEFAULT false,
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       PRIMARY KEY(user_id,account_id,robot_id)
@@ -251,6 +252,7 @@ async function ensureSchema(){
       ADD COLUMN IF NOT EXISTS interval VARCHAR(8) NOT NULL DEFAULT '1h',
       ADD COLUMN IF NOT EXISTS max_coins INTEGER NOT NULL DEFAULT 20,
       ADD COLUMN IF NOT EXISTS quick_reserved_brl NUMERIC(14,2) NOT NULL DEFAULT 0,
+      ADD COLUMN IF NOT EXISTS risk_accepted_at TIMESTAMPTZ,
       ADD COLUMN IF NOT EXISTS running BOOLEAN NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 

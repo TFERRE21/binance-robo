@@ -78,6 +78,32 @@ router.post("/config", authMiddleware, async (req,res) => {
   }
 });
 
+router.post("/risk/accept", authMiddleware, async (req,res) => {
+  try {
+    const accountId = accountIdFrom(req);
+    const robotId = robotIdFrom(req);
+    const configId = req.body?.configId ? Number(req.body.configId) : null;
+    if (!accountId) return res.status(400).json({success:false,message:"Conta Binance não informada."});
+
+    const account = await db.query(
+      "SELECT id FROM binance_accounts WHERE id=$1 AND user_id=$2 AND active=true",
+      [accountId, req.user.id]
+    );
+    if (!account.rows.length) return res.status(404).json({success:false,message:"Conta Binance não encontrada."});
+
+    const result = await db.query(
+      "UPDATE robot_configs SET risk_accepted_at=NOW(), updated_at=NOW() WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 RETURNING id",
+      [req.user.id, accountId, robotId]
+    );
+    if (!result.rows.length) return res.status(400).json({success:false,message:"Salve a configuração do robô antes de aceitar o termo."});
+
+    return res.json({success:true,configId:result.rows[0].id,riskAcceptedAt:new Date().toISOString()});
+  } catch (error) {
+    console.error("ROBOT RISK ACCEPT:", error);
+    return res.status(500).json({success:false,message:error.message||"Não foi possível registrar o Termo de Responsabilidade."});
+  }
+});
+
 router.post("/start", authMiddleware, async (req,res) => {
   try {
     const accountId = accountIdFrom(req);

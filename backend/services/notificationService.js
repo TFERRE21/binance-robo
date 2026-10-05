@@ -75,7 +75,7 @@ async function updatePreferences(userId, data) {
     ]
   );
 
-  return { ...r.rows[0], whatsapp: hasWhatsapp ? whatsapp : ""; }
+  return { ...r.rows[0], whatsapp: hasWhatsapp ? whatsapp : null };
 }
 
 async function savePushSubscription(userId, subscription) {

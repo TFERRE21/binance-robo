@@ -10,6 +10,8 @@ const newsRoutes = require("./routes/news");
 const robotRoutes = require("./routes/robot");
 const robotRiskRoutes = require("./routes/robotRisk");
 const adminRoutes = require("./routes/admin");
+const notificationRoutes = require("./routes/notifications");
+const notificationService = require("./services/notificationService");
 const robotEngine = require("./services/robotEngine");
 
 const authMiddleware = require("./middleware/auth");
@@ -589,6 +591,7 @@ app.use("/api/binance", binanceRoutes);
 app.use("/api/panel", panelRoutes);
 app.use("/api/subscription", subscriptionRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // =========================================================
 // CRIPTOPRO V7 - NOVAS ROTAS
@@ -610,6 +613,8 @@ app.use(
 );
 
 app.use("/api/robot", robotRoutes);
+
+notificationService.ensureSchema().catch((error) => console.error("[NOTIFICATIONS] schema:", error));
 
 /*
  * CRIPTOPRO V7 - RECUPERAR ROBOS ATIVOS

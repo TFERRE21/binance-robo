@@ -38,6 +38,7 @@
       <div class="field"><label class="label">Stop Loss</label><select id="sl" class="select"><option value="0" selected>Desativado</option><option value="0.5">0,5%</option><option value="1">1%</option><option value="1.5">1,5%</option></select></div>
 
       <button id="toggle" class="btn on">⚡ LIGAR OPERAÇÕES RÁPIDAS</button>
+      <button id="stopQuick" class="btn off" style="margin-top:8px;" disabled>⏹ DESLIGAR ROBÔ</button>
       <div id="status" class="status">Carregando conta e status...</div>
       <div class="warning">⚠️ O sistema não promete lucro. O robô analisa as oportunidades e decide sozinho quantas posições abrir (sem preencher slots à força). O alvo de lucro é automático entre 1% e 2,5%, conforme a força do sinal, e a ordem SELL/TAKE PROFIT é criada automaticamente após cada compra.</div>
     </section>
@@ -50,6 +51,19 @@
         <div class="stat"><span>EXECUTADAS</span><b id="executedOps">—</b></div>
       </div>
       <p style="margin:12px 0 0;color:#9aa4b2;font-size:13px;">A quantidade de entradas é definida pelo robô conforme a qualidade das oportunidades. Depois da compra, uma ordem SELL de Take Profit é criada automaticamente.</p>
+    </section>
+
+    <section class="card" style="grid-column:1/-1;">
+      <h2 class="title">📊 Resultados das Operações Rápidas</h2>
+      <div class="sub">Aqui aparecem as moedas compradas pelo robô, o resultado percentual e o resultado convertido para reais (BRL).</div>
+      <div style="overflow:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:760px;font-size:11px;">
+          <thead><tr style="color:#8290a8;text-align:left;">
+            <th style="padding:9px;">Moeda</th><th style="padding:9px;">Entrada</th><th style="padding:9px;">Saída</th><th style="padding:9px;">Resultado %</th><th style="padding:9px;">Resultado R$</th><th style="padding:9px;">Status</th><th style="padding:9px;">Motivo</th>
+          </tr></thead>
+          <tbody id="quickResults"><tr><td colspan="7" style="padding:12px;">Carregando...</td></tr></tbody>
+        </table>
+      </div>
     </section>
 
     <section class="card">
@@ -68,6 +82,8 @@
 const token=localStorage.getItem("token");
 if(!token)location.href="/login.html";
 const $=id=>document.getElementById(id);
+function fmtBRL(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
+async function loadQuickResults(){try{if(!accountId)return;const robots=await api("/api/robot/instances?account="+encodeURIComponent(accountId));const q=(robots.robots||[]).find(r=>Number(r.robotId)===Number(quickRobotId)) || (robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido");const ops=q?.operations||[];let rate=0;try{const x=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL",{cache:"no-store"});rate=Number((await x.json()).price||0);}catch(_){ } const body=$("quickResults");body.innerHTML=ops.length?ops.map(o=>{const brl=Number(o.result_usdt||0)*rate;const cls=Number(o.result_percent||0)>=0?"#7ff2c1":"#ff9aaa";return `<tr><td style="padding:9px;font-weight:800;">${o.symbol||"—"}</td><td style="padding:9px;">${Number(o.buy_price||0).toLocaleString("en-US",{maximumFractionDigits:10})}</td><td style="padding:9px;">${o.close_price?Number(o.close_price).toLocaleString("en-US",{maximumFractionDigits:10}):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_percent!=null?(Number(o.result_percent).toFixed(2)+"%"):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_usdt!=null?fmtBRL(brl):"—"}</td><td style="padding:9px;">${o.status||"—"}</td><td style="padding:9px;">${o.close_reason||"EM ABERTO"}</td></tr>`}).join(""):`<tr><td colspan="7" style="padding:12px;">Nenhuma operação registrada ainda.</td></tr>`;}catch(e){}}
 let accountId=null, timer=null, currentRunning=false, quickRobotId=null;
 
 async function api(url,opt={}){
@@ -141,16 +157,44 @@ $("toggle").onclick=async()=>{
         stopLoss,stopLossActive:stopLoss>0,maxOperations:Number($("ops").value),
         interval:$("interval").value,maxCoins:Number($("coins").value),strategyVersion:"rapido"
       })});
+      $("riskCheck").checked=false;
+      $("riskModal").style.display="flex";
+      await new Promise((resolve,reject)=>{
+        window.__riskResolve=resolve; window.__riskReject=reject;
+      });
       await api("/api/robot/start",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});
     }
-    await refresh();await loadLog();
+    await refresh();await loadLog();await loadQuickResults();
   }catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
   finally{$("toggle").disabled=false}
 };
 (async()=>{
-  try{await loadAccounts();await refresh();await loadLog();timer=setInterval(async()=>{await refresh();await loadLog()},5000)}
+  try{await loadAccounts();await refresh();await loadLog();timer=setInterval(async()=>{await refresh();await loadLog();await loadQuickResults()},5000)}
   catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
 })();
+
+$("riskCancel").onclick=()=>{ $("riskModal").style.display="none"; if(window.__riskReject){window.__riskReject(new Error("Termo de Responsabilidade não aceito."));window.__riskReject=null;window.__riskResolve=null;} };
+$("riskAccept").onclick=async()=>{try{if(!$("riskCheck").checked){alert("Marque o aceite do Termo de Responsabilidade.");return;}const d=await api("/api/robot/risk/accept",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});if(!d.success)throw new Error(d.message||"Não foi possível registrar o termo.");$("riskModal").style.display="none";if(window.__riskResolve){window.__riskResolve();window.__riskResolve=null;window.__riskReject=null;}}catch(e){alert(e.message)}};
+$("stopQuick").onclick=async()=>{if(!currentRunning||!quickRobotId)return;if(!confirm("Deseja desligar o robô de Operações Rápidas?"))return;try{await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});quickRobotId=null;await refresh();await loadLog();await loadQuickResults();}catch(e){$("status").textContent="🔴 "+e.message;}};
 </script>
+<div id="riskModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9999;align-items:center;justify-content:center;padding:18px;">
+  <div style="max-width:620px;width:100%;background:#0d1626;border:1px solid #30435f;border-radius:14px;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.5);">
+    <h2 style="margin-top:0;">⚠️ Termo de Responsabilidade</h2>
+    <div style="font-size:12px;line-height:1.65;color:#c7d2e4;max-height:300px;overflow:auto;">
+      <p>As Operações Rápidas realizam operações automáticas na conta Binance selecionada.</p>
+      <p>Você compreende que operações com criptomoedas envolvem risco de perda financeira, inclusive perda parcial ou total do valor destinado ao robô.</p>
+      <p>O CriptoPro não garante lucro, quantidade de operações, taxa de acerto ou retorno positivo. O robô pode não encontrar oportunidades ou pode executar entradas conforme os critérios da estratégia.</p>
+      <p>O valor separado para Operações Rápidas é uma reserva lógica do sistema; ele não é uma carteira separada na Binance.</p>
+    </div>
+    <label style="display:flex;gap:9px;align-items:flex-start;margin:16px 0;font-size:12px;">
+      <input id="riskCheck" type="checkbox" style="margin-top:2px;"> Li, compreendi e aceito o Termo de Responsabilidade.
+    </label>
+    <div style="display:flex;gap:8px;">
+      <button id="riskCancel" class="btn">CANCELAR</button>
+      <button id="riskAccept" class="btn on">LI, COMPREENDI E ACEITO</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

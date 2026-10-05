@@ -210,6 +210,48 @@ router.post('/login', async (req, res) => {
 const authMiddleware =
   require('../middleware/auth');
 
+// ============================================================
+// ATUALIZAR TELEFONE DO USUÁRIO
+// ============================================================
+
+router.put('/me/phone', authMiddleware, async (req, res) => {
+  try {
+    let whatsapp = String(req.body?.whatsapp || '').replace(/\D/g, '');
+    if (whatsapp.startsWith('00')) whatsapp = whatsapp.slice(2);
+    if (whatsapp && !whatsapp.startsWith('55') && (whatsapp.length === 10 || whatsapp.length === 11)) {
+      whatsapp = '55' + whatsapp;
+    }
+
+    if (whatsapp && (whatsapp.length < 10 || whatsapp.length > 15)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Informe um número de telefone válido com DDI.'
+      });
+    }
+
+    const result = await db.query(
+      'UPDATE users SET whatsapp=$1, updated_at=NOW() WHERE id=$2 RETURNING id,name,email,whatsapp',
+      [whatsapp || null, req.user.id]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ success:false, message:'Usuário não encontrado.' });
+    }
+
+    return res.json({
+      success: true,
+      message: whatsapp ? 'Telefone atualizado com sucesso.' : 'Telefone removido da conta.',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('ERRO AO ATUALIZAR TELEFONE:', error);
+    return res.status(500).json({
+      success:false,
+      message:'Não foi possível atualizar o telefone.'
+    });
+  }
+});
+
 router.get('/me', authMiddleware, async (req, res) => {
 
   try {

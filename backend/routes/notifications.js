@@ -57,7 +57,16 @@ router.post("/test", authMiddleware, async (req,res) => {
   try {
     await notifications.ensureSchema();
 
-    let body = "🤖 Robô: ativo | 📊 Mercado: monitorando | 📈 BTC: consulte o painel para detalhes.";
+    let body = "🤖 Robô: ativo | 📊 Mercado: monitorando | 📈 BTC: consultando...";
+    try {
+      const response = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
+      const data = await response.json();
+      const pct = Number(data?.priceChangePercent);
+      if(Number.isFinite(pct)){
+        const mercado = pct >= 2 ? "📈 Mercado favorável" : pct <= -2 ? "📉 Mercado em queda" : "📊 Mercado estável";
+        body = "🤖 Robô: ativo | " + mercado + " | BTC 24h: " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "% | ⏰ Resumo diário: 08:00 e 20:00.";
+      }
+    } catch(e) {}
     try {
       const db = require("../services/db");
       const result = await db.query("SELECT DISTINCT user_id FROM push_subscriptions WHERE user_id=$1", [req.user.id]);

@@ -4398,10 +4398,19 @@ init();
   }
 
   async function testCriptoProNotification(){
+    notificationMessage("⏳ Enviando teste Push...","info");
     const r=await notificationApi("/api/notifications/test",{method:"POST",body:"{}"});
-    const d=await r.json();
-    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível enviar o teste.");
-    notificationMessage(d.message || "Teste enviado.","success");
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || !d.success){
+      const p=d.diagnostics?.push || {};
+      let extra="";
+      if(p.subscriptions !== undefined) extra += " Assinaturas encontradas: " + p.subscriptions + ".";
+      if(p.reason) extra += " Motivo: " + p.reason + ".";
+      throw new Error((d.message || "Não foi possível enviar o teste.") + extra);
+    }
+    const p=d.diagnostics?.push || {};
+    const extra=p.subscriptions !== undefined ? " Assinaturas Push: " + p.subscriptions + "." : "";
+    notificationMessage((d.message || "Teste enviado.") + extra,"success");
   }
 
   function setupCriptoProNotifications(){

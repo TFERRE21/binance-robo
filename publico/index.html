@@ -1260,7 +1260,6 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   <div class="notification-actions">
     <button id="saveNotificationButton" type="button">💾 SALVAR NOTIFICAÇÕES</button>
     <button id="enablePushButton" type="button">📲 ATIVAR NO CELULAR</button>
-    <button id="testNotificationButton" type="button">🔔 TESTAR ALERTA</button>
   </div>
   <div id="notificationMessage" class="notification-message"></div>
 </section>
@@ -4397,22 +4396,6 @@ init();
     notificationMessage("Notificações do celular ativadas.","success");
   }
 
-  async function testCriptoProNotification(){
-    notificationMessage("⏳ Enviando teste Push...","info");
-    const r=await notificationApi("/api/notifications/test",{method:"POST",body:"{}"});
-    const d=await r.json().catch(()=>({}));
-    if(!r.ok || !d.success){
-      const p=d.diagnostics?.push || {};
-      let extra="";
-      if(p.subscriptions !== undefined) extra += " Assinaturas encontradas: " + p.subscriptions + ".";
-      if(p.reason) extra += " Motivo: " + p.reason + ".";
-      throw new Error((d.message || "Não foi possível enviar o teste.") + extra);
-    }
-    const p=d.diagnostics?.push || {};
-    const extra=p.subscriptions !== undefined ? " Assinaturas Push: " + p.subscriptions + "." : "";
-    notificationMessage((d.message || "Teste enviado.") + extra,"success");
-  }
-
   function setupCriptoProNotifications(){
     const top=document.getElementById("notificationsTopButton");
     const card=document.getElementById("notificationsCard");
@@ -4422,11 +4405,8 @@ init();
 
     const save=document.getElementById("saveNotificationButton");
     const enable=document.getElementById("enablePushButton");
-    const test=document.getElementById("testNotificationButton");
-
     if(save) save.addEventListener("click",()=>saveCriptoProNotifications().catch(e=>notificationMessage(e.message,"error")));
     if(enable) enable.addEventListener("click",()=>enableCriptoProPush().catch(e=>notificationMessage(e.message,"error")));
-    if(test) test.addEventListener("click",()=>testCriptoProNotification().catch(e=>notificationMessage(e.message,"error")));
 
     loadCriptoProNotifications();
   }

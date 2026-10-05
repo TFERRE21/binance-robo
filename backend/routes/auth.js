@@ -30,7 +30,7 @@ router.get('/teste', (req, res) => {
 router.post('/register', async (req, res) => {
   try {
 
-    const { name, email, password } = req.body;
+    const { name, email, password, whatsapp } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -64,16 +64,19 @@ router.post('/register', async (req, res) => {
     const passwordHash =
       await bcrypt.hash(password, 12);
 
+    const whatsappNormalizado = String(whatsapp || "").replace(/\\D/g, "").trim();
+
     const result = await db.query(
       `INSERT INTO users
-       (name, email, password_hash, active)
+       (name, email, password_hash, whatsapp, active)
        VALUES
-       ($1, $2, $3, true)
-       RETURNING id, name, email, active, created_at`,
+       ($1, $2, $3, $4, true)
+       RETURNING id, name, email, whatsapp, active, created_at`,
       [
         name.trim(),
         emailNormalizado,
-        passwordHash
+        passwordHash,
+        whatsappNormalizado || null
       ]
     );
 
@@ -180,7 +183,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        whatsapp: user.whatsapp || ""
       }
     });
 
@@ -215,6 +219,7 @@ router.get('/me', authMiddleware, async (req, res) => {
         id,
         name,
         email,
+        whatsapp,
         active,
         created_at,
         updated_at

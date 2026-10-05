@@ -143,7 +143,7 @@ async function sendPush(userId, payload) {
     }
   }
 
-  return { sent: true, count: sent };
+  return { sent: sent > 0, count: sent, reason: sent > 0 ? null : "no_active_push_subscription" };
 }
 
 async function sendWhatsApp(userId, payload) {

@@ -13,7 +13,7 @@
 <div class="wrap">
   <div class="top">
     <div><h1>⚡ Operações Rápidas</h1><p>Scanner de curto prazo + execução automática na Binance.</p></div>
-    <button class="back" onclick="location.href='/dashboard.html'">← VOLTAR</button>
+    <button class="back" onclick="location.href='/index.html'">← VOLTAR</button>
   </div>
 
   <div class="grid">
@@ -90,7 +90,7 @@ async function refresh(){
   try{
     const [robots,b]=await Promise.all([
       api("/api/robot/instances?account="+encodeURIComponent(accountId)),
-      api("/api/binance/accounts/"+encodeURIComponent(accountId)+"/balance")
+      api("/api/panel/account/"+encodeURIComponent(accountId))
     ]);
     const quick=(robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && r.running);
     if(quick) quickRobotId=Number(quick.robotId);
@@ -107,7 +107,7 @@ async function refresh(){
     $("decidedOps").textContent=dm?dm[1]:"—";
     const em=lastLogs.filter(x=>String(x?.message||"").includes("POSIÇÃO ABERTA")).length;
     $("executedOps").textContent=String(em||"—");
-    $("balance").textContent=Number(b.balance?.available||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
+    $("balance").textContent=Number(b.disponivelUSDT ?? b.balance?.available ?? 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
     $("status").className="status "+(currentRunning?"ok":"");
     $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
     $("toggle").textContent=currentRunning?"⏹ DESLIGAR OPERAÇÕES RÁPIDAS":"⚡ LIGAR OPERAÇÕES RÁPIDAS";

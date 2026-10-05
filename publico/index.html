@@ -1024,6 +1024,22 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   </div>
 </section>
 
+<section id="accountPhoneCard" class="api-selector" style="margin-top:16px;">
+  <div class="api-selector-top">
+    <div>
+      <div class="api-selector-title">👤 Minha conta</div>
+      <div class="api-selector-help">Cadastre ou troque o número de telefone da sua conta.</div>
+    </div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+    <input id="accountPhone" type="tel" placeholder="+55 61 99931-1160"
+      autocomplete="tel" inputmode="tel"
+      style="flex:1;min-width:260px;height:42px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#080d14;color:#e5ebf3;padding:0 12px;outline:none;font-weight:800;">
+    <button id="saveAccountPhone" type="button" style="height:42px;border:1px solid rgba(240,185,11,.3);background:rgba(240,185,11,.08);color:#f0b90b;border-radius:9px;padding:0 14px;font-size:10px;font-weight:900;">💾 SALVAR TELEFONE</button>
+  </div>
+  <div id="accountPhoneMessage" class="message" style="margin-top:10px;"></div>
+</section>
+
 <section class="api-selector">
   <div class="api-selector-top">
     <div class="api-selector-title" id="apiSelectorTitle">API Binance em uso</div>
@@ -4426,6 +4442,53 @@ init();
   }else{
     setupCriptoProNotifications();
   }
+})();
+</script>
+<script>
+(function(){
+  const accountToken=localStorage.getItem("token");
+  async function accountRequest(url,options={}){
+    return fetch(url,{
+      ...options,
+      headers:{
+        ...(options.headers||{}),
+        "Authorization":"Bearer "+accountToken,
+        "Content-Type":"application/json"
+      },
+      cache:"no-store"
+    });
+  }
+  function accountPhoneMessage(text,type){
+    const el=document.getElementById("accountPhoneMessage");
+    if(!el)return;
+    el.textContent=text||"";
+    el.className="message"+(type?" "+type:"");
+  }
+  async function loadAccountPhone(){
+    try{
+      const r=await accountRequest("/api/auth/me");
+      const d=await r.json();
+      if(!r.ok||!d.success)throw new Error(d.message||"Não foi possível carregar os dados da conta.");
+      const input=document.getElementById("accountPhone");
+      if(input)input.value=d.user?.whatsapp||"";
+    }catch(e){accountPhoneMessage(e.message,"error");}
+  }
+  async function saveAccountPhone(){
+    const input=document.getElementById("accountPhone");
+    const phone=(input?.value||"").trim();
+    const r=await accountRequest("/api/auth/me/phone",{
+      method:"PUT",
+      body:JSON.stringify({whatsapp:phone})
+    });
+    const d=await r.json();
+    if(!r.ok||!d.success)throw new Error(d.message||"Não foi possível salvar o telefone.");
+    if(input)input.value=d.user?.whatsapp||"";
+    accountPhoneMessage(d.message||"Telefone atualizado.","success");
+  }
+  const btn=document.getElementById("saveAccountPhone");
+  if(btn)btn.addEventListener("click",()=>saveAccountPhone().catch(e=>accountPhoneMessage(e.message,"error")));
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",loadAccountPhone);
+  else loadAccountPhone();
 })();
 </script>
 </body>

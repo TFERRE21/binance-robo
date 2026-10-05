@@ -54,11 +54,14 @@ async function getPreferences(userId) {
 }
 
 async function updatePreferences(userId, data) {
-  const whatsapp = cleanPhone(data.whatsapp);
-  await db.query(
-    "UPDATE users SET whatsapp=$1, updated_at=NOW() WHERE id=$2",
-    [whatsapp || null, userId]
-  );
+  const hasWhatsapp = Object.prototype.hasOwnProperty.call(data || {}, "whatsapp");
+  const whatsapp = hasWhatsapp ? cleanPhone(data.whatsapp) : null;
+  if (hasWhatsapp) {
+    await db.query(
+      "UPDATE users SET whatsapp=$1, updated_at=NOW() WHERE id=$2",
+      [whatsapp || null, userId]
+    );
+  }
 
   const r = await db.query(
     "INSERT INTO notification_preferences (user_id,whatsapp_enabled,push_enabled,buy_alert,sell_alert,market_alert,updated_at) VALUES($1,$2,$3,$4,$5,$6,NOW()) ON CONFLICT(user_id) DO UPDATE SET whatsapp_enabled=EXCLUDED.whatsapp_enabled,push_enabled=EXCLUDED.push_enabled,buy_alert=EXCLUDED.buy_alert,sell_alert=EXCLUDED.sell_alert,market_alert=EXCLUDED.market_alert,updated_at=NOW() RETURNING *",
@@ -72,7 +75,7 @@ async function updatePreferences(userId, data) {
     ]
   );
 
-  return { ...r.rows[0], whatsapp };
+  return { ...r.rows[0], whatsapp: hasWhatsapp ? whatsapp : (await getPreferences(userId))?.whatsapp || ""; }
 }
 
 async function savePushSubscription(userId, subscription) {

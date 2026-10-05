@@ -128,6 +128,7 @@ async function refresh(){
     $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
     $("toggle").textContent=currentRunning?"⏹ DESLIGAR OPERAÇÕES RÁPIDAS":"⚡ LIGAR OPERAÇÕES RÁPIDAS";
     $("toggle").className="btn "+(currentRunning?"off":"on");
+    $("stopQuick").disabled=!currentRunning;
   }catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}
 }
 async function loadLog(){

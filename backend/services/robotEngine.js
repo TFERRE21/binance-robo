@@ -611,6 +611,39 @@ async function analyze(client,symbol,market,interval,version='premium'){
 async function openCount(userId,accountId,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT COUNT(*)::int AS count FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN'`,[userId,accountId,robotId]); return num(r.rows[0]?.count); }
 async function existingSymbol(userId,accountId,symbol,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND symbol=$4 AND status='OPEN' LIMIT 1`,[userId,accountId,robotId,symbol]); return !!r.rows.length; }
 
+function quickTakeProfit(setup){
+  // O alvo do modo rápido é decidido pelo próprio robô:
+  // 1.0% a 2.5% conforme a força do sinal.
+  const score=num(setup?.score);
+  const volume=num(setup?.volumeRatio);
+  const r=num(setup?.rsi);
+  let tp=1.0;
+
+  if(score>=7) tp=2.5;
+  else if(score>=6) tp=2.0;
+  else if(score>=5) tp=1.5;
+
+  // Volume muito acima da média permite manter o alvo maior.
+  if(volume>=2.0 && score>=5) tp=Math.min(2.5,tp+0.5);
+
+  // Evita exigir alvo agressivo quando o RSI já está muito próximo do limite.
+  if(r>=67) tp=Math.min(tp,1.5);
+
+  return Math.max(1,Math.min(2.5,Number(tp.toFixed(2))));
+}
+
+function quickOperationLimit(setups,planMax){
+  // O robô decide quantas posições abrir de acordo com a qualidade real
+  // das oportunidades encontradas. Nunca abre só para preencher slots.
+  const max=Math.max(1,Number(planMax)||1);
+  if(!setups.length) return 0;
+
+  const strong=setups.filter(s=>num(s.score)>=5);
+  if(max>=3 && setups.length>=3 && strong.length>=3 && num(setups[0].score)>=6) return 3;
+  if(max>=2 && setups.length>=2 && strong.length>=2) return 2;
+  return 1;
+}
+
 async function buy(userId,account,config,symbol,robotId=1){
   const client=clientFor(account);
   const info=await client.exchangeInfo();
@@ -711,14 +744,14 @@ async function buy(userId,account,config,symbol,robotId=1){
   qty=roundDown(Math.min(executedQty,free||executedQty),step);
   if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
 
-  const tp=roundPrice(buyPrice*(1+num(config.take_profit)/100),tick);
+  const takeProfit=num(config._quickTakeProfit)>0 ? num(config._quickTakeProfit) : num(config.take_profit);\n  const tp=roundPrice(buyPrice*(1+takeProfit/100),tick);
   const stop=roundPrice(buyPrice*(1-num(config.stop_loss)/100),tick);
 
   let tpOrder=null;
   try{
     tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
     robotLog(userId,account.id,
-      `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${num(config.take_profit)}%`
+      `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${takeProfit}%`
     );
   }catch(e){
     // A COMPRA já foi executada. Falha ao criar o TP não pode apagar a operação
@@ -748,34 +781,50 @@ async function buy(userId,account,config,symbol,robotId=1){
 }
 
 async function executeApprovedSetups(userId,account,config,setups,robotId=1){
-  const limit=Math.max(1,Number(config.max_operations)||1);
+  const planLimit=Math.max(1,Number(config.max_operations)||1);
+  const decidedLimit=Math.min(planLimit,quickOperationLimit(setups,planLimit));
   let open=await openCount(userId,account.id,robotId);
 
   const resultSummary={
     executed:0,
     failed:0,
-    retryableBalance:false
+    retryableBalance:false,
+    decidedOperations:decidedLimit
   };
 
-  if(open>=limit){
-    robotLog(userId,account.id,robotId,`ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas já abertas.`);
+  if(open>=decidedLimit){
+    robotLog(userId,account.id,robotId,
+      `ENTRADAS BLOQUEADAS | ${open}/${decidedLimit} posições decididas pelo robô já estão abertas.`
+    );
     return resultSummary;
   }
 
+  robotLog(userId,account.id,robotId,
+    `DECISÃO DO ROBÔ RÁPIDO | oportunidades aprovadas=${setups.length} | operações escolhidas=${decidedLimit} | limite do plano=${planLimit}`
+  );
+
   for(const setup of setups){
-    if(open>=limit)break;
+    if(open>=decidedLimit)break;
 
     if(await existingSymbol(userId,account.id,setup.symbol,robotId)){
       robotLog(userId,account.id,robotId,`${setup.symbol} | NÃO COMPRAR | já existe operação aberta nesse ativo.`);
       continue;
     }
 
+    const takeProfit=quickTakeProfit(setup);
+    const configForTrade={...config,_quickTakeProfit:takeProfit};
+
     try{
-      const result=await buy(userId,account,config,setup.symbol,robotId);
+      robotLog(userId,account.id,robotId,
+        `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)} | força=${num(setup.volumeRatio).toFixed(2)}x | TP DECIDIDO=${takeProfit}%`
+      );
+
+      const result=await buy(userId,account,configForTrade,setup.symbol,robotId);
       open++;
       resultSummary.executed++;
+
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | próxima saída automática no TP${config.stop_loss_active?' ou SL':''}.`
+        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | alvo automático=+${takeProfit}% | saída automática ativa.`
       );
     }catch(e){
       resultSummary.failed++;
@@ -1204,7 +1253,7 @@ async function loop(userId,accountId,robotId=1){
             userId,
             account.id,
             robotId,
-            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${config.take_profit}% | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operações=${open}/${limit}`
+            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${String(config.strategy_version).toLowerCase()==='rapido'?'AUTOMÁTICO 1%–2,5%':config.take_profit+'%'} | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operações abertas=${open}/${limit}`
           );
 
           /*
@@ -1364,7 +1413,7 @@ async function start(userId,accountId,robotId=1){
 
   await db.query(
     `INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,'INFO',$4)`,
-    [userId,accountId,robotId,`ROBO VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | configuração ativa | entrada=${num(c.entry_percent)}% | TP=${num(c.take_profit)}% | SL=${c.stop_loss_active?'ATIVO':'DESATIVADO'} | intervalo=${c.interval}`]
+    [userId,accountId,robotId,`ROBO VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | configuração ativa | entrada=${num(c.entry_percent)}% | TP=${String(c.strategy_version).toLowerCase()==='rapido'?'AUTOMÁTICO 1%–2,5%':num(c.take_profit)+'%'} | SL=${c.stop_loss_active?'ATIVO':'DESATIVADO'} | intervalo=${c.interval}`]
   );
   console.log(`[ROBO] VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | usuário=${userId} | conta=${accountId}`);
 

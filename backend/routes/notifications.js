@@ -1,6 +1,7 @@
 const express = require("express");
 const authMiddleware = require("../middleware/auth");
 const notifications = require("../services/notificationService");
+const robotEngine = require("../services/robotEngine");
 
 const router = express.Router();
 
@@ -57,26 +58,23 @@ router.post("/test", authMiddleware, async (req,res) => {
   try {
     await notifications.ensureSchema();
 
-    let body = "🤖 Robô: ativo | 📊 Mercado: monitorando | 📈 BTC: consultando...";
-    try {
-      const response = await fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT");
-      const data = await response.json();
-      const pct = Number(data?.priceChangePercent);
-      if(Number.isFinite(pct)){
-        const mercado = pct >= 2 ? "📈 Mercado favorável" : pct <= -2 ? "📉 Mercado em queda" : "📊 Mercado estável";
-        body = "🤖 Robô: ativo | " + mercado + " | BTC 24h: " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "% | ⏰ Resumo diário: 08:00 e 20:00.";
-      }
-    } catch(e) {}
-    try {
-      const db = require("../services/db");
-      const result = await db.query("SELECT DISTINCT user_id FROM push_subscriptions WHERE user_id=$1", [req.user.id]);
-      if (!result.rows.length) {
-        return res.status(400).json({
-          success:false,
-          message:"❌ Este celular ainda não está cadastrado para Push. Clique em 📲 ATIVAR NO CELULAR."
-        });
-      }
-    } catch(e) {}
+    const resumo = await robotEngine.getNotificationSummary(req.user.id);
+
+    const moedas = resumo.open.length
+      ? resumo.open.slice(0,6).map(o=>{
+          const s=o.pnlUsdt>=0?"+":"-";
+          return o.symbol+" "+s+"US$ "+Math.abs(o.pnlUsdt).toFixed(2);
+        }).join(" | ")
+      : "Nenhuma moeda em operação";
+
+    const body =
+      "🤖 Robô: "+(resumo.openCount>0?"OPERANDO":"ATIVO")+
+      "\n💰 Saldo: R$ "+resumo.totalBrl.toFixed(2)+" | US$ "+resumo.totalUsdt.toFixed(2)+
+      "\n📊 Resultado 24h: "+(resumo.combined24h>=0?"+":"-")+"US$ "+Math.abs(resumo.combined24h).toFixed(2)+
+      " | Operações abertas: "+resumo.openCount+
+      "\n🪙 Compradas: "+moedas+
+      "\n💵 Realizado 24h: "+(resumo.realized24h>=0?"+":"-")+"US$ "+Math.abs(resumo.realized24h).toFixed(2)+
+      " | P/L aberto: "+(resumo.unrealized>=0?"+":"-")+"US$ "+Math.abs(resumo.unrealized).toFixed(2);
 
     const result = await notifications.notifyUser(
       req.user.id,
@@ -97,12 +95,12 @@ router.post("/test", authMiddleware, async (req,res) => {
 
     return res.json({
       success:true,
-      message:"✅ Resumo de teste enviado para o celular.",
+      message:"✅ Resumo completo de teste enviado para o celular.",
       diagnostics:{push}
     });
   } catch (error) {
     console.error("NOTIFICATION TEST:",error);
-    return res.status(500).json({success:false,message:"Não foi possível enviar o teste."});
+    return res.status(500).json({success:false,message:"Não foi possível gerar o resumo de teste: "+(error.message||"erro")});
   }
 });
 

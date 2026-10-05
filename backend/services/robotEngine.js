@@ -1161,29 +1161,30 @@ async function scanByProfile(userId,account,config,robotId=1){
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por market cap selecionadas.`);
     market=await marketFilter(client);
     robotLog(userId,account.id,robotId,`FILTRO BTC | score=${fmtNum(market.score)} | mínimo=${strategy.marketMinScore} | favorável=${market.favoravel?'SIM':'NÃO'} | aquecido=${market.quente?'SIM':'NÃO'}`);
+  }
 
-    try {
-      const ticker = await client.dailyStats({symbol:'BTCUSDT'});
-      const change = Number(ticker?.priceChangePercent || 0);
-      const stateKey = userId + ':' + account.id + ':' + robotId;
-      const previous = marketAlertState.get(stateKey);
-      const direction = change >= 2 ? 'up' : change <= -2 ? 'down' : 'neutral';
-      const now = Date.now();
-      const shouldNotify = !previous ||
-        (direction !== previous.direction && direction !== 'neutral') ||
-        Math.abs(Number(market.score) - Number(previous.score || 0)) >= 2;
-      const cooldownOk = !previous || now - previous.at > 30 * 60 * 1000;
-      if (shouldNotify && cooldownOk && direction !== 'neutral') {
-        const title = direction === 'up' ? '📈 BTC em alta' : '📉 BTC em queda';
-        const body = `BTC 24h: ${change >= 0 ? '+' : ''}${change.toFixed(2)}% | filtro de mercado: score ${market.score} | favorável: ${market.favoravel ? 'SIM' : 'NÃO'}`;
-        notificationService.notifyUser(userId,'market',title,body,{url:'/dashboard.html',tag:'market-btc'}).catch(e=>console.error('[NOTIFICATION MARKET]:',e.message||e));
-        marketAlertState.set(stateKey,{direction,score:market.score,at:now});
-      } else if (!previous) {
-        marketAlertState.set(stateKey,{direction,score:market.score,at:now});
-      }
-    } catch (e) {
-      console.error('[MARKET NOTIFICATION]:',e.message||e);
+  // Alertas de mercado funcionam em todas as estratégias, inclusive Operações Rápidas.
+  try {
+    const ticker = await client.dailyStats({symbol:'BTCUSDT'});
+    const change = Number(ticker?.priceChangePercent || 0);
+    const stateKey = userId + ':' + account.id + ':' + robotId;
+    const previous = marketAlertState.get(stateKey);
+    const direction = change >= 2 ? 'up' : change <= -2 ? 'down' : 'neutral';
+    const now = Date.now();
+    const shouldNotify = !previous ||
+      (direction !== previous.direction && direction !== 'neutral') ||
+      Math.abs(Number(market.score) - Number(previous.score || 0)) >= 2;
+    const cooldownOk = !previous || now - previous.at > 30 * 60 * 1000;
+    if (shouldNotify && cooldownOk && direction !== 'neutral') {
+      const title = direction === 'up' ? '📈 BTC em alta' : '📉 BTC em queda';
+      const body = `BTC 24h: ${change >= 0 ? '+' : ''}${change.toFixed(2)}% | filtro de mercado: score ${market.score} | favorável: ${market.favoravel ? 'SIM' : 'NÃO'}`;
+      notificationService.notifyUser(userId,'market',title,body,{url:'/dashboard.html',tag:'market-btc'}).catch(e=>console.error('[NOTIFICATION MARKET]:',e.message||e));
+      marketAlertState.set(stateKey,{direction,score:market.score,at:now});
+    } else if (!previous) {
+      marketAlertState.set(stateKey,{direction,score:market.score,at:now});
     }
+  } catch (e) {
+    console.error('[MARKET NOTIFICATION]:',e.message||e);
   }
 
   if(!market.favoravel || market.score<strategy.marketMinScore){

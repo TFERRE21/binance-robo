@@ -1,6 +1,8 @@
 const Binance = require('binance-api-node').default;
 const db = require('../services/db');
 const cryptoService = require('../services/cryptoService');
+const notificationService = require('./notificationService');
+const marketAlertState = new Map();
 
 const runners = new Map();
 let schemaReady = false;
@@ -837,6 +839,8 @@ async function buy(userId,account,config,symbol,robotId=1){
     `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder?tpOrder.orderId:'PENDENTE'} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
+  notificationService.notifyUser(userId,'buy','🟢 COMPRA EXECUTADA',`${symbol} comprado a ${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT | alvo=+${takeProfit}%`,{url:'/dashboard.html',tag:'trade-buy-'+symbol}).catch(e=>console.error('[NOTIFICATION BUY]:',e.message||e));
+
   return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder?tpOrder.orderId:null,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
 }
 
@@ -917,6 +921,8 @@ async function closeOperationResult(op,exitPrice,reason){
      WHERE id=$5`,
     [reason,exit||null,pct,usdt,op.id]
   );
+
+  notificationService.notifyUser(op.user_id,'sell',reason === 'STOP' ? '🔴 VENDA / STOP LOSS' : '🟢 VENDA / TAKE PROFIT',`${op.symbol} vendido a ${exit} | resultado=${pct===null?'—':pct.toFixed(2)+'%'} | ${usdt===null?'':(usdt>=0?'+':'')+usdt.toFixed(4)+' USDT'}`,{url:'/dashboard.html',tag:'trade-sell-'+op.symbol}).catch(e=>console.error('[NOTIFICATION SELL]:',e.message||e));
 
   return {exitPrice:exit,pct,usdt};
 }

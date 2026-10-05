@@ -277,6 +277,11 @@ body.dark .footer{border-color:rgba(255,255,255,.07);color:#4e6073}
           <input type="email" id="email" name="email" placeholder="seu@email.com" autocomplete="email" required>
         </div>
         <div class="form-group">
+          <label for="whatsapp" data-pt="WhatsApp para alertas" data-en="WhatsApp for alerts">WhatsApp para alertas</label>
+          <input type="tel" id="whatsapp" name="whatsapp" placeholder="+55 61 99931-1160" autocomplete="tel" inputmode="tel" required>
+          <small style="display:block;margin-top:6px;color:#64748b;">Receba avisos de compra, venda e movimentos importantes do mercado.</small>
+        </div>
+        <div class="form-group">
           <label for="password" data-pt="Senha" data-en="Password">Senha</label>
           <div class="password-wrap">
             <input type="password" id="password" name="password" placeholder="Crie uma senha" autocomplete="new-password" minlength="8" required>
@@ -577,6 +582,11 @@ registerForm.addEventListener(
         "password"
       ).value;
 
+    const whatsapp =
+      document.getElementById(
+        "whatsapp"
+      ).value.trim();
+
 
     const confirmPassword =
       document.getElementById(
@@ -698,7 +708,9 @@ registerForm.addEventListener(
 
                 email:email,
 
-                password:password
+                password:password,
+
+                whatsapp:whatsapp
 
               })
 

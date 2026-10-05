@@ -774,6 +774,54 @@ select.plan-locked{
 .robot-slot-status.locked{color:#718096;background:rgba(113,128,150,.08)}
 .robot-selected{border-color:rgba(240,185,11,.65)!important;box-shadow:0 0 0 1px rgba(240,185,11,.15)}
 
+
+/* CENTRAL DE NOTIFICAÇÕES — painel principal */
+#notificationsCard{
+  margin:20px 0;
+  padding:18px;
+  border:1px solid rgba(240,185,11,.22);
+  background:linear-gradient(135deg,rgba(240,185,11,.045),rgba(255,255,255,.025));
+  border-radius:14px;
+}
+#notificationsCard h2{font-size:15px;font-weight:900;margin-bottom:6px}
+#notificationsCard p{color:#8c98a9;font-size:11px;line-height:1.5}
+.notification-options{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px;
+  margin-top:14px;
+}
+.notification-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.025);
+  border-radius:10px;
+  color:#dfe6ef;
+  font-size:10px;
+  font-weight:800;
+  cursor:pointer;
+}
+.notification-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.notification-actions button{
+  border:1px solid rgba(240,185,11,.3);
+  background:rgba(240,185,11,.08);
+  color:#f0b90b;
+  border-radius:9px;
+  padding:10px 14px;
+  font-size:10px;
+  font-weight:900;
+}
+.notification-actions button:hover{background:rgba(240,185,11,.14)}
+.notification-message{margin-top:12px;font-size:10px;line-height:1.5}
+.notification-message.success{color:#6ff0b5}
+.notification-message.error{color:#ff9aa8}
+@media(max-width:700px){
+  .header-right{gap:6px;overflow-x:auto;padding-bottom:2px}
+  #notificationsTopButton{white-space:nowrap}
+}
 </style>
 
 <style id="cp-theme-css-v2">
@@ -941,6 +989,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div class="status"><span class="status-dot"></span>ONLINE</div>
     <button class="top-btn" onclick="voltarPlanos()">← Voltar</button>
     <button class="top-btn" type="button" onclick="window.location.href='/suporte.html?origem=%2Findex.html'">🎫 Meus Chamados</button>
+    <button class="top-btn" id="notificationsTopButton" type="button">🔔 Notificações</button>
     <button class="top-btn admin-btn" id="adminPanelBtn" type="button" onclick="window.location.href='/admin.html'">🛡️ PAINEL ADM</button>
     <button class="top-btn cp-theme-toggle" id="cpThemeToggleV2" type="button">🌙 Escuro</button>
     <select class="language" id="language" onchange="changeLanguage()">
@@ -1179,6 +1228,25 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <button class="module" data-module="pnl" onclick="openModule('pnl')"><div class="module-icon">📊</div><div class="module-title">P/L</div><div class="module-desc">Lucro e prejuízo aberto e realizado.</div><span class="module-status">● ATIVO</span></button>
     <button class="module" data-module="reports" onclick="openReports()"><div class="module-icon">📄</div><div class="module-title">Relatórios</div><div class="module-desc">Escolha o período e gere/imprima o relatório.</div><span class="module-status">● PERÍODO</span></button>
   </div>
+</section>
+
+<section id="notificationsCard">
+  <div>
+    <h2>🔔 Notificações do Robô</h2>
+    <p>Receba no celular alertas de compra, venda e movimentos importantes do mercado.</p>
+  </div>
+  <div class="notification-options">
+    <label class="notification-option"><input id="notifyPush" type="checkbox"> 📱 Notificações no celular</label>
+    <label class="notification-option"><input id="notifyBuy" type="checkbox"> 🟢 Alertas de compra</label>
+    <label class="notification-option"><input id="notifySell" type="checkbox"> 🔴 Alertas de venda</label>
+    <label class="notification-option"><input id="notifyMarket" type="checkbox"> 📈📉 Mercado subindo/caindo</label>
+  </div>
+  <div class="notification-actions">
+    <button id="saveNotificationButton" type="button">💾 SALVAR NOTIFICAÇÕES</button>
+    <button id="enablePushButton" type="button">📲 ATIVAR NO CELULAR</button>
+    <button id="testNotificationButton" type="button">🔔 TESTAR ALERTA</button>
+  </div>
+  <div id="notificationMessage" class="notification-message"></div>
 </section>
 </main>
 
@@ -4207,6 +4275,142 @@ init();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initThemeButton);
   else initThemeButton();
+})();
+</script>
+
+<script>
+(function(){
+  const notificationToken = localStorage.getItem("token");
+
+  function notificationApi(url, options={}){
+    return fetch(url, {
+      ...options,
+      headers:{
+        ...(options.headers || {}),
+        "Authorization":"Bearer " + notificationToken,
+        "Content-Type":"application/json"
+      },
+      cache:"no-store"
+    });
+  }
+
+  function uint8FromBase64Url(base64){
+    const padding="=".repeat((4-base64.length%4)%4);
+    const raw=atob((base64+padding).replace(/-/g,"+").replace(/_/g,"/"));
+    const out=new Uint8Array(raw.length);
+    for(let i=0;i<raw.length;i++) out[i]=raw.charCodeAt(i);
+    return out;
+  }
+
+  function notificationMessage(text, type){
+    const el=document.getElementById("notificationMessage");
+    if(!el) return;
+    el.textContent=text || "";
+    el.className="notification-message" + (type ? " " + type : "");
+  }
+
+  async function loadCriptoProNotifications(){
+    try{
+      const r=await notificationApi("/api/notifications/preferences");
+      const d=await r.json();
+      if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível carregar as preferências.");
+      const p=d.preferences || {};
+      const push=document.getElementById("notifyPush");
+      const buy=document.getElementById("notifyBuy");
+      const sell=document.getElementById("notifySell");
+      const market=document.getElementById("notifyMarket");
+      if(push) push.checked=p.push_enabled !== false;
+      if(buy) buy.checked=p.buy_alert !== false;
+      if(sell) sell.checked=p.sell_alert !== false;
+      if(market) market.checked=p.market_alert !== false;
+    }catch(e){
+      notificationMessage(e.message,"error");
+    }
+  }
+
+  async function saveCriptoProNotifications(){
+    const r=await notificationApi("/api/notifications/preferences",{
+      method:"PUT",
+      body:JSON.stringify({
+        pushEnabled:document.getElementById("notifyPush")?.checked !== false,
+        whatsappEnabled:false,
+        buyAlert:document.getElementById("notifyBuy")?.checked !== false,
+        sellAlert:document.getElementById("notifySell")?.checked !== false,
+        marketAlert:document.getElementById("notifyMarket")?.checked !== false
+      })
+    });
+    const d=await r.json();
+    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível salvar.");
+    notificationMessage("Preferências de notificações salvas.","success");
+  }
+
+  async function enableCriptoProPush(){
+    if(!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)){
+      throw new Error("Seu navegador não suporta notificações push.");
+    }
+
+    const keyResponse=await notificationApi("/api/notifications/vapid-public-key");
+    const keyData=await keyResponse.json();
+    if(!keyResponse.ok || !keyData.success){
+      throw new Error(keyData.message || "Push ainda não configurado no servidor.");
+    }
+
+    const permission=await Notification.requestPermission();
+    if(permission!=="granted") throw new Error("Permissão de notificações não concedida.");
+
+    const registration=await navigator.serviceWorker.register("/sw.js");
+    let subscription=await registration.pushManager.getSubscription();
+
+    if(!subscription){
+      subscription=await registration.pushManager.subscribe({
+        userVisibleOnly:true,
+        applicationServerKey:uint8FromBase64Url(keyData.publicKey)
+      });
+    }
+
+    const r=await notificationApi("/api/notifications/push/subscribe",{
+      method:"POST",
+      body:JSON.stringify({subscription})
+    });
+    const d=await r.json();
+    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível ativar o push.");
+
+    const push=document.getElementById("notifyPush");
+    if(push) push.checked=true;
+    notificationMessage("Notificações do celular ativadas.","success");
+  }
+
+  async function testCriptoProNotification(){
+    const r=await notificationApi("/api/notifications/test",{method:"POST",body:"{}"});
+    const d=await r.json();
+    if(!r.ok || !d.success) throw new Error(d.message || "Não foi possível enviar o teste.");
+    notificationMessage(d.message || "Teste enviado.","success");
+  }
+
+  function setupCriptoProNotifications(){
+    const top=document.getElementById("notificationsTopButton");
+    const card=document.getElementById("notificationsCard");
+    if(top && card){
+      top.addEventListener("click",()=>card.scrollIntoView({behavior:"smooth",block:"start"}));
+    }
+
+    const save=document.getElementById("saveNotificationButton");
+    const enable=document.getElementById("enablePushButton");
+    const test=document.getElementById("testNotificationButton");
+
+    if(save) save.addEventListener("click",()=>saveCriptoProNotifications().catch(e=>notificationMessage(e.message,"error")));
+    if(enable) enable.addEventListener("click",()=>enableCriptoProPush().catch(e=>notificationMessage(e.message,"error")));
+    if(test) test.addEventListener("click",()=>testCriptoProNotification().catch(e=>notificationMessage(e.message,"error")));
+
+    loadCriptoProNotifications();
+  }
+
+  window.setupCriptoProNotifications=setupCriptoProNotifications;
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",setupCriptoProNotifications);
+  }else{
+    setupCriptoProNotifications();
+  }
 })();
 </script>
 </body>

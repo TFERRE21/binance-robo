@@ -310,6 +310,36 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
 
 
       <!-- =====================================================
+           NOTIFICAÇÕES
+      ====================================================== -->
+      <section class="dashboard-card" id="notificationsCard">
+        <div class="section-header">
+          <div>
+            <h2>🔔 Notificações do Robô</h2>
+            <p>Receba alertas de compra, venda e movimentos importantes do mercado no celular e no WhatsApp.</p>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="notificationWhatsapp">WhatsApp para alertas</label>
+          <input id="notificationWhatsapp" type="tel" placeholder="+55 61 99931-1160" autocomplete="tel" inputmode="tel">
+          <small style="display:block;margin-top:6px;color:#9aa4b2;">Use o número com DDI. Ex.: +55 61 99931-1160</small>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px;">
+          <label class="balance-card" style="cursor:pointer;"><input id="notifyPush" type="checkbox" style="margin-right:8px;"> 📱 Notificações no celular</label>
+          <label class="balance-card" style="cursor:pointer;"><input id="notifyWhatsApp" type="checkbox" style="margin-right:8px;"> 💬 Alertas no WhatsApp</label>
+          <label class="balance-card" style="cursor:pointer;"><input id="notifyBuy" type="checkbox" style="margin-right:8px;"> 🟢 Compra</label>
+          <label class="balance-card" style="cursor:pointer;"><input id="notifySell" type="checkbox" style="margin-right:8px;"> 🔴 Venda</label>
+          <label class="balance-card" style="cursor:pointer;"><input id="notifyMarket" type="checkbox" style="margin-right:8px;"> 📈📉 Mercado subindo/caindo</label>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+          <button id="saveNotificationButton" class="btn-login" type="button">💾 SALVAR NOTIFICAÇÕES</button>
+          <button id="enablePushButton" class="btn-login" type="button">📲 ATIVAR NO CELULAR</button>
+          <button id="testNotificationButton" class="btn-login" type="button">🔔 TESTAR ALERTA</button>
+        </div>
+        <div id="notificationMessage" class="message" style="margin-top:12px;"></div>
+      </section>
+
+      <!-- =====================================================
            SEGURANÇA
       ====================================================== -->
 

@@ -1850,16 +1850,35 @@ async function enviarResumoAutomatico(){
         const saldoBrl = "R$ "+resumo.totalBrl.toFixed(2);
         const saldoUsd = "US$ "+resumo.totalUsdt.toFixed(2);
 
+        const contasTexto = resumo.accounts.length
+          ? resumo.accounts.map(a =>
+              "🏦 "+a.name+": R$ "+a.totalBrl.toFixed(2)+" | US$ "+a.totalUsdt.toFixed(2)+
+              (a.realized24h!==0 ? " | 24h "+(a.realized24h>=0?"+":"-")+"US$ "+Math.abs(a.realized24h).toFixed(2) : "")
+            ).join("\n")
+          : "Nenhuma conta Binance ativa";
+
+        const melhor = resumo.bestTrade
+          ? "🏆 Melhor 24h: "+resumo.bestTrade.symbol+" "+(resumo.bestTrade.resultUsdt>=0?"+":"-")+"US$ "+Math.abs(resumo.bestTrade.resultUsdt).toFixed(2)
+          : "🏆 Melhor 24h: sem operações encerradas";
+
+        const pior = resumo.worstTrade
+          ? "⚠️ Pior 24h: "+resumo.worstTrade.symbol+" "+(resumo.worstTrade.resultUsdt>=0?"+":"-")+"US$ "+Math.abs(resumo.worstTrade.resultUsdt).toFixed(2)
+          : "";
+
         const body =
-          "🤖 Robô: "+(resumo.openCount>0?"OPERANDO":"ATIVO")+
+          "👤 "+resumo.userName+
+          "\n🤖 Robô: "+(resumo.openCount>0?"OPERANDO":"ATIVO")+
           " | "+mercado+
           (btc!==null ? " | BTC 24h: "+(btc>=0?"+":"")+btc.toFixed(2)+"%" : "")+
-          "\n💰 Saldo: "+saldoBrl+" | "+saldoUsd+
+          "\n💰 Saldo total: "+saldoBrl+" | "+saldoUsd+
           "\n📊 Resultado 24h: "+resultadoTexto+
           " | Operações abertas: "+resumo.openCount+
           "\n🪙 Compradas: "+moedas+
-          "\n💵 Lucro realizado 24h: "+(resumo.realized24h>=0?"+":"-")+"US$ "+Math.abs(resumo.realized24h).toFixed(2)+
-          " | P/L aberto: "+(resumo.unrealized>=0?"+":"-")+"US$ "+Math.abs(resumo.unrealized).toFixed(2);
+          "\n💵 Realizado 24h: "+(resumo.realized24h>=0?"+":"-")+"US$ "+Math.abs(resumo.realized24h).toFixed(2)+
+          " | P/L aberto: "+(resumo.unrealized>=0?"+":"-")+"US$ "+Math.abs(resumo.unrealized).toFixed(2)+
+          "\n"+contasTexto+
+          "\n"+melhor+
+          (pior ? "\n"+pior : "");
 
         await notificationService.notifyUser(
           row.user_id,

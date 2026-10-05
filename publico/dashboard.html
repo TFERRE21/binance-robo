@@ -17,6 +17,14 @@
     href="css/style.css"
   >
 
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="theme-color" content="#07111f">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="CriptoPro">
+
+
 <!-- Meta Pixel Code -->
 <script>
 !function(f,b,e,v,n,t,s)
@@ -59,6 +67,8 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
 
       </div>
 
+
+      <button id="installAppButton" class="btn-login" type="button" style="margin-right:10px;display:none;" onclick="installCriptoPro()">📲 Instalar no celular</button>
 
       <button
         id="quickOperationsTopButton"
@@ -664,6 +674,14 @@ src="https://www.facebook.com/tr?id=1869366867779995&ev=PageView&noscript=1"
     if(!d.allowed) card.style.display="none";
   }catch(e){}
 })();
+</script>
+
+<script>
+let deferredInstallPrompt=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstallPrompt=e;const b=document.getElementById('installAppButton');if(b)b.style.display='inline-block';});
+async function installCriptoPro(){if(!deferredInstallPrompt){alert('No Android/Chrome, abra o menu ⋮ e escolha "Instalar aplicativo" ou "Adicionar à tela inicial".');return;}deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;const b=document.getElementById('installAppButton');if(b)b.style.display='none';}
+window.addEventListener('appinstalled',()=>{const b=document.getElementById('installAppButton');if(b)b.style.display='none';});
+if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(console.error));
 </script>
 </body>
 

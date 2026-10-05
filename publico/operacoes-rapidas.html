@@ -53,7 +53,7 @@
 const token=localStorage.getItem("token");
 if(!token)location.href="/login.html";
 const $=id=>document.getElementById(id);
-let accountId=null, timer=null, currentRunning=false;
+let accountId=null, timer=null, currentRunning=false, quickRobotId=null;
 
 async function api(url,opt={}){
   const r=await fetch(url,{...opt,cache:"no-store",headers:{...(opt.headers||{}),Authorization:"Bearer "+token,"Content-Type":"application/json"}});
@@ -73,13 +73,18 @@ async function loadAccounts(){
 async function refresh(){
   if(!accountId)return;
   try{
-    const [st,b]=await Promise.all([
-      api("/api/robot/status?account="+encodeURIComponent(accountId)+"&robotId=1"),
+    const [robots,b]=await Promise.all([
+      api("/api/robot/instances?account="+encodeURIComponent(accountId)),
       api("/api/binance/accounts/"+encodeURIComponent(accountId)+"/balance")
     ]);
-    currentRunning=!!st.engineRunning;
+    const quick=(robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && r.running);
+    if(quick) quickRobotId=Number(quick.robotId);
+    else if(!currentRunning) quickRobotId=null;
+    currentRunning=!!quick;
+    const st=quick ? quick : null;
+    const opened=(st?.operations||[]).filter(x=>String(x.status||"").toUpperCase()==="OPEN").length;
     $("state").textContent=currentRunning?"🟢 LIGADO":"⚪ PARADO";
-    const opened=(st.operations||[]).filter(x=>String(x.status||"").toUpperCase()==="OPEN").length; $("open").textContent=opened+" / "+$("ops").value;
+    $("open").textContent=opened+" / "+$("ops").value;
     $("balance").textContent=Number(b.balance?.available||0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
     $("status").className="status "+(currentRunning?"ok":"");
     $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
@@ -89,8 +94,10 @@ async function refresh(){
 }
 async function loadLog(){
   try{
-    const st=await api("/api/robot/status?account="+encodeURIComponent(accountId)+"&robotId=1");
-    const lines=st.robotLogs||[];
+    const robots=await api("/api/robot/instances?account="+encodeURIComponent(accountId));
+    const quick=(robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && (r.running||r.engineRunning));
+    if(quick) quickRobotId=Number(quick.robotId);
+    const lines=quick?.robotLogs||[];
     $("log").textContent=Array.isArray(lines)&&lines.length?lines.map(x=>typeof x==="string"?x:(x.created_at||"")+" "+(x.level||"")+" "+(x.message||"")).join("\n"):"Sem logs recentes.";
     $("log").scrollTop=$("log").scrollHeight;
   }catch(e){}
@@ -99,15 +106,20 @@ $("toggle").onclick=async()=>{
   $("toggle").disabled=true;
   try{
     if(currentRunning){
-      await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:1})});
+      await api("/api/robot/stop",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});
+      quickRobotId=null;
     }else{
       const stopLoss=Number($("sl").value);
+      const robots=await api("/api/robot/instances?account="+encodeURIComponent(accountId));
+      const free=(robots.robots||[]).find(r=>!r.running&&!r.engineRunning);
+      if(!free) throw new Error("Todos os robôs permitidos pelo seu plano estão ocupados. Pare um robô antes de iniciar Operações Rápidas.");
+      quickRobotId=Number(free.robotId);
       await api("/api/robot/config",{method:"POST",body:JSON.stringify({
-        accountId,robotId:1,entryPercent:90,takeProfit:Number($("tp").value),
+        accountId,robotId:quickRobotId,entryPercent:90,takeProfit:Number($("tp").value),
         stopLoss,stopLossActive:stopLoss>0,maxOperations:Number($("ops").value),
         interval:$("interval").value,maxCoins:Number($("coins").value),strategyVersion:"rapido"
       })});
-      await api("/api/robot/start",{method:"POST",body:JSON.stringify({accountId,robotId:1})});
+      await api("/api/robot/start",{method:"POST",body:JSON.stringify({accountId,robotId:quickRobotId})});
     }
     await refresh();await loadLog();
   }catch(e){$("status").className="status err";$("status").textContent="🔴 "+e.message}

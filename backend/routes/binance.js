@@ -1295,19 +1295,40 @@ async function obterClienteBinanceSeguro(userId, accountId) {
 }
 
 async function consultarSaldosBrl(apiKey, apiSecret, client) {
-  const [accountInfo, walletBalanceResult] = await Promise.all([
+  const [accountInfo, userAssetResult, fundingResult] = await Promise.all([
     client.accountInfo(),
-    binanceSignedGet(
-      '/sapi/v1/asset/wallet/balance',
+
+    // User Asset é a consulta assinada específica de ativos positivos.
+    binanceSignedPost(
+      '/sapi/v3/asset/getUserAsset',
       apiKey,
       apiSecret,
       {
-        quoteAsset: 'BRL',
-        needBalanceDetail: 'true'
+        asset: 'BRL',
+        needBtcValuation: 'false'
       }
     ).catch((error) => {
       console.warn(
-        '[BRL-USDT] Não foi possível consultar saldos por carteira:',
+        '[BRL-USDT] User Asset BRL não disponível:',
+        error?.message || error
+      );
+      return [];
+    }),
+
+    // Funding Wallet: atualmente a Binance limita este endpoint a
+    // determinados ativos de negócio, mas mantemos a consulta como fonte
+    // adicional caso a conta tenha BRL elegível nessa carteira.
+    binanceSignedPost(
+      '/sapi/v1/asset/get-funding-asset',
+      apiKey,
+      apiSecret,
+      {
+        asset: 'BRL',
+        needBtcValuation: 'false'
+      }
+    ).catch((error) => {
+      console.warn(
+        '[BRL-USDT] Funding BRL não disponível:',
         error?.message || error
       );
       return [];
@@ -1318,23 +1339,33 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
     item => String(item.asset || '').toUpperCase() === 'BRL'
   );
 
-  const wallets = Array.isArray(walletBalanceResult)
-    ? walletBalanceResult
-    : [];
+  const brlUserAsset = Array.isArray(userAssetResult)
+    ? userAssetResult.find(
+        item => String(item.asset || '').toUpperCase() === 'BRL'
+      )
+    : null;
 
-  const fundingWallet = wallets.find(item => {
-    const name = String(item.walletName || item.wallet || '').toUpperCase();
-    return name.includes('FUNDING') || name.includes('FUNDS');
-  });
+  const brlFunding = Array.isArray(fundingResult)
+    ? fundingResult.find(
+        item => String(item.asset || '').toUpperCase() === 'BRL'
+      )
+    : null;
 
-  const spotFree = Number(brlSpot?.free || 0);
-  const fundingFree = Number(fundingWallet?.balance || 0);
+  const spotFree = Math.max(
+    Number(brlSpot?.free || 0),
+    Number(brlUserAsset?.free || 0)
+  );
+
+  const fundingFree = Number(brlFunding?.free || 0);
 
   return {
     spotFree,
     fundingFree,
     available: spotFree + fundingFree,
-    walletType: fundingFree > 0 ? 'FUNDING' : 'SPOT'
+    walletType: fundingFree > 0 ? 'FUNDING' : 'SPOT',
+    source: brlFunding?.free
+      ? 'FUNDING'
+      : (brlUserAsset?.free || brlSpot?.free ? 'SPOT_API' : 'NOT_EXPOSED')
   };
 }
 
@@ -1372,7 +1403,8 @@ router.get(
         total: saldo.available,
         spotFree: saldo.spotFree,
         fundingFree: saldo.fundingFree,
-        wallet: saldo.walletType
+        wallet: saldo.walletType,
+        source: saldo.source
       });
     } catch (error) {
       console.error('[BRL-USDT] ERRO AO CONSULTAR SALDO:', error);

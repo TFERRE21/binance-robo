@@ -598,12 +598,28 @@ function analysisCandleInterval(interval){
   return v;
 }
 
+function atr(values,period=14){
+  if(values.length<period+1)return null;
+  let sum=0;
+  for(let i=values.length-period;i<values.length;i++){
+    const cur=values[i];
+    const prev=values[i-1];
+    const tr=Math.max(
+      num(cur.high)-num(cur.low),
+      Math.abs(num(cur.high)-num(prev.close)),
+      Math.abs(num(cur.low)-num(prev.close))
+    );
+    sum+=tr;
+  }
+  return sum/period;
+}
+
 async function analyze(client,symbol,market,interval,version='premium'){
   const strategy=strategyInfo(version);
   const candleInterval=analysisCandleInterval(interval);
-  const rows=await client.candles({symbol,interval:candleInterval,limit:160});
+  const rows=await client.candles({symbol,interval:candleInterval,limit:180});
   const closed=rows.slice(0,-1);
-  if(closed.length<60)return {valid:false,reason:'Poucos candles'};
+  if(closed.length<70)return {valid:false,reason:'Poucos candles'};
 
   const closes=closed.map(x=>num(x.close));
   const opens=closed.map(x=>num(x.open));
@@ -615,107 +631,239 @@ async function analyze(client,symbol,market,interval,version='premium'){
   const prev=last-1;
   const p=closes[last], o=opens[last], h=highs[last], l=lows[last];
   const prevClose=closes[prev], prevOpen=opens[prev];
-  const e9=ema(closes,9), e21=ema(closes,21);
+
+  const e9=ema(closes,9);
+  const e21=ema(closes,21);
   const r=rsi(closes,14);
+  const rPrev=rsi(closes.slice(0,-1),14);
+  const a=atr(closed,14);
 
   if(!(e9>e21))
     return {valid:false,reason:'Tendência de alta não confirmada (EMA9 <= EMA21)'};
 
+  /*
+   * A entrada agora é tratada como uma sequência:
+   * tendência -> recuo -> reação -> confirmação.
+   * O robô não compra simplesmente porque EMA/RSI ficaram positivos.
+   */
   let score=2;
 
-  // Distância controlada: não compra depois de uma vela já muito esticada.
+  // 1) Preço perto da estrutura, sem comprar muito esticado.
   const dist=(p-e21)/e21;
   if(dist>strategy.maxDist)
     return {valid:false,reason:`Preço esticado ${(dist*100).toFixed(2)}% acima da EMA21`};
-  if(dist<=strategy.maxDist) score++;
+  if(dist<=strategy.maxDist)score++;
 
-  if(r>=strategy.rsiMin&&r<=strategy.rsiMax) score++;
-  else if(r>strategy.rsiMax+4)
+  // 2) RSI dentro de uma zona saudável e, de preferência, retomando.
+  if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
+  else if(r>strategy.rsiMax+5)
     return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
 
-  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length);
-  const vr=avgVol?volumes[last]/avgVol:0;
-  if(vr>=strategy.volumeMin) score++;
+  if(Number.isFinite(rPrev)&&r>rPrev)score++;
 
-  // Candle de confirmação: corpo positivo e fechamento acima da abertura.
+  // 3) Volume acima da média, sem exigir explosão para entradas de pullback.
+  const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/
+    Math.max(1,volumes.slice(-21,-1).length);
+  const vr=avgVol?volumes[last]/avgVol:0;
+  if(vr>=strategy.volumeMin)score++;
+  if(vr>=strategy.volumeMin*1.35)score++;
+
+  // 4) Qualidade da vela atual.
   const bullish=p>o;
   const body=Math.abs(p-o);
   const range=Math.max(0.0000000001,h-l);
   const bullishBodyRatio=body/range;
-  if(bullish){
-    score++;
-    if(bullishBodyRatio>=0.35) score++;
+  const upperWick=h-Math.max(o,p);
+  const lowerWick=Math.min(o,p)-l;
+
+  if(bullish)score++;
+  if(bullish&&bullishBodyRatio>=0.35)score++;
+
+  // Evita comprar uma vela anormalmente grande no próprio topo.
+  const candleAtrRatio=a>0?range/a:0;
+  const explosiveCandle=candleAtrRatio>=2.20;
+  if(explosiveCandle && !bullishBodyRatio>=0.55)
+    return {valid:false,reason:`Vela muito esticada: ${candleAtrRatio.toFixed(2)} ATR`};
+
+  // 5) Pullback de verdade:
+  // procuramos um recuo recente até EMA9/EMA21 e exigimos retomada.
+  const pullStart=Math.max(0,last-6);
+  const pullLows=lows.slice(pullStart,last);
+  const pullCloses=closes.slice(pullStart,last);
+  const minRecentLow=Math.min(...pullLows);
+  const recentLowIndex=pullStart+pullLows.indexOf(minRecentLow);
+
+  const touchedE21=minRecentLow<=e21*1.015;
+  const touchedE9=minRecentLow<=e9*1.018;
+  const pullbackZone=touchedE21||touchedE9;
+
+  const priorNearEma=
+    pullCloses.length>0 &&
+    pullCloses.some(v=>v<=e9*1.015 || v<=e21*1.012);
+
+  const reclaimedE9=p>=e9*0.998;
+  const reclaimedE21=p>=e21;
+  const pullbackConfirmed=
+    pullbackZone &&
+    priorNearEma &&
+    reclaimedE9 &&
+    reclaimedE21 &&
+    bullish &&
+    bullishBodyRatio>=0.30;
+
+  if(pullbackConfirmed)score+=2;
+
+  // O melhor pullback é aquele em que a vela atual recupera o nível
+  // depois de uma mínima recente, sem exigir que a moeda toque exatamente a EMA.
+  const pullbackDepth=e21>0?(e21-minRecentLow)/e21:0;
+  const cleanPullback=
+    pullbackConfirmed &&
+    pullbackDepth>=-0.005 &&
+    pullbackDepth<=0.045;
+
+  if(cleanPullback)score++;
+
+  // 6) Recuperação curta da EMA9: mantém o Robô 1 ativo sem liberar
+  // qualquer breakout aleatório.
+  const previousBelowOrNearE9=prevClose<=e9*1.008;
+  const recovery=
+    previousBelowOrNearE9 &&
+    p>e9 &&
+    bullish &&
+    bullishBodyRatio>=0.28 &&
+    !explosiveCandle;
+
+  if(recovery)score++;
+
+  // 7) Breakout atual: permitido apenas com volume e sem vela explosiva.
+  const breakoutHigh=Math.max(...highs.slice(-9,-1));
+  const breakout=
+    p>breakoutHigh &&
+    vr>=strategy.breakoutVolume &&
+    bullish &&
+    bullishBodyRatio>=0.40 &&
+    !explosiveCandle;
+
+  if(breakout)score+=2;
+
+  /*
+   * 8) RETESTE VERDADEIRO:
+   * primeiro precisamos encontrar um rompimento em uma vela anterior;
+   * só depois aceitamos a vela atual testando o nível e fechando acima dele.
+   */
+  let retest=false;
+  let retestLevel=0;
+  let breakoutAge=0;
+
+  const searchFrom=Math.max(10,last-6);
+  for(let i=last-2;i>=searchFrom;i--){
+    const priorHigh=Math.max(...highs.slice(Math.max(0,i-8),i));
+    const breakVolumeAvg=volumes.slice(Math.max(0,i-21),i)
+      .reduce((sum,v)=>sum+v,0)/
+      Math.max(1,volumes.slice(Math.max(0,i-21),i).length);
+    const breakVr=breakVolumeAvg?volumes[i]/breakVolumeAvg:0;
+
+    if(
+      priorHigh>0 &&
+      closes[i]>priorHigh &&
+      breakVr>=Math.max(1.15,strategy.breakoutVolume*0.80) &&
+      closes[i]>opens[i]
+    ){
+      const level=priorHigh;
+      const currentRetest=l<=level*1.015;
+      const heldLevel=p>level*0.998;
+      const confirmed=bullish&&bullishBodyRatio>=0.28&&!explosiveCandle;
+
+      if(currentRetest&&heldLevel&&confirmed){
+        retest=true;
+        retestLevel=level;
+        breakoutAge=last-i;
+        break;
+      }
+    }
   }
 
-  // Região de pullback: uma das últimas 4 velas tocou/retestou EMA21,
-  // ou ficou muito próxima dela, e a vela atual retomou acima da EMA9.
-  const recentStart=Math.max(0,last-5);
-  const recentLows=lows.slice(recentStart,last);
-  const recentHighs=highs.slice(recentStart,last);
-  const minRecentLow=Math.min(...recentLows);
-  const maxRecentHigh=Math.max(...recentHighs);
-  const touchedE21=Math.abs((minRecentLow-e21)/e21)<=0.022 ||
-                     minRecentLow<=e21*1.008;
-  const touchedE9=recentLows.some(v=>v<=e9*1.012);
-  const pullbackZone=touchedE21||touchedE9;
-  const reclaimedE9=p>=e9*0.998;
-  const pullbackConfirmed=pullbackZone && reclaimedE9 && bullish;
+  if(retest)score+=3;
 
-  if(pullbackConfirmed) score+=2;
+  // 9) Estrutura local: queremos fechamento atual acima do fechamento anterior
+  // sem exigir uma alta exagerada.
+  const recoveryFromPrev=previousBelowOrNearE9 && p>prevClose;
+  if(recoveryFromPrev)score++;
 
-  // Confirmação extra: a vela anterior não pode estar em queda muito forte
-  // seguida de uma retomada sem estrutura.
-  const previousBearish=prevClose<prevOpen;
-  const recovery=previousBearish && p>prevClose && p>e9*0.998;
-  if(recovery) score++;
-
-  // Rompimento: máximo das 8 velas anteriores rompido com volume forte.
-  const breakoutHigh=Math.max(...highs.slice(-9,-1));
-  const breakout=p>breakoutHigh && vr>=strategy.breakoutVolume && bullish;
-  if(breakout) score+=2;
-
-  // Reteste de rompimento: preço rompeu recentemente e voltou para a região
-  // sem perder a EMA9, depois retomou.
-  const priorBreakHigh=Math.max(...highs.slice(-14,-3));
-  const retest=priorBreakHigh>0 &&
-    lows[last]<=priorBreakHigh*1.012 &&
-    p>priorBreakHigh &&
-    bullish &&
-    vr>=strategy.volumeMin;
-
+  /*
+   * Hierarquia de entradas:
+   * R1 = pullback/recuperação, mais ativo.
+   * R2 = pullback ou recuperação forte.
+   * R3 = pullback ou reteste.
+   * R4 = pullback/reteste.
+   * R5 = somente pullback limpo/reteste.
+   */
   let entry=null;
-  if(pullbackConfirmed) entry='PULLBACK_RETOMADA';
-  else if(retest) entry='ROMPIMENTO_RETESTE';
-  else if(breakout && !market.quente) entry='BREAKOUT_CONFIRMADO';
+  const id=Number(
+    Object.entries(ROBOT_STRATEGY_BY_ID)
+      .find(([,name])=>name===String(version||'').toLowerCase())?.[0] || 1
+  );
 
-  if(strategy.requirePullback && !pullbackConfirmed)
-    return {valid:false,reason:'Estratégia exige pullback + retomada acima da EMA9'};
+  if(pullbackConfirmed)entry='PULLBACK_RETOMADA';
+  else if(retest)entry='ROMPIMENTO_RETESTE';
+  else if(id<=2 && recovery)entry='RECUPERACAO_EMA';
+  else if(id<=2 && breakout && !market.quente)entry='BREAKOUT_CONFIRMADO';
+
+  // Filtros de segurança sem matar frequência:
+  // - R1/R2 aceitam recuperação, mas precisam de score;
+  // - R3+ exigem pullback/reteste;
+  // - breakout isolado só entra nos dois primeiros robôs.
+  if(id>=3 && strategy.requirePullback && !pullbackConfirmed && !retest)
+    return {valid:false,reason:'Estratégia exige pullback ou reteste confirmado'};
 
   if(strategy.preferPullback && entry==='BREAKOUT_CONFIRMADO' && !retest)
-    return {valid:false,reason:'Estratégia prioriza pullback/reteste; breakout isolado rejeitado'};
+    return {valid:false,reason:'Breakout isolado rejeitado; aguardando pullback/reteste'};
 
-  if(strategy.blockHotBreakout && market.quente && entry!=='PULLBACK_RETOMADA')
+  if(strategy.blockHotBreakout && market.quente && entry!=='PULLBACK_RETOMADA' && entry!=='RECUPERACAO_EMA')
     return {valid:false,reason:'Mercado aquecido para comprar rompimento'};
 
   if(market.score < strategy.marketMinScore)
     return {valid:false,reason:`Mercado BTC abaixo do filtro da estratégia (score ${market.score})`};
 
-  if(score<strategy.scoreMin || !entry)
+  // R1 é deliberadamente mais ativo; os demais ficam progressivamente seletivos.
+  const adaptiveMin=
+    id===1 ? Math.max(5,strategy.scoreMin) :
+    id===2 ? Math.max(6,strategy.scoreMin) :
+    id===3 ? Math.max(7,strategy.scoreMin) :
+    id===4 ? Math.max(8,strategy.scoreMin) :
+    Math.max(9,strategy.scoreMin);
+
+  if(score<adaptiveMin || !entry){
     return {
       valid:false,
-      reason:`Score ${score} abaixo de ${strategy.scoreMin}; entrada=${entry||'nenhuma'}`
+      reason:`Score ${score} abaixo de ${adaptiveMin}; entrada=${entry||'nenhuma'}`
     };
+  }
 
   const price=num((await client.prices({symbol}))[symbol]);
   return {
     valid:price>0,
-    price,score,rsi:r,e9,e21,entry,
+    price,
+    score,
+    rsi:r,
+    rsiPrevious:rPrev,
+    e9,
+    e21,
+    atr:a,
+    entry,
     strategy:version,
     volumeRatio:vr,
     pullback:pullbackConfirmed,
+    cleanPullback,
     breakout,
     retest,
+    retestLevel,
+    breakoutAge,
+    recovery,
     bullishBodyRatio,
+    candleAtrRatio,
+    lowerWickRatio:range>0?lowerWick/range:0,
+    upperWickRatio:range>0?upperWick/range:0,
     distanceFromEma21:dist,
     reason:price>0?'':'Preço inválido'
   };

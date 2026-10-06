@@ -1,4 +1,4 @@
-const CACHE="criptopro-v2";
+const CACHE="criptopro-v3";
 const SHELL=["/","/index.html","/dashboard.html","/manifest.webmanifest"];
 
 self.addEventListener("install",event=>{
@@ -36,10 +36,20 @@ self.addEventListener("notificationclick",event=>{
 
 self.addEventListener("fetch",event=>{
   if(event.request.method!=="GET") return;
+
+  // HTML sempre tenta a versão atual do servidor primeiro.
+  // Isso evita que o dashboard fique preso em uma versão antiga
+  // do cache após novos deploys.
+  const isPage =
+    event.request.mode === "navigate" ||
+    event.request.destination === "document";
+
   event.respondWith(
-    fetch(event.request).then(response=>{
+    fetch(event.request, { cache: "no-store" }).then(response=>{
       const copy=response.clone();
-      caches.open(CACHE).then(cache=>cache.put(event.request,copy));
+      if(!isPage){
+        caches.open(CACHE).then(cache=>cache.put(event.request,copy)).catch(()=>{});
+      }
       return response;
     }).catch(()=>caches.match(event.request))
   );

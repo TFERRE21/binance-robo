@@ -682,7 +682,7 @@ async function analyze(client,symbol,market,interval,version='premium'){
   // Evita comprar uma vela anormalmente grande no próprio topo.
   const candleAtrRatio=a>0?range/a:0;
   const explosiveCandle=candleAtrRatio>=2.20;
-  if(explosiveCandle && !bullishBodyRatio>=0.55)
+  if(explosiveCandle && bullishBodyRatio<0.55)
     return {valid:false,reason:`Vela muito esticada: ${candleAtrRatio.toFixed(2)} ATR`};
 
   // 5) Pullback de verdade:

@@ -1022,7 +1022,12 @@ async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
   });
 
   const accountInfo = await client.accountInfo();
-  const prices = await client.prices();
+  let prices = {};
+  try {
+    prices = await client.prices();
+  } catch (_) {
+    // O Binance Convert será usado como fonte principal da cotação.
+  }
 
   const openResult = await db.query(
     `SELECT DISTINCT UPPER(symbol) AS symbol
@@ -1050,16 +1055,20 @@ async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
     if (asset === 'USDT' || asset === 'LDUSDT') continue;
     if (openBases.has(asset)) continue;
 
+    // Não exigimos mais um par direto ASSET/USDT.
+    // Alguns ativos possuem saldo na carteira, mas não aparecem no
+    // objeto prices() com um par direto. A Binance Convert consegue
+    // cotá-los diretamente.
     const directPrice = Number(
       prices[asset + 'USDT'] ||
       prices[asset + 'BUSD'] ||
       0
     );
 
-    if (directPrice <= 0) continue;
+    const estimatedUSD = directPrice > 0 ? free * directPrice : 0;
 
-    const estimatedUSD = free * directPrice;
-
+    // Se já sabemos que vale >= limite, não precisa consultar Convert.
+    // Se não sabemos o preço, deixamos o getQuote da Binance decidir.
     if (estimatedUSD >= limiteUSD) continue;
 
     try {
@@ -1081,7 +1090,7 @@ async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
         candidates.push({
           asset,
           free,
-          estimatedUSD,
+          estimatedUSD: estimatedUSD > 0 ? estimatedUSD : toAmount,
           quoteId: quote.quoteId,
           fromAmount: Number(quote.fromAmount || free),
           toAmount,

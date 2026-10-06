@@ -1317,13 +1317,41 @@ router.get(
         recvWindow: 60000
       });
 
-      const accountInfo = await client.accountInfo();
-      const brl = (accountInfo.balances || []).find(
+      // BRL pode estar na carteira Spot ou na Carteira de Fundos (Funding).
+      // O accountInfo() cobre Spot; a consulta SAPI abaixo cobre Funding.
+      const [accountInfo, fundingResult] = await Promise.all([
+        client.accountInfo(),
+        binanceSignedPost(
+          '/sapi/v1/asset/get-funding-asset',
+          apiKey,
+          apiSecret,
+          {
+            asset: 'BRL',
+            needBtcValuation: 'false'
+          }
+        ).catch(() => [])
+      ]);
+
+      const brlSpot = (accountInfo.balances || []).find(
         item => String(item.asset || '').toUpperCase() === 'BRL'
       );
 
-      const free = Number(brl?.free || 0);
-      const locked = Number(brl?.locked || 0);
+      const brlFunding = Array.isArray(fundingResult)
+        ? fundingResult.find(
+            item => String(item.asset || '').toUpperCase() === 'BRL'
+          )
+        : null;
+
+      const spotFree = Number(brlSpot?.free || 0);
+      const spotLocked = Number(brlSpot?.locked || 0);
+      const fundingFree = Number(brlFunding?.free || 0);
+      const fundingLocked =
+        Number(brlFunding?.locked || 0) +
+        Number(brlFunding?.freeze || 0) +
+        Number(brlFunding?.withdrawing || 0);
+
+      const free = spotFree + fundingFree;
+      const locked = spotLocked + fundingLocked;
 
       return res.json({
         success: true,
@@ -1331,7 +1359,10 @@ router.get(
         asset: 'BRL',
         free,
         locked,
-        total: free + locked
+        total: free + locked,
+        spotFree,
+        fundingFree,
+        wallet: fundingFree > 0 ? 'FUNDING' : 'SPOT'
       });
     } catch (error) {
       console.error('[BRL-USDT] ERRO AO CONSULTAR SALDO:', error);
@@ -1374,11 +1405,31 @@ router.post(
         recvWindow: 60000
       });
 
-      const accountInfo = await client.accountInfo();
-      const brl = (accountInfo.balances || []).find(
+      const [accountInfo, fundingResult] = await Promise.all([
+        client.accountInfo(),
+        binanceSignedPost(
+          '/sapi/v1/asset/get-funding-asset',
+          apiKey,
+          apiSecret,
+          {
+            asset: 'BRL',
+            needBtcValuation: 'false'
+          }
+        ).catch(() => [])
+      ]);
+
+      const brlSpot = (accountInfo.balances || []).find(
         item => String(item.asset || '').toUpperCase() === 'BRL'
       );
-      const available = Number(brl?.free || 0);
+      const brlFunding = Array.isArray(fundingResult)
+        ? fundingResult.find(
+            item => String(item.asset || '').toUpperCase() === 'BRL'
+          )
+        : null;
+
+      const available =
+        Number(brlSpot?.free || 0) +
+        Number(brlFunding?.free || 0);
 
       if (amount > available) {
         return res.status(400).json({

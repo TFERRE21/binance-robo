@@ -1089,8 +1089,14 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   async function loadBalance(){
     const id=accountId(); if(!id)return;
     try{
-      const d=await apiFetch('/api/binance/brl-usdt/balance?accountId='+encodeURIComponent(id));
+      const request=apiFetch('/api/binance/brl-usdt/balance?accountId='+encodeURIComponent(id));
+      const timeout=new Promise((_,reject)=>
+        setTimeout(()=>reject(new Error('A Binance demorou mais de 10 segundos para responder ao saldo BRL.')),10000)
+      );
+      const d=await Promise.race([request,timeout]);
+
       document.getElementById('brlUsdtBalance').textContent=moneyBRL(d.free);
+
       const sourceEl=document.getElementById('brlUsdtSource');
       if(sourceEl){
         const source=String(d.source||'NOT_EXPOSED');
@@ -1099,7 +1105,11 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
       }
       const input=document.getElementById('brlUsdtAmount');
       if(input && !input.value && d.free>0) input.placeholder='Máximo: '+d.free.toFixed(2).replace('.',',');
-    }catch(e){result('⚠️ '+String(e.message||'Não foi possível consultar o saldo BRL.'),false);}
+    }catch(e){
+      const sourceEl=document.getElementById('brlUsdtSource');
+      if(sourceEl) sourceEl.textContent='Fonte do saldo: ERRO NA CONSULTA';
+      result('⚠️ '+String(e.message||'Não foi possível consultar o saldo BRL.'),false);
+    }
   }
   async function quote(){
     const id=accountId(), amount=Number(document.getElementById('brlUsdtAmount').value);

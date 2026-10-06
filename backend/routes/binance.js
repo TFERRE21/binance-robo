@@ -1294,6 +1294,50 @@ async function obterClienteBinanceSeguro(userId, accountId) {
   };
 }
 
+async function consultarSaldosBrl(apiKey, apiSecret, client) {
+  const [accountInfo, walletBalanceResult] = await Promise.all([
+    client.accountInfo(),
+    binanceSignedGet(
+      '/sapi/v1/asset/wallet/balance',
+      apiKey,
+      apiSecret,
+      {
+        quoteAsset: 'BRL',
+        needBalanceDetail: 'true'
+      }
+    ).catch((error) => {
+      console.warn(
+        '[BRL-USDT] Não foi possível consultar saldos por carteira:',
+        error?.message || error
+      );
+      return [];
+    })
+  ]);
+
+  const brlSpot = (accountInfo.balances || []).find(
+    item => String(item.asset || '').toUpperCase() === 'BRL'
+  );
+
+  const wallets = Array.isArray(walletBalanceResult)
+    ? walletBalanceResult
+    : [];
+
+  const fundingWallet = wallets.find(item => {
+    const name = String(item.walletName || item.wallet || '').toUpperCase();
+    return name.includes('FUNDING') || name.includes('FUNDS');
+  });
+
+  const spotFree = Number(brlSpot?.free || 0);
+  const fundingFree = Number(fundingWallet?.balance || 0);
+
+  return {
+    spotFree,
+    fundingFree,
+    available: spotFree + fundingFree,
+    walletType: fundingFree > 0 ? 'FUNDING' : 'SPOT'
+  };
+}
+
 router.get(
   '/brl-usdt/balance',
   authMiddleware,
@@ -1317,52 +1361,18 @@ router.get(
         recvWindow: 60000
       });
 
-      // BRL pode estar na carteira Spot ou na Carteira de Fundos (Funding).
-      // O accountInfo() cobre Spot; a consulta SAPI abaixo cobre Funding.
-      const [accountInfo, fundingResult] = await Promise.all([
-        client.accountInfo(),
-        binanceSignedPost(
-          '/sapi/v1/asset/get-funding-asset',
-          apiKey,
-          apiSecret,
-          {
-            asset: 'BRL',
-            needBtcValuation: 'false'
-          }
-        ).catch(() => [])
-      ]);
-
-      const brlSpot = (accountInfo.balances || []).find(
-        item => String(item.asset || '').toUpperCase() === 'BRL'
-      );
-
-      const brlFunding = Array.isArray(fundingResult)
-        ? fundingResult.find(
-            item => String(item.asset || '').toUpperCase() === 'BRL'
-          )
-        : null;
-
-      const spotFree = Number(brlSpot?.free || 0);
-      const spotLocked = Number(brlSpot?.locked || 0);
-      const fundingFree = Number(brlFunding?.free || 0);
-      const fundingLocked =
-        Number(brlFunding?.locked || 0) +
-        Number(brlFunding?.freeze || 0) +
-        Number(brlFunding?.withdrawing || 0);
-
-      const free = spotFree + fundingFree;
-      const locked = spotLocked + fundingLocked;
+      const saldo = await consultarSaldosBrl(apiKey, apiSecret, client);
 
       return res.json({
         success: true,
         accountId,
         asset: 'BRL',
-        free,
-        locked,
-        total: free + locked,
-        spotFree,
-        fundingFree,
-        wallet: fundingFree > 0 ? 'FUNDING' : 'SPOT'
+        free: saldo.available,
+        locked: 0,
+        total: saldo.available,
+        spotFree: saldo.spotFree,
+        fundingFree: saldo.fundingFree,
+        wallet: saldo.walletType
       });
     } catch (error) {
       console.error('[BRL-USDT] ERRO AO CONSULTAR SALDO:', error);
@@ -1405,33 +1415,14 @@ router.post(
         recvWindow: 60000
       });
 
-      const [accountInfo, fundingResult] = await Promise.all([
-        client.accountInfo(),
-        binanceSignedPost(
-          '/sapi/v1/asset/get-funding-asset',
-          apiKey,
-          apiSecret,
-          {
-            asset: 'BRL',
-            needBtcValuation: 'false'
-          }
-        ).catch(() => [])
-      ]);
+      const saldo = await consultarSaldosBrl(apiKey, apiSecret, client);
+      const available = saldo.available;
+      const walletType =
+        saldo.fundingFree >= amount ? 'FUNDING' :
+        saldo.spotFree >= amount ? 'SPOT' :
+        null;
 
-      const brlSpot = (accountInfo.balances || []).find(
-        item => String(item.asset || '').toUpperCase() === 'BRL'
-      );
-      const brlFunding = Array.isArray(fundingResult)
-        ? fundingResult.find(
-            item => String(item.asset || '').toUpperCase() === 'BRL'
-          )
-        : null;
-
-      const available =
-        Number(brlSpot?.free || 0) +
-        Number(brlFunding?.free || 0);
-
-      if (amount > available) {
+      if (amount > available || !walletType) {
         return res.status(400).json({
           success: false,
           message: `Saldo BRL insuficiente. Disponível: R$ ${available.toFixed(2)}.`
@@ -1446,6 +1437,7 @@ router.post(
           fromAsset: 'BRL',
           toAsset: 'USDT',
           fromAmount: String(amount),
+          walletType,
           validTime: '10s'
         }
       );
@@ -1466,7 +1458,8 @@ router.post(
         toAmount: Number(quote.toAmount || 0),
         ratio: Number(quote.ratio || 0),
         inverseRatio: Number(quote.inverseRatio || 0),
-        validTimestamp: quote.validTimestamp || null
+        validTimestamp: quote.validTimestamp || null,
+        walletType
       });
     } catch (error) {
       console.error('[BRL-USDT] ERRO AO GERAR COTAÇÃO:', error);
@@ -1510,18 +1503,20 @@ router.post(
        * Sempre pede uma nova cotação imediatamente antes de aceitar.
        * A cotação anterior não é reutilizada, pois expira rapidamente.
        */
-      const accountInfo = await Binance({
+      const client = Binance({
         apiKey,
         apiSecret,
         recvWindow: 60000
-      }).accountInfo();
+      });
 
-      const brl = (accountInfo.balances || []).find(
-        item => String(item.asset || '').toUpperCase() === 'BRL'
-      );
-      const available = Number(brl?.free || 0);
+      const saldo = await consultarSaldosBrl(apiKey, apiSecret, client);
+      const available = saldo.available;
+      const walletType =
+        saldo.fundingFree >= amount ? 'FUNDING' :
+        saldo.spotFree >= amount ? 'SPOT' :
+        null;
 
-      if (amount > available) {
+      if (amount > available || !walletType) {
         return res.status(400).json({
           success: false,
           message: `Saldo BRL insuficiente. Disponível: R$ ${available.toFixed(2)}.`
@@ -1536,6 +1531,7 @@ router.post(
           fromAsset: 'BRL',
           toAsset: 'USDT',
           fromAmount: String(amount),
+          walletType,
           validTime: '10s'
         }
       );
@@ -1565,6 +1561,7 @@ router.post(
         fromAmount: Number(quote.fromAmount || amount),
         toAmount: Number(quote.toAmount || 0),
         ratio: Number(quote.ratio || 0),
+        walletType,
         message:
           'Conversão BRL → USDT enviada para processamento na Binance.'
       });

@@ -177,7 +177,7 @@ button{cursor:pointer}
 .quick-robot-title{font-size:15px;font-weight:900}
 .quick-robot-state{font-size:9px;font-weight:900;padding:6px 10px;border-radius:20px;border:1px solid rgba(255,97,119,.25);color:#ff9aaa;background:rgba(255,97,119,.06)}
 .quick-robot-state.on{border-color:rgba(32,223,150,.28);color:#7ff2c1;background:rgba(32,223,150,.06)}
-.quick-robot-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.quick-robot-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:12px}
 .quick-robot-box{border:1px solid rgba(255,255,255,.06);background:rgba(0,0,0,.13);border-radius:10px;padding:11px}
 .quick-robot-box span{display:block;color:#71809a;font-size:8px;text-transform:uppercase;margin-bottom:6px}
 .quick-robot-box strong{font-size:13px;font-weight:900}
@@ -191,6 +191,7 @@ button{cursor:pointer}
 .quick-robot-detail strong{font-size:10px;font-weight:900}
 @media(max-width:1000px){.quick-robot-details{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:800px){.quick-robot-details{grid-template-columns:1fr 1fr}}
+@media(max-width:1200px){.quick-robot-grid{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:800px){.quick-robot-grid{grid-template-columns:1fr 1fr}}
 .pnl-positive{color:#35d394!important}
 .pnl-negative{color:#ff7272!important}
@@ -1105,7 +1106,9 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
     <div class="quick-robot-box"><span>Robô</span><strong id="quickRobotName">Operações Rápidas</strong></div>
     <div class="quick-robot-box"><span>Operações abertas</span><strong id="quickRobotOpen">0/0</strong></div>
     <div class="quick-robot-box"><span>Valor em operações</span><strong id="quickRobotInvested">US$ 0,00</strong></div>
-    <div class="quick-robot-box"><span>Lucro / perda</span><strong id="quickRobotPnl">US$ 0,00</strong><div id="quickRobotPnlBrl" style="font-size:9px;color:#778395;margin-top:3px">R$ 0,00</div></div>
+    <div class="quick-robot-box"><span>Lucro / perda em tempo real</span><strong id="quickRobotPnl">US$ 0,00</strong><div id="quickRobotPnlBrl" style="font-size:9px;color:#778395;margin-top:3px">R$ 0,00</div></div>
+    <div class="quick-robot-box"><span>Valor total ganho</span><strong id="quickRobotTotalGained">US$ 0,00</strong><div id="quickRobotTotalGainedBrl" style="font-size:9px;color:#778395;margin-top:3px">R$ 0,00</div></div>
+    <div class="quick-robot-box"><span>Operações feitas</span><strong id="quickRobotTotalOperations">0</strong><div id="quickRobotClosedCount" style="font-size:9px;color:#778395;margin-top:3px">0 encerradas</div></div>
   </div>
   <div class="quick-robot-details-title">Detalhes da estratégia</div>
   <div class="quick-robot-details" id="quickRobotDetails">
@@ -2253,12 +2256,6 @@ async function loadSelectedAccount(){
       statusEl.classList.remove("pending-account");
     }
 
-    // O conversor BRL já foi atualizado no início do carregamento.
-    // Mantemos uma segunda atualização ao final para refletir qualquer alteração.
-    if(typeof window.refreshBrlUsdtConverter==="function"){
-      await window.refreshBrlUsdtConverter();
-    }
-
     await loadRobotInstances();
 
     await renderOperation(assets);
@@ -3375,12 +3372,18 @@ function renderQuickRobotPanel(data){
   if(!panel)return;
   const robots=Array.isArray(data?.robots)?data.robots:[];
   const q=robots.find(r=>String(r?.config?.strategy_version||"").toLowerCase()==="rapido");
+
   const state=document.getElementById("quickRobotState");
   const openEl=document.getElementById("quickRobotOpen");
   const investedEl=document.getElementById("quickRobotInvested");
   const pnlEl=document.getElementById("quickRobotPnl");
   const pnlBrlEl=document.getElementById("quickRobotPnlBrl");
+  const totalGainedEl=document.getElementById("quickRobotTotalGained");
+  const totalGainedBrlEl=document.getElementById("quickRobotTotalGainedBrl");
+  const totalOpsEl=document.getElementById("quickRobotTotalOperations");
+  const closedCountEl=document.getElementById("quickRobotClosedCount");
   const coinsEl=document.getElementById("quickRobotCoins");
+
   const strategyEl=document.getElementById("quickRobotStrategy");
   const intervalEl=document.getElementById("quickRobotInterval");
   const entryEl=document.getElementById("quickRobotEntry");
@@ -3399,6 +3402,10 @@ function renderQuickRobotPanel(data){
     if(maxCoinsEl)maxCoinsEl.textContent="—";
     if(closedEl)closedEl.textContent="0";
     if(closedPnlEl)closedPnlEl.textContent="US$ 0,00";
+    if(totalGainedEl)totalGainedEl.textContent="US$ 0,00";
+    if(totalGainedBrlEl)totalGainedBrlEl.textContent="R$ 0,00";
+    if(totalOpsEl)totalOpsEl.textContent="0";
+    if(closedCountEl)closedCountEl.textContent="0 encerradas";
   };
 
   if(!q){
@@ -3414,8 +3421,12 @@ function renderQuickRobotPanel(data){
 
   const ops=Array.isArray(q.operations)?q.operations:[];
   const opened=ops.filter(o=>String(o.status||"").toUpperCase()==="OPEN");
-  const closed=ops.filter(o=>String(o.status||"").toUpperCase()!=="OPEN" && o.result_usdt!=null);
-  const pnl=closed.reduce((s,o)=>s+Number(o.result_usdt||0),0);
+  const perf=q.performance||{};
+  const realized=Number(perf.realizedPnlUsdt||0);
+  const unrealized=Number(perf.unrealizedPnlUsdt||0);
+  const totalPnl=Number(perf.totalPnlUsdt ?? (realized+unrealized));
+  const totalOperations=Number(perf.totalOperations||0);
+  const closedOperations=Number(perf.closedOperations||0);
   const invested=opened.reduce((s,o)=>s+(Number(o.buy_price||0)*Number(o.quantity||0)),0);
   const max=Number(q.config?.max_operations||0);
   const running=!!q.running;
@@ -3424,8 +3435,26 @@ function renderQuickRobotPanel(data){
   if(state){state.textContent=running?"● ROBÔ LIGADO":"● ROBÔ PARADO";state.className="quick-robot-state"+(running?" on":"")}
   if(openEl)openEl.textContent=opened.length+" / "+max;
   if(investedEl)investedEl.textContent=moneyUSDT(invested);
-  if(pnlEl){pnlEl.textContent=moneyUSDT(pnl);pnlEl.className=pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral"}
-  if(pnlBrlEl){pnlBrlEl.textContent=moneyBRL(pnl*Number(usdBrl||0));pnlBrlEl.className=pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral"}
+
+  if(pnlEl){
+    pnlEl.textContent=moneyUSDT(totalPnl);
+    pnlEl.className=totalPnl>0?"pnl-positive":totalPnl<0?"pnl-negative":"pnl-neutral";
+  }
+  if(pnlBrlEl){
+    pnlBrlEl.textContent=moneyBRL(totalPnl*Number(usdBrl||0));
+    pnlBrlEl.className=totalPnl>0?"pnl-positive":totalPnl<0?"pnl-negative":"pnl-neutral";
+  }
+
+  if(totalGainedEl){
+    totalGainedEl.textContent=moneyUSDT(realized);
+    totalGainedEl.className=realized>0?"pnl-positive":realized<0?"pnl-negative":"pnl-neutral";
+  }
+  if(totalGainedBrlEl){
+    totalGainedBrlEl.textContent=moneyBRL(realized*Number(usdBrl||0));
+    totalGainedBrlEl.className=realized>0?"pnl-positive":realized<0?"pnl-negative":"pnl-neutral";
+  }
+  if(totalOpsEl)totalOpsEl.textContent=String(totalOperations);
+  if(closedCountEl)closedCountEl.textContent=closedOperations+" encerradas";
 
   if(strategyEl)strategyEl.textContent="Rápida";
   if(intervalEl)intervalEl.textContent=intervalMap[String(q.config?.interval||"")]||String(q.config?.interval||"—");
@@ -3436,10 +3465,10 @@ function renderQuickRobotPanel(data){
     slEl.textContent=active?Number(q.config.stop_loss).toFixed(2)+"%":"DESATIVADO";
   }
   if(maxCoinsEl)maxCoinsEl.textContent=Number(q.config?.max_coins||0)>0?String(q.config.max_coins):"—";
-  if(closedEl)closedEl.textContent=String(closed.length);
+  if(closedEl)closedEl.textContent=String(closedOperations);
   if(closedPnlEl){
-    closedPnlEl.textContent=moneyUSDT(pnl);
-    closedPnlEl.className=pnl>0?"pnl-positive":pnl<0?"pnl-negative":"pnl-neutral";
+    closedPnlEl.textContent=moneyUSDT(realized);
+    closedPnlEl.className=realized>0?"pnl-positive":realized<0?"pnl-negative":"pnl-neutral";
   }
 
   if(coinsEl){
@@ -3447,9 +3476,13 @@ function renderQuickRobotPanel(data){
       const value=Number(o.buy_price||0)*Number(o.quantity||0);
       const qty=Number(o.quantity||0);
       const entry=Number(o.buy_price||0);
+      const current=Number(o.current_price||0);
       const tp=Number(o.tp_price||0);
+      const openPnl=Number(o.unrealized_pnl_usdt||0);
+      const openPnlPct=Number(o.unrealized_pnl_percent||0);
       const symbol=escapeHtml(o.symbol||"—");
-      return '<div class="quick-robot-coin">🟢 <strong>'+symbol+'</strong> · Investido '+moneyUSDT(value)+' · Qtd '+qty.toLocaleString("en-US",{maximumFractionDigits:10})+' · Entrada '+(entry>0?entry.toLocaleString("en-US",{maximumFractionDigits:10}):"—")+' · TP '+(tp>0?tp.toLocaleString("en-US",{maximumFractionDigits:10}):"—")+'</div>';
+      const pnlClass=openPnl>0?"pnl-positive":openPnl<0?"pnl-negative":"pnl-neutral";
+      return '<div class="quick-robot-coin">🟢 <strong>'+symbol+'</strong> · Investido '+moneyUSDT(value)+' · Qtd '+qty.toLocaleString("en-US",{maximumFractionDigits:10})+' · Entrada '+(entry>0?entry.toLocaleString("en-US",{maximumFractionDigits:10}):"—")+' · Atual '+(current>0?current.toLocaleString("en-US",{maximumFractionDigits:10}):"—")+' · TP '+(tp>0?tp.toLocaleString("en-US",{maximumFractionDigits:10}):"—")+' · <span class="'+pnlClass+'">P/L '+moneyUSDT(openPnl)+' ('+openPnlPct.toFixed(2)+'%)</span></div>';
     }).join(""):'<div class="quick-robot-empty">Nenhuma operação rápida aberta no momento. O robô continuará procurando oportunidades quando houver espaço.</div>';
   }
 }
@@ -3489,6 +3522,16 @@ async function loadRobotInstances(){
 async function refreshRobotPlanCount(){
   await loadRobotInstances();
 }
+
+let quickRobotRealtimeTimer=null;
+function startQuickRobotRealtime(){
+  if(quickRobotRealtimeTimer) return;
+  quickRobotRealtimeTimer=setInterval(()=>{
+    if(document.hidden || !selectedAccountId) return;
+    loadRobotInstances().catch(error=>console.warn("Operações rápidas em tempo real:",error));
+  },3000);
+}
+startQuickRobotRealtime();
 
 async function loadRobotStatus(robotId=activeRobotId){
   if(!selectedAccountId)return;

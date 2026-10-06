@@ -1262,6 +1262,274 @@ router.post(
 );
 
 
+
+/*
+ * =========================================================
+ * CONVERSOR BRL -> USDT
+ * =========================================================
+ * Usa a conta Binance do próprio usuário.
+ * As credenciais nunca chegam ao navegador.
+ * Não utiliza saque/withdrawal.
+ */
+
+async function obterClienteBinanceSeguro(userId, accountId) {
+  const account = await obterCredenciaisConta(userId, accountId);
+
+  if (!account) {
+    const error = new Error('Conta Binance não encontrada.');
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (account.active === false) {
+    const error = new Error('A conta Binance selecionada está inativa.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    account,
+    apiKey: cryptoService.decrypt(account.api_key_encrypted),
+    apiSecret: cryptoService.decrypt(account.api_secret_encrypted)
+  };
+}
+
+router.get(
+  '/brl-usdt/balance',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const accountId = Number(req.query.accountId);
+
+      if (!Number.isInteger(accountId) || accountId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conta Binance inválida.'
+        });
+      }
+
+      const { apiKey, apiSecret } =
+        await obterClienteBinanceSeguro(req.user.id, accountId);
+
+      const client = Binance({
+        apiKey,
+        apiSecret,
+        recvWindow: 60000
+      });
+
+      const accountInfo = await client.accountInfo();
+      const brl = (accountInfo.balances || []).find(
+        item => String(item.asset || '').toUpperCase() === 'BRL'
+      );
+
+      const free = Number(brl?.free || 0);
+      const locked = Number(brl?.locked || 0);
+
+      return res.json({
+        success: true,
+        accountId,
+        asset: 'BRL',
+        free,
+        locked,
+        total: free + locked
+      });
+    } catch (error) {
+      console.error('[BRL-USDT] ERRO AO CONSULTAR SALDO:', error);
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        message: error?.message || 'Não foi possível consultar o saldo BRL.'
+      });
+    }
+  }
+);
+
+router.post(
+  '/brl-usdt/quote',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const accountId = Number(req.body?.accountId);
+      const amount = Number(req.body?.amount);
+
+      if (!Number.isInteger(accountId) || accountId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conta Binance inválida.'
+        });
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Informe um valor BRL maior que zero.'
+        });
+      }
+
+      const { apiKey, apiSecret } =
+        await obterClienteBinanceSeguro(req.user.id, accountId);
+
+      const client = Binance({
+        apiKey,
+        apiSecret,
+        recvWindow: 60000
+      });
+
+      const accountInfo = await client.accountInfo();
+      const brl = (accountInfo.balances || []).find(
+        item => String(item.asset || '').toUpperCase() === 'BRL'
+      );
+      const available = Number(brl?.free || 0);
+
+      if (amount > available) {
+        return res.status(400).json({
+          success: false,
+          message: `Saldo BRL insuficiente. Disponível: R$ ${available.toFixed(2)}.`
+        });
+      }
+
+      const quote = await binanceSignedPost(
+        '/sapi/v1/convert/getQuote',
+        apiKey,
+        apiSecret,
+        {
+          fromAsset: 'BRL',
+          toAsset: 'USDT',
+          fromAmount: String(amount),
+          validTime: '10s'
+        }
+      );
+
+      if (!quote?.quoteId) {
+        return res.status(400).json({
+          success: false,
+          message: 'A Binance não retornou uma cotação válida para BRL → USDT.'
+        });
+      }
+
+      return res.json({
+        success: true,
+        quoteId: String(quote.quoteId),
+        fromAsset: 'BRL',
+        toAsset: 'USDT',
+        fromAmount: Number(quote.fromAmount || amount),
+        toAmount: Number(quote.toAmount || 0),
+        ratio: Number(quote.ratio || 0),
+        inverseRatio: Number(quote.inverseRatio || 0),
+        validTimestamp: quote.validTimestamp || null
+      });
+    } catch (error) {
+      console.error('[BRL-USDT] ERRO AO GERAR COTAÇÃO:', error);
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        binanceCode: error?.binanceCode || null,
+        message:
+          error?.message ||
+          'A Binance não conseguiu gerar a cotação BRL → USDT.'
+      });
+    }
+  }
+);
+
+router.post(
+  '/brl-usdt/convert',
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const accountId = Number(req.body?.accountId);
+      const amount = Number(req.body?.amount);
+
+      if (!Number.isInteger(accountId) || accountId <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Conta Binance inválida.'
+        });
+      }
+
+      if (!Number.isFinite(amount) || amount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Informe um valor BRL maior que zero.'
+        });
+      }
+
+      const { apiKey, apiSecret } =
+        await obterClienteBinanceSeguro(req.user.id, accountId);
+
+      /*
+       * Sempre pede uma nova cotação imediatamente antes de aceitar.
+       * A cotação anterior não é reutilizada, pois expira rapidamente.
+       */
+      const accountInfo = await Binance({
+        apiKey,
+        apiSecret,
+        recvWindow: 60000
+      }).accountInfo();
+
+      const brl = (accountInfo.balances || []).find(
+        item => String(item.asset || '').toUpperCase() === 'BRL'
+      );
+      const available = Number(brl?.free || 0);
+
+      if (amount > available) {
+        return res.status(400).json({
+          success: false,
+          message: `Saldo BRL insuficiente. Disponível: R$ ${available.toFixed(2)}.`
+        });
+      }
+
+      const quote = await binanceSignedPost(
+        '/sapi/v1/convert/getQuote',
+        apiKey,
+        apiSecret,
+        {
+          fromAsset: 'BRL',
+          toAsset: 'USDT',
+          fromAmount: String(amount),
+          validTime: '10s'
+        }
+      );
+
+      if (!quote?.quoteId) {
+        return res.status(400).json({
+          success: false,
+          message: 'A Binance não retornou uma cotação válida.'
+        });
+      }
+
+      const accepted = await binanceSignedPost(
+        '/sapi/v1/convert/acceptQuote',
+        apiKey,
+        apiSecret,
+        {
+          quoteId: String(quote.quoteId)
+        }
+      );
+
+      return res.json({
+        success: true,
+        orderId: accepted?.orderId || null,
+        status: accepted?.orderStatus || 'PROCESS',
+        fromAsset: 'BRL',
+        toAsset: 'USDT',
+        fromAmount: Number(quote.fromAmount || amount),
+        toAmount: Number(quote.toAmount || 0),
+        ratio: Number(quote.ratio || 0),
+        message:
+          'Conversão BRL → USDT enviada para processamento na Binance.'
+      });
+    } catch (error) {
+      console.error('[BRL-USDT] ERRO AO CONVERTER:', error);
+      return res.status(error.statusCode || 400).json({
+        success: false,
+        binanceCode: error?.binanceCode || null,
+        message:
+          error?.message ||
+          'Não foi possível concluir a conversão BRL → USDT.'
+      });
+    }
+  }
+);
+
 /*
  * =========================================================
  * EXCLUIR CONTA BINANCE

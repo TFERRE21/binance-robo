@@ -1354,17 +1354,28 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
   // endpoint wallet/balance. Para este conversor consideramos SOMENTE
   // a carteira Spot. Isso captura BRL fiat que não aparece no accountInfo
   // tradicional em algumas contas/regiões.
-  const spotWallet = Array.isArray(walletBalanceResult)
-    ? walletBalanceResult.find((wallet) =>
-        String(wallet?.walletName || '').toUpperCase().includes('SPOT')
-      )
-    : null;
+  // Normaliza diferentes formatos retornados pela Binance.
+  const walletList =
+    Array.isArray(walletBalanceResult) ? walletBalanceResult :
+    Array.isArray(walletBalanceResult?.data) ? walletBalanceResult.data :
+    Array.isArray(walletBalanceResult?.wallets) ? walletBalanceResult.wallets :
+    [];
 
-  const brlWalletSpot = Array.isArray(spotWallet?.assetBalances)
-    ? spotWallet.assetBalances.find(
-        item => String(item?.asset || '').toUpperCase() === 'BRL'
-      )
-    : null;
+  const spotWallet = walletList.find((wallet) =>
+    String(wallet?.walletName || wallet?.walletType || wallet?.name || '')
+      .toUpperCase()
+      .includes('SPOT')
+  );
+
+  const spotAssets = Array.isArray(spotWallet?.assetBalances)
+    ? spotWallet.assetBalances
+    : Array.isArray(spotWallet?.balances)
+      ? spotWallet.balances
+      : [];
+
+  const brlWalletSpot = spotAssets.find(
+    item => String(item?.asset || item?.coin || '').toUpperCase() === 'BRL'
+  );
 
   const brlSpot = (accountInfo.balances || []).find(
     item => String(item.asset || '').toUpperCase() === 'BRL'
@@ -1382,24 +1393,46 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
       )
     : null;
 
+  // O conversor BRL -> USDT considera exclusivamente a carteira Spot.
+  // Algumas respostas usam "balance" em vez de "free".
+  const brlWalletFree = Number(
+    brlWalletSpot?.free ??
+    brlWalletSpot?.balance ??
+    0
+  );
+  const brlAccountFree = Number(brlSpot?.free || 0);
+  const brlUserAssetFree = Number(brlUserAsset?.free || 0);
+
   const spotFree = Math.max(
-    Number(brlSpot?.free || 0),
-    Number(brlUserAsset?.free || 0),
-    Number(brlWalletSpot?.free || 0)
+    brlAccountFree,
+    brlUserAssetFree,
+    brlWalletFree
   );
 
-  const fundingFree = Number(brlFunding?.free || 0);
+  const source =
+    brlWalletFree > 0 ? 'SPOT_WALLET_BALANCE' :
+    brlUserAssetFree > 0 ? 'SPOT_USER_ASSET' :
+    brlAccountFree > 0 ? 'SPOT_ACCOUNT_INFO' :
+    'NOT_EXPOSED';
 
   return {
     spotFree,
-    fundingFree,
-    available: spotFree + fundingFree,
-    walletType: fundingFree > 0 ? 'FUNDING' : 'SPOT',
-    source: brlFunding?.free
-      ? 'FUNDING'
-      : (brlWalletSpot?.free
-        ? 'SPOT_WALLET_BALANCE'
-        : (brlUserAsset?.free || brlSpot?.free ? 'SPOT_API' : 'NOT_EXPOSED'))
+    fundingFree: Number(brlFunding?.free || 0),
+    available: spotFree,
+    walletType: 'SPOT',
+    source,
+    diagnostics: {
+      walletCount: walletList.length,
+      walletNames: walletList.map(w =>
+        String(w?.walletName || w?.walletType || w?.name || '')
+      ).filter(Boolean),
+      spotWalletFound: !!spotWallet,
+      spotAssetCount: spotAssets.length,
+      brlFoundInSpotWallet: !!brlWalletSpot,
+      brlFoundInAccountInfo: !!brlSpot,
+      brlFoundInUserAsset: !!brlUserAsset
+    }
+
   };
 }
 

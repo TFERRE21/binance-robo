@@ -132,6 +132,9 @@ async function refresh(){
     const dm=String(decisionLine?.message||"").match(/operações escolhidas=(\d+)/);
     $("decidedOps").textContent=dm?dm[1]:"—";
     const cfg=st?.config||{};
+    if(cfg.entry_percent!=null && Number(cfg.entry_percent)>0){
+      $("entryPercent").value=String(Number(cfg.entry_percent));
+    }
     const maxOps=Math.max(1,Number(cfg.max_operations||$("ops").value||1));
     const reservedBrl=Number(cfg.quick_reserved_brl||$("reservedBrl").value||0);
     const entryPct=Number(cfg.entry_percent||$("entryPercent").value||99);

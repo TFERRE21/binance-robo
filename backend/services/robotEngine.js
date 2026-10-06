@@ -14,74 +14,74 @@ const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   rapido: {
     name:'Operações Rápidas',
-    description:'Scanner de curto prazo por volume, com entradas pequenas distribuídas entre as melhores oportunidades do momento.',
+    description:'Modo legado de curto prazo. Não faz parte dos cinco robôs principais.',
     mode:'volume',
-    scoreMin:4,
-    rsiMin:40,
-    rsiMax:70,
-    volumeMin:0.70,
-    maxDist:0.040,
-    breakoutVolume:1.20,
+    scoreMin:5,
+    rsiMin:42,
+    rsiMax:68,
+    volumeMin:0.90,
+    maxDist:0.030,
+    breakoutVolume:1.40,
     requirePullback:false,
-    preferPullback:false,
+    preferPullback:true,
     marketMinScore:0,
     blockHotBreakout:true
   },
   basico: {
     name:'Básico',
-    description:'Mais oportunidades, com filtros mínimos de tendência e qualidade.',
+    description:'Tendência + pullback leve + confirmação de candle e volume. Prioriza entradas próximas das médias, evitando comprar preço esticado.',
     mode:'volume',
-    scoreMin:4,
-    rsiMin:38,
-    rsiMax:68,
-    volumeMin:0.70,
-    maxDist:0.035,
-    breakoutVolume:1.30,
+    scoreMin:5,
+    rsiMin:45,
+    rsiMax:65,
+    volumeMin:0.85,
+    maxDist:0.030,
+    breakoutVolume:1.50,
     requirePullback:false,
-    preferPullback:false,
+    preferPullback:true,
     marketMinScore:0,
     blockHotBreakout:true
   },
   medio: {
     name:'Médio',
-    description:'Equilíbrio entre frequência, tendência e confirmação de volume.',
+    description:'Pullback confirmado na EMA21/EMA9, candle comprador e volume acima da média. Menos sinais, porém mais qualificados.',
     mode:'volume',
-    scoreMin:4,
-    rsiMin:40,
-    rsiMax:67,
-    volumeMin:0.80,
-    maxDist:0.035,
-    breakoutVolume:1.30,
-    requirePullback:false,
-    preferPullback:false,
+    scoreMin:6,
+    rsiMin:45,
+    rsiMax:63,
+    volumeMin:1.00,
+    maxDist:0.025,
+    breakoutVolume:1.60,
+    requirePullback:true,
+    preferPullback:true,
     marketMinScore:0,
     blockHotBreakout:true
   },
   premium: {
     name:'Premium',
-    description:'Confirmação moderada com mercado favorável e maior qualidade de entrada.',
+    description:'Reteste mais profundo + retomada da EMA9, RSI controlado e confirmação do mercado. Busca a ponta da retomada.',
     mode:'marketcap',
-    scoreMin:5,
-    rsiMin:40,
-    rsiMax:66,
-    volumeMin:0.80,
-    maxDist:0.030,
-    breakoutVolume:1.30,
-    requirePullback:false,
-    preferPullback:false,
+    scoreMin:7,
+    rsiMin:47,
+    rsiMax:61,
+    volumeMin:1.15,
+    maxDist:0.022,
+    breakoutVolume:1.70,
+    requirePullback:true,
+    preferPullback:true,
     marketMinScore:1,
     blockHotBreakout:true
   },
   avancado: {
     name:'Avançado',
-    description:'Mais seletivo, priorizando pullback e confirmação do mercado.',
+    description:'Pullback de alta qualidade ou rompimento seguido de reteste, com mercado favorável e volume forte.',
     mode:'marketcap',
-    scoreMin:5,
-    rsiMin:42,
-    rsiMax:64,
-    volumeMin:0.90,
-    maxDist:0.030,
-    breakoutVolume:1.40,
+    scoreMin:8,
+    rsiMin:48,
+    rsiMax:60,
+    volumeMin:1.25,
+    maxDist:0.020,
+    breakoutVolume:1.80,
     requirePullback:false,
     preferPullback:true,
     marketMinScore:2,
@@ -89,29 +89,39 @@ const STRATEGIES = {
   },
   elite: {
     name:'Elite',
-    description:'Alta confirmação sem ficar travado: pullback preferencial e breakout forte.',
+    description:'Máxima seletividade: tendência forte, pullback/reteste limpo, candle de retomada, volume elevado e mercado BTC favorável.',
     mode:'marketcap',
-    scoreMin:6,
-    rsiMin:44,
-    rsiMax:62,
-    volumeMin:1.00,
-    maxDist:0.025,
-    breakoutVolume:1.50,
-    requirePullback:false,
+    scoreMin:9,
+    rsiMin:50,
+    rsiMax:59,
+    volumeMin:1.40,
+    maxDist:0.018,
+    breakoutVolume:2.00,
+    requirePullback:true,
     preferPullback:true,
-    marketMinScore:2,
+    marketMinScore:3,
     blockHotBreakout:true
   }
 };
 
-const PLAN_ROBOT_RULES={
+const ROBOT_STRATEGY_BY_ID = {
+  1:'basico',
+  2:'medio',
+  3:'premium',
+  4:'avancado',
+  5:'elite'
+};
+
+function strategyForRobot(robotId){
+  return ROBOT_STRATEGY_BY_ID[Number(robotId)||1] || 'basico';
+}={
   basico:{name:'Básico',maxRobots:1,maxOperations:1,strategyLevel:1,maxCoins:20,stopLoss:false},
   profissional:{name:'Profissional',maxRobots:2,maxOperations:2,strategyLevel:3,maxCoins:40,stopLoss:true},
   premium:{name:'Premium',maxRobots:5,maxOperations:3,strategyLevel:5,maxCoins:100,stopLoss:true}
 };
 
 function strategyLevel(version){
-  const levels={basico:1,rapido:2,medio:2,premium:3,avancado:4,elite:5};
+  const levels={basico:1,medio:2,premium:3,avancado:4,elite:5,rapido:2};
   return levels[String(version||'premium').toLowerCase()]||1;
 }
 
@@ -417,6 +427,11 @@ async function usdtBrlRate(client){
 async function saveConfig(userId,accountId,c,robotId=1){
   await ensureSchema();
 
+  // Cada robô numerado possui uma estratégia própria. O backend é a fonte
+  // de verdade para evitar que o front-end troque a estratégia de um robô.
+  const fixedStrategy = strategyForRobot(robotId);
+  c.strategyVersion = fixedStrategy;
+
   const planRules=await getUserPlanRules(userId);
   if(!planRules) throw new Error('Assinatura ativa não encontrada.');
 
@@ -570,9 +585,9 @@ function analysisCandleInterval(interval){
 async function analyze(client,symbol,market,interval,version='premium'){
   const strategy=strategyInfo(version);
   const candleInterval=analysisCandleInterval(interval);
-  const rows=await client.candles({symbol,interval:candleInterval,limit:120});
+  const rows=await client.candles({symbol,interval:candleInterval,limit:160});
   const closed=rows.slice(0,-1);
-  if(closed.length<50)return {valid:false,reason:'Poucos candles'};
+  if(closed.length<60)return {valid:false,reason:'Poucos candles'};
 
   const closes=closed.map(x=>num(x.close));
   const opens=closed.map(x=>num(x.open));
@@ -580,75 +595,112 @@ async function analyze(client,symbol,market,interval,version='premium'){
   const lows=closed.map(x=>num(x.low));
   const volumes=closed.map(x=>num(x.volume));
 
-  const e9=ema(closes,9),e21=ema(closes,21),r=rsi(closes,14);
-  const last=closes.length-1,p=closes[last],o=opens[last];
-  let score=0;
+  const last=closes.length-1;
+  const prev=last-1;
+  const p=closes[last], o=opens[last], h=highs[last], l=lows[last];
+  const prevClose=closes[prev], prevOpen=opens[prev];
+  const e9=ema(closes,9), e21=ema(closes,21);
+  const r=rsi(closes,14);
 
-  if(!(e9>e21)){
-    return {
-      valid:false,
-      reason:'Tendência curta não confirmada (EMA9 <= EMA21)'
-    };
-  }
-  score+=2;
+  if(!(e9>e21))
+    return {valid:false,reason:'Tendência de alta não confirmada (EMA9 <= EMA21)'};
 
-  if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
+  let score=2;
 
-  if(r>strategy.rsiMax+5){
-    return {
-      valid:false,
-      reason:`RSI muito alto: ${r.toFixed(2)}`
-    };
-  }
-
+  // Distância controlada: não compra depois de uma vela já muito esticada.
   const dist=(p-e21)/e21;
+  if(dist>strategy.maxDist)
+    return {valid:false,reason:`Preço esticado ${(dist*100).toFixed(2)}% acima da EMA21`};
+  if(dist<=strategy.maxDist) score++;
 
-  if(dist>strategy.maxDist){
-    return {
-      valid:false,
-      reason:'Preço esticado'
-    };
-  }
-
-  if(Math.abs(dist)<=0.025)score++;
+  if(r>=strategy.rsiMin&&r<=strategy.rsiMax) score++;
+  else if(r>strategy.rsiMax+4)
+    return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
 
   const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,volumes.slice(-21,-1).length);
   const vr=avgVol?volumes[last]/avgVol:0;
-  if(vr>=strategy.volumeMin)score++;
-  if(p>o)score++;
+  if(vr>=strategy.volumeMin) score++;
 
-  const minLow=Math.min(...lows.slice(-6));
-  const pull=Math.abs((minLow-e21)/e21)<=0.025&&p>=e21*0.995&&p<=e21*1.04;
-  const maxHigh=Math.max(...highs.slice(-11,-1));
-  const breakout=p>maxHigh&&vr>=strategy.breakoutVolume&&dist<=strategy.maxDist;
+  // Candle de confirmação: corpo positivo e fechamento acima da abertura.
+  const bullish=p>o;
+  const body=Math.abs(p-o);
+  const range=Math.max(0.0000000001,h-l);
+  const bullishBodyRatio=body/range;
+  if(bullish){
+    score++;
+    if(bullishBodyRatio>=0.35) score++;
+  }
+
+  // Região de pullback: uma das últimas 4 velas tocou/retestou EMA21,
+  // ou ficou muito próxima dela, e a vela atual retomou acima da EMA9.
+  const recentStart=Math.max(0,last-5);
+  const recentLows=lows.slice(recentStart,last);
+  const recentHighs=highs.slice(recentStart,last);
+  const minRecentLow=Math.min(...recentLows);
+  const maxRecentHigh=Math.max(...recentHighs);
+  const touchedE21=Math.abs((minRecentLow-e21)/e21)<=0.022 ||
+                     minRecentLow<=e21*1.008;
+  const touchedE9=recentLows.some(v=>v<=e9*1.012);
+  const pullbackZone=touchedE21||touchedE9;
+  const reclaimedE9=p>=e9*0.998;
+  const pullbackConfirmed=pullbackZone && reclaimedE9 && bullish;
+
+  if(pullbackConfirmed) score+=2;
+
+  // Confirmação extra: a vela anterior não pode estar em queda muito forte
+  // seguida de uma retomada sem estrutura.
+  const previousBearish=prevClose<prevOpen;
+  const recovery=previousBearish && p>prevClose && p>e9*0.998;
+  if(recovery) score++;
+
+  // Rompimento: máximo das 8 velas anteriores rompido com volume forte.
+  const breakoutHigh=Math.max(...highs.slice(-9,-1));
+  const breakout=p>breakoutHigh && vr>=strategy.breakoutVolume && bullish;
+  if(breakout) score+=2;
+
+  // Reteste de rompimento: preço rompeu recentemente e voltou para a região
+  // sem perder a EMA9, depois retomou.
+  const priorBreakHigh=Math.max(...highs.slice(-14,-3));
+  const retest=priorBreakHigh>0 &&
+    lows[last]<=priorBreakHigh*1.012 &&
+    p>priorBreakHigh &&
+    bullish &&
+    vr>=strategy.volumeMin;
 
   let entry=null;
-  if(pull) { score++; entry='PULLBACK'; }
-  else if(breakout && !market.quente) { score++; entry='BREAKOUT'; }
+  if(pullbackConfirmed) entry='PULLBACK_RETOMADA';
+  else if(retest) entry='ROMPIMENTO_RETESTE';
+  else if(breakout && !market.quente) entry='BREAKOUT_CONFIRMADO';
 
-  if(strategy.requirePullback && entry!=='PULLBACK')
-    return {valid:false,reason:'Estratégia exige PULLBACK'};
+  if(strategy.requirePullback && !pullbackConfirmed)
+    return {valid:false,reason:'Estratégia exige pullback + retomada acima da EMA9'};
 
-  if(strategy.preferPullback && entry==='BREAKOUT' && vr<strategy.breakoutVolume)
-    return {valid:false,reason:'Breakout sem volume suficiente para esta estratégia'};
+  if(strategy.preferPullback && entry==='BREAKOUT_CONFIRMADO' && !retest)
+    return {valid:false,reason:'Estratégia prioriza pullback/reteste; breakout isolado rejeitado'};
 
-  if(strategy.blockHotBreakout && market.quente && entry==='BREAKOUT')
-    return {valid:false,reason:'Mercado aquecido para entrada por BREAKOUT'};
+  if(strategy.blockHotBreakout && market.quente && entry!=='PULLBACK_RETOMADA')
+    return {valid:false,reason:'Mercado aquecido para comprar rompimento'};
 
   if(market.score < strategy.marketMinScore)
-    return {valid:false,reason:`Mercado abaixo do filtro da estratégia (${market.score})`};
+    return {valid:false,reason:`Mercado BTC abaixo do filtro da estratégia (score ${market.score})`};
 
   if(score<strategy.scoreMin || !entry)
-    return {valid:false,reason:`Score ${score} abaixo de ${strategy.scoreMin}`};
+    return {
+      valid:false,
+      reason:`Score ${score} abaixo de ${strategy.scoreMin}; entrada=${entry||'nenhuma'}`
+    };
 
   const price=num((await client.prices({symbol}))[symbol]);
   return {
-    valid:price>0,price,score,rsi:r,e9,e21,entry,
+    valid:price>0,
+    price,score,rsi:r,e9,e21,entry,
     strategy:version,
     volumeRatio:vr,
-    pullback:pull,
+    pullback:pullbackConfirmed,
     breakout,
-
+    retest,
+    bullishBodyRatio,
+    distanceFromEma21:dist,
     reason:price>0?'':'Preço inválido'
   };
 }
@@ -1157,7 +1209,7 @@ async function scanByProfile(userId,account,config,robotId=1){
   const strategy=strategyInfo(version);
 
   robotLog(userId,account.id,robotId,`ANÁLISE INICIADA | estratégia=${strategy.name} | versão=${version} | intervalo=${config.interval} | máximo moedas=${config.max_coins}`);
-  robotLog(userId,account.id,robotId,`INDICADORES | EMA9 + EMA21 + RSI14 + volume relativo + PULLBACK/BREAKOUT | filtro BTC 1D/4H quando aplicável`);
+  robotLog(userId,account.id,robotId,`INDICADORES | EMA9 + EMA21 + RSI14 + volume relativo + PULLBACK/RETOMADA + ROMPIMENTO/RETESTE | evita preço esticado | filtro BTC 1D/4H`);
 
   let pairs=[];
   let market={favoravel:true,quente:false,score:0};
@@ -1998,38 +2050,3 @@ async function getStatus(userId,accountId,robotId=1){
     running:!!c?.running,
     engineRunning,
     operations,
-    robotLogs:logs.rows.reverse(),
-    performance:{
-      totalOperations:Number(totals.rows[0]?.total_operations||0),
-      openOperations:Number(totals.rows[0]?.open_operations||0),
-      closedOperations:Number(totals.rows[0]?.closed_operations||0),
-      realizedPnlUsdt:realizedPnl,
-      unrealizedPnlUsdt:unrealizedPnl,
-      totalPnlUsdt:realizedPnl+unrealizedPnl,
-      updatedAt:new Date().toISOString()
-    }
-  };
-}
-
-async function listRobots(userId,accountId){
-  await ensureSchema();
-  const planRules=await getUserPlanRules(userId);
-  const max=Number(planRules?.maxRobots||1);
-  const rows=[];
-  for(let robotId=1;robotId<=max;robotId++){
-    const status=await getStatus(userId,accountId,robotId);
-    rows.push({
-      robotId,
-      config:status.config,
-      running:status.running,
-      engineRunning:status.engineRunning,
-      operations:status.operations,
-      robotLogs:status.robotLogs,
-      performance:status.performance
-    });
-  }
-  return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};
-}
-
-
-module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary,formatNotificationSummary};

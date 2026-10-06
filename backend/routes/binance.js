@@ -1295,6 +1295,21 @@ async function obterClienteBinanceSeguro(userId, accountId) {
 }
 
 async function consultarSaldosBrl(apiKey, apiSecret, client) {
+  const walletBalanceResult = await binanceSignedGet(
+    '/sapi/v1/asset/wallet/balance',
+    apiKey,
+    apiSecret,
+    {
+      needBalanceDetail: 'true'
+    }
+  ).catch((error) => {
+    console.warn(
+      '[BRL-USDT] Wallet Balance não disponível:',
+      error?.message || error
+    );
+    return [];
+  });
+
   const [accountInfo, userAssetResult, fundingResult] = await Promise.all([
     client.accountInfo(),
 
@@ -1335,6 +1350,22 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
     })
   ]);
 
+  // A Binance disponibiliza a visão consolidada das carteiras pelo
+  // endpoint wallet/balance. Para este conversor consideramos SOMENTE
+  // a carteira Spot. Isso captura BRL fiat que não aparece no accountInfo
+  // tradicional em algumas contas/regiões.
+  const spotWallet = Array.isArray(walletBalanceResult)
+    ? walletBalanceResult.find((wallet) =>
+        String(wallet?.walletName || '').toUpperCase().includes('SPOT')
+      )
+    : null;
+
+  const brlWalletSpot = Array.isArray(spotWallet?.assetBalances)
+    ? spotWallet.assetBalances.find(
+        item => String(item?.asset || '').toUpperCase() === 'BRL'
+      )
+    : null;
+
   const brlSpot = (accountInfo.balances || []).find(
     item => String(item.asset || '').toUpperCase() === 'BRL'
   );
@@ -1353,7 +1384,8 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
 
   const spotFree = Math.max(
     Number(brlSpot?.free || 0),
-    Number(brlUserAsset?.free || 0)
+    Number(brlUserAsset?.free || 0),
+    Number(brlWalletSpot?.free || 0)
   );
 
   const fundingFree = Number(brlFunding?.free || 0);
@@ -1365,7 +1397,9 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
     walletType: fundingFree > 0 ? 'FUNDING' : 'SPOT',
     source: brlFunding?.free
       ? 'FUNDING'
-      : (brlUserAsset?.free || brlSpot?.free ? 'SPOT_API' : 'NOT_EXPOSED')
+      : (brlWalletSpot?.free
+        ? 'SPOT_WALLET_BALANCE'
+        : (brlUserAsset?.free || brlSpot?.free ? 'SPOT_API' : 'NOT_EXPOSED'))
   };
 }
 

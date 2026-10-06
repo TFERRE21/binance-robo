@@ -1,4 +1,4 @@
-const CACHE="criptopro-v3";
+const CACHE="criptopro-v4";
 const SHELL=["/","/index.html","/dashboard.html","/manifest.webmanifest"];
 
 self.addEventListener("install",event=>{

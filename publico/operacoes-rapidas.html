@@ -6,7 +6,7 @@
 <title>CriptoPro | Operações Rápidas</title>
 <style>
 :root{--bg:#050812;--card:#0d1626;--card2:#101c30;--line:#263955;--text:#f7f9fd;--muted:#8290a8;--blue:#4aa8ff;--green:#20df96;--red:#ff6177;--yellow:#ffc85a}
-*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.top h1{margin:0;font-size:28px}.top p{margin:6px 0;color:var(--muted);font-size:12px}.back{background:#0d1a2c;border:1px solid var(--line);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:linear-gradient(180deg,#101c30,#091220);border:1px solid var(--line);border-radius:14px;padding:18px}.title{font-size:16px;font-weight:900;margin:0 0 6px}.sub{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:16px}.field{margin-bottom:12px}.label{display:block;font-size:9px;color:#71809a;font-weight:900;text-transform:uppercase;margin-bottom:6px}.input,.select{width:100%;background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:11px;font-size:11px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.btn{width:100%;border:1px solid #30435f;background:#17395f;color:#fff;border-radius:8px;padding:12px;font-size:11px;font-weight:900}.btn.on{background:#0e4c39;border-color:#19785a}.btn.off{background:#481522;border-color:#7b2838}.status{margin-top:12px;border-radius:9px;padding:11px;font-size:10px;line-height:1.5;background:#071321;border:1px solid var(--line)}.status.ok{border-color:#17573f;color:#7ff2c1}.status.err{border-color:#7b2838;color:#ff9aaa}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#091321;border:1px solid #20314b;border-radius:9px;padding:11px}.stat span{display:block;color:#71809a;font-size:8px}.stat b{display:block;margin-top:5px;font-size:13px}.warning{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:9px;padding:11px;font-size:9px;line-height:1.55}.robotState{margin:12px 0;border-radius:10px;padding:14px 16px;border:1px solid #334968;background:#071321;display:flex;align-items:center;gap:12px}.robotDot{width:13px;height:13px;border-radius:50%;background:#7f8a99;box-shadow:0 0 0 4px rgba(127,138,153,.12);flex:0 0 auto}.robotState.on{border-color:#16845f;background:#061b14}.robotState.on .robotDot{background:#20df96;box-shadow:0 0 12px rgba(32,223,150,.8)}.robotState.wait{border-color:#8a6b16;background:#211a05}.robotState.wait .robotDot{background:#ffc85a;box-shadow:0 0 12px rgba(255,200,90,.7)}.robotState.off .robotDot{background:#ff6177;box-shadow:0 0 10px rgba(255,97,119,.45)}.robotState b{display:block;font-size:12px}.robotState small{display:block;margin-top:3px;color:#91a0b7;font-size:9px}.log{height:280px;overflow:auto;background:#03070d;border:1px solid #1b2a40;border-radius:9px;padding:10px;font:10px/1.55 monospace;color:#b9c6da;white-space:pre-wrap}.green{color:#7ff2c1}.muted{color:#8290a8}@media(max-width:800px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.top{align-items:flex-start;gap:10px}.stats{grid-template-columns:1fr}}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#17284c 0%,transparent 34%),var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif}.wrap{max-width:1050px;margin:auto;padding:24px 16px 60px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.top h1{margin:0;font-size:28px}.top p{margin:6px 0;color:var(--muted);font-size:12px}.back{background:#0d1a2c;border:1px solid var(--line);color:#fff;padding:10px 14px;border-radius:9px;font-weight:800}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.card{background:linear-gradient(180deg,#101c30,#091220);border:1px solid var(--line);border-radius:14px;padding:18px}.title{font-size:16px;font-weight:900;margin:0 0 6px}.sub{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:16px}.field{margin-bottom:12px}.label{display:block;font-size:9px;color:#71809a;font-weight:900;text-transform:uppercase;margin-bottom:6px}.input,.select{width:100%;background:#07101c;color:#fff;border:1px solid #30425e;border-radius:8px;padding:11px;font-size:11px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}.btn{width:100%;border:1px solid #30435f;background:#17395f;color:#fff;border-radius:8px;padding:12px;font-size:11px;font-weight:900}.btn.on{background:#0e4c39;border-color:#19785a}.btn.off{background:#481522;border-color:#7b2838}.status{margin-top:12px;border-radius:9px;padding:11px;font-size:10px;line-height:1.5;background:#071321;border:1px solid var(--line)}.status.ok{border-color:#17573f;color:#7ff2c1}.status.err{border-color:#7b2838;color:#ff9aaa}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#091321;border:1px solid #20314b;border-radius:9px;padding:11px}.stat span{display:block;color:#71809a;font-size:8px}.stat b{display:block;margin-top:5px;font-size:13px}.warning{margin-top:12px;border:1px solid #806c13;background:#201a05;color:#ffd84d;border-radius:9px;padding:11px;font-size:9px;line-height:1.55}.robotState{margin:12px 0;border-radius:10px;padding:14px 16px;border:1px solid #334968;background:#071321;display:flex;align-items:center;gap:12px}.robotDot{width:13px;height:13px;border-radius:50%;background:#7f8a99;box-shadow:0 0 0 4px rgba(127,138,153,.12);flex:0 0 auto}.robotState.on{border-color:#16845f;background:#061b14}.robotState.on .robotDot{background:#20df96;box-shadow:0 0 12px rgba(32,223,150,.8)}.robotState.wait{border-color:#8a6b16;background:#211a05}.robotState.wait .robotDot{background:#ffc85a;box-shadow:0 0 12px rgba(255,200,90,.7)}.robotState.off .robotDot{background:#ff6177;box-shadow:0 0 10px rgba(255,97,119,.45)}.robotState b{display:block;font-size:12px}.robotState small{display:block;margin-top:3px;color:#91a0b7;font-size:9px}.log{height:280px;overflow:auto;background:#03070d;border:1px solid #1b2a40;border-radius:9px;padding:10px;font:10px/1.55 monospace;color:#b9c6da;white-space:pre-wrap}.green{color:#7ff2c1}.muted{color:#8290a8}@media(max-width:800px){.grid{grid-template-columns:1fr}.row,.row3{grid-template-columns:1fr}.top{align-items:flex-start;gap:10px}.stats{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -22,14 +22,15 @@
       <div class="sub">O modo rápido procura várias moedas por volume, confirma EMA9/EMA21, RSI e volume relativo e prioriza as melhores oportunidades. Ele pode abrir mais de uma operação conforme o limite configurado.</div>
 
       <div class="field"><label class="label">Conta Binance</label><select id="account" class="select"></select></div>
-      <div class="row">
+      <div class="row3">
         <div class="field"><label class="label">Operações simultâneas</label><select id="ops" class="select"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option></select></div>
         <div class="field"><label class="label">Intervalo de busca</label><select id="interval" class="select"><option value="5m" selected>5 minutos</option><option value="15m">15 minutos</option><option value="30m">30 minutos</option></select></div>
+        <div class="field"><label class="label">Entrada por operação</label><select id="entryPercent" class="select"><option value="90">90%</option><option value="95">95%</option><option value="99" selected>99%</option><option value="100">100%</option></select><small style="display:block;margin-top:6px;color:#9aa4b2;">Cada operação recebe sua parte do valor reservado: reserva ÷ nº de operações × este percentual.</small></div>
       </div>
       <div class="field">
         <label class="label">💰 Valor separado para Operações Rápidas (R$)</label>
         <input id="reservedBrl" class="select" type="number" min="33.00" step="0.01" value="35.00" placeholder="Ex.: 35,00">
-        <small style="display:block;margin-top:6px;color:#9aa4b2;">Teste inicial: 1 operação com mínimo de US$ 6,00. O valor em reais é convertido pela cotação USDT/BRL no momento da entrada. Este valor fica reservado para este robô; os outros robôs não poderão contar com essa parcela enquanto a reserva estiver ativa.</small>
+        <small style="display:block;margin-top:6px;color:#9aa4b2;">O valor reservado é dividido igualmente pelo número de operações solicitadas. Depois, o percentual de entrada é aplicado em cada parcela. Ex.: R$ 1.000 ÷ 4 = R$ 250 por operação; com 99%, cada entrada usa aproximadamente R$ 247,50.</small>
       </div>
       <div class="row">
         <div class="field"><label class="label">Take Profit automático</label><div class="select" style="display:flex;align-items:center;font-weight:700;">🤖 O robô decide: 1% a 2,5%</div></div>
@@ -51,7 +52,7 @@
       <h2 class="title">🤖 Decisão automática</h2>
       <div class="stats">
         <div class="stat"><span>OPERAÇÕES DECIDIDAS</span><b id="decidedOps">—</b></div>
-        <div class="stat"><span>ALVO ATUAL</span><b id="autoTp">1%–2,5%</b></div>
+        <div class="stat"><span>ENTRADA POR OPERAÇÃO</span><b id="perOperationBudget">—</b></div>
         <div class="stat"><span>EXECUTADAS</span><b id="executedOps">—</b></div>
       </div>
       <p style="margin:12px 0 0;color:#9aa4b2;font-size:13px;">A quantidade de entradas é definida pelo robô conforme a qualidade das oportunidades. Depois da compra, uma ordem SELL de Take Profit é criada automaticamente.</p>
@@ -130,6 +131,14 @@ async function refresh(){
     const execLine=lastLogs.slice().reverse().find(x=>String(x?.message||"").includes("POSIÇÃO ABERTA"));
     const dm=String(decisionLine?.message||"").match(/operações escolhidas=(\d+)/);
     $("decidedOps").textContent=dm?dm[1]:"—";
+    const cfg=st?.config||{};
+    const maxOps=Math.max(1,Number(cfg.max_operations||$("ops").value||1));
+    const reservedBrl=Number(cfg.quick_reserved_brl||$("reservedBrl").value||0);
+    const entryPct=Number(cfg.entry_percent||$("entryPercent").value||99);
+    const perOpBrl=maxOps>0?(reservedBrl/maxOps)*(entryPct/100):0;
+    $("perOperationBudget").textContent=perOpBrl>0
+      ? fmtBRL(perOpBrl)+" ("+entryPct.toFixed(0)+"%)"
+      : "—";
     const em=lastLogs.filter(x=>String(x?.message||"").includes("POSIÇÃO ABERTA")).length;
     $("executedOps").textContent=String(em||"—");
     $("balance").textContent=Number(b.disponivelUSDT ?? b.balance?.available ?? 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
@@ -163,7 +172,7 @@ $("toggle").onclick=async()=>{
       if(!free) throw new Error("Todos os robôs permitidos pelo seu plano estão ocupados. Pare um robô antes de iniciar Operações Rápidas.");
       quickRobotId=Number(free.robotId);
       await api("/api/robot/config",{method:"POST",body:JSON.stringify({
-        accountId,robotId:quickRobotId,entryPercent:90,takeProfit:1,quickReservedBrl:Number($("reservedBrl").value),
+        accountId,robotId:quickRobotId,entryPercent:Number($("entryPercent").value),takeProfit:1,quickReservedBrl:Number($("reservedBrl").value),
         stopLoss,stopLossActive:stopLoss>0,maxOperations:Number($("ops").value),
         interval:$("interval").value,maxCoins:Number($("coins").value),strategyVersion:"rapido"
       })});

@@ -1144,7 +1144,22 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   document.getElementById('brlUsdtQuoteBtn')?.addEventListener('click',quote);
   document.getElementById('brlUsdtConfirmBtn')?.addEventListener('click',convert);
   document.getElementById('brlUsdtAmount')?.addEventListener('input',()=>{quote=null;document.getElementById('brlUsdtConfirmBtn').disabled=true;});
-  if(typeof apiFetch==='function') setTimeout(loadBalance,800);
+  // O script deste card aparece antes de apiFetch no HTML.
+  // Fazemos a primeira consulta somente quando o restante da página
+  // já estiver carregado, evitando que typeof apiFetch seja avaliado cedo demais.
+  const scheduleInitialBalance=()=>{
+    if(typeof apiFetch==='function'){
+      loadBalance().catch(error=>console.warn("Saldo BRL inicial:",error));
+      return;
+    }
+    setTimeout(scheduleInitialBalance,250);
+  };
+  if(document.readyState==="loading"){
+    document.addEventListener("DOMContentLoaded",scheduleInitialBalance,{once:true});
+  }else{
+    scheduleInitialBalance();
+  }
+
   window.refreshBrlUsdtConverter=loadBalance;
 })();
 </script>
@@ -2144,6 +2159,17 @@ async function loadPendingAccount(){
   selectedAccountId=String(id);
   localStorage.setItem("selected_binance_account",selectedAccountId);
   renderAccountSelector();
+
+  // Atualiza o BRL imediatamente ao selecionar/carregar a conta.
+  // Aqui apiFetch já está disponível porque esta função só roda após a página carregar.
+  const brlSource=document.getElementById("brlUsdtSource");
+  if(brlSource) brlSource.textContent="Fonte do saldo: CONSULTANDO BINANCE SPOT...";
+  if(typeof window.refreshBrlUsdtConverter==="function"){
+    window.refreshBrlUsdtConverter().catch(error=>{
+      console.warn("Saldo BRL ao trocar conta:",error);
+    });
+  }
+
   const btn=document.getElementById("loadPanelBtn");
   if(btn)btn.disabled=true;
   try{

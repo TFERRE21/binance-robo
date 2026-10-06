@@ -34,7 +34,34 @@ app.use(
 // MIDDLEWARES
 // =========================================================
 app.use(express.json());
-app.use(express.static(path.join(__dirname, "../publico")));
+
+// CRIPTOPRO: nunca manter HTML/Service Worker antigo no navegador/CDN.
+// Os arquivos estáticos de páginas precisam sempre refletir o deploy atual.
+app.use((req, res, next) => {
+  const noCache = [
+    "/",
+    "/index.html",
+    "/dashboard.html",
+    "/sw.js",
+    "/manifest.webmanifest"
+  ].includes(req.path);
+
+  if (noCache) {
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
+
+  next();
+});
+
+app.use(express.static(path.join(__dirname, "../publico"), {
+  etag: false,
+  maxAge: 0
+}));
 
 app.post("/api/support/chat", async function (req, res) {
   try {

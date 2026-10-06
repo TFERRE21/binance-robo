@@ -1295,129 +1295,74 @@ async function obterClienteBinanceSeguro(userId, accountId) {
 }
 
 async function consultarSaldosBrl(apiKey, apiSecret, client) {
-  const walletBalanceResult = await binanceSignedGet(
+  /*
+   * BRL -> USDT:
+   * consultar SOMENTE Spot e evitar chamadas Funding que podem atrasar
+   * ou bloquear a resposta do conversor.
+   */
+  const walletBalancePromise = binanceSignedGet(
     '/sapi/v1/asset/wallet/balance',
     apiKey,
     apiSecret,
-    {
-      needBalanceDetail: 'true'
-    }
-  ).catch((error) => {
-    console.warn(
-      '[BRL-USDT] Wallet Balance não disponível:',
-      error?.message || error
-    );
+    { needBalanceDetail: 'true' }
+  ).catch(error => {
+    console.warn('[BRL-USDT] wallet/balance:', error?.message || error);
     return [];
   });
 
-  const [accountInfo, userAssetResult, fundingResult] = await Promise.all([
-    client.accountInfo(),
+  const accountInfoPromise = client.accountInfo().catch(error => {
+    console.warn('[BRL-USDT] accountInfo:', error?.message || error);
+    return { balances: [] };
+  });
 
-    // User Asset é a consulta assinada específica de ativos positivos.
-    binanceSignedPost(
-      '/sapi/v3/asset/getUserAsset',
-      apiKey,
-      apiSecret,
-      {
-        asset: 'BRL',
-        needBtcValuation: 'false'
-      }
-    ).catch((error) => {
-      console.warn(
-        '[BRL-USDT] User Asset BRL não disponível:',
-        error?.message || error
-      );
-      return [];
-    }),
-
-    // Funding Wallet: atualmente a Binance limita este endpoint a
-    // determinados ativos de negócio, mas mantemos a consulta como fonte
-    // adicional caso a conta tenha BRL elegível nessa carteira.
-    binanceSignedPost(
-      '/sapi/v1/asset/get-funding-asset',
-      apiKey,
-      apiSecret,
-      {
-        asset: 'BRL',
-        needBtcValuation: 'false'
-      }
-    ).catch((error) => {
-      console.warn(
-        '[BRL-USDT] Funding BRL não disponível:',
-        error?.message || error
-      );
-      return [];
-    })
+  const [walletBalanceResult, accountInfo] = await Promise.all([
+    walletBalancePromise,
+    accountInfoPromise
   ]);
 
-  // A Binance disponibiliza a visão consolidada das carteiras pelo
-  // endpoint wallet/balance. Para este conversor consideramos SOMENTE
-  // a carteira Spot. Isso captura BRL fiat que não aparece no accountInfo
-  // tradicional em algumas contas/regiões.
-  // Normaliza diferentes formatos retornados pela Binance.
   const walletList =
     Array.isArray(walletBalanceResult) ? walletBalanceResult :
     Array.isArray(walletBalanceResult?.data) ? walletBalanceResult.data :
     Array.isArray(walletBalanceResult?.wallets) ? walletBalanceResult.wallets :
     [];
 
-  const spotWallet = walletList.find((wallet) =>
+  const spotWallet = walletList.find(wallet =>
     String(wallet?.walletName || wallet?.walletType || wallet?.name || '')
       .toUpperCase()
       .includes('SPOT')
   );
 
-  const spotAssets = Array.isArray(spotWallet?.assetBalances)
-    ? spotWallet.assetBalances
-    : Array.isArray(spotWallet?.balances)
-      ? spotWallet.balances
-      : [];
+  const spotAssets =
+    Array.isArray(spotWallet?.assetBalances) ? spotWallet.assetBalances :
+    Array.isArray(spotWallet?.balances) ? spotWallet.balances :
+    [];
 
-  const brlWalletSpot = spotAssets.find(
-    item => String(item?.asset || item?.coin || '').toUpperCase() === 'BRL'
+  const brlWalletSpot = spotAssets.find(item =>
+    String(item?.asset || item?.coin || '').toUpperCase() === 'BRL'
   );
 
-  const brlSpot = (accountInfo.balances || []).find(
-    item => String(item.asset || '').toUpperCase() === 'BRL'
+  const brlAccount = (accountInfo?.balances || []).find(item =>
+    String(item?.asset || '').toUpperCase() === 'BRL'
   );
 
-  const brlUserAsset = Array.isArray(userAssetResult)
-    ? userAssetResult.find(
-        item => String(item.asset || '').toUpperCase() === 'BRL'
-      )
-    : null;
-
-  const brlFunding = Array.isArray(fundingResult)
-    ? fundingResult.find(
-        item => String(item.asset || '').toUpperCase() === 'BRL'
-      )
-    : null;
-
-  // O conversor BRL -> USDT considera exclusivamente a carteira Spot.
-  // Algumas respostas usam "balance" em vez de "free".
-  const brlWalletFree = Number(
+  const walletFree = Number(
     brlWalletSpot?.free ??
     brlWalletSpot?.balance ??
     0
   );
-  const brlAccountFree = Number(brlSpot?.free || 0);
-  const brlUserAssetFree = Number(brlUserAsset?.free || 0);
 
-  const spotFree = Math.max(
-    brlAccountFree,
-    brlUserAssetFree,
-    brlWalletFree
-  );
+  const accountFree = Number(brlAccount?.free || 0);
+
+  const spotFree = Math.max(walletFree, accountFree);
 
   const source =
-    brlWalletFree > 0 ? 'SPOT_WALLET_BALANCE' :
-    brlUserAssetFree > 0 ? 'SPOT_USER_ASSET' :
-    brlAccountFree > 0 ? 'SPOT_ACCOUNT_INFO' :
+    walletFree > 0 ? 'SPOT_WALLET_BALANCE' :
+    accountFree > 0 ? 'SPOT_ACCOUNT_INFO' :
     'NOT_EXPOSED';
 
   return {
     spotFree,
-    fundingFree: Number(brlFunding?.free || 0),
+    fundingFree: 0,
     available: spotFree,
     walletType: 'SPOT',
     source,
@@ -1429,10 +1374,8 @@ async function consultarSaldosBrl(apiKey, apiSecret, client) {
       spotWalletFound: !!spotWallet,
       spotAssetCount: spotAssets.length,
       brlFoundInSpotWallet: !!brlWalletSpot,
-      brlFoundInAccountInfo: !!brlSpot,
-      brlFoundInUserAsset: !!brlUserAsset
+      brlFoundInAccountInfo: !!brlAccount
     }
-
   };
 }
 

@@ -2180,6 +2180,16 @@ async function loadSelectedAccount(){
     operationContent.innerHTML='<div class="operation-empty">Carregando dados da conta Binance...</div>';
   }
 
+  // Consulta o BRL ANTES da rota pesada do painel.
+  // Assim o saldo não depende de /api/panel/account/:id terminar.
+  if(typeof window.refreshBrlUsdtConverter==="function"){
+    const brlSource=document.getElementById("brlUsdtSource");
+    if(brlSource) brlSource.textContent="Fonte do saldo: CONSULTANDO BINANCE SPOT...";
+    window.refreshBrlUsdtConverter().catch(error=>{
+      console.warn("Consulta BRL antecipada:",error);
+    });
+  }
+
   try{
     /*
       IMPORTANTE:

@@ -1904,4 +1904,61 @@ function formatNotificationSummary(resumo,{teste=false}={}) {
   return linhas.join("\n");
 }
 
+
+async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
+
+async function getStatus(userId,accountId,robotId=1){
+  await ensureSchema();
+  const c=await getConfig(userId,accountId,robotId);
+  const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason,close_price,result_percent,result_usdt FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
+  const logs=await db.query(`SELECT id,level,message,created_at FROM robot_logs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 80`,[userId,accountId,robotId]);
+  const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
+
+  /*
+   * CORREÇÃO ETAPA 21:
+   * "running" é o estado oficial persistido no banco.
+   *
+   * Antes:
+   *   running: !!c?.running || engineRunning
+   *
+   * Isso fazia a interface continuar mostrando RODANDO enquanto
+   * o runner interno ainda existia no Map, mesmo depois de o usuário
+   * ter pressionado PARAR e robot_configs.running já estar FALSE.
+   *
+   * Agora:
+   *   running = somente robot_configs.running
+   *   engineRunning = informação técnica separada do motor interno
+   *
+   * Assim, depois de PARAR, o painel passa a receber running=false.
+   */
+  return {
+    success:true,
+    config:c,
+    running:!!c?.running,
+    engineRunning,
+    operations:r.rows,
+    robotLogs:logs.rows.reverse()
+  };
+}
+
+async function listRobots(userId,accountId){
+  await ensureSchema();
+  const planRules=await getUserPlanRules(userId);
+  const max=Number(planRules?.maxRobots||1);
+  const rows=[];
+  for(let robotId=1;robotId<=max;robotId++){
+    const status=await getStatus(userId,accountId,robotId);
+    rows.push({
+      robotId,
+      config:status.config,
+      running:status.running,
+      engineRunning:status.engineRunning,
+      operations:status.operations,
+      robotLogs:status.robotLogs
+    });
+  }
+  return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};
+}
+
+
 module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary,formatNotificationSummary};

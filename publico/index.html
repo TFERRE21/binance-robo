@@ -4475,5 +4475,92 @@ init();
   else loadAccountPhone();
 })();
 </script>
+
+<style id="brl-usdt-converter-style">
+.brl-usdt-card{margin:0 0 20px;border:1px solid rgba(240,185,11,.28);background:linear-gradient(135deg,rgba(240,185,11,.07),rgba(255,255,255,.025));border-radius:14px;padding:18px}
+.brl-usdt-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.brl-usdt-title{font-size:15px;font-weight:900}.brl-usdt-sub{font-size:9px;color:#778395;margin-top:4px}
+.brl-usdt-badge{font-size:9px;font-weight:900;color:#35d394;border:1px solid rgba(53,211,148,.25);padding:6px 9px;border-radius:20px;background:rgba(53,211,148,.05)}
+.brl-usdt-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.brl-usdt-box{border:1px solid rgba(255,255,255,.07);background:rgba(0,0,0,.12);border-radius:10px;padding:12px}.brl-usdt-box span{display:block;color:#778395;font-size:8px;text-transform:uppercase;margin-bottom:6px}.brl-usdt-box strong{font-size:16px}
+.brl-usdt-input{width:100%;height:42px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:#080d14;color:#fff;padding:0 12px;font-size:14px;font-weight:800;outline:none}.brl-usdt-input:focus{border-color:rgba(240,185,11,.55)}
+.brl-usdt-actions{display:flex;gap:9px;margin-top:12px}.brl-usdt-btn{height:42px;border:1px solid rgba(240,185,11,.35);border-radius:9px;padding:0 16px;font-size:10px;font-weight:900}.brl-usdt-quote{background:rgba(240,185,11,.08);color:#f0b90b}.brl-usdt-confirm{background:linear-gradient(135deg,#dca900,#f0b90b);color:#111;border-color:#f0b90b;flex:1}.brl-usdt-btn:disabled{opacity:.5;cursor:not-allowed}.brl-usdt-result{margin-top:11px;padding:10px;border-radius:9px;font-size:10px;line-height:1.5;display:none}.brl-usdt-result.show{display:block}.brl-usdt-ok{border:1px solid rgba(53,211,148,.25);background:rgba(53,211,148,.06);color:#9af0cd}.brl-usdt-error{border:1px solid rgba(255,80,100,.25);background:rgba(255,55,80,.06);color:#ffabb7}
+@media(max-width:700px){.brl-usdt-grid{grid-template-columns:1fr}.brl-usdt-actions{flex-direction:column}.brl-usdt-confirm{width:100%}}
+</style>
+<section class="brl-usdt-card" id="brlUsdtConverter">
+  <div class="brl-usdt-head">
+    <div><div class="brl-usdt-title">💱 Converter BRL → USDT</div><div class="brl-usdt-sub">Converta o saldo BRL da sua conta Binance conectada. O USDT permanece na sua Binance.</div></div>
+    <div class="brl-usdt-badge">BINANCE</div>
+  </div>
+  <div class="brl-usdt-grid">
+    <div class="brl-usdt-box"><span>Saldo BRL disponível</span><strong id="brlUsdtBalance">R$ 0,00</strong></div>
+    <div class="brl-usdt-box"><span>USDT estimado</span><strong id="brlUsdtReceive">—</strong></div>
+  </div>
+  <div style="margin-top:12px"><span style="display:block;color:#778395;font-size:8px;text-transform:uppercase;margin-bottom:6px">Valor em BRL</span><input id="brlUsdtAmount" class="brl-usdt-input" type="number" min="0.01" step="0.01" placeholder="Ex.: 100,00"></div>
+  <div class="brl-usdt-actions">
+    <button id="brlUsdtQuoteBtn" class="brl-usdt-btn brl-usdt-quote">Atualizar cotação</button>
+    <button id="brlUsdtConfirmBtn" class="brl-usdt-btn brl-usdt-confirm" disabled>Converter BRL → USDT</button>
+  </div>
+  <div id="brlUsdtResult" class="brl-usdt-result"></div>
+</section>
+<script>
+(function(){
+  const moneyBRL = n => Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+  const moneyUSDT = n => Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' USDT';
+  let quote=null;
+
+  function result(msg,ok){
+    const el=document.getElementById('brlUsdtResult'); if(!el)return;
+    el.className='brl-usdt-result show '+(ok?'brl-usdt-ok':'brl-usdt-error');
+    el.innerHTML=msg;
+  }
+  function accountId(){
+    return typeof selectedAccountId!=='undefined' && selectedAccountId ? Number(selectedAccountId) : Number(document.getElementById('accountSelector')?.value||0);
+  }
+  async function loadBalance(){
+    const id=accountId(); if(!id)return;
+    try{
+      const d=await apiFetch('/api/binance/brl-usdt/balance?accountId='+encodeURIComponent(id));
+      document.getElementById('brlUsdtBalance').textContent=moneyBRL(d.free);
+      const input=document.getElementById('brlUsdtAmount');
+      if(input && !input.value && d.free>0) input.placeholder='Máximo: '+d.free.toFixed(2).replace('.',',');
+    }catch(e){result('⚠️ '+String(e.message||'Não foi possível consultar o saldo BRL.'),false);}
+  }
+  async function quote(){
+    const id=accountId(), amount=Number(document.getElementById('brlUsdtAmount').value);
+    if(!id)return result('Selecione uma conta Binance conectada.',false);
+    if(!amount||amount<=0)return result('Informe o valor em BRL.',false);
+    const btn=document.getElementById('brlUsdtQuoteBtn'), confirm=document.getElementById('brlUsdtConfirmBtn');
+    btn.disabled=true; confirm.disabled=true; quote=null;
+    try{
+      const d=await apiFetch('/api/binance/brl-usdt/quote',{method:'POST',body:JSON.stringify({accountId:id,amount})});
+      quote=d;
+      document.getElementById('brlUsdtReceive').textContent=moneyUSDT(d.toAmount);
+      result('Cotação válida por poucos segundos. <strong>R$ '+Number(d.fromAmount).toLocaleString('pt-BR',{minimumFractionDigits:2})+' → '+moneyUSDT(d.toAmount)+'</strong>. Confirme somente se os valores estiverem corretos.',true);
+      confirm.disabled=false;
+    }catch(e){document.getElementById('brlUsdtReceive').textContent='—';result('❌ '+String(e.message||'Erro ao obter cotação.'),false);}
+    finally{btn.disabled=false;}
+  }
+  async function convert(){
+    const id=accountId(), amount=Number(document.getElementById('brlUsdtAmount').value);
+    if(!id||!amount)return;
+    if(!quote)return quote && await quote();
+    if(!confirm('Confirma a conversão de R$ '+amount.toLocaleString('pt-BR',{minimumFractionDigits:2})+' para USDT na sua conta Binance?'))return;
+    const btn=document.getElementById('brlUsdtConfirmBtn'); btn.disabled=true;
+    try{
+      const d=await apiFetch('/api/binance/brl-usdt/convert',{method:'POST',body:JSON.stringify({accountId:id,amount})});
+      result('✅ <strong>Conversão enviada.</strong><br>BRL convertido: R$ '+Number(d.fromAmount).toLocaleString('pt-BR',{minimumFractionDigits:2})+'<br>USDT: '+moneyUSDT(d.toAmount)+'<br>Status Binance: '+String(d.status||'PROCESS')+(d.orderId?' · Ordem: '+String(d.orderId):''),true);
+      quote=null; document.getElementById('brlUsdtReceive').textContent='—'; document.getElementById('brlUsdtAmount').value='';
+      setTimeout(loadBalance,1200);
+      if(typeof loadPanelData==='function')try{await loadPanelData(id)}catch(_){}
+    }catch(e){result('❌ '+String(e.message||'Não foi possível concluir a conversão.'),false);}
+    finally{btn.disabled=true;}
+  }
+  document.getElementById('brlUsdtQuoteBtn')?.addEventListener('click',quote);
+  document.getElementById('brlUsdtConfirmBtn')?.addEventListener('click',convert);
+  document.getElementById('brlUsdtAmount')?.addEventListener('input',()=>{quote=null;document.getElementById('brlUsdtConfirmBtn').disabled=true;});
+  if(typeof apiFetch==='function') setTimeout(loadBalance,800);
+  window.refreshBrlUsdtConverter=loadBalance;
+})();
+</script>
 </body>
 </html>

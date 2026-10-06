@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<!-- CRIPTOPRO BUILD 2026-10-06-BRL01 -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CriptoPro — Automação Binance e Criptomoedas</title>
@@ -1063,7 +1064,7 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
   </div>
   <div class="brl-usdt-grid">
     <div class="brl-usdt-box"><span>Saldo BRL disponível</span><strong id="brlUsdtBalance">R$ 0,00</strong></div>
-    <div class="brl-usdt-box"><span>USDT estimado</span><strong id="brlUsdtReceive">—</strong></div><div id="brlUsdtSource" style="grid-column:1/-1;font-size:9px;color:#778395;text-transform:uppercase;margin-top:2px">Fonte do saldo: aguardando consulta...</div>
+    <div class="brl-usdt-box"><span>USDT estimado</span><strong id="brlUsdtReceive">—</strong></div><div id="brlUsdtSource" style="grid-column:1/-1;font-size:9px;color:#778395;text-transform:uppercase;margin-top:2px">Fonte do saldo: iniciando consulta...</div>
   </div>
   <div style="margin-top:12px"><span style="display:block;color:#778395;font-size:8px;text-transform:uppercase;margin-bottom:6px">Valor em BRL</span><input id="brlUsdtAmount" class="brl-usdt-input" type="number" min="0.01" step="0.01" placeholder="Ex.: 100,00"></div>
   <div class="brl-usdt-actions">
@@ -1100,8 +1101,11 @@ html[data-cp-theme="light"] body{background:#f4f6f8 !important;color:#17202a !im
       const sourceEl=document.getElementById('brlUsdtSource');
       if(sourceEl){
         const source=String(d.source||'NOT_EXPOSED');
-        sourceEl.textContent='Fonte do saldo: '+source+
-          ' · SPOT: '+moneyBRL(d.spotFree||0);
+        const spot=moneyBRL(d.spotFree||0);
+        sourceEl.textContent='Fonte do saldo: '+source+' · SPOT: '+spot;
+        if(Number(d.free||0)<=0 && d.diagnostics){
+          console.warn('[BRL-USDT] Diagnóstico Binance:',d.diagnostics);
+        }
       }
       const input=document.getElementById('brlUsdtAmount');
       if(input && !input.value && d.free>0) input.placeholder='Máximo: '+d.free.toFixed(2).replace('.',',');
@@ -4526,7 +4530,7 @@ init();
     const permission=await Notification.requestPermission();
     if(permission!=="granted") throw new Error("Permissão de notificações não concedida.");
 
-    await navigator.serviceWorker.register("/sw.js");
+    await navigator.serviceWorker.register("/sw.js?v=20261006-01",{updateViaCache:"none"});
     const registration=await navigator.serviceWorker.ready;
     let subscription=await registration.pushManager.getSubscription();
 

@@ -2014,7 +2014,8 @@ async function listRobots(userId,accountId){
       running:status.running,
       engineRunning:status.engineRunning,
       operations:status.operations,
-      robotLogs:status.robotLogs
+      robotLogs:status.robotLogs,
+      performance:status.performance
     });
   }
   return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};

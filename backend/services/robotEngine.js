@@ -1910,34 +1910,94 @@ async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SE
 async function getStatus(userId,accountId,robotId=1){
   await ensureSchema();
   const c=await getConfig(userId,accountId,robotId);
-  const r=await db.query(`SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason,close_price,result_percent,result_usdt FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 20`,[userId,accountId,robotId]);
-  const logs=await db.query(`SELECT id,level,message,created_at FROM robot_logs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 ORDER BY id DESC LIMIT 80`,[userId,accountId,robotId]);
+
+  const r=await db.query(
+    `SELECT id,symbol,buy_price,quantity,tp_price,stop_price,status,opened_at,closed_at,close_reason,close_price,result_percent,result_usdt
+     FROM robot_operations
+     WHERE user_id=$1 AND account_id=$2 AND robot_id=$3
+     ORDER BY id DESC LIMIT 20`,
+    [userId,accountId,robotId]
+  );
+
+  const totals=await db.query(
+    `SELECT
+       COUNT(*)::int AS total_operations,
+       COUNT(*) FILTER (WHERE UPPER(status)='OPEN')::int AS open_operations,
+       COUNT(*) FILTER (WHERE UPPER(status)<>'OPEN' AND result_usdt IS NOT NULL)::int AS closed_operations,
+       COALESCE(SUM(CASE WHEN UPPER(status)<>'OPEN' THEN result_usdt ELSE 0 END),0)::numeric AS realized_pnl_usdt
+     FROM robot_operations
+     WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,
+    [userId,accountId,robotId]
+  );
+
+  const logs=await db.query(
+    `SELECT id,level,message,created_at
+     FROM robot_logs
+     WHERE user_id=$1 AND account_id=$2 AND robot_id=$3
+     ORDER BY id DESC LIMIT 80`,
+    [userId,accountId,robotId]
+  );
+
   const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
 
-  /*
-   * CORREÇÃO ETAPA 21:
-   * "running" é o estado oficial persistido no banco.
-   *
-   * Antes:
-   *   running: !!c?.running || engineRunning
-   *
-   * Isso fazia a interface continuar mostrando RODANDO enquanto
-   * o runner interno ainda existia no Map, mesmo depois de o usuário
-   * ter pressionado PARAR e robot_configs.running já estar FALSE.
-   *
-   * Agora:
-   *   running = somente robot_configs.running
-   *   engineRunning = informação técnica separada do motor interno
-   *
-   * Assim, depois de PARAR, o painel passa a receber running=false.
-   */
+  let account=null;
+  let client=null;
+  try{
+    account=await getAccount(userId,accountId);
+    if(account?.active) client=clientFor(account);
+  }catch(e){
+    console.warn('[ROBO] Não foi possível preparar cotação em tempo real:',errText(e));
+  }
+
+  const operations=await Promise.all(r.rows.map(async op=>{
+    const item={...op};
+    if(String(op.status||'').toUpperCase()!=='OPEN' || !client){
+      item.current_price=null;
+      item.unrealized_pnl_usdt=0;
+      item.unrealized_pnl_percent=0;
+      return item;
+    }
+
+    try{
+      const prices=await client.prices({symbol:String(op.symbol||'').toUpperCase()});
+      const current=num(prices?.[String(op.symbol||'').toUpperCase()]);
+      const buy=num(op.buy_price);
+      const qty=num(op.quantity);
+      const pnl=(current-buy)*qty;
+      item.current_price=current;
+      item.unrealized_pnl_usdt=pnl;
+      item.unrealized_pnl_percent=buy>0?((current-buy)/buy)*100:0;
+      item.current_value_usdt=current*qty;
+    }catch(e){
+      item.current_price=null;
+      item.unrealized_pnl_usdt=0;
+      item.unrealized_pnl_percent=0;
+      console.warn(`[ROBO] Cotação ${op.symbol}:`,errText(e));
+    }
+    return item;
+  }));
+
+  const realizedPnl=num(totals.rows[0]?.realized_pnl_usdt);
+  const unrealizedPnl=operations
+    .filter(o=>String(o.status||'').toUpperCase()==='OPEN')
+    .reduce((sum,o)=>sum+num(o.unrealized_pnl_usdt),0);
+
   return {
     success:true,
     config:c,
     running:!!c?.running,
     engineRunning,
-    operations:r.rows,
-    robotLogs:logs.rows.reverse()
+    operations,
+    robotLogs:logs.rows.reverse(),
+    performance:{
+      totalOperations:Number(totals.rows[0]?.total_operations||0),
+      openOperations:Number(totals.rows[0]?.open_operations||0),
+      closedOperations:Number(totals.rows[0]?.closed_operations||0),
+      realizedPnlUsdt:realizedPnl,
+      unrealizedPnlUsdt:unrealizedPnl,
+      totalPnlUsdt:realizedPnl+unrealizedPnl,
+      updatedAt:new Date().toISOString()
+    }
   };
 }
 

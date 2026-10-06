@@ -114,7 +114,9 @@ const ROBOT_STRATEGY_BY_ID = {
 
 function strategyForRobot(robotId){
   return ROBOT_STRATEGY_BY_ID[Number(robotId)||1] || 'basico';
-}={
+}
+
+const PLAN_ROBOT_RULES={
   basico:{name:'Básico',maxRobots:1,maxOperations:1,strategyLevel:1,maxCoins:20,stopLoss:false},
   profissional:{name:'Profissional',maxRobots:2,maxOperations:2,strategyLevel:3,maxCoins:40,stopLoss:true},
   premium:{name:'Premium',maxRobots:5,maxOperations:3,strategyLevel:5,maxCoins:100,stopLoss:true}
@@ -404,7 +406,21 @@ async function marketSellRemaining(client,symbol){
 async function getConfig(userId,accountId,robotId=1){
   await ensureSchema();
   const r=await db.query(`SELECT * FROM robot_configs WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,[userId,accountId,robotId]);
-  return r.rows[0]||null;
+  const row=r.rows[0]||null;
+  if(!row) return null;
+
+  // Robôs 1..5 possuem estratégia fixa. Isso também corrige configurações
+  // antigas que ainda estejam gravadas com v7.1/v6 ou outra estratégia.
+  const fixedStrategy=strategyForRobot(robotId);
+  if(ROBOT_STRATEGY_BY_ID[Number(robotId)] && String(row.strategy_version||'').toLowerCase()!==fixedStrategy){
+    await db.query(
+      `UPDATE robot_configs SET strategy_version=$1,updated_at=NOW()
+       WHERE user_id=$2 AND account_id=$3 AND robot_id=$4`,
+      [fixedStrategy,userId,accountId,robotId]
+    );
+    row.strategy_version=fixedStrategy;
+  }
+  return row;
 }
 async function usdtBrlRate(client){
   try{
@@ -1998,55 +2014,3 @@ async function getStatus(userId,accountId,robotId=1){
      WHERE user_id=$1 AND account_id=$2 AND robot_id=$3
      ORDER BY id DESC LIMIT 80`,
     [userId,accountId,robotId]
-  );
-
-  const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
-
-  let account=null;
-  let client=null;
-  try{
-    account=await getAccount(userId,accountId);
-    if(account?.active) client=clientFor(account);
-  }catch(e){
-    console.warn('[ROBO] Não foi possível preparar cotação em tempo real:',errText(e));
-  }
-
-  const operations=await Promise.all(r.rows.map(async op=>{
-    const item={...op};
-    if(String(op.status||'').toUpperCase()!=='OPEN' || !client){
-      item.current_price=null;
-      item.unrealized_pnl_usdt=0;
-      item.unrealized_pnl_percent=0;
-      return item;
-    }
-
-    try{
-      const prices=await client.prices({symbol:String(op.symbol||'').toUpperCase()});
-      const current=num(prices?.[String(op.symbol||'').toUpperCase()]);
-      const buy=num(op.buy_price);
-      const qty=num(op.quantity);
-      const pnl=(current-buy)*qty;
-      item.current_price=current;
-      item.unrealized_pnl_usdt=pnl;
-      item.unrealized_pnl_percent=buy>0?((current-buy)/buy)*100:0;
-      item.current_value_usdt=current*qty;
-    }catch(e){
-      item.current_price=null;
-      item.unrealized_pnl_usdt=0;
-      item.unrealized_pnl_percent=0;
-      console.warn(`[ROBO] Cotação ${op.symbol}:`,errText(e));
-    }
-    return item;
-  }));
-
-  const realizedPnl=num(totals.rows[0]?.realized_pnl_usdt);
-  const unrealizedPnl=operations
-    .filter(o=>String(o.status||'').toUpperCase()==='OPEN')
-    .reduce((sum,o)=>sum+num(o.unrealized_pnl_usdt),0);
-
-  return {
-    success:true,
-    config:c,
-    running:!!c?.running,
-    engineRunning,
-    operations,

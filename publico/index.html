@@ -2211,6 +2211,14 @@ async function loadSelectedAccount(){
       pnlRealizado:0
     };
 
+    // Atualiza o saldo BRL imediatamente após carregar a conta.
+    // Não espera operações, gráficos ou outras consultas demoradas.
+    if(typeof window.refreshBrlUsdtConverter==="function"){
+      window.refreshBrlUsdtConverter().catch(error=>{
+        console.warn("Saldo BRL:",error);
+      });
+    }
+
     /*
       O P/L inicial é calculado somente com os ativos que possuem
       posição. Cada operação detalhada continua sendo carregada
@@ -2306,7 +2314,8 @@ async function loadSelectedAccount(){
       statusEl.classList.remove("pending-account");
     }
 
-    // Atualiza o conversor somente depois que a conta Binance selecionada foi carregada.
+    // O conversor BRL já foi atualizado no início do carregamento.
+    // Mantemos uma segunda atualização ao final para refletir qualquer alteração.
     if(typeof window.refreshBrlUsdtConverter==="function"){
       await window.refreshBrlUsdtConverter();
     }

@@ -1414,7 +1414,9 @@ router.get(
         spotFree: saldo.spotFree,
         fundingFree: saldo.fundingFree,
         wallet: saldo.walletType,
-        source: saldo.source
+        source: saldo.source,
+        diagnostics: saldo.diagnostics,
+        serverTime: Date.now()
       });
     } catch (error) {
       console.error('[BRL-USDT] ERRO AO CONSULTAR SALDO:', error);

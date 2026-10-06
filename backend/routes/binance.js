@@ -1021,7 +1021,10 @@ async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
     recvWindow: 60000
   });
 
+  // IMPORTANTE: esta consulta usa exclusivamente a carteira SPOT.
+  // Futuros, Earn/Funding e outras carteiras não entram nesta rotina.
   const accountInfo = await client.accountInfo();
+
   let prices = {};
   try {
     prices = await client.prices();
@@ -1108,6 +1111,7 @@ async function prepararPequenosSaldos(userId, accountId, limiteUSD = 5) {
 
   return {
     limitUSD: limiteUSD,
+    wallet: 'SPOT',
     candidates
   };
 }

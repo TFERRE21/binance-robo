@@ -434,6 +434,12 @@ async function saveConfig(userId,accountId,c,robotId=1){
 
   const reservedBrl=Number(c.quickReservedBrl||0);
   if(!Number.isFinite(reservedBrl)||reservedBrl<0) throw new Error('Valor reservado para Operações Rápidas inválido.');
+
+  const entryPercent=Number(c.entryPercent);
+  if(!Number.isFinite(entryPercent)||entryPercent<=0||entryPercent>100){
+    throw new Error('Percentual de entrada deve estar entre 0,01% e 100%.');
+  }
+
   if(String(c.strategyVersion).toLowerCase()==='rapido' && reservedBrl<=0){
     throw new Error('Informe quanto deseja separar para Operações Rápidas.');
   }
@@ -753,16 +759,20 @@ async function buy(userId,account,config,symbol,robotId=1){
   if(String(config.strategy_version||'').toLowerCase()==='rapido'){
     const openNow=await openCount(userId,account.id,robotId);
     const maxOps=Math.max(1,Number(config.max_operations)||1);
-    const remainingSlots=Math.max(1,maxOps-openNow);
     const rate=await usdtBrlRate(client);
     const reservedBrl=num(config.quick_reserved_brl);
     const reservedUsdt=rate>0?reservedBrl/rate:0;
-    const reservedFree=Math.max(0,reservedUsdt-(openNow>0?0:0));
-    // O modo rápido só usa o valor reservado pelo usuário.
-    // O restante da carteira fica fora do orçamento do modo rápido.
-    value=Number((reservedFree/remainingSlots).toFixed(8));
+    const entryPercent=Math.min(100,Math.max(0.01,num(config.entry_percent)||99));
+
+    // O orçamento total é dividido primeiro pelo número de operações
+    // solicitadas. O percentual é aplicado sobre CADA parcela, e não
+    // sobre o saldo restante depois de cada compra.
+    // Ex.: R$ 1.000 / 4 = R$ 250; com 99% => R$ 247,50 por operação.
+    const perOperationUsdt=reservedUsdt/maxOps;
+    value=Number((perOperationUsdt*(entryPercent/100)).toFixed(8));
+
     robotLog(userId,account.id,robotId,
-      `ORÇAMENTO RÁPIDO SEPARADO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento≈${reservedUsdt.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | entrada≈${value.toFixed(8)} USDT | mínimo por operação=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orçamento não será usado`
+      `ORÇAMENTO RÁPIDO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento total≈${reservedUsdt.toFixed(8)} USDT | divisão=${maxOps} operação(ões) | parcela≈${perOperationUsdt.toFixed(8)} USDT | entrada=${entryPercent.toFixed(2)}% | compra≈${value.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | mínimo por operação=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orçamento não será usado`
     );
   }else{
     value=Number((operationalUsdt*(num(config.entry_percent)/100)).toFixed(8));

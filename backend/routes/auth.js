@@ -128,6 +128,7 @@ router.post('/login', async (req, res) => {
         name,
         email,
         password_hash,
+        whatsapp,
         active
        FROM users
        WHERE email = $1`,

@@ -1438,8 +1438,12 @@ async function scanByProfile(userId,account,config,robotId=1){
     pairs=await top20(client,info,Number(config.max_coins));
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por market cap selecionadas.`);
     market=await marketFilter(client);
+    market.intelligence=intelligence;
     robotLog(userId,account.id,robotId,`FILTRO BTC | score=${fmtNum(market.score)} | mínimo=${strategy.marketMinScore} | favorável=${market.favoravel?'SIM':'NÃO'} | aquecido=${market.quente?'SIM':'NÃO'}`);
   }
+
+  // Reanexa a inteligência porque marketFilter cria seu próprio objeto técnico.
+  market.intelligence=intelligence;
 
   // Alertas de mercado funcionam em todas as estratégias, inclusive Operações Rápidas.
   try {

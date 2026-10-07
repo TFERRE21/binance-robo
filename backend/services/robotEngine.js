@@ -2,6 +2,7 @@ const Binance = require('binance-api-node').default;
 const db = require('../services/db');
 const cryptoService = require('../services/cryptoService');
 const notificationService = require('./notificationService');
+const { getMarketIntelligence } = require('./marketIntelligence');
 const marketAlertState = new Map();
 
 const runners = new Map();
@@ -616,6 +617,7 @@ function atr(values,period=14){
 
 async function analyze(client,symbol,market,interval,version='premium'){
   const strategy=strategyInfo(version);
+  const intel=market?.intelligence || null;
   const candleInterval=analysisCandleInterval(interval);
   const rows=await client.candles({symbol,interval:candleInterval,limit:180});
   const closed=rows.slice(0,-1);
@@ -647,6 +649,19 @@ async function analyze(client,symbol,market,interval,version='premium'){
    * O robô não compra simplesmente porque EMA/RSI ficaram positivos.
    */
   let score=2;
+
+  // 0) Inteligência de mercado: notícias + derivativos + regime.
+  // A notícia nunca abre uma operação sozinha; ela altera o risco somente quando confirmada por preço/volume/derivativos.
+  if(intel){
+    if(intel.regime==='CRASH') return {valid:false,reason:'CRASH GUARD: choque de mercado detectado'};
+    if(intel.news?.score>=1) score++;
+    if(intel.news?.score<=-1) score--;
+    if(intel.regime==='RECOVERY') score++;
+    if(intel.regime==='STRESS') score--;
+    if(Number(intel.market?.takerRatio)>1.15) score++;
+    if(Number(intel.market?.takerRatio)>0 && Number(intel.market?.takerRatio)<0.75) score--;
+    if(Number(intel.market?.oiChange)>1 && Number(intel.market?.ret15m)<0) score--;
+  }
 
   // 1) Preço perto da estrutura, sem comprar muito esticado.
   const dist=(p-e21)/e21;
@@ -822,6 +837,19 @@ async function analyze(client,symbol,market,interval,version='premium'){
   if(strategy.blockHotBreakout && market.quente && entry!=='PULLBACK_RETOMADA' && entry!=='RECUPERACAO_EMA')
     return {valid:false,reason:'Mercado aquecido para comprar rompimento'};
 
+  if(intel){
+    const newsScore=Number(intel.news?.score||0);
+    const severe=Number(intel.news?.severe||0);
+    if(intel.regime==='STRESS' && id>=3 && !pullbackConfirmed && !retest)
+      return {valid:false,reason:'STRESS: Robôs 3-5 aguardam pullback/reteste'};
+    if(intel.regime==='STRESS' && id<=2 && !pullbackConfirmed && !retest && entry!=='RECUPERACAO_EMA')
+      return {valid:false,reason:'STRESS: aguardando recuperação do BTC'};
+    if(intel.regime==='RECOVERY' && id>=3 && !pullbackConfirmed && !retest)
+      return {valid:false,reason:'RECOVERY: entrada exige confirmação de retomada'};
+    if(newsScore<=-2 && severe>=2 && intel.regime!=='RECOVERY' && !pullbackConfirmed && !retest)
+      return {valid:false,reason:'Notícias fortemente negativas sem confirmação técnica'};
+  }
+
   if(market.score < strategy.marketMinScore)
     return {valid:false,reason:`Mercado BTC abaixo do filtro da estratégia (score ${market.score})`};
 
@@ -865,6 +893,13 @@ async function analyze(client,symbol,market,interval,version='premium'){
     lowerWickRatio:range>0?lowerWick/range:0,
     upperWickRatio:range>0?upperWick/range:0,
     distanceFromEma21:dist,
+    marketRegime:intel?.regime || 'UNKNOWN',
+    marketRiskScore:Number(intel?.riskScore||0),
+    newsScore:Number(intel?.news?.score||0),
+    newsSevere:Number(intel?.news?.severe||0),
+    oiChange:Number(intel?.market?.oiChange||0),
+    longShort:Number(intel?.market?.longShort||0),
+    takerRatio:Number(intel?.market?.takerRatio||0),
     reason:price>0?'':'Preço inválido'
   };
 }
@@ -1373,12 +1408,29 @@ async function scanByProfile(userId,account,config,robotId=1){
   const strategy=strategyInfo(version);
 
   robotLog(userId,account.id,robotId,`ANÁLISE INICIADA | estratégia=${strategy.name} | versão=${version} | intervalo=${config.interval} | máximo moedas=${config.max_coins}`);
-  robotLog(userId,account.id,robotId,`INDICADORES | EMA9 + EMA21 + RSI14 + volume relativo + PULLBACK/RETOMADA + ROMPIMENTO/RETESTE | evita preço esticado | filtro BTC 1D/4H`);
+  robotLog(userId,account.id,robotId,'INDICADORES V8 | EMA9 + EMA21 + RSI14 + ATR + volume + PULLBACK/RETOMADA + BREAKOUT/RETESTE + NOTÍCIAS + OI + LONG/SHORT + TAKER + FUNDING + CRASH GUARD');
 
   let pairs=[];
   let market={favoravel:true,quente:false,score:0};
 
-  if(strategy.mode==='volume'){
+  // A mesma inteligência é usada por TODOS os cinco robôs.
+  let intelligence;
+  try{
+    intelligence=await getMarketIntelligence();
+    market.intelligence=intelligence;
+    robotLog(userId,account.id,robotId,'INTELIGÊNCIA | regime='+intelligence.regime+' | risco='+fmtNum(intelligence.riskScore)+' | notícias='+fmtNum(intelligence.news?.score)+' | OI='+fmtNum(intelligence.market?.oiChange)+'% | L/S='+fmtNum(intelligence.market?.longShort)+' | taker='+fmtNum(intelligence.market?.takerRatio)+' | liquidação='+intelligence.market?.liquidationRisk);
+  }catch(e){
+    intelligence={regime:'ATTENTION',riskScore:0,allowNewEntries:true,market:{},news:{score:0,severe:0}};
+    market.intelligence=intelligence;
+    robotLog(userId,account.id,robotId,'INTELIGÊNCIA INDISPONÍVEL | análise técnica mantida | '+errText(e),'ERROR');
+  }
+
+  if(intelligence.regime==='CRASH'){
+    robotLog(userId,account.id,robotId,'CRASH GUARD | novas compras BLOQUEADAS para esta estratégia.');
+    return [];
+  }
+
+  if(strategy.mode==='volume')
     const raw=await topVolumePairs(client,Number(config.max_coins));
     pairs=raw.map(x=>({symbol:x.symbol,baseAsset:String(x.symbol).replace(/USDT$/,'')}));
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por volume USDT selecionadas.`);
@@ -1386,8 +1438,12 @@ async function scanByProfile(userId,account,config,robotId=1){
     pairs=await top20(client,info,Number(config.max_coins));
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por market cap selecionadas.`);
     market=await marketFilter(client);
+    market.intelligence=intelligence;
     robotLog(userId,account.id,robotId,`FILTRO BTC | score=${fmtNum(market.score)} | mínimo=${strategy.marketMinScore} | favorável=${market.favoravel?'SIM':'NÃO'} | aquecido=${market.quente?'SIM':'NÃO'}`);
   }
+
+  // Reanexa a inteligência porque marketFilter cria seu próprio objeto técnico.
+  market.intelligence=intelligence;
 
   // Alertas de mercado funcionam em todas as estratégias, inclusive Operações Rápidas.
   try {

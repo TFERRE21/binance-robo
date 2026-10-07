@@ -4,7 +4,8 @@
   "description": "Binance-Robo V8 — EMA 9/21 + RSI + pullback/retest + market intelligence + news + derivatives + crash guard",
   "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js"
+    "start": "node backend/server.js",
+    "backtest:v7-v8": "node scripts/backtest-v7-v8.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

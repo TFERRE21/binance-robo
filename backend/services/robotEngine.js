@@ -1430,7 +1430,7 @@ async function scanByProfile(userId,account,config,robotId=1){
     return [];
   }
 
-  if(strategy.mode==='volume')
+  if(strategy.mode==='volume'){
     const raw=await topVolumePairs(client,Number(config.max_coins));
     pairs=raw.map(x=>({symbol:x.symbol,baseAsset:String(x.symbol).replace(/USDT$/,'')}));
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por volume USDT selecionadas.`);

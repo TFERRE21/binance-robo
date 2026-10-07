@@ -9,23 +9,23 @@ const runners = new Map();
 let schemaReady = false;
 
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
-const QUICK_MIN_USDT = 6; // OperaÃ§Ãµes RÃ¡pidas: mÃ­nimo operacional de US$ 6 por ordem
+const QUICK_MIN_USDT = 6; // OperaÃ§Ãµes RÃ¡pidas: saldo/orçamento mínimo operacional de US$ 6
 const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   rapido: {
     name:'OperaÃ§Ãµes RÃ¡pidas',
-    description:'Modo legado de curto prazo. NÃ£o faz parte dos cinco robÃ´s principais.',
-    mode:'volume',
-    scoreMin:5,
-    rsiMin:42,
-    rsiMax:68,
-    volumeMin:0.90,
-    maxDist:0.030,
-    breakoutVolume:1.40,
+    description:'Alta eficiÃªncia: prioriza moedas por market cap, entra apenas em setups confirmados e define o alvo de lucro dinamicamente entre 1% e 5%.',
+    mode:'marketcap',
+    scoreMin:6,
+    rsiMin:44,
+    rsiMax:64,
+    volumeMin:0.95,
+    maxDist:0.025,
+    breakoutVolume:1.50,
     requirePullback:false,
     preferPullback:true,
-    marketMinScore:0,
+    marketMinScore:1,
     blockHotBreakout:true
   },
   basico: {
@@ -900,6 +900,9 @@ async function analyze(client,symbol,market,interval,version='premium'){
     oiChange:Number(intel?.market?.oiChange||0),
     longShort:Number(intel?.market?.longShort||0),
     takerRatio:Number(intel?.market?.takerRatio||0),
+    marketRet15m:Number(intel?.market?.ret15m||0),
+    marketRet1h:Number(intel?.market?.ret1h||0),
+    atrPercent:a>0&&p>0?(a/p)*100:0,
     reason:price>0?'':'PreÃ§o invÃ¡lido'
   };
 }
@@ -907,35 +910,84 @@ async function openCount(userId,accountId,robotId=1){ await ensureSchema(); cons
 async function existingSymbol(userId,accountId,symbol,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND symbol=$4 AND status='OPEN' LIMIT 1`,[userId,accountId,robotId,symbol]); return !!r.rows.length; }
 
 function quickTakeProfit(setup){
-  // O alvo do modo rÃ¡pido Ã© decidido pelo prÃ³prio robÃ´:
-  // 1.0% a 2.5% conforme a forÃ§a do sinal.
+  /*
+   * TP 100% adaptativo por operaÃ§Ã£o.
+   * O robÃ´ nÃ£o recebe 1%, 1,5%, 2%, 2,5%... como regra fixa.
+   * Ele estima o potencial atual usando qualidade do setup, volume,
+   * volatilidade (ATR), regime, risco, notÃ­cias e impulso do mercado.
+   * Faixa permitida: +1% a +5%, em degraus de 0,5%.
+   */
   const score=num(setup?.score);
   const volume=num(setup?.volumeRatio);
-  const r=num(setup?.rsi);
+  const rsiValue=num(setup?.rsi);
+  const atrPct=num(setup?.atrPercent);
+  const risk=num(setup?.marketRiskScore);
+  const news=num(setup?.newsScore);
+  const regime=String(setup?.marketRegime||'UNKNOWN').toUpperCase();
+  const ret15=num(setup?.marketRet15m);
+  const ret1=num(setup?.marketRet1h);
+  const taker=num(setup?.takerRatio);
+
   let tp=1.0;
 
-  if(score>=7) tp=2.5;
-  else if(score>=6) tp=2.0;
-  else if(score>=5) tp=1.5;
+  // Qualidade técnica: setups melhores suportam alvos maiores.
+  if(score>=9) tp+=2.0;
+  else if(score>=8) tp+=1.5;
+  else if(score>=7) tp+=1.0;
+  else if(score>=6) tp+=0.5;
 
-  // Volume muito acima da mÃ©dia permite manter o alvo maior.
-  if(volume>=2.0 && score>=5) tp=Math.min(2.5,tp+0.5);
+  // Liquidez/forÃ§a de fluxo.
+  if(volume>=2.0) tp+=1.0;
+  else if(volume>=1.50) tp+=0.5;
 
-  // Evita exigir alvo agressivo quando o RSI jÃ¡ estÃ¡ muito prÃ³ximo do limite.
-  if(r>=67) tp=Math.min(tp,1.5);
+  if(taker>1.15) tp+=0.5;
+  else if(taker>0 && taker<0.85) tp-=0.5;
 
-  return Math.max(1,Math.min(2.5,Number(tp.toFixed(2))));
+  // Volatilidade suficiente aumenta o espaÃ§o do alvo.
+  if(atrPct>=2.5) tp+=1.0;
+  else if(atrPct>=1.5) tp+=0.5;
+  else if(atrPct<0.6) tp-=0.5;
+
+  // Momentum do mercado atual.
+  if(ret15>0.50 && ret1>0.80) tp+=0.5;
+  else if(ret15< -0.50 || ret1< -1.00) tp-=0.5;
+
+  // Contexto macro/derivativos/notÃ­cias.
+  if(news>=2) tp+=0.5;
+  else if(news<=-2) tp-=1.0;
+
+  if(regime==='RECOVERY') tp+=0.5;
+  if(regime==='ATTENTION') tp-=0.5;
+  if(regime==='STRESS') tp-=1.0;
+  if(risk>=70) tp-=1.0;
+  else if(risk>=50) tp-=0.5;
+
+  // RSI alto reduz a expectativa de continuaÃ§Ã£o.
+  if(rsiValue>=66) tp-=1.0;
+  else if(rsiValue>=62) tp-=0.5;
+  else if(rsiValue>=50 && rsiValue<=58) tp+=0.25;
+
+  // Arredonda para 0,5% e limita a faixa pedida.
+  tp=Math.round(tp*2)/2;
+  return Math.max(1,Math.min(5,tp));
 }
 
-function quickOperationLimit(setups,planMax){
-  // O robÃ´ decide quantas posiÃ§Ãµes abrir de acordo com a qualidade real
-  // das oportunidades encontradas. Nunca abre sÃ³ para preencher slots.
+function quickOperationLimit(setups,planMax,reservedUsdt){
+  /*
+   * Capital decide quantas posiÃ§Ãµes PODEM ser abertas.
+   * US$ 6 = 1 operaÃ§Ã£o; US$ 12 = 2; US$ 18+ = atÃ© o limite do plano.
+   * A qualidade das oportunidades ainda pode reduzir esse nÃºmero.
+   */
   const max=Math.max(1,Number(planMax)||1);
-  if(!setups.length) return 0;
+  const capital=num(reservedUsdt);
+  const byCapital=Math.floor(capital/QUICK_MIN_USDT);
+  const maxByCapital=Math.min(max,byCapital);
 
-  const strong=setups.filter(s=>num(s.score)>=5);
-  if(max>=3 && setups.length>=3 && strong.length>=3 && num(setups[0].score)>=6) return 3;
-  if(max>=2 && setups.length>=2 && strong.length>=2) return 2;
+  if(!setups.length || maxByCapital<=0) return 0;
+
+  const strong=setups.filter(s=>num(s.score)>=6);
+  if(maxByCapital>=3 && strong.length>=3 && num(setups[0].score)>=8) return 3;
+  if(maxByCapital>=2 && strong.length>=2 && num(setups[0].score)>=7) return 2;
   return 1;
 }
 
@@ -970,7 +1022,7 @@ async function buy(userId,account,config,symbol,robotId=1){
   // O painel jÃ¡ normaliza esses ativos; o motor tambÃ©m precisa fazer isso
   // para nÃ£o enxergar saldo disponÃ­vel como zero.
   const usdt=freeBalance(ac,'USDT');
-  const reservedOtherRobots=await quickReservedUsdt(client,userId,account.id,String(config.strategy_version).toLowerCase()==='rapido'?null:robotId);
+  const reservedOtherRobots=await quickReservedUsdt(client,userId,account.id,robotId);
   const operationalUsdt=Math.max(0,usdt-reservedOtherRobots);
   const usdtRaw=(ac.balances||[])
     .filter(b=>String(b?.asset||'').toUpperCase()==='USDT')
@@ -1009,21 +1061,23 @@ async function buy(userId,account,config,symbol,robotId=1){
   let value;
   if(String(config.strategy_version||'').toLowerCase()==='rapido'){
     const openNow=await openCount(userId,account.id,robotId);
-    const maxOps=Math.max(1,Number(config.max_operations)||1);
     const rate=await usdtBrlRate(client);
     const reservedBrl=num(config.quick_reserved_brl);
-    const reservedUsdt=rate>0?reservedBrl/rate:0;
+    const configuredUsdt=rate>0?reservedBrl/rate:0;
+    const quickOps=Math.max(1,Number(config._quickOperationCount)||1);
+    const availableUsdt=Math.max(0,Math.min(configuredUsdt,operationalUsdt));
+    const budgetUsdt=Number(config._quickBudgetUsdt)>0
+      ? Math.min(availableUsdt,Number(config._quickBudgetUsdt))
+      : availableUsdt;
     const entryPercent=Math.min(100,Math.max(0.01,num(config.entry_percent)||99));
 
-    // O orÃ§amento total Ã© dividido primeiro pelo nÃºmero de operaÃ§Ãµes
-    // solicitadas. O percentual Ã© aplicado sobre CADA parcela, e nÃ£o
-    // sobre o saldo restante depois de cada compra.
-    // Ex.: R$ 1.000 / 4 = R$ 250; com 99% => R$ 247,50 por operaÃ§Ã£o.
-    const perOperationUsdt=reservedUsdt/maxOps;
+    // O nÃºmero de operaÃ§Ãµes jÃ¡ foi decidido pelo capital e pela qualidade.
+    // Agora distribuÃ­mos o valor realmente disponÃ­vel entre as operaÃ§Ãµes escolhidas.
+    const perOperationUsdt=budgetUsdt/quickOps;
     value=Number((perOperationUsdt*(entryPercent/100)).toFixed(8));
 
     robotLog(userId,account.id,robotId,
-      `ORÃAMENTO RÃPIDO | reservado=R$ ${reservedBrl.toFixed(2)} | cÃ¢mbio USDT/BRL=${rate.toFixed(4)} | orÃ§amento totalâ${reservedUsdt.toFixed(8)} USDT | divisÃ£o=${maxOps} operaÃ§Ã£o(Ãµes) | parcelaâ${perOperationUsdt.toFixed(8)} USDT | entrada=${entryPercent.toFixed(2)}% | compraâ${value.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | mÃ­nimo por operaÃ§Ã£o=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orÃ§amento nÃ£o serÃ¡ usado`
+      `ORÃAMENTO RÃPIDO | configuradoâUS$ ${configuredUsdt.toFixed(8)} | disponÃ­velâUS$ ${availableUsdt.toFixed(8)} | orÃ§amento usadoâUS$ ${budgetUsdt.toFixed(8)} | divisÃ£o=${quickOps} operaÃ§Ã£o(Ãµes) | parcelaâUS$ ${perOperationUsdt.toFixed(8)} | entrada=${entryPercent.toFixed(2)}% | compraâUS$ ${value.toFixed(8)} | abertas=${openNow}/${quickOps} | mÃ­nimo por operaÃ§Ã£o=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre nÃ£o reservado nÃ£o serÃ¡ usado`
     );
   }else{
     value=Number((operationalUsdt*(num(config.entry_percent)/100)).toFixed(8));
@@ -1107,15 +1161,38 @@ async function buy(userId,account,config,symbol,robotId=1){
 
 async function executeApprovedSetups(userId,account,config,setups,robotId=1){
   const planLimit=Math.max(1,Number(config.max_operations)||1);
-  const decidedLimit=Math.min(planLimit,quickOperationLimit(setups,planLimit));
+  const isQuick=String(config.strategy_version||'').toLowerCase()==='rapido';
+  let quickBudgetUsdt=0;
+  let decidedLimit=planLimit;
+
+  if(isQuick){
+    const client=clientFor(account);
+    const rate=await usdtBrlRate(client);
+    const configuredUsdt=rate>0?num(config.quick_reserved_brl)/rate:0;
+    const accountInfo=await client.accountInfo();
+    const freeUsdt=freeBalance(accountInfo,'USDT');
+    quickBudgetUsdt=Math.min(configuredUsdt,freeUsdt);
+    decidedLimit=Math.min(planLimit,quickOperationLimit(setups,planLimit,quickBudgetUsdt));
+  }
+
   let open=await openCount(userId,account.id,robotId);
 
   const resultSummary={
     executed:0,
     failed:0,
     retryableBalance:false,
-    decidedOperations:decidedLimit
+    decidedOperations:decidedLimit,
+    quickBudgetUsdt
   };
+
+  if(decidedLimit<=0){
+    robotLog(userId,account.id,robotId,
+      isQuick
+        ? `OPERAÃÃO RÃPIDA BLOQUEADA | saldo/orÃ§amento disponÃ­vel=${quickBudgetUsdt.toFixed(4)} USDT | mÃ­nimo=US$ ${QUICK_MIN_USDT.toFixed(2)}.`
+        : 'NENHUMA OPERAÃÃO DECIDIDA.'
+    );
+    return resultSummary;
+  }
 
   if(open>=decidedLimit){
     robotLog(userId,account.id,robotId,
@@ -1125,7 +1202,9 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
   }
 
   robotLog(userId,account.id,robotId,
-    `DECISÃO DO ROBÃ RÃPIDO | oportunidades aprovadas=${setups.length} | operaÃ§Ãµes escolhidas=${decidedLimit} | limite do plano=${planLimit}`
+    isQuick
+      ? `DECISÃO DO ROBÃ RÃPIDO | oportunidades=${setups.length} | capital elegÃ­velâUS$ ${quickBudgetUsdt.toFixed(2)} | operaÃ§Ãµes escolhidas=${decidedLimit} | limite do plano=${planLimit}`
+      : `EXECUÃÃO | oportunidades aprovadas=${setups.length} | limite do plano=${planLimit}`
   );
 
   for(const setup of setups){
@@ -1136,12 +1215,16 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
       continue;
     }
 
-    const takeProfit=quickTakeProfit(setup);
-    const configForTrade={...config,_quickTakeProfit:takeProfit};
+    const takeProfit=isQuick?quickTakeProfit(setup):num(config.take_profit);
+    const configForTrade=isQuick
+      ? {...config,_quickTakeProfit:takeProfit,_quickOperationCount:decidedLimit,_quickBudgetUsdt:quickBudgetUsdt}
+      : config;
 
     try{
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)} | forÃ§a=${num(setup.volumeRatio).toFixed(2)}x | TP DECIDIDO=${takeProfit}%`
+        isQuick
+          ? `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)} | volume=${num(setup.volumeRatio).toFixed(2)}x | ATR=${num(setup.atrPercent).toFixed(2)}% | regime=${setup.marketRegime} | TP DECIDIDO=${takeProfit}%`
+          : `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)}`
       );
 
       const result=await buy(userId,account,configForTrade,setup.symbol,robotId);
@@ -1149,7 +1232,7 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
       resultSummary.executed++;
 
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | POSIÃÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | alvo automÃ¡tico=+${takeProfit}% | saÃ­da automÃ¡tica ativa.`
+        `${setup.symbol} | POSIÃÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | alvo=+${takeProfit}% | saÃ­da automÃ¡tica ativa.`
       );
     }catch(e){
       resultSummary.failed++;
@@ -1653,7 +1736,7 @@ async function loop(userId,accountId,robotId=1){
             userId,
             account.id,
             robotId,
-            `CICLO DE BUSCA | estratÃ©gia=${strategy.name} | entrada=${config.entry_percent}% | TP=${String(config.strategy_version).toLowerCase()==='rapido'?'AUTOMÃTICO 1%â2,5%':config.take_profit+'%'} | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operaÃ§Ãµes abertas=${open}/${limit}`
+            `CICLO DE BUSCA | estratÃ©gia=${strategy.name} | entrada=${config.entry_percent}% | TP=${String(config.strategy_version).toLowerCase()==='rapido'?'DINÃMICO 1%â5%':config.take_profit+'%'} | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operaÃ§Ãµes abertas=${open}/${limit}`
           );
 
           /*
@@ -1774,15 +1857,23 @@ async function start(userId,accountId,robotId=1){
     throw new Error(`Seu plano ${planRules.name} permite no mÃ¡ximo ${planRules.maxOperations} operaÃ§Ã£o(Ãµes) simultÃ¢nea(s).`);
   }
 
-  // OperaÃ§Ãµes RÃ¡pidas: o orÃ§amento reservado precisa comportar pelo menos
-  // US$3 por operaÃ§Ã£o configurada. A conversÃ£o Ã© feita pela cotaÃ§Ã£o atual.
+  // OperaÃ§Ãµes RÃ¡pidas: US$ 6 Ã© o mÃ­nimo TOTAL para habilitar
+  // a estratÃ©gia. O robÃ´ calcula sozinho quantas operaÃ§Ãµes cabem no capital.
   if(String(c.strategy_version||'').toLowerCase()==='rapido'){
-    const rate=await usdtBrlRate(clientFor(account));
+    const client=clientFor(account);
+    const rate=await usdtBrlRate(client);
     const reservedUsdt=num(c.quick_reserved_brl)/rate;
-    const requiredUsdt=QUICK_MIN_USDT*Math.max(1,Number(c.max_operations)||1);
-    if(reservedUsdt < requiredUsdt){
+    const info=await client.accountInfo();
+    const freeUsdt=freeBalance(info,'USDT');
+
+    if(reservedUsdt < QUICK_MIN_USDT){
       throw new Error(
-        `Reserva insuficiente para OperaÃ§Ãµes RÃ¡pidas | reservadoâUS$ ${reservedUsdt.toFixed(2)} | necessÃ¡rioâ¥US$ ${requiredUsdt.toFixed(2)} (${Math.max(1,Number(c.max_operations)||1)} operaÃ§Ã£o(Ãµes) Ã US$ ${QUICK_MIN_USDT.toFixed(2)})`
+        `Reserva insuficiente para OperaÃ§Ãµes RÃ¡pidas | reservadoâUS$ ${reservedUsdt.toFixed(2)} | mÃ­nimo total=US$ ${QUICK_MIN_USDT.toFixed(2)}`
+      );
+    }
+    if(freeUsdt < QUICK_MIN_USDT){
+      throw new Error(
+        `Saldo USDT Spot insuficiente para OperaÃ§Ãµes RÃ¡pidas | disponÃ­vel=US$ ${freeUsdt.toFixed(2)} | mÃ­nimo=US$ ${QUICK_MIN_USDT.toFixed(2)}`
       );
     }
   }

@@ -57,9 +57,9 @@ function decode(value) {
 }
 
 function parseNews(xml) {
-  return (xml.match(/<item[\\s\\S]*?<\\/item>/gi)||[]).map(item => {
+  return (xml.match(/<item[\s\S]*?<\/item>/gi)||[]).map(item => {
     const get = tag => {
-      const m=item.match(new RegExp("<"+tag+"(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)</"+tag+">","i"));
+      const m=item.match(new RegExp("<"+tag+"(?:\\s[^>]*)?>([\\s\\S]*?)</"+tag+">","i"));
       return decode(m ? m[1] : "");
     };
     return {title:get("title"),description:get("description"),publishedAt:Date.parse(get("pubDate"))||0};
@@ -111,7 +111,7 @@ async function marketData() {
   const closed=rows.slice(0,-1);
   const closes=closed.map(x=>n(x[4]));
   const vols=closed.map(x=>n(x[5]));
-  const last=closes.at(-1), prev15=closes.at(-2), prev4=closes.at(-5), prev1h=closes.at(-5);
+  const last=closes.at(-1), prev15=closes.at(-2), prev1h=closes.at(-5);
   const avgVol=vols.slice(-21,-1).reduce((a,b)=>a+b,0)/Math.max(1,vols.slice(-21,-1).length);
   const volumeRatio=avgVol?vols.at(-1)/avgVol:0;
   const e9=ema(closes,9), e21=ema(closes,21);

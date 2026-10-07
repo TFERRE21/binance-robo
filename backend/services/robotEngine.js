@@ -410,10 +410,15 @@ async function getConfig(userId,accountId,robotId=1){
   const row=r.rows[0]||null;
   if(!row) return null;
 
-  // RobÃ´s 1..5 possuem estratÃ©gia fixa. Isso tambÃ©m corrige configuraÃ§Ãµes
-  // antigas que ainda estejam gravadas com v7.1/v6 ou outra estratÃ©gia.
-  const fixedStrategy=strategyForRobot(robotId);
-  if(ROBOT_STRATEGY_BY_ID[Number(robotId)] && String(row.strategy_version||'').toLowerCase()!==fixedStrategy){
+  // RobÃ´s 1..5 mantÃªm suas estratÃ©gias fixas, mas o modo
+  // OperaÃ§Ã£o RÃ¡pida pode ser explicitamente selecionado pela interface.
+  // Isso permite que o botÃ£o de OperaÃ§Ã£o RÃ¡pida use a mesma infraestrutura
+  // sem transformar o modo rÃ¡pido em uma estratÃ©gia fixa do robÃ´.
+  const currentStrategy=String(row.strategy_version||'').toLowerCase();
+  const fixedStrategy=currentStrategy==='rapido'
+    ? 'rapido'
+    : strategyForRobot(robotId);
+  if(ROBOT_STRATEGY_BY_ID[Number(robotId)] && currentStrategy!==fixedStrategy){
     await db.query(
       `UPDATE robot_configs SET strategy_version=$1,updated_at=NOW()
        WHERE user_id=$2 AND account_id=$3 AND robot_id=$4`,
@@ -444,9 +449,13 @@ async function usdtBrlRate(client){
 async function saveConfig(userId,accountId,c,robotId=1){
   await ensureSchema();
 
-  // Cada robÃ´ numerado possui uma estratÃ©gia prÃ³pria. O backend Ã© a fonte
-  // de verdade para evitar que o front-end troque a estratÃ©gia de um robÃ´.
-  const fixedStrategy = strategyForRobot(robotId);
+  // Cada robÃ´ numerado possui uma estratÃ©gia prÃ³pria.
+  // ExceÃ§Ã£o intencional: o comando OperaÃ§Ã£o RÃ¡pida pode solicitar
+  // explicitamente "rapido", mantendo a mesma infraestrutura de execuÃ§Ã£o.
+  const requestedStrategy=String(c.strategyVersion||'').toLowerCase();
+  const fixedStrategy = requestedStrategy==='rapido'
+    ? 'rapido'
+    : strategyForRobot(robotId);
   c.strategyVersion = fixedStrategy;
 
   const planRules=await getUserPlanRules(userId);

@@ -1095,9 +1095,9 @@ async function buy(userId,account,config,symbol,robotId=1){
   const estimatedQty=roundDown(value/price,step);
 
   if(!(value>0))throw new Error(`Valor calculado invÃ¡lido | saldo operacional USDT=${operationalUsdt.toFixed(4)} | saldo total=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
-  if(String(config.strategy_version||'').toLowerCase()==='rapido' && value < QUICK_MIN_USDT){
-    throw new Error(`OrÃ§amento da OperaÃ§Ã£o RÃ¡pida abaixo do mÃ­nimo de teste | entradaâ${value.toFixed(4)} USDT | mÃ­nimo=US$ ${QUICK_MIN_USDT.toFixed(2)} por operaÃ§Ã£o`);
-  }
+  // US$ 6 Ã© o piso de capital da estratÃ©gia, nÃ£o um valor fixo
+  // obrigatÃ³rio de cada ordem. O filtro real da ordem continua sendo o
+  // minNotional/LOT_SIZE da Binance.
   if(estimatedQty<=0)throw new Error(`Quantidade calculada invÃ¡lida | saldo operacional USDT=${operationalUsdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
   if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mÃ­nimo Binance | valorâ${(estimatedQty*price).toFixed(4)} USDT | mÃ­nimo=${minNot}`);
 

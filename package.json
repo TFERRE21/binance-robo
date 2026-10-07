@@ -1,7 +1,7 @@
 {
   "name": "robo-binance",
-  "version": "1.0.1",
-  "description": "Robo Binance EMA 9/21 + RSI + OCO",
+  "version": "1.0.2",
+  "description": "Binance-Robo V8 — EMA 9/21 + RSI + pullback/retest + market intelligence + news + derivatives + crash guard",
   "main": "server.js",
   "scripts": {
     "start": "node backend/server.js"

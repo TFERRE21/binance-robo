@@ -9,13 +9,13 @@ const runners = new Map();
 let schemaReady = false;
 
 const STABLECOINS = new Set(['USDT','USDC','FDUSD','TUSD','DAI','BUSD','USD','USD1','RLUSD','EUR','TRY','BRL','GBP','AUD']);
-const QUICK_MIN_USDT = 6; // Operações Rápidas: mínimo operacional de US$ 6 por ordem
+const QUICK_MIN_USDT = 6; // OperaÃ§Ãµes RÃ¡pidas: mÃ­nimo operacional de US$ 6 por ordem
 const BLOCKED = new Set(['TRX','CVP']);
 const LEVERAGED_SUFFIXES = ['UP','DOWN','BULL','BEAR'];
 const STRATEGIES = {
   rapido: {
-    name:'Operações Rápidas',
-    description:'Modo legado de curto prazo. Não faz parte dos cinco robôs principais.',
+    name:'OperaÃ§Ãµes RÃ¡pidas',
+    description:'Modo legado de curto prazo. NÃ£o faz parte dos cinco robÃ´s principais.',
     mode:'volume',
     scoreMin:5,
     rsiMin:42,
@@ -29,8 +29,8 @@ const STRATEGIES = {
     blockHotBreakout:true
   },
   basico: {
-    name:'Básico',
-    description:'Tendência + pullback leve + confirmação de candle e volume. Prioriza entradas próximas das médias, evitando comprar preço esticado.',
+    name:'BÃ¡sico',
+    description:'TendÃªncia + pullback leve + confirmaÃ§Ã£o de candle e volume. Prioriza entradas prÃ³ximas das mÃ©dias, evitando comprar preÃ§o esticado.',
     mode:'volume',
     scoreMin:5,
     rsiMin:45,
@@ -44,8 +44,8 @@ const STRATEGIES = {
     blockHotBreakout:true
   },
   medio: {
-    name:'Médio',
-    description:'Pullback confirmado na EMA21/EMA9, candle comprador e volume acima da média. Menos sinais, porém mais qualificados.',
+    name:'MÃ©dio',
+    description:'Pullback confirmado na EMA21/EMA9, candle comprador e volume acima da mÃ©dia. Menos sinais, porÃ©m mais qualificados.',
     mode:'volume',
     scoreMin:6,
     rsiMin:45,
@@ -60,7 +60,7 @@ const STRATEGIES = {
   },
   premium: {
     name:'Premium',
-    description:'Reteste mais profundo + retomada da EMA9, RSI controlado e confirmação do mercado. Busca a ponta da retomada.',
+    description:'Reteste mais profundo + retomada da EMA9, RSI controlado e confirmaÃ§Ã£o do mercado. Busca a ponta da retomada.',
     mode:'marketcap',
     scoreMin:7,
     rsiMin:47,
@@ -74,8 +74,8 @@ const STRATEGIES = {
     blockHotBreakout:true
   },
   avancado: {
-    name:'Avançado',
-    description:'Pullback de alta qualidade ou rompimento seguido de reteste, com mercado favorável e volume forte.',
+    name:'AvanÃ§ado',
+    description:'Pullback de alta qualidade ou rompimento seguido de reteste, com mercado favorÃ¡vel e volume forte.',
     mode:'marketcap',
     scoreMin:8,
     rsiMin:48,
@@ -90,7 +90,7 @@ const STRATEGIES = {
   },
   elite: {
     name:'Elite',
-    description:'Máxima seletividade: tendência forte, pullback/reteste limpo, candle de retomada, volume elevado e mercado BTC favorável.',
+    description:'MÃ¡xima seletividade: tendÃªncia forte, pullback/reteste limpo, candle de retomada, volume elevado e mercado BTC favorÃ¡vel.',
     mode:'marketcap',
     scoreMin:9,
     rsiMin:50,
@@ -118,7 +118,7 @@ function strategyForRobot(robotId){
 }
 
 const PLAN_ROBOT_RULES={
-  basico:{name:'Básico',maxRobots:1,maxOperations:1,strategyLevel:1,maxCoins:20,stopLoss:false},
+  basico:{name:'BÃ¡sico',maxRobots:1,maxOperations:1,strategyLevel:1,maxCoins:20,stopLoss:false},
   profissional:{name:'Profissional',maxRobots:2,maxOperations:2,strategyLevel:3,maxCoins:40,stopLoss:true},
   premium:{name:'Premium',maxRobots:5,maxOperations:3,strategyLevel:5,maxCoins:100,stopLoss:true}
 };
@@ -149,7 +149,7 @@ async function getRunningRobotCount(userId){
   return Number(r.rows[0]?.total||0);
 }
 
-function robotLabel(robotId){ return `Robô ${Number(robotId)||1}`; }
+function robotLabel(robotId){ return `RobÃ´ ${Number(robotId)||1}`; }
 function strategyInfo(version){
   return STRATEGIES[String(version||'premium')] || STRATEGIES.premium;
 }
@@ -160,12 +160,12 @@ function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 function normalizedAsset(asset){ return String(asset||'').toUpperCase().replace(/^LD/,''); }
 function freeBalance(ac,asset){
   /*
-   * SALDO NEGOCIÁVEL NA SPOT:
-   * Não normalizamos LDUSDT -> USDT aqui.
+   * SALDO NEGOCIÃVEL NA SPOT:
+   * NÃ£o normalizamos LDUSDT -> USDT aqui.
    *
-   * LDUSDT é um ativo diferente, usado pela Binance como ativo de
+   * LDUSDT Ã© um ativo diferente, usado pela Binance como ativo de
    * margem/recompensa para Futures. O fato de o painel mostrar o valor
-   * patrimonial equivalente não significa que exista USDT livre na
+   * patrimonial equivalente nÃ£o significa que exista USDT livre na
    * carteira Spot para uma ordem AVAXUSDT.
    */
   const target=String(asset||'').toUpperCase();
@@ -182,7 +182,7 @@ function ema(values,period){ if(values.length<period)return null; let x=values.s
 function rsi(values,period=14){ if(values.length<period+1)return null; let g=0,l=0; for(let i=values.length-period;i<values.length;i++){const d=num(values[i])-num(values[i-1]); if(d>0)g+=d; else l-=d;} if(l===0)return 100; return 100-100/(1+g/l); }
 function errText(e){ return e?.body ? (typeof e.body==='string'?e.body:JSON.stringify(e.body)) : (e?.message||String(e)); }
 function robotLog(userId,accountId,robotId,message,level='INFO'){
-  const line=`[ROBO] usuário=${userId} | conta=${accountId} | robô=${robotId} | ${message}`;
+  const line=`[ROBO] usuÃ¡rio=${userId} | conta=${accountId} | robÃ´=${robotId} | ${message}`;
   if(level==='ERROR')console.error(line);else console.log(line);
   db.query(`INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,$4,$5)`,
     [userId,accountId,robotId,level,String(message)]
@@ -198,9 +198,9 @@ async function ensureSchema(){
   if(schemaReady)return;
 
   // IMPORTANTE:
-  // Estas tabelas podem ter sido criadas por versões anteriores do robô.
-  // CREATE TABLE IF NOT EXISTS NÃO atualiza tabelas existentes.
-  // Por isso fazemos uma migração compatível, adicionando somente as colunas
+  // Estas tabelas podem ter sido criadas por versÃµes anteriores do robÃ´.
+  // CREATE TABLE IF NOT EXISTS NÃO atualiza tabelas existentes.
+  // Por isso fazemos uma migraÃ§Ã£o compatÃ­vel, adicionando somente as colunas
   // que estiverem faltando.
 
   await db.query(`
@@ -255,7 +255,7 @@ async function ensureSchema(){
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
-    -- Migração de robot_configs de versões antigas.
+    -- MigraÃ§Ã£o de robot_configs de versÃµes antigas.
     ALTER TABLE robot_configs
       ADD COLUMN IF NOT EXISTS id BIGINT GENERATED BY DEFAULT AS IDENTITY,
        ADD COLUMN IF NOT EXISTS robot_id INTEGER NOT NULL DEFAULT 1,
@@ -272,10 +272,10 @@ async function ensureSchema(){
       ADD COLUMN IF NOT EXISTS running BOOLEAN NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
 
-    -- Migração de robot_logs/robot_operations.
+    -- MigraÃ§Ã£o de robot_logs/robot_operations.
     ALTER TABLE robot_logs ADD COLUMN IF NOT EXISTS robot_id INTEGER NOT NULL DEFAULT 1;
 
-    -- Migração de robot_operations de versões antigas.
+    -- MigraÃ§Ã£o de robot_operations de versÃµes antigas.
     ALTER TABLE robot_operations
       ADD COLUMN IF NOT EXISTS robot_id INTEGER NOT NULL DEFAULT 1,
       ADD COLUMN IF NOT EXISTS buy_order_id VARCHAR(80),
@@ -300,9 +300,9 @@ async function ensureSchema(){
       ON robot_logs(user_id,account_id,created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_robot_configs_user_account
       ON robot_configs(user_id,account_id);
-    -- Migração da versão antiga (1 robô) para 5 robôs independentes.
-    -- A versão antiga possuía uma UNIQUE(user_id,account_id), que impede
-    -- cadastrar o Robô 2, Robô 3, etc. Essa restrição precisa ser removida.
+    -- MigraÃ§Ã£o da versÃ£o antiga (1 robÃ´) para 5 robÃ´s independentes.
+    -- A versÃ£o antiga possuÃ­a uma UNIQUE(user_id,account_id), que impede
+    -- cadastrar o RobÃ´ 2, RobÃ´ 3, etc. Essa restriÃ§Ã£o precisa ser removida.
     UPDATE robot_configs
       SET robot_id=COALESCE(robot_id,1)
       WHERE robot_id IS NULL;
@@ -321,14 +321,14 @@ async function ensureSchema(){
       ON robot_logs(user_id,account_id,robot_id,created_at DESC);
   `);
 
-  // Garante que registros antigos também pertençam ao Robô 1.
+  // Garante que registros antigos tambÃ©m pertenÃ§am ao RobÃ´ 1.
   await db.query(`
     UPDATE robot_operations SET robot_id=COALESCE(robot_id,1) WHERE robot_id IS NULL;
     UPDATE robot_logs SET robot_id=COALESCE(robot_id,1) WHERE robot_id IS NULL;
   `);
 
-  // Garante valores padrão em registros antigos que eventualmente tenham
-  // ficado NULL durante migrações anteriores.
+  // Garante valores padrÃ£o em registros antigos que eventualmente tenham
+  // ficado NULL durante migraÃ§Ãµes anteriores.
   await db.query(`
     UPDATE robot_configs
     SET
@@ -345,7 +345,7 @@ async function ensureSchema(){
       updated_at=COALESCE(updated_at,NOW())
   `);
 
-  console.log('[ROBO] SCHEMA OK | 5 robôs independentes habilitados | UNIQUE antiga user_id+account_id removida');
+  console.log('[ROBO] SCHEMA OK | 5 robÃ´s independentes habilitados | UNIQUE antiga user_id+account_id removida');
   schemaReady=true;
 }
 async function getAccount(userId,accountId){
@@ -372,7 +372,7 @@ async function cancelOpenSellOrders(client,symbol){
 async function marketSellRemaining(client,symbol){
   const info=await client.exchangeInfo();
   const si=info.symbols.find(s=>s.symbol===symbol);
-  if(!si) throw new Error(`Par não encontrado: ${symbol}`);
+  if(!si) throw new Error(`Par nÃ£o encontrado: ${symbol}`);
 
   const lot=si.filters?.find(f=>f.filterType==='LOT_SIZE');
   const nf=si.filters?.find(f=>f.filterType==='NOTIONAL'||f.filterType==='MIN_NOTIONAL');
@@ -393,7 +393,7 @@ async function marketSellRemaining(client,symbol){
   if(minQty>0 && qty<minQty) return null;
 
   const price=num((await client.prices({symbol}))[symbol]);
-  if(price<=0) throw new Error(`Preço inválido para ${symbol}`);
+  if(price<=0) throw new Error(`PreÃ§o invÃ¡lido para ${symbol}`);
   if(minNot>0 && qty*price<minNot) return null;
 
   return client.order({
@@ -410,8 +410,8 @@ async function getConfig(userId,accountId,robotId=1){
   const row=r.rows[0]||null;
   if(!row) return null;
 
-  // Robôs 1..5 possuem estratégia fixa. Isso também corrige configurações
-  // antigas que ainda estejam gravadas com v7.1/v6 ou outra estratégia.
+  // RobÃ´s 1..5 possuem estratÃ©gia fixa. Isso tambÃ©m corrige configuraÃ§Ãµes
+  // antigas que ainda estejam gravadas com v7.1/v6 ou outra estratÃ©gia.
   const fixedStrategy=strategyForRobot(robotId);
   if(ROBOT_STRATEGY_BY_ID[Number(robotId)] && String(row.strategy_version||'').toLowerCase()!==fixedStrategy){
     await db.query(
@@ -438,34 +438,34 @@ async function usdtBrlRate(client){
       if(br>0)return u*br;
     }
   }catch(_){}
-  throw new Error('Não foi possível obter a cotação USDT/BRL para reservar o valor.');
+  throw new Error('NÃ£o foi possÃ­vel obter a cotaÃ§Ã£o USDT/BRL para reservar o valor.');
 }
 
 async function saveConfig(userId,accountId,c,robotId=1){
   await ensureSchema();
 
-  // Cada robô numerado possui uma estratégia própria. O backend é a fonte
-  // de verdade para evitar que o front-end troque a estratégia de um robô.
+  // Cada robÃ´ numerado possui uma estratÃ©gia prÃ³pria. O backend Ã© a fonte
+  // de verdade para evitar que o front-end troque a estratÃ©gia de um robÃ´.
   const fixedStrategy = strategyForRobot(robotId);
   c.strategyVersion = fixedStrategy;
 
   const planRules=await getUserPlanRules(userId);
-  if(!planRules) throw new Error('Assinatura ativa não encontrada.');
+  if(!planRules) throw new Error('Assinatura ativa nÃ£o encontrada.');
 
   if(strategyLevel(c.strategyVersion)>planRules.strategyLevel){
-    throw new Error(`A estratégia ${strategyInfo(c.strategyVersion).name} não está liberada no plano ${planRules.name}.`);
+    throw new Error(`A estratÃ©gia ${strategyInfo(c.strategyVersion).name} nÃ£o estÃ¡ liberada no plano ${planRules.name}.`);
   }
 
   if(Number(c.maxOperations)>planRules.maxOperations){
-    throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
+    throw new Error(`Seu plano ${planRules.name} permite no mÃ¡ximo ${planRules.maxOperations} operaÃ§Ã£o(Ãµes) simultÃ¢nea(s).`);
   }
 
   if(Number(c.maxCoins)>planRules.maxCoins){
-    throw new Error(`Seu plano ${planRules.name} permite analisar no máximo ${planRules.maxCoins} moedas.`);
+    throw new Error(`Seu plano ${planRules.name} permite analisar no mÃ¡ximo ${planRules.maxCoins} moedas.`);
   }
 
   const reservedBrl=Number(c.quickReservedBrl||0);
-  if(!Number.isFinite(reservedBrl)||reservedBrl<0) throw new Error('Valor reservado para Operações Rápidas inválido.');
+  if(!Number.isFinite(reservedBrl)||reservedBrl<0) throw new Error('Valor reservado para OperaÃ§Ãµes RÃ¡pidas invÃ¡lido.');
 
   const entryPercent=Number(c.entryPercent);
   if(!Number.isFinite(entryPercent)||entryPercent<=0||entryPercent>100){
@@ -473,12 +473,12 @@ async function saveConfig(userId,accountId,c,robotId=1){
   }
 
   if(String(c.strategyVersion).toLowerCase()==='rapido' && reservedBrl<=0){
-    throw new Error('Informe quanto deseja separar para Operações Rápidas.');
+    throw new Error('Informe quanto deseja separar para OperaÃ§Ãµes RÃ¡pidas.');
   }
 
   const allowedIntervals=new Set(['5m','15m','30m','1h','1h30','2h','2h30']);
   if(!allowedIntervals.has(String(c.interval||'1h'))){
-    throw new Error('Intervalo de busca inválido. Use 5m, 15m, 30m, 1h, 1h30, 2h ou 2h30.');
+    throw new Error('Intervalo de busca invÃ¡lido. Use 5m, 15m, 30m, 1h, 1h30, 2h ou 2h30.');
   }
 
   // Stop Loss em 0% significa explicitamente "sem Stop Loss".
@@ -489,7 +489,7 @@ async function saveConfig(userId,accountId,c,robotId=1){
     c.stopLossActive=false;
   }
   if(Boolean(c.stopLossActive) && !planRules.stopLoss){
-    throw new Error(`Stop Loss está disponível a partir do plano Profissional.`);
+    throw new Error(`Stop Loss estÃ¡ disponÃ­vel a partir do plano Profissional.`);
   }
   const r=await db.query(`INSERT INTO robot_configs(user_id,account_id,robot_id,strategy_version,entry_percent,take_profit,stop_loss,stop_loss_active,max_operations,interval,max_coins,quick_reserved_brl,updated_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW()) ON CONFLICT(user_id,account_id,robot_id) DO UPDATE SET strategy_version=EXCLUDED.strategy_version,entry_percent=EXCLUDED.entry_percent,take_profit=EXCLUDED.take_profit,stop_loss=EXCLUDED.stop_loss,stop_loss_active=EXCLUDED.stop_loss_active,max_operations=EXCLUDED.max_operations,interval=EXCLUDED.interval,max_coins=EXCLUDED.max_coins,quick_reserved_brl=EXCLUDED.quick_reserved_brl,updated_at=NOW() RETURNING *`,[userId,accountId,robotId,c.strategyVersion,c.entryPercent,c.takeProfit,c.stopLoss,c.stopLossActive,c.maxOperations,c.interval,c.maxCoins,reservedBrl]);
   return r.rows[0];
@@ -497,8 +497,8 @@ async function saveConfig(userId,accountId,c,robotId=1){
 
 async function top20(client,exchangeInfo,maxCoins){
   // Universo de busca:
-  // somente moedas listadas na Binance há pelo menos 3 meses.
-  // Moedas novas ficam fora de TODOS os robôs até completar essa idade.
+  // somente moedas listadas na Binance hÃ¡ pelo menos 3 meses.
+  // Moedas novas ficam fora de TODOS os robÃ´s atÃ© completar essa idade.
   const response=await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=250&page=1&sparkline=false',{headers:{'User-Agent':'CriptoPro/1.0'}});
   if(!response.ok) throw new Error(`CoinGecko HTTP ${response.status}`);
 
@@ -508,7 +508,7 @@ async function top20(client,exchangeInfo,maxCoins){
   cutoff.setMonth(cutoff.getMonth()-3);
   const cutoffMs=cutoff.getTime();
 
-  console.log(`[ROBO] SCANNER V7.2 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas | idade mínima Binance=3 meses | máximo solicitado=${maxCoins}.`);
+  console.log(`[ROBO] SCANNER V7.2 | CoinGecko retornou ${Array.isArray(coins)?coins.length:0} moedas | idade mÃ­nima Binance=3 meses | mÃ¡ximo solicitado=${maxCoins}.`);
 
   for(const coin of coins){
     if(out.length>=maxCoins)break;
@@ -526,15 +526,15 @@ async function top20(client,exchangeInfo,maxCoins){
     if(!pair)continue;
 
     /*
-     * Regra de idade mínima: 3 meses na Binance.
+     * Regra de idade mÃ­nima: 3 meses na Binance.
      *
      * Normalmente o exchangeInfo traz onboardDate. Em algumas respostas/
-     * versões do endpoint esse campo pode vir ausente ou zerado. Nesse
-     * caso NÃO descartamos silenciosamente a moeda: confirmamos a idade
-     * pelo candle diário mais antigo retornado pela Binance.
+     * versÃµes do endpoint esse campo pode vir ausente ou zerado. Nesse
+     * caso NÃO descartamos silenciosamente a moeda: confirmamos a idade
+     * pelo candle diÃ¡rio mais antigo retornado pela Binance.
      *
-     * Isso evita o problema de o robô ligar e terminar com TOP 0
-     * simplesmente porque onboardDate não veio preenchido.
+     * Isso evita o problema de o robÃ´ ligar e terminar com TOP 0
+     * simplesmente porque onboardDate nÃ£o veio preenchido.
      */
     let onboardMs=Number(pair.onboardDate||0);
 
@@ -553,11 +553,11 @@ async function top20(client,exchangeInfo,maxCoins){
       }
     }
 
-    // Sem confirmação da idade, continua fora para preservar a regra
-    // de não comprar moedas com menos de 3 meses.
+    // Sem confirmaÃ§Ã£o da idade, continua fora para preservar a regra
+    // de nÃ£o comprar moedas com menos de 3 meses.
     if(!(onboardMs>0))continue;
 
-    // Somente ativos que já estão na Binance há mais de 3 meses.
+    // Somente ativos que jÃ¡ estÃ£o na Binance hÃ¡ mais de 3 meses.
     if(onboardMs>=cutoffMs)continue;
 
     out.push({
@@ -569,11 +569,11 @@ async function top20(client,exchangeInfo,maxCoins){
     });
   }
 
-  console.log(`[ROBO] SCANNER V7.2 | ${out.length} moedas elegíveis após filtro de idade.`);
+  console.log(`[ROBO] SCANNER V7.2 | ${out.length} moedas elegÃ­veis apÃ³s filtro de idade.`);
 
   if(out.length===0){
     console.log(
-      '[ROBO] SCANNER V7.2 | NENHUMA MOEDA ELEGÍVEL | verifique resposta do Binance/CoinGecko e confirmação da idade mínima de 3 meses.'
+      '[ROBO] SCANNER V7.2 | NENHUMA MOEDA ELEGÃVEL | verifique resposta do Binance/CoinGecko e confirmaÃ§Ã£o da idade mÃ­nima de 3 meses.'
     );
   }
 
@@ -641,17 +641,17 @@ async function analyze(client,symbol,market,interval,version='premium'){
   const a=atr(closed,14);
 
   if(!(e9>e21))
-    return {valid:false,reason:'Tendência de alta não confirmada (EMA9 <= EMA21)'};
+    return {valid:false,reason:'TendÃªncia de alta nÃ£o confirmada (EMA9 <= EMA21)'};
 
   /*
-   * A entrada agora é tratada como uma sequência:
-   * tendência -> recuo -> reação -> confirmação.
-   * O robô não compra simplesmente porque EMA/RSI ficaram positivos.
+   * A entrada agora Ã© tratada como uma sequÃªncia:
+   * tendÃªncia -> recuo -> reaÃ§Ã£o -> confirmaÃ§Ã£o.
+   * O robÃ´ nÃ£o compra simplesmente porque EMA/RSI ficaram positivos.
    */
   let score=2;
 
-  // 0) Inteligência de mercado: notícias + derivativos + regime.
-  // A notícia nunca abre uma operação sozinha; ela altera o risco somente quando confirmada por preço/volume/derivativos.
+  // 0) InteligÃªncia de mercado: notÃ­cias + derivativos + regime.
+  // A notÃ­cia nunca abre uma operaÃ§Ã£o sozinha; ela altera o risco somente quando confirmada por preÃ§o/volume/derivativos.
   if(intel){
     if(intel.regime==='CRASH') return {valid:false,reason:'CRASH GUARD: choque de mercado detectado'};
     if(intel.news?.score>=1) score++;
@@ -663,20 +663,20 @@ async function analyze(client,symbol,market,interval,version='premium'){
     if(Number(intel.market?.oiChange)>1 && Number(intel.market?.ret15m)<0) score--;
   }
 
-  // 1) Preço perto da estrutura, sem comprar muito esticado.
+  // 1) PreÃ§o perto da estrutura, sem comprar muito esticado.
   const dist=(p-e21)/e21;
   if(dist>strategy.maxDist)
-    return {valid:false,reason:`Preço esticado ${(dist*100).toFixed(2)}% acima da EMA21`};
+    return {valid:false,reason:`PreÃ§o esticado ${(dist*100).toFixed(2)}% acima da EMA21`};
   if(dist<=strategy.maxDist)score++;
 
-  // 2) RSI dentro de uma zona saudável e, de preferência, retomando.
+  // 2) RSI dentro de uma zona saudÃ¡vel e, de preferÃªncia, retomando.
   if(r>=strategy.rsiMin&&r<=strategy.rsiMax)score++;
   else if(r>strategy.rsiMax+5)
     return {valid:false,reason:`RSI muito alto: ${r.toFixed(2)}`};
 
   if(Number.isFinite(rPrev)&&r>rPrev)score++;
 
-  // 3) Volume acima da média, sem exigir explosão para entradas de pullback.
+  // 3) Volume acima da mÃ©dia, sem exigir explosÃ£o para entradas de pullback.
   const avgVol=volumes.slice(-21,-1).reduce((a,b)=>a+b,0)/
     Math.max(1,volumes.slice(-21,-1).length);
   const vr=avgVol?volumes[last]/avgVol:0;
@@ -694,14 +694,14 @@ async function analyze(client,symbol,market,interval,version='premium'){
   if(bullish)score++;
   if(bullish&&bullishBodyRatio>=0.35)score++;
 
-  // Evita comprar uma vela anormalmente grande no próprio topo.
+  // Evita comprar uma vela anormalmente grande no prÃ³prio topo.
   const candleAtrRatio=a>0?range/a:0;
   const explosiveCandle=candleAtrRatio>=2.20;
   if(explosiveCandle && bullishBodyRatio<0.55)
     return {valid:false,reason:`Vela muito esticada: ${candleAtrRatio.toFixed(2)} ATR`};
 
   // 5) Pullback de verdade:
-  // procuramos um recuo recente até EMA9/EMA21 e exigimos retomada.
+  // procuramos um recuo recente atÃ© EMA9/EMA21 e exigimos retomada.
   const pullStart=Math.max(0,last-6);
   const pullLows=lows.slice(pullStart,last);
   const pullCloses=closes.slice(pullStart,last);
@@ -728,8 +728,8 @@ async function analyze(client,symbol,market,interval,version='premium'){
 
   if(pullbackConfirmed)score+=2;
 
-  // O melhor pullback é aquele em que a vela atual recupera o nível
-  // depois de uma mínima recente, sem exigir que a moeda toque exatamente a EMA.
+  // O melhor pullback Ã© aquele em que a vela atual recupera o nÃ­vel
+  // depois de uma mÃ­nima recente, sem exigir que a moeda toque exatamente a EMA.
   const pullbackDepth=e21>0?(e21-minRecentLow)/e21:0;
   const cleanPullback=
     pullbackConfirmed &&
@@ -738,8 +738,8 @@ async function analyze(client,symbol,market,interval,version='premium'){
 
   if(cleanPullback)score++;
 
-  // 6) Recuperação curta da EMA9: mantém o Robô 1 ativo sem liberar
-  // qualquer breakout aleatório.
+  // 6) RecuperaÃ§Ã£o curta da EMA9: mantÃ©m o RobÃ´ 1 ativo sem liberar
+  // qualquer breakout aleatÃ³rio.
   const previousBelowOrNearE9=prevClose<=e9*1.008;
   const recovery=
     previousBelowOrNearE9 &&
@@ -764,7 +764,7 @@ async function analyze(client,symbol,market,interval,version='premium'){
   /*
    * 8) RETESTE VERDADEIRO:
    * primeiro precisamos encontrar um rompimento em uma vela anterior;
-   * só depois aceitamos a vela atual testando o nível e fechando acima dele.
+   * sÃ³ depois aceitamos a vela atual testando o nÃ­vel e fechando acima dele.
    */
   let retest=false;
   let retestLevel=0;
@@ -807,8 +807,8 @@ async function analyze(client,symbol,market,interval,version='premium'){
 
   /*
    * Hierarquia de entradas:
-   * R1 = pullback/recuperação, mais ativo.
-   * R2 = pullback ou recuperação forte.
+   * R1 = pullback/recuperaÃ§Ã£o, mais ativo.
+   * R2 = pullback ou recuperaÃ§Ã£o forte.
    * R3 = pullback ou reteste.
    * R4 = pullback/reteste.
    * R5 = somente pullback limpo/reteste.
@@ -824,12 +824,12 @@ async function analyze(client,symbol,market,interval,version='premium'){
   else if(id<=2 && recovery)entry='RECUPERACAO_EMA';
   else if(id<=2 && breakout && !market.quente)entry='BREAKOUT_CONFIRMADO';
 
-  // Filtros de segurança sem matar frequência:
-  // - R1/R2 aceitam recuperação, mas precisam de score;
+  // Filtros de seguranÃ§a sem matar frequÃªncia:
+  // - R1/R2 aceitam recuperaÃ§Ã£o, mas precisam de score;
   // - R3+ exigem pullback/reteste;
-  // - breakout isolado só entra nos dois primeiros robôs.
+  // - breakout isolado sÃ³ entra nos dois primeiros robÃ´s.
   if(id>=3 && strategy.requirePullback && !pullbackConfirmed && !retest)
-    return {valid:false,reason:'Estratégia exige pullback ou reteste confirmado'};
+    return {valid:false,reason:'EstratÃ©gia exige pullback ou reteste confirmado'};
 
   if(strategy.preferPullback && entry==='BREAKOUT_CONFIRMADO' && !retest)
     return {valid:false,reason:'Breakout isolado rejeitado; aguardando pullback/reteste'};
@@ -841,19 +841,19 @@ async function analyze(client,symbol,market,interval,version='premium'){
     const newsScore=Number(intel.news?.score||0);
     const severe=Number(intel.news?.severe||0);
     if(intel.regime==='STRESS' && id>=3 && !pullbackConfirmed && !retest)
-      return {valid:false,reason:'STRESS: Robôs 3-5 aguardam pullback/reteste'};
+      return {valid:false,reason:'STRESS: RobÃ´s 3-5 aguardam pullback/reteste'};
     if(intel.regime==='STRESS' && id<=2 && !pullbackConfirmed && !retest && entry!=='RECUPERACAO_EMA')
-      return {valid:false,reason:'STRESS: aguardando recuperação do BTC'};
+      return {valid:false,reason:'STRESS: aguardando recuperaÃ§Ã£o do BTC'};
     if(intel.regime==='RECOVERY' && id>=3 && !pullbackConfirmed && !retest)
-      return {valid:false,reason:'RECOVERY: entrada exige confirmação de retomada'};
+      return {valid:false,reason:'RECOVERY: entrada exige confirmaÃ§Ã£o de retomada'};
     if(newsScore<=-2 && severe>=2 && intel.regime!=='RECOVERY' && !pullbackConfirmed && !retest)
-      return {valid:false,reason:'Notícias fortemente negativas sem confirmação técnica'};
+      return {valid:false,reason:'NotÃ­cias fortemente negativas sem confirmaÃ§Ã£o tÃ©cnica'};
   }
 
   if(market.score < strategy.marketMinScore)
-    return {valid:false,reason:`Mercado BTC abaixo do filtro da estratégia (score ${market.score})`};
+    return {valid:false,reason:`Mercado BTC abaixo do filtro da estratÃ©gia (score ${market.score})`};
 
-  // R1 é deliberadamente mais ativo; os demais ficam progressivamente seletivos.
+  // R1 Ã© deliberadamente mais ativo; os demais ficam progressivamente seletivos.
   const adaptiveMin=
     id===1 ? Math.max(5,strategy.scoreMin) :
     id===2 ? Math.max(6,strategy.scoreMin) :
@@ -900,15 +900,15 @@ async function analyze(client,symbol,market,interval,version='premium'){
     oiChange:Number(intel?.market?.oiChange||0),
     longShort:Number(intel?.market?.longShort||0),
     takerRatio:Number(intel?.market?.takerRatio||0),
-    reason:price>0?'':'Preço inválido'
+    reason:price>0?'':'PreÃ§o invÃ¡lido'
   };
 }
 async function openCount(userId,accountId,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT COUNT(*)::int AS count FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN'`,[userId,accountId,robotId]); return num(r.rows[0]?.count); }
 async function existingSymbol(userId,accountId,symbol,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND symbol=$4 AND status='OPEN' LIMIT 1`,[userId,accountId,robotId,symbol]); return !!r.rows.length; }
 
 function quickTakeProfit(setup){
-  // O alvo do modo rápido é decidido pelo próprio robô:
-  // 1.0% a 2.5% conforme a força do sinal.
+  // O alvo do modo rÃ¡pido Ã© decidido pelo prÃ³prio robÃ´:
+  // 1.0% a 2.5% conforme a forÃ§a do sinal.
   const score=num(setup?.score);
   const volume=num(setup?.volumeRatio);
   const r=num(setup?.rsi);
@@ -918,18 +918,18 @@ function quickTakeProfit(setup){
   else if(score>=6) tp=2.0;
   else if(score>=5) tp=1.5;
 
-  // Volume muito acima da média permite manter o alvo maior.
+  // Volume muito acima da mÃ©dia permite manter o alvo maior.
   if(volume>=2.0 && score>=5) tp=Math.min(2.5,tp+0.5);
 
-  // Evita exigir alvo agressivo quando o RSI já está muito próximo do limite.
+  // Evita exigir alvo agressivo quando o RSI jÃ¡ estÃ¡ muito prÃ³ximo do limite.
   if(r>=67) tp=Math.min(tp,1.5);
 
   return Math.max(1,Math.min(2.5,Number(tp.toFixed(2))));
 }
 
 function quickOperationLimit(setups,planMax){
-  // O robô decide quantas posições abrir de acordo com a qualidade real
-  // das oportunidades encontradas. Nunca abre só para preencher slots.
+  // O robÃ´ decide quantas posiÃ§Ãµes abrir de acordo com a qualidade real
+  // das oportunidades encontradas. Nunca abre sÃ³ para preencher slots.
   const max=Math.max(1,Number(planMax)||1);
   if(!setups.length) return 0;
 
@@ -958,7 +958,7 @@ async function buy(userId,account,config,symbol,robotId=1){
   const client=clientFor(account);
   const info=await client.exchangeInfo();
   const si=info.symbols.find(s=>s.symbol===symbol);
-  if(!si)throw new Error('Par não encontrado');
+  if(!si)throw new Error('Par nÃ£o encontrado');
 
   const lot=si.filters.find(f=>f.filterType==='LOT_SIZE');
   const pf=si.filters.find(f=>f.filterType==='PRICE_FILTER');
@@ -967,8 +967,8 @@ async function buy(userId,account,config,symbol,robotId=1){
 
   const ac=await client.accountInfo();
   // Binance pode retornar ativos com prefixo LD (ex.: LDUSDT).
-  // O painel já normaliza esses ativos; o motor também precisa fazer isso
-  // para não enxergar saldo disponível como zero.
+  // O painel jÃ¡ normaliza esses ativos; o motor tambÃ©m precisa fazer isso
+  // para nÃ£o enxergar saldo disponÃ­vel como zero.
   const usdt=freeBalance(ac,'USDT');
   const reservedOtherRobots=await quickReservedUsdt(client,userId,account.id,String(config.strategy_version).toLowerCase()==='rapido'?null:robotId);
   const operationalUsdt=Math.max(0,usdt-reservedOtherRobots);
@@ -982,29 +982,29 @@ async function buy(userId,account,config,symbol,robotId=1){
   const price=num((await client.prices({symbol}))[symbol]);
 
   robotLog(userId,account.id,robotId,
-    `SALDO PARA ENTRADA | USDT disponível=${usdt.toFixed(8)} | detalhes=${JSON.stringify(usdtRaw)}`
+    `SALDO PARA ENTRADA | USDT disponÃ­vel=${usdt.toFixed(8)} | detalhes=${JSON.stringify(usdtRaw)}`
   );
 
   if(!(usdt>0)){
     const ld=num(ldUsdt.reduce((sum,b)=>sum+num(b.free),0));
     if(ld>0){
       throw new Error(
-        `USDT Spot disponível é zero | encontrado LDUSDT=${ld.toFixed(8)} | LDUSDT não é USDT Spot negociável neste endpoint. Transfira/resgate o saldo para USDT Spot antes da entrada.`
+        `USDT Spot disponÃ­vel Ã© zero | encontrado LDUSDT=${ld.toFixed(8)} | LDUSDT nÃ£o Ã© USDT Spot negociÃ¡vel neste endpoint. Transfira/resgate o saldo para USDT Spot antes da entrada.`
       );
     }
-    throw new Error(`Saldo USDT Spot disponível é zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
+    throw new Error(`Saldo USDT Spot disponÃ­vel Ã© zero | saldos encontrados=${JSON.stringify(usdtRaw)}`);
   }
-  if(!(price>0))throw new Error('Preço atual inválido');
+  if(!(price>0))throw new Error('PreÃ§o atual invÃ¡lido');
 
   /*
    * COMPRA MARKET COM quoteOrderQty:
    *
-   * Antes enviávamos quantity = valor/preço. Entre a leitura do preço
-   * e a execução, o preço podia subir e a Binance rejeitava a ordem com
-   * "insufficient balance", mesmo havendo USDT disponível.
+   * Antes enviÃ¡vamos quantity = valor/preÃ§o. Entre a leitura do preÃ§o
+   * e a execuÃ§Ã£o, o preÃ§o podia subir e a Binance rejeitava a ordem com
+   * "insufficient balance", mesmo havendo USDT disponÃ­vel.
    *
-   * quoteOrderQty limita diretamente quanto USDT será gasto na compra.
-   * Assim a variação do preço não faz o custo ultrapassar o saldo.
+   * quoteOrderQty limita diretamente quanto USDT serÃ¡ gasto na compra.
+   * Assim a variaÃ§Ã£o do preÃ§o nÃ£o faz o custo ultrapassar o saldo.
    */
   let value;
   if(String(config.strategy_version||'').toLowerCase()==='rapido'){
@@ -1015,15 +1015,15 @@ async function buy(userId,account,config,symbol,robotId=1){
     const reservedUsdt=rate>0?reservedBrl/rate:0;
     const entryPercent=Math.min(100,Math.max(0.01,num(config.entry_percent)||99));
 
-    // O orçamento total é dividido primeiro pelo número de operações
-    // solicitadas. O percentual é aplicado sobre CADA parcela, e não
+    // O orÃ§amento total Ã© dividido primeiro pelo nÃºmero de operaÃ§Ãµes
+    // solicitadas. O percentual Ã© aplicado sobre CADA parcela, e nÃ£o
     // sobre o saldo restante depois de cada compra.
-    // Ex.: R$ 1.000 / 4 = R$ 250; com 99% => R$ 247,50 por operação.
+    // Ex.: R$ 1.000 / 4 = R$ 250; com 99% => R$ 247,50 por operaÃ§Ã£o.
     const perOperationUsdt=reservedUsdt/maxOps;
     value=Number((perOperationUsdt*(entryPercent/100)).toFixed(8));
 
     robotLog(userId,account.id,robotId,
-      `ORÇAMENTO RÁPIDO | reservado=R$ ${reservedBrl.toFixed(2)} | câmbio USDT/BRL=${rate.toFixed(4)} | orçamento total≈${reservedUsdt.toFixed(8)} USDT | divisão=${maxOps} operação(ões) | parcela≈${perOperationUsdt.toFixed(8)} USDT | entrada=${entryPercent.toFixed(2)}% | compra≈${value.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | mínimo por operação=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orçamento não será usado`
+      `ORÃAMENTO RÃPIDO | reservado=R$ ${reservedBrl.toFixed(2)} | cÃ¢mbio USDT/BRL=${rate.toFixed(4)} | orÃ§amento totalâ${reservedUsdt.toFixed(8)} USDT | divisÃ£o=${maxOps} operaÃ§Ã£o(Ãµes) | parcelaâ${perOperationUsdt.toFixed(8)} USDT | entrada=${entryPercent.toFixed(2)}% | compraâ${value.toFixed(8)} USDT | abertas=${openNow}/${maxOps} | mÃ­nimo por operaÃ§Ã£o=US$ ${QUICK_MIN_USDT.toFixed(2)} | saldo livre fora do orÃ§amento nÃ£o serÃ¡ usado`
     );
   }else{
     value=Number((operationalUsdt*(num(config.entry_percent)/100)).toFixed(8));
@@ -1031,15 +1031,15 @@ async function buy(userId,account,config,symbol,robotId=1){
 
   const estimatedQty=roundDown(value/price,step);
 
-  if(!(value>0))throw new Error(`Valor calculado inválido | saldo operacional USDT=${operationalUsdt.toFixed(4)} | saldo total=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(!(value>0))throw new Error(`Valor calculado invÃ¡lido | saldo operacional USDT=${operationalUsdt.toFixed(4)} | saldo total=${usdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
   if(String(config.strategy_version||'').toLowerCase()==='rapido' && value < QUICK_MIN_USDT){
-    throw new Error(`Orçamento da Operação Rápida abaixo do mínimo de teste | entrada≈${value.toFixed(4)} USDT | mínimo=US$ ${QUICK_MIN_USDT.toFixed(2)} por operação`);
+    throw new Error(`OrÃ§amento da OperaÃ§Ã£o RÃ¡pida abaixo do mÃ­nimo de teste | entradaâ${value.toFixed(4)} USDT | mÃ­nimo=US$ ${QUICK_MIN_USDT.toFixed(2)} por operaÃ§Ã£o`);
   }
-  if(estimatedQty<=0)throw new Error(`Quantidade calculada inválida | saldo operacional USDT=${operationalUsdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
-  if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mínimo Binance | valor≈${(estimatedQty*price).toFixed(4)} USDT | mínimo=${minNot}`);
+  if(estimatedQty<=0)throw new Error(`Quantidade calculada invÃ¡lida | saldo operacional USDT=${operationalUsdt.toFixed(4)} | entrada=${num(config.entry_percent)}%`);
+  if(estimatedQty*price<minNot)throw new Error(`Valor da ordem abaixo do mÃ­nimo Binance | valorâ${(estimatedQty*price).toFixed(4)} USDT | mÃ­nimo=${minNot}`);
 
   robotLog(userId,account.id,robotId,
-    `ORDEM DE COMPRA | ${symbol} | estratégia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | quoteOrderQty=${value.toFixed(8)} USDT | saldo=${usdt.toFixed(8)} USDT`
+    `ORDEM DE COMPRA | ${symbol} | estratÃ©gia=${strategyInfo(config.strategy_version).name} | entrada=${num(config.entry_percent)}% | quoteOrderQty=${value.toFixed(8)} USDT | saldo=${usdt.toFixed(8)} USDT`
   );
 
   const order=await client.order({
@@ -1064,7 +1064,7 @@ async function buy(userId,account,config,symbol,robotId=1){
   const asset=symbol.replace(/USDT$/,'');
   const free=freeBalance(ac2,asset);
   qty=roundDown(Math.min(executedQty,free||executedQty),step);
-  if(qty<=0)throw new Error('Saldo do ativo não encontrado após compra');
+  if(qty<=0)throw new Error('Saldo do ativo nÃ£o encontrado apÃ³s compra');
 
   const takeProfit = num(config._quickTakeProfit) > 0 ? num(config._quickTakeProfit) : num(config.take_profit);
   const tp = roundPrice(buyPrice * (1 + takeProfit / 100), tick);
@@ -1074,15 +1074,15 @@ async function buy(userId,account,config,symbol,robotId=1){
   try{
     tpOrder=await client.order({symbol,side:'SELL',type:'LIMIT',quantity:qty,price:tp,timeInForce:'GTC'});
     robotLog(userId,account.id,
-      `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preço=${tp} | alvo=+${takeProfit}%`
+      `ORDEM DE VENDA CRIADA | ${symbol} | tipo=TAKE PROFIT | ordem=${tpOrder.orderId} | quantidade=${qty} | preÃ§o=${tp} | alvo=+${takeProfit}%`
     );
   }catch(e){
-    // A COMPRA já foi executada. Falha ao criar o TP não pode apagar a operação
-    // nem fazer o painel informar falsamente que a entrada não aconteceu.
-    // O monitorOpenOps() detectará tp_order_id nulo e tentará recriar a proteção.
+    // A COMPRA jÃ¡ foi executada. Falha ao criar o TP nÃ£o pode apagar a operaÃ§Ã£o
+    // nem fazer o painel informar falsamente que a entrada nÃ£o aconteceu.
+    // O monitorOpenOps() detectarÃ¡ tp_order_id nulo e tentarÃ¡ recriar a proteÃ§Ã£o.
     robotLog(
       userId,account.id,robotId,
-      `COMPRA EXECUTADA | ${symbol} | TAKE PROFIT pendente para recriação | erro=${errText(e)}`,
+      `COMPRA EXECUTADA | ${symbol} | TAKE PROFIT pendente para recriaÃ§Ã£o | erro=${errText(e)}`,
       'INFO'
     );
   }
@@ -1094,13 +1094,13 @@ async function buy(userId,account,config,symbol,robotId=1){
   );
 
   robotLog(userId,account.id,
-    `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preço=${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT`
+    `COMPRA REALIZADA | ${symbol} | ordem=${order.orderId} | preÃ§o=${buyPrice} | quantidade=${qty} | valorâ${(buyPrice*qty).toFixed(4)} USDT`
   );
   robotLog(userId,account.id,
-    `PROTEÇÃO DA POSIÇÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder?tpOrder.orderId:'PENDENTE'} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
+    `PROTEÃÃO DA POSIÃÃO | ${symbol} | TAKE PROFIT=${tp} (+${num(config.take_profit)}%) | ordem SELL=${tpOrder?tpOrder.orderId:'PENDENTE'} | STOP LOSS=${config.stop_loss_active?'ATIVO '+stop:'DESATIVADO'}`
   );
 
-  notificationService.notifyUser(userId,'buy','🟢 COMPRA EXECUTADA',`${symbol} comprado a ${buyPrice} | quantidade=${qty} | valor≈${(buyPrice*qty).toFixed(4)} USDT | alvo=+${takeProfit}%`,{url:'/dashboard.html',tag:'trade-buy-'+symbol}).catch(e=>console.error('[NOTIFICATION BUY]:',e.message||e));
+  notificationService.notifyUser(userId,'buy','ð¢ COMPRA EXECUTADA',`${symbol} comprado a ${buyPrice} | quantidade=${qty} | valorâ${(buyPrice*qty).toFixed(4)} USDT | alvo=+${takeProfit}%`,{url:'/dashboard.html',tag:'trade-buy-'+symbol}).catch(e=>console.error('[NOTIFICATION BUY]:',e.message||e));
 
   return {symbol,buyOrderId:order.orderId,tpOrderId:tpOrder?tpOrder.orderId:null,buyPrice,quantity:qty,tpPrice:tp,stopPrice:stop};
 }
@@ -1119,20 +1119,20 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
 
   if(open>=decidedLimit){
     robotLog(userId,account.id,robotId,
-      `ENTRADAS BLOQUEADAS | ${open}/${decidedLimit} posições decididas pelo robô já estão abertas.`
+      `ENTRADAS BLOQUEADAS | ${open}/${decidedLimit} posiÃ§Ãµes decididas pelo robÃ´ jÃ¡ estÃ£o abertas.`
     );
     return resultSummary;
   }
 
   robotLog(userId,account.id,robotId,
-    `DECISÃO DO ROBÔ RÁPIDO | oportunidades aprovadas=${setups.length} | operações escolhidas=${decidedLimit} | limite do plano=${planLimit}`
+    `DECISÃO DO ROBÃ RÃPIDO | oportunidades aprovadas=${setups.length} | operaÃ§Ãµes escolhidas=${decidedLimit} | limite do plano=${planLimit}`
   );
 
   for(const setup of setups){
     if(open>=decidedLimit)break;
 
     if(await existingSymbol(userId,account.id,setup.symbol,robotId)){
-      robotLog(userId,account.id,robotId,`${setup.symbol} | NÃO COMPRAR | já existe operação aberta nesse ativo.`);
+      robotLog(userId,account.id,robotId,`${setup.symbol} | NÃO COMPRAR | jÃ¡ existe operaÃ§Ã£o aberta nesse ativo.`);
       continue;
     }
 
@@ -1141,7 +1141,7 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
 
     try{
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)} | força=${num(setup.volumeRatio).toFixed(2)}x | TP DECIDIDO=${takeProfit}%`
+        `${setup.symbol} | ENTRADA APROVADA | score=${num(setup.score)} | forÃ§a=${num(setup.volumeRatio).toFixed(2)}x | TP DECIDIDO=${takeProfit}%`
       );
 
       const result=await buy(userId,account,configForTrade,setup.symbol,robotId);
@@ -1149,15 +1149,15 @@ async function executeApprovedSetups(userId,account,config,setups,robotId=1){
       resultSummary.executed++;
 
       robotLog(userId,account.id,robotId,
-        `${setup.symbol} | POSIÇÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | alvo automático=+${takeProfit}% | saída automática ativa.`
+        `${setup.symbol} | POSIÃÃO ABERTA | ordem BUY=${result.buyOrderId} | ordem SELL/TP=${result.tpOrderId||'PENDENTE'} | alvo automÃ¡tico=+${takeProfit}% | saÃ­da automÃ¡tica ativa.`
       );
     }catch(e){
       resultSummary.failed++;
       const erro=errText(e);
-      if(/saldo usdt disponível é zero|insufficient balance|account has insufficient balance|saldo.*zero/i.test(erro)){
+      if(/saldo usdt disponÃ­vel Ã© zero|insufficient balance|account has insufficient balance|saldo.*zero/i.test(erro)){
         resultSummary.retryableBalance=true;
       }
-      robotLog(userId,account.id,robotId,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${erro}`,'ERROR');
+      robotLog(userId,account.id,robotId,`${setup.symbol} | COMPRA NÃO EXECUTADA | motivo=${erro}`,'ERROR');
     }
   }
 
@@ -1183,7 +1183,7 @@ async function closeOperationResult(op,exitPrice,reason){
     [reason,exit||null,pct,usdt,op.id]
   );
 
-  notificationService.notifyUser(op.user_id,'sell',reason === 'STOP' ? '🔴 VENDA / STOP LOSS' : '🟢 VENDA / TAKE PROFIT',`${op.symbol} vendido a ${exit} | resultado=${pct===null?'—':pct.toFixed(2)+'%'} | ${usdt===null?'':(usdt>=0?'+':'')+usdt.toFixed(4)+' USDT'}`,{url:'/dashboard.html',tag:'trade-sell-'+op.symbol}).catch(e=>console.error('[NOTIFICATION SELL]:',e.message||e));
+  notificationService.notifyUser(op.user_id,'sell',reason === 'STOP' ? 'ð´ VENDA / STOP LOSS' : 'ð¢ VENDA / TAKE PROFIT',`${op.symbol} vendido a ${exit} | resultado=${pct===null?'â':pct.toFixed(2)+'%'} | ${usdt===null?'':(usdt>=0?'+':'')+usdt.toFixed(4)+' USDT'}`,{url:'/dashboard.html',tag:'trade-sell-'+op.symbol}).catch(e=>console.error('[NOTIFICATION SELL]:',e.message||e));
 
   return {exitPrice:exit,pct,usdt};
 }
@@ -1217,7 +1217,7 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         if(market){
           robotLog(
             userId,account.id,robotId,
-            `SAÍDA AUTOMÁTICA | ${op.symbol} | STOP LOSS | SELL MARKET | preço≈${price} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
+            `SAÃDA AUTOMÃTICA | ${op.symbol} | STOP LOSS | SELL MARKET | preÃ§oâ${price} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
           );
           const stopExit=num(market?.cummulativeQuoteQty)>0 && num(market?.executedQty)>0
             ? num(market.cummulativeQuoteQty)/num(market.executedQty)
@@ -1226,7 +1226,7 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         }else{
           robotLog(
             userId,account.id,robotId,
-            `STOP LOSS ACIONADO | ${op.symbol} | não foi possível vender o saldo restante. Verifique saldo, quantidade mínima e filtros da Binance.`,
+            `STOP LOSS ACIONADO | ${op.symbol} | nÃ£o foi possÃ­vel vender o saldo restante. Verifique saldo, quantidade mÃ­nima e filtros da Binance.`,
             'ERROR'
           );
         }
@@ -1244,7 +1244,7 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         }
       }catch(_){}
 
-      // TP já preenchido pela Binance.
+      // TP jÃ¡ preenchido pela Binance.
       if(ord && String(ord.status).toUpperCase()==='FILLED'){
         const filledPrice=num(ord?.cummulativeQuoteQty)>0 && num(ord?.executedQty)>0
           ? num(ord.cummulativeQuoteQty)/num(ord.executedQty)
@@ -1252,12 +1252,12 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         const tpResult=await closeOperationResult(op,filledPrice,'TAKE_PROFIT');
         robotLog(
           userId,account.id,robotId,
-          `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT preenchido | preço≈${filledPrice} | alvo=${tpPrice} | resultado=${tpResult.pct===null?'-':tpResult.pct.toFixed(2)+'%'}`
+          `SAÃDA AUTOMÃTICA | ${op.symbol} | TAKE PROFIT preenchido | preÃ§oâ${filledPrice} | alvo=${tpPrice} | resultado=${tpResult.pct===null?'-':tpResult.pct.toFixed(2)+'%'}`
         );
         continue;
       }
 
-      // TP atingido, mas LIMIT não fechou: cancela e vende MARKET.
+      // TP atingido, mas LIMIT nÃ£o fechou: cancela e vende MARKET.
       if(tpPrice>0 && price>=tpPrice){
         const cancelled=await cancelOpenSellOrders(client,op.symbol);
         await sleep(300);
@@ -1266,7 +1266,7 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         if(market){
           robotLog(
             userId,account.id,robotId,
-            `SAÍDA AUTOMÁTICA | ${op.symbol} | TAKE PROFIT A MERCADO | preço≈${price} | alvo=${tpPrice} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
+            `SAÃDA AUTOMÃTICA | ${op.symbol} | TAKE PROFIT A MERCADO | preÃ§oâ${price} | alvo=${tpPrice} | executado=${num(market.executedQty)} | SELL canceladas=${cancelled}`
           );
           const marketExit=num(market?.cummulativeQuoteQty)>0 && num(market?.executedQty)>0
             ? num(market.cummulativeQuoteQty)/num(market.executedQty)
@@ -1275,14 +1275,14 @@ async function monitorOpenOps(userId,account,config,robotId=1){
         }else{
           robotLog(
             userId,account.id,robotId,
-            `TAKE PROFIT ATINGIDO | ${op.symbol} | não foi possível vender o saldo restante. Verifique saldo, quantidade mínima e filtros da Binance.`,
+            `TAKE PROFIT ATINGIDO | ${op.symbol} | nÃ£o foi possÃ­vel vender o saldo restante. Verifique saldo, quantidade mÃ­nima e filtros da Binance.`,
             'ERROR'
           );
         }
         continue;
       }
 
-      // Se a SELL sumiu/cancelou e a posição continua aberta, recria a proteção.
+      // Se a SELL sumiu/cancelou e a posiÃ§Ã£o continua aberta, recria a proteÃ§Ã£o.
       const orderStatus=String(ord?.status||'').toUpperCase();
 
       if(tpPrice>0 && (!ord || !['NEW','PARTIALLY_FILLED'].includes(orderStatus))){
@@ -1292,9 +1292,9 @@ async function monitorOpenOps(userId,account,config,robotId=1){
           const lot=si?.filters?.find(f=>f.filterType==='LOT_SIZE');
           const pf=si?.filters?.find(f=>f.filterType==='PRICE_FILTER');
 
-          // CORREÇÃO SOMENTE DA PROTEÇÃO:
-          // usa o saldo real disponível na Binance para recriar o TP.
-          // Não altera estratégia, intervalo, criptografia ou demais regras.
+          // CORREÃÃO SOMENTE DA PROTEÃÃO:
+          // usa o saldo real disponÃ­vel na Binance para recriar o TP.
+          // NÃ£o altera estratÃ©gia, intervalo, criptografia ou demais regras.
           const accountInfo=await client.accountInfo();
           const base=String(si?.baseAsset||'').toUpperCase();
           const balance=accountInfo.balances?.find(
@@ -1317,7 +1317,7 @@ async function monitorOpenOps(userId,account,config,robotId=1){
           const qty=roundDown(Math.min(configuredQty,free),stepSize);
           const tp=roundPrice(tpPrice,num(pf?.tickSize));
 
-          // Não existe mais saldo do ativo: encerra somente a operação órfã.
+          // NÃ£o existe mais saldo do ativo: encerra somente a operaÃ§Ã£o Ã³rfÃ£.
           if(free<=0 || qty<=0){
             await db.query(
               `UPDATE robot_operations
@@ -1331,19 +1331,19 @@ async function monitorOpenOps(userId,account,config,robotId=1){
 
             robotLog(
               userId,account.id,robotId,
-              `OPERAÇÃO ENCERRADA | ${op.symbol} | proteção perdida e saldo Binance zerado | registrado=${configuredQty} | livre=${free} | bloqueado=${locked} | motivo=NO_BALANCE`
+              `OPERAÃÃO ENCERRADA | ${op.symbol} | proteÃ§Ã£o perdida e saldo Binance zerado | registrado=${configuredQty} | livre=${free} | bloqueado=${locked} | motivo=NO_BALANCE`
             );
             continue;
           }
 
-          // Se existe saldo parcial, recria o TP somente para o saldo disponível.
+          // Se existe saldo parcial, recria o TP somente para o saldo disponÃ­vel.
           const validMinQty=!minQty || qty>=minQty;
           const validMinNot=!minNot || (currentPrice>0 && qty*currentPrice>=minNot);
 
           if(!validMinQty || !validMinNot || !(tp>0)){
             robotLog(
               userId,account.id,robotId,
-              `PROTEÇÃO PENDENTE | ${op.symbol} | saldo disponível não atende aos filtros Binance | registrado=${configuredQty} | livre=${free} | quantidade=${qty} | mínimoQty=${minQty} | mínimoNotional=${minNot}`,
+              `PROTEÃÃO PENDENTE | ${op.symbol} | saldo disponÃ­vel nÃ£o atende aos filtros Binance | registrado=${configuredQty} | livre=${free} | quantidade=${qty} | mÃ­nimoQty=${minQty} | mÃ­nimoNotional=${minNot}`,
               'ERROR'
             );
             continue;
@@ -1367,12 +1367,12 @@ async function monitorOpenOps(userId,account,config,robotId=1){
 
           robotLog(
             userId,account.id,robotId,
-            `PROTEÇÃO RECRIADA | ${op.symbol} | SELL/TP=${recreated.orderId} | quantidade=${qty} | preço=${tp} | saldo livre=${free}`
+            `PROTEÃÃO RECRIADA | ${op.symbol} | SELL/TP=${recreated.orderId} | quantidade=${qty} | preÃ§o=${tp} | saldo livre=${free}`
           );
         }catch(e){
           robotLog(
             userId,account.id,robotId,
-            `PROTEÇÃO PERDIDA | ${op.symbol} | não foi possível recriar TP | ${errText(e)}`,
+            `PROTEÃÃO PERDIDA | ${op.symbol} | nÃ£o foi possÃ­vel recriar TP | ${errText(e)}`,
             'ERROR'
           );
         }
@@ -1407,26 +1407,26 @@ async function scanByProfile(userId,account,config,robotId=1){
   const version=String(config.strategy_version||'premium').toLowerCase();
   const strategy=strategyInfo(version);
 
-  robotLog(userId,account.id,robotId,`ANÁLISE INICIADA | estratégia=${strategy.name} | versão=${version} | intervalo=${config.interval} | máximo moedas=${config.max_coins}`);
-  robotLog(userId,account.id,robotId,'INDICADORES V8 | EMA9 + EMA21 + RSI14 + ATR + volume + PULLBACK/RETOMADA + BREAKOUT/RETESTE + NOTÍCIAS + OI + LONG/SHORT + TAKER + FUNDING + CRASH GUARD');
+  robotLog(userId,account.id,robotId,`ANÃLISE INICIADA | estratÃ©gia=${strategy.name} | versÃ£o=${version} | intervalo=${config.interval} | mÃ¡ximo moedas=${config.max_coins}`);
+  robotLog(userId,account.id,robotId,'INDICADORES V8 | EMA9 + EMA21 + RSI14 + ATR + volume + PULLBACK/RETOMADA + BREAKOUT/RETESTE + NOTÃCIAS + OI + LONG/SHORT + TAKER + FUNDING + CRASH GUARD');
 
   let pairs=[];
   let market={favoravel:true,quente:false,score:0};
 
-  // A mesma inteligência é usada por TODOS os cinco robôs.
+  // A mesma inteligÃªncia Ã© usada por TODOS os cinco robÃ´s.
   let intelligence;
   try{
     intelligence=await getMarketIntelligence();
     market.intelligence=intelligence;
-    robotLog(userId,account.id,robotId,'INTELIGÊNCIA | regime='+intelligence.regime+' | risco='+fmtNum(intelligence.riskScore)+' | notícias='+fmtNum(intelligence.news?.score)+' | OI='+fmtNum(intelligence.market?.oiChange)+'% | L/S='+fmtNum(intelligence.market?.longShort)+' | taker='+fmtNum(intelligence.market?.takerRatio)+' | liquidação='+intelligence.market?.liquidationRisk);
+    robotLog(userId,account.id,robotId,'INTELIGÃNCIA | regime='+intelligence.regime+' | risco='+fmtNum(intelligence.riskScore)+' | notÃ­cias='+fmtNum(intelligence.news?.score)+' | OI='+fmtNum(intelligence.market?.oiChange)+'% | L/S='+fmtNum(intelligence.market?.longShort)+' | taker='+fmtNum(intelligence.market?.takerRatio)+' | liquidaÃ§Ã£o='+intelligence.market?.liquidationRisk);
   }catch(e){
     intelligence={regime:'ATTENTION',riskScore:0,allowNewEntries:true,market:{},news:{score:0,severe:0}};
     market.intelligence=intelligence;
-    robotLog(userId,account.id,robotId,'INTELIGÊNCIA INDISPONÍVEL | análise técnica mantida | '+errText(e),'ERROR');
+    robotLog(userId,account.id,robotId,'INTELIGÃNCIA INDISPONÃVEL | anÃ¡lise tÃ©cnica mantida | '+errText(e),'ERROR');
   }
 
   if(intelligence.regime==='CRASH'){
-    robotLog(userId,account.id,robotId,'CRASH GUARD | novas compras BLOQUEADAS para esta estratégia.');
+    robotLog(userId,account.id,robotId,'CRASH GUARD | novas compras BLOQUEADAS para esta estratÃ©gia.');
     return [];
   }
 
@@ -1439,13 +1439,13 @@ async function scanByProfile(userId,account,config,robotId=1){
     robotLog(userId,account.id,robotId,`${strategy.name} | TOP ${pairs.length} por market cap selecionadas.`);
     market=await marketFilter(client);
     market.intelligence=intelligence;
-    robotLog(userId,account.id,robotId,`FILTRO BTC | score=${fmtNum(market.score)} | mínimo=${strategy.marketMinScore} | favorável=${market.favoravel?'SIM':'NÃO'} | aquecido=${market.quente?'SIM':'NÃO'}`);
+    robotLog(userId,account.id,robotId,`FILTRO BTC | score=${fmtNum(market.score)} | mÃ­nimo=${strategy.marketMinScore} | favorÃ¡vel=${market.favoravel?'SIM':'NÃO'} | aquecido=${market.quente?'SIM':'NÃO'}`);
   }
 
-  // Reanexa a inteligência porque marketFilter cria seu próprio objeto técnico.
+  // Reanexa a inteligÃªncia porque marketFilter cria seu prÃ³prio objeto tÃ©cnico.
   market.intelligence=intelligence;
 
-  // Alertas de mercado funcionam em todas as estratégias, inclusive Operações Rápidas.
+  // Alertas de mercado funcionam em todas as estratÃ©gias, inclusive OperaÃ§Ãµes RÃ¡pidas.
   try {
     const ticker = await client.dailyStats({symbol:'BTCUSDT'});
     const change = Number(ticker?.priceChangePercent || 0);
@@ -1458,8 +1458,8 @@ async function scanByProfile(userId,account,config,robotId=1){
       Math.abs(Number(market.score) - Number(previous.score || 0)) >= 2;
     const cooldownOk = !previous || now - previous.at > 30 * 60 * 1000;
     if (shouldNotify && cooldownOk && direction !== 'neutral') {
-      const title = direction === 'up' ? '📈 BTC em alta' : '📉 BTC em queda';
-      const body = `BTC 24h: ${change >= 0 ? '+' : ''}${change.toFixed(2)}% | filtro de mercado: score ${market.score} | favorável: ${market.favoravel ? 'SIM' : 'NÃO'}`;
+      const title = direction === 'up' ? 'ð BTC em alta' : 'ð BTC em queda';
+      const body = `BTC 24h: ${change >= 0 ? '+' : ''}${change.toFixed(2)}% | filtro de mercado: score ${market.score} | favorÃ¡vel: ${market.favoravel ? 'SIM' : 'NÃO'}`;
       notificationService.notifyUser(userId,'market',title,body,{url:'/dashboard.html',tag:'market-btc'}).catch(e=>console.error('[NOTIFICATION MARKET]:',e.message||e));
       marketAlertState.set(stateKey,{direction,score:market.score,at:now});
     } else if (!previous) {
@@ -1470,7 +1470,7 @@ async function scanByProfile(userId,account,config,robotId=1){
   }
 
   if(!market.favoravel || market.score<strategy.marketMinScore){
-    robotLog(userId,account.id,robotId,`SEM COMPRA | mercado não passou no filtro da estratégia ${strategy.name}.`);
+    robotLog(userId,account.id,robotId,`SEM COMPRA | mercado nÃ£o passou no filtro da estratÃ©gia ${strategy.name}.`);
     return [];
   }
 
@@ -1482,14 +1482,14 @@ async function scanByProfile(userId,account,config,robotId=1){
         robotLog(userId,account.id,robotId,`${p.symbol} | APROVADA | score=${fmtNum(setup.score)} | RSI14=${fmtNum(setup.rsi)} | EMA9=${fmtNum(setup.e9)} | EMA21=${fmtNum(setup.e21)} | volume=${fmtNum(setup.volumeRatio)}x | sinal=${setup.entry}`);
         setups.push({...p,...setup});
       }else{
-        robotLog(userId,account.id,robotId,`${p.symbol} | REJEITADA | motivo=${setup.reason||'filtros não atendidos'} | score=${fmtNum(setup.score)} | RSI14=${fmtNum(setup.rsi)} | EMA9=${fmtNum(setup.e9)} | EMA21=${fmtNum(setup.e21)} | volume=${fmtNum(setup.volumeRatio)}x | sinal=${setup.entry||'-'}`);
+        robotLog(userId,account.id,robotId,`${p.symbol} | REJEITADA | motivo=${setup.reason||'filtros nÃ£o atendidos'} | score=${fmtNum(setup.score)} | RSI14=${fmtNum(setup.rsi)} | EMA9=${fmtNum(setup.e9)} | EMA21=${fmtNum(setup.e21)} | volume=${fmtNum(setup.volumeRatio)}x | sinal=${setup.entry||'-'}`);
       }
     }catch(e){
-      robotLog(userId,account.id,robotId,`${p.symbol} | ERRO NA ANÁLISE | ${errText(e)}`,'ERROR');
+      robotLog(userId,account.id,robotId,`${p.symbol} | ERRO NA ANÃLISE | ${errText(e)}`,'ERROR');
     }
   }
   setups.sort((a,b)=>Number(b.score||0)-Number(a.score||0));
-  robotLog(userId,account.id,robotId,`RESULTADO DA BUSCA | estratégia=${strategy.name} | analisadas=${pairs.length} | aprovadas=${setups.length} | rejeitadas=${pairs.length-setups.length}`);
+  robotLog(userId,account.id,robotId,`RESULTADO DA BUSCA | estratÃ©gia=${strategy.name} | analisadas=${pairs.length} | aprovadas=${setups.length} | rejeitadas=${pairs.length-setups.length}`);
   return setups;
 }
 async function scanV6(userId,account,config,robotId=1){
@@ -1540,7 +1540,7 @@ async function loop(userId,accountId,robotId=1){
    * 2h   = 2 horas
    * 2h30 = 2 horas e 30 minutos
    *
-   * O monitoramento das operações continua a cada 15 segundos.
+   * O monitoramento das operaÃ§Ãµes continua a cada 15 segundos.
    */
   let nextScanAt=0;
 
@@ -1555,9 +1555,9 @@ async function loop(userId,accountId,robotId=1){
       try{
 
         /*
-         * 1. MONITORAMENTO DAS OPERAÇÕES
+         * 1. MONITORAMENTO DAS OPERAÃÃES
          *
-         * TP, SL e proteção continuam sendo monitorados
+         * TP, SL e proteÃ§Ã£o continuam sendo monitorados
          * independentemente do intervalo de pesquisa.
          */
         await monitorOpenOps(
@@ -1568,7 +1568,7 @@ async function loop(userId,accountId,robotId=1){
         );
 
         /*
-         * 2. VERIFICA QUANTAS OPERAÇÕES ESTÃO ABERTAS
+         * 2. VERIFICA QUANTAS OPERAÃÃES ESTÃO ABERTAS
          */
         const limit=Math.max(
           1,
@@ -1582,15 +1582,15 @@ async function loop(userId,accountId,robotId=1){
         );
 
         /*
-         * 3. LIMITE DE OPERAÇÕES ATINGIDO
+         * 3. LIMITE DE OPERAÃÃES ATINGIDO
          *
          * Exemplo: max_operations=3 e open=3.
          *
-         * Não pesquisa novas moedas.
-         * Continua monitorando as operações a cada 15 segundos.
+         * NÃ£o pesquisa novas moedas.
+         * Continua monitorando as operaÃ§Ãµes a cada 15 segundos.
          *
          * IMPORTANTE:
-         * Não zeramos nextScanAt aqui. O intervalo continua
+         * NÃ£o zeramos nextScanAt aqui. O intervalo continua
          * sendo respeitado.
          */
         if(open>=limit){
@@ -1601,7 +1601,7 @@ async function loop(userId,accountId,robotId=1){
               userId,
               account.id,
               robotId,
-              `ENTRADAS BLOQUEADAS | ${open}/${limit} operações simultâneas abertas | aguardando encerramento de uma operação para liberar novas entradas.`
+              `ENTRADAS BLOQUEADAS | ${open}/${limit} operaÃ§Ãµes simultÃ¢neas abertas | aguardando encerramento de uma operaÃ§Ã£o para liberar novas entradas.`
             );
 
             runner.blockedByOpenLimit=true;
@@ -1613,17 +1613,17 @@ async function loop(userId,accountId,robotId=1){
         }
 
         /*
-         * 4. EXISTE ESPAÇO PARA NOVA OPERAÇÃO
+         * 4. EXISTE ESPAÃO PARA NOVA OPERAÃÃO
          *
-         * Se anteriormente estava no limite e uma operação fechou,
-         * não fazemos uma pesquisa imediatamente.
+         * Se anteriormente estava no limite e uma operaÃ§Ã£o fechou,
+         * nÃ£o fazemos uma pesquisa imediatamente.
          *
-         * A próxima pesquisa continua obedecendo nextScanAt.
+         * A prÃ³xima pesquisa continua obedecendo nextScanAt.
          */
         if(runner.blockedByOpenLimit){
 
-          // Uma operação foi encerrada enquanto o limite estava cheio.
-          // A próxima busca deve acontecer imediatamente, sem esperar
+          // Uma operaÃ§Ã£o foi encerrada enquanto o limite estava cheio.
+          // A prÃ³xima busca deve acontecer imediatamente, sem esperar
           // novamente o intervalo completo configurado.
           nextScanAt=0;
 
@@ -1631,7 +1631,7 @@ async function loop(userId,accountId,robotId=1){
             userId,
             account.id,
             robotId,
-            `OPERAÇÃO ENCERRADA | ${open}/${limit} operações abertas | nova oportunidade liberada | iniciando nova busca agora.`
+            `OPERAÃÃO ENCERRADA | ${open}/${limit} operaÃ§Ãµes abertas | nova oportunidade liberada | iniciando nova busca agora.`
           );
 
           runner.blockedByOpenLimit=false;
@@ -1653,7 +1653,7 @@ async function loop(userId,accountId,robotId=1){
             userId,
             account.id,
             robotId,
-            `CICLO DE BUSCA | estratégia=${strategy.name} | entrada=${config.entry_percent}% | TP=${String(config.strategy_version).toLowerCase()==='rapido'?'AUTOMÁTICO 1%–2,5%':config.take_profit+'%'} | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operações abertas=${open}/${limit}`
+            `CICLO DE BUSCA | estratÃ©gia=${strategy.name} | entrada=${config.entry_percent}% | TP=${String(config.strategy_version).toLowerCase()==='rapido'?'AUTOMÃTICO 1%â2,5%':config.take_profit+'%'} | SL=${config.stop_loss_active && num(config.stop_loss)>0?'ATIVO '+config.stop_loss+'%':'DESATIVADO'} | intervalo=${interval} | moedas=${config.max_coins} | operaÃ§Ãµes abertas=${open}/${limit}`
           );
 
           /*
@@ -1667,7 +1667,7 @@ async function loop(userId,accountId,robotId=1){
           );
 
           /*
-           * EXECUÇÃO DAS ENTRADAS APROVADAS
+           * EXECUÃÃO DAS ENTRADAS APROVADAS
            */
           let executionSummary={
             executed:0,
@@ -1691,14 +1691,14 @@ async function loop(userId,accountId,robotId=1){
               userId,
               account.id,
               robotId,
-              `NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratégia ${strategy.name}.`
+              `NENHUMA ENTRADA | nenhuma moeda passou por todos os filtros da estratÃ©gia ${strategy.name}.`
             );
           }
 
           /*
            * Se uma oportunidade foi aprovada mas a compra falhou por
-           * saldo indisponível, não esperamos o intervalo completo.
-           * Isso permite que uma API recém-carregada/atualizada seja
+           * saldo indisponÃ­vel, nÃ£o esperamos o intervalo completo.
+           * Isso permite que uma API recÃ©m-carregada/atualizada seja
            * testada novamente rapidamente.
            */
           const retryInMs=
@@ -1713,8 +1713,8 @@ async function loop(userId,accountId,robotId=1){
             account.id,
             robotId,
             executionSummary.retryableBalance
-              ? `RETESTE DE COMPRA AGENDADO | saldo/API indisponível na tentativa anterior | nova pesquisa em aproximadamente 1 minuto.`
-              : `PRÓXIMA PESQUISA AGENDADA | intervalo=${interval} | aproximadamente em ${Math.round(intervalMs/60000)} minuto(s).`
+              ? `RETESTE DE COMPRA AGENDADO | saldo/API indisponÃ­vel na tentativa anterior | nova pesquisa em aproximadamente 1 minuto.`
+              : `PRÃXIMA PESQUISA AGENDADA | intervalo=${interval} | aproximadamente em ${Math.round(intervalMs/60000)} minuto(s).`
           );
         }
 
@@ -1729,7 +1729,7 @@ async function loop(userId,accountId,robotId=1){
         );
 
         /*
-         * Mesmo em caso de erro, não tenta pesquisar novamente
+         * Mesmo em caso de erro, nÃ£o tenta pesquisar novamente
          * a cada 15 segundos.
          */
         if(Date.now()>=nextScanAt){
@@ -1741,8 +1741,8 @@ async function loop(userId,accountId,robotId=1){
       }
 
       /*
-       * 15 segundos = frequência de supervisão.
-       * Não é a frequência de pesquisa das moedas.
+       * 15 segundos = frequÃªncia de supervisÃ£o.
+       * NÃ£o Ã© a frequÃªncia de pesquisa das moedas.
        */
       await sleep(15000);
     }
@@ -1757,37 +1757,37 @@ async function start(userId,accountId,robotId=1){
   await ensureSchema();
 
   const account=await getAccount(userId,accountId);
-  if(!account)throw new Error('Conta Binance não encontrada');
+  if(!account)throw new Error('Conta Binance nÃ£o encontrada');
   if(!account.active)throw new Error('Conta Binance inativa');
 
   const c=await getConfig(userId,accountId,robotId);
-  if(!c)throw new Error('Configure o robô antes de iniciar');
+  if(!c)throw new Error('Configure o robÃ´ antes de iniciar');
 
   const planRules=await getUserPlanRules(userId);
-  if(!planRules)throw new Error('Assinatura ativa não encontrada.');
+  if(!planRules)throw new Error('Assinatura ativa nÃ£o encontrada.');
 
   if(strategyLevel(c.strategy_version)>planRules.strategyLevel){
-    throw new Error(`A estratégia ${strategyInfo(c.strategy_version).name} não está liberada no plano ${planRules.name}.`);
+    throw new Error(`A estratÃ©gia ${strategyInfo(c.strategy_version).name} nÃ£o estÃ¡ liberada no plano ${planRules.name}.`);
   }
 
   if(Number(c.max_operations)>planRules.maxOperations){
-    throw new Error(`Seu plano ${planRules.name} permite no máximo ${planRules.maxOperations} operação(ões) simultânea(s).`);
+    throw new Error(`Seu plano ${planRules.name} permite no mÃ¡ximo ${planRules.maxOperations} operaÃ§Ã£o(Ãµes) simultÃ¢nea(s).`);
   }
 
-  // Operações Rápidas: o orçamento reservado precisa comportar pelo menos
-  // US$3 por operação configurada. A conversão é feita pela cotação atual.
+  // OperaÃ§Ãµes RÃ¡pidas: o orÃ§amento reservado precisa comportar pelo menos
+  // US$3 por operaÃ§Ã£o configurada. A conversÃ£o Ã© feita pela cotaÃ§Ã£o atual.
   if(String(c.strategy_version||'').toLowerCase()==='rapido'){
     const rate=await usdtBrlRate(clientFor(account));
     const reservedUsdt=num(c.quick_reserved_brl)/rate;
     const requiredUsdt=QUICK_MIN_USDT*Math.max(1,Number(c.max_operations)||1);
     if(reservedUsdt < requiredUsdt){
       throw new Error(
-        `Reserva insuficiente para Operações Rápidas | reservado≈US$ ${reservedUsdt.toFixed(2)} | necessário≥US$ ${requiredUsdt.toFixed(2)} (${Math.max(1,Number(c.max_operations)||1)} operação(ões) × US$ ${QUICK_MIN_USDT.toFixed(2)})`
+        `Reserva insuficiente para OperaÃ§Ãµes RÃ¡pidas | reservadoâUS$ ${reservedUsdt.toFixed(2)} | necessÃ¡rioâ¥US$ ${requiredUsdt.toFixed(2)} (${Math.max(1,Number(c.max_operations)||1)} operaÃ§Ã£o(Ãµes) Ã US$ ${QUICK_MIN_USDT.toFixed(2)})`
       );
     }
   }
 
-  // Compatibilidade: configurações antigas com Stop Loss 0 ficam sem SL.
+  // Compatibilidade: configuraÃ§Ãµes antigas com Stop Loss 0 ficam sem SL.
   if(Number(c.stop_loss)<=0){
     await db.query(
       `UPDATE robot_configs SET stop_loss=0,stop_loss_active=false,updated_at=NOW()
@@ -1799,7 +1799,7 @@ async function start(userId,accountId,robotId=1){
   }
 
   if(Boolean(c.stop_loss_active) && !planRules.stopLoss){
-    throw new Error('Stop Loss está disponível a partir do plano Profissional.');
+    throw new Error('Stop Loss estÃ¡ disponÃ­vel a partir do plano Profissional.');
   }
 
   const key=`${userId}:${accountId}:${robotId}`;
@@ -1810,12 +1810,12 @@ async function start(userId,accountId,robotId=1){
     const deadline=Date.now()+20000;
     while(runners.has(key)&&Date.now()<deadline)await sleep(250);
     if(runners.has(key))
-      throw new Error('O robô anterior ainda está encerrando. Aguarde alguns segundos e tente novamente.');
+      throw new Error('O robÃ´ anterior ainda estÃ¡ encerrando. Aguarde alguns segundos e tente novamente.');
   }
 
   const runningRobots=await getRunningRobotCount(userId);
   if(!oldRunner && runningRobots>=planRules.maxRobots){
-    throw new Error(`Limite de robôs atingido: seu plano ${planRules.name} permite até ${planRules.maxRobots} robô(s) ativo(s).`);
+    throw new Error(`Limite de robÃ´s atingido: seu plano ${planRules.name} permite atÃ© ${planRules.maxRobots} robÃ´(s) ativo(s).`);
   }
 
   await db.query(
@@ -1826,9 +1826,9 @@ async function start(userId,accountId,robotId=1){
 
   await db.query(
     `INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,'INFO',$4)`,
-    [userId,accountId,robotId,`ROBO VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | configuração ativa | entrada=${num(c.entry_percent)}% | TP=${String(c.strategy_version).toLowerCase()==='rapido'?'AUTOMÁTICO 1%–2,5%':num(c.take_profit)+'%'} | SL=${c.stop_loss_active?'ATIVO':'DESATIVADO'} | intervalo=${c.interval}`]
+    [userId,accountId,robotId,`ROBO VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | configuraÃ§Ã£o ativa | entrada=${num(c.entry_percent)}% | TP=${String(c.strategy_version).toLowerCase()==='rapido'?'AUTOMÃTICO 1%â2,5%':num(c.take_profit)+'%'} | SL=${c.stop_loss_active?'ATIVO':'DESATIVADO'} | intervalo=${c.interval}`]
   );
-  console.log(`[ROBO] VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | usuário=${userId} | conta=${accountId}`);
+  console.log(`[ROBO] VERSÃO ${String(c.strategy_version).toUpperCase()} LIGADO | usuÃ¡rio=${userId} | conta=${accountId}`);
 
   loop(userId,String(accountId),robotId);
   await sleep(150);
@@ -1836,7 +1836,7 @@ async function start(userId,accountId,robotId=1){
   const status=await getStatus(userId,accountId,robotId);
   if(!status.engineRunning){
     await db.query(`UPDATE robot_configs SET running=false,updated_at=NOW() WHERE user_id=$1 AND account_id=$2 AND robot_id=$3`,[userId,accountId,robotId]);
-    throw new Error('A configuração foi ativada, mas o motor do robô não iniciou.');
+    throw new Error('A configuraÃ§Ã£o foi ativada, mas o motor do robÃ´ nÃ£o iniciou.');
   }
 
   return status;
@@ -1860,9 +1860,9 @@ async function stop(userId,accountId,robotId=1){
   const cfg=await getConfig(userId,accountId,robotId);
   await db.query(
     `INSERT INTO robot_logs(user_id,account_id,robot_id,level,message) VALUES($1,$2,$3,'INFO',$4)`,
-    [userId,accountId,robotId,`ROBO DESLIGADO | estratégia=${strategyInfo(String(cfg?.strategy_version||'premium')).name} | comando PARAR ROBÔ confirmado`]
+    [userId,accountId,robotId,`ROBO DESLIGADO | estratÃ©gia=${strategyInfo(String(cfg?.strategy_version||'premium')).name} | comando PARAR ROBÃ confirmado`]
   );
-  console.log(`[ROBO] ROBÔ ${robotId} DESLIGADO | usuário=${userId} | conta=${accountId} | estratégia=${strategyInfo(String(cfg?.strategy_version||'premium')).name}`);
+  console.log(`[ROBO] ROBÃ ${robotId} DESLIGADO | usuÃ¡rio=${userId} | conta=${accountId} | estratÃ©gia=${strategyInfo(String(cfg?.strategy_version||'premium')).name}`);
 
   return getStatus(userId,accountId,robotId);
 }
@@ -2054,7 +2054,7 @@ async function getNotificationSummary(userId){
         }catch(_){}
       }
     }catch(error){
-      console.error("[NOTIFICAÇÕES] resumo conta:",account.id,error.message||error);
+      console.error("[NOTIFICAÃÃES] resumo conta:",account.id,error.message||error);
     }
   }
 
@@ -2090,45 +2090,45 @@ function formatNotificationSummary(resumo,{teste=false}={}) {
   const status=resumo.robots.some(r=>r.running)?"OPERANDO":"PARADO";
   const ativos=resumo.robots.filter(r=>r.running).length;
 
-  // As primeiras linhas são propositalmente curtas para aparecerem
-  // na notificação recolhida do Android/Samsung.
+  // As primeiras linhas sÃ£o propositalmente curtas para aparecerem
+  // na notificaÃ§Ã£o recolhida do Android/Samsung.
   const linhas=[
-    "👤 "+resumo.userName,
-    "🤖 "+status+" | Robôs: "+ativos+"/"+resumo.robots.length+" | Abertas: "+resumo.openCount,
-    "💰 R$ "+resumo.totalBrl.toFixed(2)+" | "+money(resumo.totalUsdt),
-    "📊 24h: "+sinal(resumo.combined24h)+money(resumo.combined24h)+" | 7d: "+sinal(resumo.realized7d)+money(resumo.realized7d),
+    "ð¤ "+resumo.userName,
+    "ð¤ "+status+" | RobÃ´s: "+ativos+"/"+resumo.robots.length+" | Abertas: "+resumo.openCount,
+    "ð° R$ "+resumo.totalBrl.toFixed(2)+" | "+money(resumo.totalUsdt),
+    "ð 24h: "+sinal(resumo.combined24h)+money(resumo.combined24h)+" | 7d: "+sinal(resumo.realized7d)+money(resumo.realized7d),
   ];
 
   if(resumo.open.length){
     const compact=resumo.open.slice(0,4).map(o=>
       o.symbol+" "+sinal(o.pnlUsdt)+money(o.pnlUsdt)
     ).join(" | ");
-    linhas.push("🪙 "+compact);
-    if(resumo.open.length>4) linhas.push("🪙 +"+(resumo.open.length-4)+" operações abertas");
+    linhas.push("ðª "+compact);
+    if(resumo.open.length>4) linhas.push("ðª +"+(resumo.open.length-4)+" operaÃ§Ãµes abertas");
   }else{
-    linhas.push("🪙 Nenhuma operação aberta");
+    linhas.push("ðª Nenhuma operaÃ§Ã£o aberta");
   }
 
   linhas.push(
-    "💳 Plano: "+resumo.plan,
-    "💵 Livre: "+money(resumo.totalFreeUsdt)+" | Investido: "+money(resumo.totalInvested),
-    "📈 Realizado 24h: "+sinal(resumo.realized24h)+money(resumo.realized24h)+" | P/L aberto: "+sinal(resumo.unrealized)+money(resumo.unrealized)
+    "ð³ Plano: "+resumo.plan,
+    "ðµ Livre: "+money(resumo.totalFreeUsdt)+" | Investido: "+money(resumo.totalInvested),
+    "ð Realizado 24h: "+sinal(resumo.realized24h)+money(resumo.realized24h)+" | P/L aberto: "+sinal(resumo.unrealized)+money(resumo.unrealized)
   );
 
   if(resumo.robots.length){
-    linhas.push("🤖 CONFIGURAÇÃO DOS ROBÔS:");
+    linhas.push("ð¤ CONFIGURAÃÃO DOS ROBÃS:");
     for(const r of resumo.robots.slice(0,6)){
       linhas.push(
-        (r.running?"🟢 ":"⚪ ")+"Robô "+r.robotId+" • "+r.strategy+
-        " • "+r.interval+" • máx "+r.maxOperations+
-        " • TP "+r.takeProfit.toFixed(2)+"%"+
-        (r.stopLossActive?" • SL "+r.stopLoss.toFixed(2)+"%":" • sem SL")
+        (r.running?"ð¢ ":"âª ")+"RobÃ´ "+r.robotId+" â¢ "+r.strategy+
+        " â¢ "+r.interval+" â¢ mÃ¡x "+r.maxOperations+
+        " â¢ TP "+r.takeProfit.toFixed(2)+"%"+
+        (r.stopLossActive?" â¢ SL "+r.stopLoss.toFixed(2)+"%":" â¢ sem SL")
       );
     }
   }
 
   if(resumo.open.length){
-    linhas.push("🪙 OPERAÇÕES ABERTAS:");
+    linhas.push("ðª OPERAÃÃES ABERTAS:");
     for(const o of resumo.open.slice(0,8)){
       const dur=o.durationMinutes<60
         ? o.durationMinutes+"min"
@@ -2136,45 +2136,45 @@ function formatNotificationSummary(resumo,{teste=false}={}) {
       const tp=o.tpPrice>0?" | TP "+o.tpPrice.toFixed(6):"";
       const sl=o.stopPrice>0?" | SL "+o.stopPrice.toFixed(6):"";
       linhas.push(
-        "• "+o.symbol+" ["+o.account+"] "+
+        "â¢ "+o.symbol+" ["+o.account+"] "+
         sinal(o.pnlUsdt)+money(o.pnlUsdt)+" ("+pct(o.pnlPercent)+")"+
         " | entrada "+o.buyPrice.toFixed(6)+" | atual "+o.currentPrice.toFixed(6)+
         " | "+dur+tp+sl
       );
     }
-    if(resumo.open.length>8) linhas.push("• +"+(resumo.open.length-8)+" operações abertas...");
+    if(resumo.open.length>8) linhas.push("â¢ +"+(resumo.open.length-8)+" operaÃ§Ãµes abertas...");
   }
 
   linhas.push(
-    "📈 Fechadas 24h: "+resumo.closed24h+
-    " | 🏆 acerto "+resumo.winRate.toFixed(1)+"%"+
+    "ð Fechadas 24h: "+resumo.closed24h+
+    " | ð acerto "+resumo.winRate.toFixed(1)+"%"+
     " | ganhos "+resumo.wins24h+
     " | perdas "+resumo.losses24h,
-    "🔄 Compras 24h: "+resumo.buys24h+" | Vendas 24h: "+resumo.sells24h
+    "ð Compras 24h: "+resumo.buys24h+" | Vendas 24h: "+resumo.sells24h
   );
 
   if(resumo.bestTrade){
-    linhas.push("🏆 Melhor: "+resumo.bestTrade.symbol+" "+sinal(resumo.bestTrade.resultUsdt)+money(resumo.bestTrade.resultUsdt));
+    linhas.push("ð Melhor: "+resumo.bestTrade.symbol+" "+sinal(resumo.bestTrade.resultUsdt)+money(resumo.bestTrade.resultUsdt));
   }
   if(resumo.worstTrade){
-    linhas.push("⚠️ Pior: "+resumo.worstTrade.symbol+" "+sinal(resumo.worstTrade.resultUsdt)+money(resumo.worstTrade.resultUsdt));
+    linhas.push("â ï¸ Pior: "+resumo.worstTrade.symbol+" "+sinal(resumo.worstTrade.resultUsdt)+money(resumo.worstTrade.resultUsdt));
   }
   if(resumo.closed24h){
-    linhas.push("📐 Média: ganho "+money(resumo.avgWin)+" | perda -"+money(resumo.avgLoss));
+    linhas.push("ð MÃ©dia: ganho "+money(resumo.avgWin)+" | perda -"+money(resumo.avgLoss));
   }
 
   const btc=resumo.market?.btc24h;
   const eth=resumo.market?.eth24h;
   linhas.push(
-    "🌎 Mercado: BTC "+(Number.isFinite(btc)?pct(btc):"n/d")+
+    "ð Mercado: BTC "+(Number.isFinite(btc)?pct(btc):"n/d")+
     " | ETH "+(Number.isFinite(eth)?pct(eth):"n/d")
   );
 
   if(resumo.accounts.length){
-    linhas.push("🏦 CONTAS:");
+    linhas.push("ð¦ CONTAS:");
     for(const a of resumo.accounts.slice(0,6)){
       linhas.push(
-        "• "+a.name+
+        "â¢ "+a.name+
         " | "+money(a.totalUsdt)+
         " | livre "+money(a.freeUsdt)+
         " | aberto "+sinal(a.unrealized)+money(a.unrealized)
@@ -2182,12 +2182,12 @@ function formatNotificationSummary(resumo,{teste=false}={}) {
     }
   }
 
-  linhas.push("⏰ Resumo "+(teste?"de teste ":"")+"CriptoPro");
+  linhas.push("â° Resumo "+(teste?"de teste ":"")+"CriptoPro");
   return linhas.join("\n");
 }
 
 
-async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuário=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
+async function resumeRunning(){ await ensureSchema(); const r=await db.query(`SELECT user_id,account_id,robot_id FROM robot_configs WHERE running=true`); for(const x of r.rows){ console.log(`[ROBO] RETOMADO | usuÃ¡rio=${x.user_id} | conta=${x.account_id}`); loop(x.user_id,String(x.account_id),Number(x.robot_id||1)); } }
 
 async function getStatus(userId,accountId,robotId=1){
   await ensureSchema();
@@ -2218,3 +2218,90 @@ async function getStatus(userId,accountId,robotId=1){
      WHERE user_id=$1 AND account_id=$2 AND robot_id=$3
      ORDER BY id DESC LIMIT 80`,
     [userId,accountId,robotId]
+  );
+
+  const engineRunning=runners.has(`${userId}:${accountId}:${robotId}`);
+
+  let account=null;
+  let client=null;
+  try{
+    account=await getAccount(userId,accountId);
+    if(account?.active) client=clientFor(account);
+  }catch(e){
+    console.warn('[ROBO] NÃ£o foi possÃ­vel preparar cotaÃ§Ã£o em tempo real:',errText(e));
+  }
+
+  const operations=await Promise.all(r.rows.map(async op=>{
+    const item={...op};
+    if(String(op.status||'').toUpperCase()!=='OPEN' || !client){
+      item.current_price=null;
+      item.unrealized_pnl_usdt=0;
+      item.unrealized_pnl_percent=0;
+      return item;
+    }
+
+    try{
+      const prices=await client.prices({symbol:String(op.symbol||'').toUpperCase()});
+      const current=num(prices?.[String(op.symbol||'').toUpperCase()]);
+      const buy=num(op.buy_price);
+      const qty=num(op.quantity);
+      const pnl=(current-buy)*qty;
+      item.current_price=current;
+      item.unrealized_pnl_usdt=pnl;
+      item.unrealized_pnl_percent=buy>0?((current-buy)/buy)*100:0;
+      item.current_value_usdt=current*qty;
+    }catch(e){
+      item.current_price=null;
+      item.unrealized_pnl_usdt=0;
+      item.unrealized_pnl_percent=0;
+      console.warn(`[ROBO] CotaÃ§Ã£o ${op.symbol}:`,errText(e));
+    }
+    return item;
+  }));
+
+  const realizedPnl=num(totals.rows[0]?.realized_pnl_usdt);
+  const unrealizedPnl=operations
+    .filter(o=>String(o.status||'').toUpperCase()==='OPEN')
+    .reduce((sum,o)=>sum+num(o.unrealized_pnl_usdt),0);
+
+  return {
+    success:true,
+    config:c,
+    running:!!c?.running,
+    engineRunning,
+    operations,
+    robotLogs:logs.rows.reverse(),
+    performance:{
+      totalOperations:Number(totals.rows[0]?.total_operations||0),
+      openOperations:Number(totals.rows[0]?.open_operations||0),
+      closedOperations:Number(totals.rows[0]?.closed_operations||0),
+      realizedPnlUsdt:realizedPnl,
+      unrealizedPnlUsdt:unrealizedPnl,
+      totalPnlUsdt:realizedPnl+unrealizedPnl,
+      updatedAt:new Date().toISOString()
+    }
+  };
+}
+
+async function listRobots(userId,accountId){
+  await ensureSchema();
+  const planRules=await getUserPlanRules(userId);
+  const max=Number(planRules?.maxRobots||1);
+  const rows=[];
+  for(let robotId=1;robotId<=max;robotId++){
+    const status=await getStatus(userId,accountId,robotId);
+    rows.push({
+      robotId,
+      config:status.config,
+      running:status.running,
+      engineRunning:status.engineRunning,
+      operations:status.operations,
+      robotLogs:status.robotLogs,
+      performance:status.performance
+    });
+  }
+  return {success:true,plan:planRules?.name||null,maxRobots:max,robots:rows};
+}
+
+
+module.exports={ensureSchema,getConfig,saveConfig,start,stop,getStatus,resumeRunning,listRobots,getNotificationSummary,formatNotificationSummary};

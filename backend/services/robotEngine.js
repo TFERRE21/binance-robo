@@ -918,6 +918,72 @@ async function analyze(client,symbol,market,interval,version='premium'){
 async function openCount(userId,accountId,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT COUNT(*)::int AS count FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN'`,[userId,accountId,robotId]); return num(r.rows[0]?.count); }
 async function existingSymbol(userId,accountId,symbol,robotId=1){ await ensureSchema(); const r=await db.query(`SELECT id FROM robot_operations WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND symbol=$4 AND status='OPEN' LIMIT 1`,[userId,accountId,robotId,symbol]); return !!r.rows.length; }
 
+async function logOpenOrderState(userId,account,robotId,runner){
+  try{
+    const rows=await db.query(
+      `SELECT symbol,buy_order_id,tp_order_id,buy_price,tp_price
+       FROM robot_operations
+       WHERE user_id=$1 AND account_id=$2 AND robot_id=$3 AND status='OPEN'
+       ORDER BY id`,
+      [userId,account.id,robotId]
+    );
+
+    if(!rows.rows.length){
+      runner.lastOpenOrderState='';
+      return;
+    }
+
+    const client=clientFor(account);
+    const states=[];
+
+    for(const op of rows.rows){
+      let orders=[];
+      try{ orders=await client.openOrders({symbol:op.symbol}); }catch(e){
+        states.push(`${op.symbol}|ERRO_CONSULTA|${errText(e)}`);
+        continue;
+      }
+
+      const relevant=(orders||[]).filter(o=>
+        String(o.side||'').toUpperCase()==='SELL' ||
+        String(o.orderId||'')===String(op.buy_order_id||'')
+      );
+
+      if(relevant.length){
+        for(const order of relevant){
+          states.push(`${op.symbol}|${String(order.side||'').toUpperCase()}|${order.orderId}|${String(order.status||'').toUpperCase()}`);
+        }
+      }else{
+        states.push(`${op.symbol}|POSICAO_SEM_ORDEM_PROTECAO|-|OPEN`);
+      }
+    }
+
+    const signature=states.join('||');
+    if(signature===runner.lastOpenOrderState)return;
+    runner.lastOpenOrderState=signature;
+
+    for(const state of states){
+      const [symbol,side,orderId,status]=state.split('|');
+      if(side==='ERRO_CONSULTA'){
+        robotLog(userId,account.id,robotId,
+          `ORDEM EM ABERTO | ${symbol} | não foi possível consultar ordens Binance | ${orderId}`,
+          'ERROR'
+        );
+      }else if(side==='POSICAO_SEM_ORDEM_PROTECAO'){
+        robotLog(userId,account.id,robotId,
+          `ENTRADA BLOQUEADA | ${symbol} | POSIÇÃO/ORDEM EM ABERTO no robô | sem SELL/TAKE PROFIT aberta no momento.`,
+          'ERROR'
+        );
+      }else{
+        robotLog(userId,account.id,robotId,
+          `ENTRADA BLOQUEADA | ${symbol} | ORDEM EM ABERTO | lado=${side} | ordem=${orderId} | status=${status} | posição já protegida/aberta.`
+        );
+      }
+    }
+  }catch(e){
+    robotLog(userId,account.id,robotId,`VERIFICAÇÃO DE ORDEM EM ABERTO | erro=${errText(e)}`,'ERROR');
+  }
+}
+
 function quickTakeProfit(setup){
   /*
    * TP 100% adaptativo por operaÃ§Ã£o.
@@ -1615,7 +1681,8 @@ async function loop(userId,accountId,robotId=1){
 
   const runner={
     stop:false,
-    blockedByOpenLimit:false
+    blockedByOpenLimit:false,
+    lastOpenOrderState:''
   };
 
   runners.set(key,runner);
@@ -1685,6 +1752,10 @@ async function loop(userId,accountId,robotId=1){
          * NÃ£o zeramos nextScanAt aqui. O intervalo continua
          * sendo respeitado.
          */
+        if(open>0){
+          await logOpenOrderState(userId,account,robotId,runner);
+        }
+
         if(open>=limit){
 
           if(!runner.blockedByOpenLimit){
@@ -1693,7 +1764,7 @@ async function loop(userId,accountId,robotId=1){
               userId,
               account.id,
               robotId,
-              `ENTRADAS BLOQUEADAS | ${open}/${limit} operaÃ§Ãµes simultÃ¢neas abertas | aguardando encerramento de uma operaÃ§Ã£o para liberar novas entradas.`
+              `ENTRADAS BLOQUEADAS | ${open}/${limit} operaÃ§Ãµes simultÃ¢neas abertas | existe ordem/posiÃ§Ã£o em aberto | aguardando encerramento para liberar nova entrada.`
             );
 
             runner.blockedByOpenLimit=true;
@@ -1880,9 +1951,13 @@ async function start(userId,accountId,robotId=1){
         `Reserva insuficiente para OperaÃ§Ãµes RÃ¡pidas | reservadoâUS$ ${reservedUsdt.toFixed(2)} | mÃ­nimo total=US$ ${QUICK_MIN_USDT.toFixed(2)}`
       );
     }
+
+    // O robô pode permanecer LIGADO mesmo sem saldo Spot disponível.
+    // A falta de saldo bloqueia somente a ENTRADA, não o motor.
     if(freeUsdt < QUICK_MIN_USDT){
-      throw new Error(
-        `Saldo USDT Spot insuficiente para OperaÃ§Ãµes RÃ¡pidas | disponÃ­vel=US$ ${freeUsdt.toFixed(2)} | mÃ­nimo=US$ ${QUICK_MIN_USDT.toFixed(2)}`
+      robotLog(
+        userId,account.id,robotId,
+        `ROBÔ RÁPIDO LIGADO | saldo Spot disponível=US$ ${freeUsdt.toFixed(2)} | ENTRADAS BLOQUEADAS até existir saldo mínimo de US$ ${QUICK_MIN_USDT.toFixed(2)}.`
       );
     }
   }

@@ -88,7 +88,7 @@ const token=localStorage.getItem("token");
 if(!token)location.href="/login.html";
 const $=id=>document.getElementById(id);
 function fmtBRL(v){return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});}
-async function loadQuickResults(){try{if(!accountId)return;const robots=await api("/api/robot/instances?account="+encodeURIComponent(accountId));const q=(robots.robots||[]).find(r=>Number(r.robotId)===Number(quickRobotId)) || (robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido");const ops=q?.operations||[];let rate=0;try{const x=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL",{cache:"no-store"});rate=Number((await x.json()).price||0);}catch(_){ } const body=$("quickResults");body.innerHTML=ops.length?ops.map(o=>{const brl=Number(o.result_usdt||0)*rate;const cls=Number(o.result_percent||0)>=0?"#7ff2c1":"#ff9aaa";return `<tr><td style="padding:9px;font-weight:800;">${o.symbol||"—"}</td><td style="padding:9px;">${Number(o.buy_price||0).toLocaleString("en-US",{maximumFractionDigits:10})}</td><td style="padding:9px;">${o.close_price?Number(o.close_price).toLocaleString("en-US",{maximumFractionDigits:10}):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_percent!=null?(Number(o.result_percent).toFixed(2)+"%"):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_usdt!=null?fmtBRL(brl):"—"}</td><td style="padding:9px;">${o.status||"—"}</td><td style="padding:9px;">${o.close_reason||"EM ABERTO"}</td></tr>`}).join(""):`<tr><td colspan="7" style="padding:12px;">Nenhuma operação registrada ainda.</td></tr>`;}catch(e){}}
+async function loadQuickResults(){try{if(!accountId)return;const robots=await api("/api/robot/instances?account="+encodeURIComponent(accountId));const q=(robots.robots||[]).find(r=>Number(r.robotId)===Number(quickRobotId)) || (robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && (r.running||r.engineRunning));const ops=q?.operations||[];let rate=0;try{const x=await fetch("https://api.binance.com/api/v3/ticker/price?symbol=USDTBRL",{cache:"no-store"});rate=Number((await x.json()).price||0);}catch(_){ } const body=$("quickResults");body.innerHTML=ops.length?ops.map(o=>{const brl=Number(o.result_usdt||0)*rate;const cls=Number(o.result_percent||0)>=0?"#7ff2c1":"#ff9aaa";return `<tr><td style="padding:9px;font-weight:800;">${o.symbol||"—"}</td><td style="padding:9px;">${Number(o.buy_price||0).toLocaleString("en-US",{maximumFractionDigits:10})}</td><td style="padding:9px;">${o.close_price?Number(o.close_price).toLocaleString("en-US",{maximumFractionDigits:10}):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_percent!=null?(Number(o.result_percent).toFixed(2)+"%"):"—"}</td><td style="padding:9px;color:${cls};font-weight:800;">${o.result_usdt!=null?fmtBRL(brl):"—"}</td><td style="padding:9px;">${o.status||"—"}</td><td style="padding:9px;">${o.close_reason||"EM ABERTO"}</td></tr>`}).join(""):`<tr><td colspan="7" style="padding:12px;">Nenhuma operação registrada ainda.</td></tr>`;}catch(e){}}
 let accountId=null, timer=null, currentRunning=false, quickRobotId=null;
 
 async function api(url,opt={}){
@@ -113,18 +113,22 @@ async function refresh(){
       api("/api/robot/instances?account="+encodeURIComponent(accountId)),
       api("/api/panel/account/"+encodeURIComponent(accountId))
     ]);
-    const quick=(robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && r.running);
+    const quick=(robots.robots||[]).find(r=>String(r.config?.strategy_version||"").toLowerCase()==="rapido" && (r.running||r.engineRunning));
     if(quick) quickRobotId=Number(quick.robotId);
     else if(!currentRunning) quickRobotId=null;
     currentRunning=!!quick;
     const st=quick ? quick : null;
     const opened=(st?.operations||[]).filter(x=>String(x.status||"").toUpperCase()==="OPEN").length;
+    const availableUsdt=Number(b.disponivelUSDT ?? b.balance?.available ?? 0);
+    const hasQuickBalance=availableUsdt >= 6;
     $("state").textContent=currentRunning?"🟢 LIGADO":"⚪ PARADO";
     $("open").textContent=opened+" / "+$("ops").value;
     $("robotState").className="robotState "+(currentRunning?"on":"off");
     $("robotStateTitle").textContent=currentRunning?"ROBÔ LIGADO":"ROBÔ PARADO";
     $("robotStateText").textContent=currentRunning
-      ? "Motor ativo: monitorando operações e procurando novas oportunidades."
+      ? (hasQuickBalance
+          ? "Motor ativo: monitorando operações e procurando novas oportunidades."
+          : "Motor ativo sem saldo mínimo: entradas ficam bloqueadas até haver saldo Spot suficiente.")
       : "Nenhuma operação nova será aberta enquanto estiver parado.";
     const lastLogs=Array.isArray(st?.robotLogs)?st.robotLogs:[];
     const decisionLine=lastLogs.slice().reverse().find(x=>String(x?.message||"").includes("DECISÃO DO ROBÔ RÁPIDO"));
@@ -146,7 +150,11 @@ async function refresh(){
     $("executedOps").textContent=String(em||"—");
     $("balance").textContent=Number(b.disponivelUSDT ?? b.balance?.available ?? 0).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:4})+" USDT";
     $("status").className="status "+(currentRunning?"ok":"");
-    $("status").textContent=currentRunning?"🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido.":"⚪ Operações Rápidas desligadas.";
+    $("status").textContent=currentRunning
+      ? (hasQuickBalance
+          ? "🟢 Operações Rápidas ativas. O motor monitora posições e busca novas oportunidades no intervalo escolhido."
+          : "🟡 Operações Rápidas LIGADAS. Sem saldo Spot mínimo: novas entradas ficam bloqueadas, mas o robô continua monitorando.")
+      : "⚪ Operações Rápidas desligadas.";
     $("toggle").textContent=currentRunning?"⏹ DESLIGAR OPERAÇÕES RÁPIDAS":"⚡ LIGAR OPERAÇÕES RÁPIDAS";
     $("toggle").className="btn "+(currentRunning?"off":"on");
     $("stopQuick").disabled=!currentRunning;

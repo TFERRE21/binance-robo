@@ -273,27 +273,20 @@ async function loadAccounts() {
       data.accounts.length === 0
     ) {
 
-      accountsContainer.innerHTML = `
-
-        <div class="account-card">
-
-          <h3>
-            Nenhuma conta Binance cadastrada
-          </h3>
-
-          <p>
-            Adicione sua conta Binance para começar.
-          </p>
-
-        </div>
-
-      `;
+      const emptyCard = document.createElement("div");
+      emptyCard.className = "account-card";
+      const emptyTitle = document.createElement("h3");
+      emptyTitle.textContent = "Nenhuma conta Binance cadastrada";
+      const emptyText = document.createElement("p");
+      emptyText.textContent = "Adicione sua conta Binance para começar.";
+      emptyCard.append(emptyTitle, emptyText);
+      accountsContainer.replaceChildren(emptyCard);
 
       return;
     }
 
 
-    accountsContainer.innerHTML = "";
+    accountsContainer.replaceChildren();
 
 
     data.accounts.forEach(
@@ -307,57 +300,37 @@ async function loadAccounts() {
           "account-card";
 
 
-        div.innerHTML = `
+        const title = document.createElement("h3");
+        title.textContent = String(account.name || "Conta Binance");
 
-          <h3>
-            ${account.name}
-          </h3>
+        const status = document.createElement("p");
+        status.append(document.createTextNode("Status: "));
+        const statusValue = document.createElement("strong");
+        statusValue.textContent = account.active ? "🟢 Ativa" : "🔴 Inativa";
+        status.appendChild(statusValue);
 
-          <p>
-            Status:
-            <strong>
-              ${
-                account.active
-                  ? "🟢 Ativa"
-                  : "🔴 Inativa"
-              }
-            </strong>
-          </p>
+        const message = document.createElement("div");
+        message.id = "connection-message-" + String(account.id);
+        message.className = "message";
+        message.style.display = "none";
 
-          <div
-            id="connection-message-${account.id}"
-            class="message"
-            style="display:none;"
-          ></div>
+        const actions = document.createElement("div");
+        actions.style.cssText = "display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;";
 
-          <div
-            style="
-              display:flex;
-              gap:10px;
-              flex-wrap:wrap;
-              margin-top:16px;
-            "
-          >
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.className = "btn-login open-account-panel-button";
+        openButton.dataset.accountId = String(account.id);
+        openButton.textContent = "ABRIR PAINEL";
 
-            <button
-              type="button"
-              class="btn-login open-account-panel-button"
-              data-account-id="${account.id}"
-            >
-              ABRIR PAINEL
-            </button>
+        const testButton = document.createElement("button");
+        testButton.type = "button";
+        testButton.className = "btn-logout test-binance-button";
+        testButton.dataset.accountId = String(account.id);
+        testButton.textContent = "Testar conexão";
 
-            <button
-              type="button"
-              class="btn-logout test-binance-button"
-              data-account-id="${account.id}"
-            >
-              Testar conexão
-            </button>
-
-          </div>
-
-        `;
+        actions.append(openButton, testButton);
+        div.append(title, status, message, actions);
 
 
         accountsContainer.appendChild(div);
@@ -528,15 +501,8 @@ async function testBinanceConnection(
         : "desativada";
 
 
-    messageElement.innerHTML = `
-
-      Conexão OK.
-      Negociação:
-      ${trading}.
-      Saques:
-      ${withdrawals}.
-
-    `;
+    messageElement.textContent =
+      "Conexão OK. Negociação: " + trading + ". Saques: " + withdrawals + ".";
 
 
     if (
@@ -916,24 +882,46 @@ async function loadQuickResults(accountId) {
     if(p)p.textContent=last.length?`${pnl>=0?"+":""}${pnl.toFixed(4)} USDT (média ${avg.toFixed(4)})`:"—";
 
     if(!last.length){
-      table.innerHTML='<tr><td colspan="5" style="padding:12px;">Ainda não há 20 operações rápidas encerradas.</td></tr>';
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 5;
+      cell.style.padding = "12px";
+      cell.textContent = "Ainda não há 20 operações rápidas encerradas.";
+      row.appendChild(cell);
+      table.replaceChildren(row);
       return;
     }
 
-    table.innerHTML=last.map(o=>{
-      const pct=Number(o.result_percent);
-      const sign=pct>=0?"+":"";
-      const cls=pct>=0?"color:#2ee68a;":"color:#ff6b6b;";
-      return `<tr style="border-top:1px solid rgba(255,255,255,.08);">
-        <td style="padding:10px;font-weight:700;">${o.symbol}</td>
-        <td style="padding:10px;text-align:right;">${Number(o.buy_price||0).toFixed(6)}</td>
-        <td style="padding:10px;text-align:right;">${Number(o.close_price||0).toFixed(6)}</td>
-        <td style="padding:10px;text-align:right;${cls}">${Number.isFinite(pct)?sign+pct.toFixed(2)+"%":"—"}</td>
-        <td style="padding:10px;">${o.close_reason==="TAKE_PROFIT"?"TAKE PROFIT":(o.close_reason||"—")}</td>
-      </tr>`;
-    }).join("");
+    const rows = last.map(o => {
+      const row = document.createElement("tr");
+      row.style.borderTop = "1px solid rgba(255,255,255,.08)";
+      const pct = Number(o.result_percent);
+      const sign = pct >= 0 ? "+" : "";
+      const values = [
+        { value: String(o.symbol || "—"), style: "padding:10px;font-weight:700;" },
+        { value: Number(o.buy_price || 0).toFixed(6), style: "padding:10px;text-align:right;" },
+        { value: Number(o.close_price || 0).toFixed(6), style: "padding:10px;text-align:right;" },
+        { value: Number.isFinite(pct) ? sign + pct.toFixed(2) + "%" : "—", style: "padding:10px;text-align:right;" },
+        { value: o.close_reason === "TAKE_PROFIT" ? "TAKE PROFIT" : String(o.close_reason || "—"), style: "padding:10px;" }
+      ];
+      values.forEach((item, index) => {
+        const cell = document.createElement("td");
+        cell.style.cssText = item.style;
+        cell.textContent = item.value;
+        if (index === 3) cell.style.color = pct >= 0 ? "#2ee68a" : "#ff6b6b";
+        row.appendChild(cell);
+      });
+      return row;
+    });
+    table.replaceChildren(...rows);
   } catch(e) {
-    table.innerHTML=`<tr><td colspan="5" style="padding:12px;">${e.message}</td></tr>`;
+    const row = document.createElement("tr");
+    const cell = document.createElement("td");
+    cell.colSpan = 5;
+    cell.style.padding = "12px";
+    cell.textContent = e.message || "Erro ao carregar os resultados.";
+    row.appendChild(cell);
+    table.replaceChildren(row);
   }
 }
 
